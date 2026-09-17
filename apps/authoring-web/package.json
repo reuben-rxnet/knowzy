@@ -1,0 +1,29 @@
+{
+  "name": "@knowzy/authoring-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --dir src --passWithNoTests",
+    "dev": "next dev --port 3000",
+    "start": "next start --port 3000"
+  },
+  "dependencies": {
+    "@knowzy/configuration": "*",
+    "@knowzy/shared-types": "*",
+    "@knowzy/shared-ui": "*",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@knowzy/eslint-config": "*",
+    "@knowzy/tsconfig": "*",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

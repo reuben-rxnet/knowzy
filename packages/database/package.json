@@ -1,0 +1,49 @@
+{
+  "name": "@knowzy/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "prisma"],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --emitDeclarationOnly",
+    "lint": "eslint src prisma",
+    "test": "vitest run --dir src",
+    "test:integration": "vitest run --dir test",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:status": "prisma migrate status",
+    "prisma:validate": "prisma validate && prisma format --check",
+    "bootstrap:init-migration": "node scripts/generate-init-migration.mjs",
+    "seed": "tsx prisma/seed.ts",
+    "reset": "prisma migrate reset --force --skip-seed && npm run prisma:migrate:deploy && npm run seed"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@knowzy/configuration": "*",
+    "@knowzy/observability": "*",
+    "@knowzy/shared-types": "*",
+    "@prisma/client": "^6.1.0"
+  },
+  "devDependencies": {
+    "@knowzy/eslint-config": "*",
+    "@knowzy/tsconfig": "*",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

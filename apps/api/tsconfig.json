@@ -1,0 +1,15 @@
+{
+  "extends": "@knowzy/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"],
+  "references": [
+    { "path": "../../packages/shared-types" },
+    { "path": "../../packages/observability" },
+    { "path": "../../packages/configuration" },
+    { "path": "../../packages/database" }
+  ]
+}

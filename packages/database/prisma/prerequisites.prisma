@@ -1,0 +1,110 @@
+// The state that migration 0001_platform_prerequisites leaves behind.
+//
+// Used ONLY as the `--from` side when generating 0002_init:
+//
+//   prisma migrate diff \
+//     --from-schema-datamodel prisma/prerequisites.prisma \
+//     --to-schema-datamodel   prisma/schema.prisma --script
+//
+// Diffing schema-to-schema means generating the init migration needs no shadow
+// database and no replay of later migrations, and it keeps 0001 authoritative
+// for the partitioned audit table.
+//
+// INVARIANT: the AuditEvent model and the five enums below must match
+// schema.prisma exactly. If they drift, 0002_init will try to recreate a table
+// 0001 already made, and `prisma migrate deploy` will fail loudly — which is
+// the failure mode we want rather than a silent divergence.
+//
+// scripts/generate-init-migration.mjs asserts the match before diffing.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuditCategory {
+  ADMIN
+  AUTHORING
+  LEARNING
+  REPORT
+  PLATFORM
+
+  @@map("audit_category")
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+  DENIED
+
+  @@map("audit_outcome")
+}
+
+enum AuditSeverity {
+  INFO
+  NOTICE
+  WARNING
+  HIGH
+
+  @@map("audit_severity")
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+  MODEL
+
+  @@map("actor_type")
+}
+
+enum PortalContext {
+  AUTHORING
+  LIVE
+  SYSTEM
+
+  @@map("portal_context")
+}
+
+model AuditEvent {
+  id               String        @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  occurredAt       DateTime      @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  action           String
+  family           String
+  category         AuditCategory
+  outcome          AuditOutcome
+  severity         AuditSeverity
+
+  actorType        ActorType     @map("actor_type")
+  actorUserId      String?       @map("actor_user_id") @db.Uuid
+  actorDisplayName String?       @map("actor_display_name")
+  actorRoles       String[]      @default([]) @map("actor_roles")
+  onBehalfOfUserId String?       @map("on_behalf_of_user_id") @db.Uuid
+
+  entityType       String        @map("entity_type")
+  entityId         String?       @map("entity_id")
+  entityLabel      String?       @map("entity_label")
+  domainId         String?       @map("domain_id") @db.Uuid
+  sourceId         String?       @map("source_id") @db.Uuid
+
+  previousValue    Json?         @map("previous_value") @db.JsonB
+  newValue         Json?         @map("new_value") @db.JsonB
+  detail           Json          @default("{}") @db.JsonB
+
+  correlationId    String        @map("correlation_id")
+  requestId        String?       @map("request_id")
+  portal           PortalContext?
+  ipAddress        String?       @map("ip_address")
+  userAgentClass   String?       @map("user_agent_class")
+  policyName       String?       @map("policy_name")
+  denyReason       String?       @map("deny_reason")
+  errorCode        String?       @map("error_code")
+  schemaVersion    Int           @default(1) @map("schema_version")
+
+  @@id([id, occurredAt])
+  @@map("audit_event")
+}

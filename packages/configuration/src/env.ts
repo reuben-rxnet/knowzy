@@ -1,0 +1,249 @@
+// Environment variable contract — environment-and-configuration.md §4.
+//
+// This module is the only reader of process.env in the repository (C3).
+//
+// Two rules are enforced structurally rather than by convention:
+//   - a web app receives ONLY PUBLIC_*, its Entra client ID, and KNOWZY_ENV
+//   - a PUBLIC_* variable may never hold a secret-shaped value, checked at
+//     startup, because a PUBLIC_ prefix means world-readable
+
+import { z } from 'zod';
+import { KnowzyEnvSchema, type KnowzyEnv } from '@knowzy/shared-types';
+
+export const DEPLOYABLES = ['authoring-web', 'live-web', 'api', 'mcp-server', 'jobs'] as const;
+export type Deployable = (typeof DEPLOYABLES)[number];
+
+/** A Key Vault reference, never a value. */
+const secretRef = z
+  .string()
+  .regex(
+    /^keyvault:\/\/[a-z0-9-]+\/secrets\/[A-Za-z0-9-]+$/,
+    'must be a keyvault://{vault}/secrets/{name} reference, never a secret value',
+  );
+
+const httpsUrl = z.string().url().startsWith('https://');
+const anyUrl = z.string().url();
+const uuid = z.string().uuid();
+
+export interface EnvVarDeclaration {
+  readonly name: string;
+  readonly deployables: readonly Deployable[];
+  readonly schema: z.ZodTypeAny;
+  /** Environments in which the variable is required. */
+  readonly requiredIn: readonly KnowzyEnv[];
+  /** Environments in which the variable must be ABSENT. */
+  readonly forbiddenIn?: readonly KnowzyEnv[];
+  readonly description: string;
+}
+
+const ALL: readonly KnowzyEnv[] = ['local', 'dev', 'test', 'prod'];
+const DEPLOYED: readonly KnowzyEnv[] = ['dev', 'test', 'prod'];
+const LOCAL: readonly KnowzyEnv[] = ['local'];
+const NON_LOCAL: readonly KnowzyEnv[] = ['dev', 'test', 'prod'];
+
+const SERVICES: readonly Deployable[] = ['api', 'mcp-server', 'jobs'];
+const WEB: readonly Deployable[] = ['authoring-web', 'live-web'];
+
+export const ENV_VARS: readonly EnvVarDeclaration[] = [
+  {
+    name: 'KNOWZY_ENV',
+    deployables: DEPLOYABLES,
+    schema: KnowzyEnvSchema,
+    requiredIn: ALL,
+    description: 'Stamped on every span, log line, and audit event (V6).',
+  },
+  {
+    name: 'DATABASE_URL',
+    deployables: SERVICES,
+    schema: z.string().min(1),
+    requiredIn: ALL,
+    description: 'Managed identity in deployed environments; password only in local.',
+  },
+  {
+    name: 'KEY_VAULT_URI',
+    deployables: SERVICES,
+    schema: httpsUrl,
+    requiredIn: DEPLOYED,
+    forbiddenIn: LOCAL,
+    description: 'Absent in local, where no credential is needed.',
+  },
+  {
+    name: 'BLOB_ACCOUNT_URL',
+    deployables: ['api', 'jobs'],
+    schema: httpsUrl,
+    requiredIn: DEPLOYED,
+    description: 'Certificates and report exports.',
+  },
+  {
+    name: 'BLOB_CONTAINER',
+    deployables: ['api', 'jobs'],
+    schema: z.string().min(1),
+    requiredIn: DEPLOYED,
+    description: 'Private container; no public URL exists.',
+  },
+  {
+    name: 'MCP_ENDPOINT',
+    deployables: ['api', 'jobs'],
+    schema: z.string().min(1),
+    requiredIn: ALL,
+    description: 'Internal URL in deployed environments; `stdio` locally.',
+  },
+  {
+    name: 'ENTRA_TENANT_ID',
+    deployables: DEPLOYABLES,
+    schema: z.string().min(1),
+    requiredIn: DEPLOYED,
+    description: 'Tenant-specific value (T-01).',
+  },
+  {
+    name: 'ENTRA_API_CLIENT_ID',
+    deployables: ['api', 'mcp-server'],
+    schema: uuid,
+    requiredIn: DEPLOYED,
+    description: 'The API app registration (T-04).',
+  },
+  {
+    name: 'ENTRA_API_AUDIENCE',
+    deployables: ['api', 'mcp-server'],
+    schema: z.string().min(1),
+    requiredIn: DEPLOYED,
+    description: 'Expected `aud` claim.',
+  },
+  {
+    name: 'ENTRA_AUTHORING_CLIENT_ID',
+    deployables: ['authoring-web'],
+    schema: uuid,
+    requiredIn: DEPLOYED,
+    description: 'Public client value (T-02).',
+  },
+  {
+    name: 'ENTRA_LIVE_CLIENT_ID',
+    deployables: ['live-web'],
+    schema: uuid,
+    requiredIn: DEPLOYED,
+    description: 'Public client value (T-03).',
+  },
+  {
+    name: 'ANTHROPIC_API_KEY_REF',
+    deployables: ['api', 'jobs'],
+    schema: secretRef,
+    requiredIn: DEPLOYED,
+    description: 'A Key Vault reference. With it absent, local uses a recorded-response stub.',
+  },
+  {
+    name: 'GRAPH_CREDENTIAL_REF',
+    deployables: ['mcp-server'],
+    schema: secretRef,
+    requiredIn: DEPLOYED,
+    description: "MCP only — the API's identity cannot read it (C6).",
+  },
+  {
+    name: 'ENVELOPE_SIGNING_KEY_REF',
+    deployables: ['api', 'mcp-server'],
+    schema: secretRef,
+    requiredIn: DEPLOYED,
+    description: 'API signs, MCP verifies.',
+  },
+  {
+    name: 'CERTIFICATE_SIGNING_KEY_REF',
+    deployables: ['jobs'],
+    schema: secretRef,
+    requiredIn: DEPLOYED,
+    description: 'Certificate verification codes are HMAC-derived from this key.',
+  },
+  {
+    name: 'OTEL_EXPORTER_OTLP_ENDPOINT',
+    deployables: DEPLOYABLES,
+    schema: anyUrl,
+    requiredIn: DEPLOYED,
+    description: 'Telemetry sink. Audit is unaffected by its absence.',
+  },
+  {
+    name: 'OTEL_SERVICE_NAME',
+    deployables: DEPLOYABLES,
+    schema: z.string().min(1),
+    requiredIn: DEPLOYED,
+    description: 'Distinct per deployable.',
+  },
+  {
+    name: 'PUBLIC_API_BASE_URL',
+    deployables: WEB,
+    schema: anyUrl,
+    requiredIn: ALL,
+    description: 'The only API value a browser receives.',
+  },
+  {
+    name: 'MOCK_FIXTURE_ROOT',
+    deployables: SERVICES,
+    schema: z.string().min(1),
+    requiredIn: [],
+    forbiddenIn: NON_LOCAL,
+    description: 'Local only. Startup fails if set elsewhere (check 4).',
+  },
+  {
+    name: 'MOCK_FAULTS',
+    deployables: SERVICES,
+    schema: z.string(),
+    requiredIn: [],
+    forbiddenIn: NON_LOCAL,
+    description: 'Local only fault injection.',
+  },
+];
+
+export const envVarsFor = (deployable: Deployable): readonly EnvVarDeclaration[] =>
+  ENV_VARS.filter((v) => v.deployables.includes(deployable));
+
+/** Variables a browser bundle may legitimately receive. */
+export const isBrowserSafeVarName = (name: string): boolean =>
+  name.startsWith('PUBLIC_') ||
+  name === 'KNOWZY_ENV' ||
+  name === 'ENTRA_AUTHORING_CLIENT_ID' ||
+  name === 'ENTRA_LIVE_CLIENT_ID' ||
+  name === 'ENTRA_TENANT_ID';
+
+/** Secret-shaped values that must never appear under a PUBLIC_ name. */
+export const looksSecretShaped = (value: string): boolean =>
+  /^keyvault:\/\//.test(value) ||
+  /\beyJ[A-Za-z0-9_-]{10,}\./.test(value) ||
+  /-----BEGIN /.test(value) ||
+  (/^[A-Za-z0-9+/_-]{32,}={0,2}$/.test(value) &&
+    /[a-z]/.test(value) &&
+    /[A-Z]/.test(value) &&
+    /[0-9]/.test(value));
+
+export type RawEnv = Readonly<Record<string, string | undefined>>;
+
+/** Captures process.env once. The single sanctioned read (C3). */
+export const readProcessEnv = (): RawEnv => ({ ...process.env });
+
+export const resolveKnowzyEnv = (raw: RawEnv): KnowzyEnv | null => {
+  const parsed = KnowzyEnvSchema.safeParse(raw['KNOWZY_ENV']);
+  return parsed.success ? parsed.data : null;
+};
+
+/**
+ * The ONLY environment values a web app may receive — §4: "the web apps receive
+ * only PUBLIC_*, the Entra client ID, and KNOWZY_ENV; every other variable is
+ * server-side."
+ *
+ * Exposed as a narrow accessor rather than letting a web app call
+ * readProcessEnv(), so B1 and C3 stay enforceable: a browser bundle cannot
+ * reach a server-side variable even by accident, because this function does not
+ * return one.
+ */
+export const readPublicEnv = (): Readonly<Record<string, string>> => {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(process.env)) {
+    if (value === undefined) continue;
+    if (!isBrowserSafeVarName(name)) continue;
+    // Defence in depth: even a browser-safe NAME must not carry a secret VALUE.
+    // Startup check 3 fails the process for this, but a web app may render
+    // before that check runs in some topologies.
+    if (looksSecretShaped(value)) continue;
+    out[name] = value;
+  }
+  return Object.freeze(out);
+};
+
+/** Environment name for display. Returns 'unknown' rather than throwing. */
+export const publicEnvironmentName = (): string => readPublicEnv()['KNOWZY_ENV'] ?? 'unknown';

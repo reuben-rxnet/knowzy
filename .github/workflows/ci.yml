@@ -1,0 +1,238 @@
+# CI pipeline — repository-structure.md §8.
+#
+# Gate order matters: the cheap structural gates run before the expensive ones,
+# so a boundary violation fails in seconds rather than after a container build.
+#
+# Every gate below corresponds to a documented rule. A gate that cannot name the
+# rule it enforces does not belong here.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KNOWZY_ENV: test
+  NODE_VERSION: '22'
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Static gates: typecheck, boundaries, codegen parity, unit and contract
+  # tests. No database, no containers.
+  # -------------------------------------------------------------------------
+  static:
+    name: static gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # Frozen lockfile (repository-structure.md §6).
+      - name: install
+        run: npm ci --no-audit --no-fund
+
+      - name: prisma client
+        run: npm run db:generate
+
+      # 0002_init is generated once per clone and committed. Its absence is a
+      # setup error, not something CI should paper over by generating it.
+      - name: assert generated init migration is committed
+        run: |
+          if [ ! -f packages/database/prisma/migrations/0002_init/migration.sql ]; then
+            echo "::error::packages/database/prisma/migrations/0002_init/migration.sql is missing."
+            echo "Run: npm run -w @knowzy/database bootstrap:init-migration && commit the result."
+            exit 1
+          fi
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: format check
+        run: npm run format:check
+
+      # Content rules C1–C8 (repository-structure.md §5.2).
+      - name: lint
+        run: npm run lint
+
+      # Import-graph rules B1–B10 (§5.1). Transitive, which is what B3 requires.
+      - name: boundaries
+        run: npm run lint:boundaries
+
+      # G6 — the generated contract must match the Zod validators.
+      - name: codegen parity
+        run: npm run codegen:check
+
+      - name: unit tests
+        run: npm run test:unit
+
+      # Includes the planted-violation suite, which proves the boundary rules
+      # actually reject something, and the answer-key contract (K2).
+      - name: contract tests
+        run: npm run test:contract
+
+  # -------------------------------------------------------------------------
+  # Integration: a real migrated PostgreSQL. Proves the schema migrates
+  # forward from empty and that the audit/state transaction coupling holds.
+  # -------------------------------------------------------------------------
+  integration:
+    name: integration (migrated postgres)
+    runs-on: ubuntu-latest
+    needs: static
+    services:
+      postgres:
+        # pgvector image: migration 0001 creates the extension. The column is
+        # reserved and unused in release 1 (ADR-008).
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: knowzy
+          POSTGRES_PASSWORD: knowzy
+          POSTGRES_DB: knowzy
+          PGTZ: UTC
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U knowzy -d knowzy"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://knowzy:knowzy@localhost:5432/knowzy?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: install
+        run: npm ci --no-audit --no-fund
+
+      - name: prisma client
+        run: npm run db:generate
+
+      # Exit criterion: the full schema migrates forward from empty, including
+      # partitions, triggers, rules, partial indexes, and CHECK constraints.
+      - name: migrate from empty
+        run: npm run db:migrate
+
+      - name: migration status is clean
+        run: npm run -w @knowzy/database prisma:migrate:status
+
+      # Drift detection: the checked-in migrations must produce exactly the
+      # schema in schema.prisma. This is the gate that catches a hand-written
+      # migration (0001 or 0003) diverging from the model, which would
+      # otherwise surface as a confusing runtime error much later.
+      #
+      # Replaying migrations needs a scratch database of its own.
+      - name: create shadow database
+        run: |
+          PGPASSWORD=knowzy psql -h localhost -U knowzy -d knowzy -c "CREATE DATABASE knowzy_shadow OWNER knowzy;"
+
+      - name: assert no schema drift
+        working-directory: packages/database
+        run: |
+          npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
+          echo "no drift between checked-in migrations and schema.prisma"
+        env:
+          SHADOW_DATABASE_URL: postgresql://knowzy:knowzy@localhost:5432/knowzy_shadow?schema=public
+
+      # Seeds are idempotent: running twice must change nothing and must not
+      # fail on a unique constraint.
+      - name: seed
+        run: npm run db:seed
+
+      - name: seed is idempotent
+        run: npm run db:seed
+
+      # Includes the audit rollback suite and the append-only enforcement.
+      - name: integration tests
+        run: npm run test:integration
+
+  # -------------------------------------------------------------------------
+  # Images. Built once, scanned, and (on main) published by digest.
+  # -------------------------------------------------------------------------
+  images:
+    name: build images
+    runs-on: ubuntu-latest
+    needs: static
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: api
+            dockerfile: infrastructure/docker/Dockerfile.service
+          - app: mcp-server
+            dockerfile: infrastructure/docker/Dockerfile.service
+          - app: jobs
+            dockerfile: infrastructure/docker/Dockerfile.service
+          - app: authoring-web
+            dockerfile: infrastructure/docker/Dockerfile.web
+          - app: live-web
+            dockerfile: infrastructure/docker/Dockerfile.web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: build ${{ matrix.app }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: |
+            APP=${{ matrix.app }}
+          # Pushing by digest happens in the release workflow, not on a PR.
+          push: false
+          load: true
+          tags: knowzy/${{ matrix.app }}:ci
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+      # security.md §14: a high or critical finding fails the pipeline.
+      - name: scan image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: knowzy/${{ matrix.app }}:ci
+          format: table
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+
+  # -------------------------------------------------------------------------
+  # Dependency and license gates — security.md §14.
+  # -------------------------------------------------------------------------
+  supply-chain:
+    name: supply chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: install
+        run: npm ci --no-audit --no-fund
+
+      - name: dependency audit
+        run: npm audit --audit-level=high
+
+      - name: sbom
+        run: npx @cyclonedx/cyclonedx-npm --output-file sbom.json --omit dev
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 90

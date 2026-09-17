@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.next/
+out/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Environment — never commit. See docs/environment-and-configuration.md §5.
+.env
+.env.*
+!.env.example
+
+# Local fixture state written by the mock question bank adapter
+fixtures/bank/.state/
+
+# Generated artifacts are committed and diff-checked (repository-structure.md §6),
+# so nothing under packages/shared-types/generated is ignored.
+
+.DS_Store
+Thumbs.db
+*.log

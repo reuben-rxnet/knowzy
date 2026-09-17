@@ -1,0 +1,48 @@
+# Production image for a Next.js deployable: authoring-web or live-web.
+#
+# Two images, never one (ADR-001): the authoring routes are not present in the
+# learner's bundle, which is the property that makes the separation meaningful
+# rather than cosmetic.
+#
+#   docker build -f infrastructure/docker/Dockerfile.web \
+#     --build-arg APP=live-web -t knowzy/live-web .
+
+FROM node:22-bookworm-slim AS deps
+WORKDIR /repo
+COPY package.json package-lock.json turbo.json ./
+COPY tools ./tools
+COPY packages ./packages
+COPY apps ./apps
+# Sources are copied in the build stage; this stage only resolves dependencies.
+RUN npm ci --no-audit --no-fund
+
+FROM deps AS build
+ARG APP
+WORKDIR /repo
+COPY . .
+# Next needs the browser-safe values at build time. Only PUBLIC_* and the Entra
+# client id are ever passed (§4); a server-side variable here would be baked
+# into a browser bundle.
+ARG PUBLIC_API_BASE_URL
+ARG KNOWZY_ENV=prod
+ENV PUBLIC_API_BASE_URL=${PUBLIC_API_BASE_URL}
+ENV KNOWZY_ENV=${KNOWZY_ENV}
+RUN npx turbo run build --filter=@knowzy/${APP}...
+
+FROM node:22-bookworm-slim AS runtime
+ARG APP
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+WORKDIR /app
+USER node
+
+# `output: 'standalone'` produces a self-contained server plus the minimal
+# node_modules it actually needs.
+COPY --from=build --chown=node:node /repo/apps/${APP}/.next/standalone ./
+COPY --from=build --chown=node:node /repo/apps/${APP}/.next/static ./apps/${APP}/.next/static
+COPY --from=build --chown=node:node /repo/apps/${APP}/public ./apps/${APP}/public
+
+EXPOSE 3000
+WORKDIR /app/apps/${APP}
+CMD ["node", "server.js"]

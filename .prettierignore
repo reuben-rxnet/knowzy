@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.next/
+.turbo/
+coverage/
+# Generated and diff-checked; formatting is owned by the generator.
+packages/shared-types/generated/
+# Generated migration SQL is committed verbatim.
+packages/database/prisma/migrations/0002_init/
+docs/

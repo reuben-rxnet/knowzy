@@ -1,0 +1,183 @@
+# Local development topology — architecture.md §12.2.
+#
+# `docker compose up` yields a running platform with NO TENANT CREDENTIALS AT
+# ALL (V1). The mock adapter and mock question bank carry the whole pipeline;
+# nothing here reads a Key Vault, a Graph credential, or an Anthropic key.
+#
+# Services bind-mount the repository and run the dev servers rather than baking
+# images, so a code change is visible without a rebuild. The production images
+# live in ../docker and are built by CI.
+#
+# Usage:
+#   docker compose -f infrastructure/compose/docker-compose.yml up -d
+#   docker compose -f infrastructure/compose/docker-compose.yml logs -f migrate
+#
+# Ports: authoring 3000, live 3001, api 8080, mailpit UI 8025.
+# The MCP server deliberately publishes NO port: it is internal-only, and
+# leaving it unpublished locally keeps that property honest (ADR-003).
+
+name: knowzy
+
+x-node-base: &node-base
+  # pinned minor; CI rebuilds weekly to absorb base patches
+  image: node:22-bookworm-slim
+  working_dir: /repo
+  volumes:
+    - ../..:/repo
+    - node_modules_root:/repo/node_modules
+  environment: &node-env
+    KNOWZY_ENV: local
+    DATABASE_URL: postgresql://knowzy:knowzy@postgres:5432/knowzy?schema=public
+    MCP_ENDPOINT: http://mcp:8081
+    MOCK_FIXTURE_ROOT: /repo/fixtures/knowledge
+    NODE_OPTIONS: --enable-source-maps
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  postgres:
+    # pgvector image so migration 0001 can CREATE EXTENSION vector. The column
+    # is reserved and unused in release 1 (ADR-008), but the extension must
+    # exist for the migration to apply.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: knowzy
+      POSTGRES_PASSWORD: knowzy
+      POSTGRES_DB: knowzy
+      # data-model.md §9 T2 — UTC on every connection.
+      PGTZ: UTC
+      TZ: UTC
+    command:
+      - postgres
+      - -c
+      - timezone=UTC
+      - -c
+      - log_timezone=UTC
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U knowzy -d knowzy']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # One-shot: install, generate the client, migrate, seed. Every service waits
+  # for this to complete successfully, so a service never starts against an
+  # unmigrated database — which startup check 5 would fail anyway, loudly.
+  migrate:
+    image: node:22-bookworm-slim
+    working_dir: /repo
+    volumes:
+      - ../..:/repo
+      - node_modules_root:/repo/node_modules
+    environment:
+      KNOWZY_ENV: local
+      DATABASE_URL: postgresql://knowzy:knowzy@postgres:5432/knowzy?schema=public
+    command:
+      - bash
+      - -lc
+      - |
+        set -euo pipefail
+        # `npm ci` needs a committed lockfile. On a fresh clone there is none
+        # yet, so fall back to `npm install` and write one. CI always uses
+        # `npm ci` and fails if the lockfile is missing.
+        if [ -f package-lock.json ]; then
+          echo "==> install (npm ci, frozen lockfile)"
+          npm ci --no-audit --no-fund
+        else
+          echo "==> install (npm install — no lockfile yet; commit the one this writes)"
+          npm install --no-audit --no-fund
+        fi
+        echo "==> prisma generate"
+        npm run db:generate
+        if [ ! -f packages/database/prisma/migrations/0002_init/migration.sql ]; then
+          echo "==> generating 0002_init (first run only — commit the result)"
+          npm run -w @knowzy/database bootstrap:init-migration
+        fi
+        if [ ! -f packages/shared-types/generated/schemas.json ]; then
+          echo "==> generating the contract (first run only — commit the result)"
+          npm run codegen
+        fi
+        echo "==> migrate deploy"
+        npm run db:migrate
+        echo "==> seed"
+        npm run db:seed
+        echo "==> ready"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    <<: *node-base
+    command: ['npm', 'run', '-w', '@knowzy/api', 'dev']
+    environment:
+      <<: *node-env
+      OTEL_SERVICE_NAME: knowzy-api
+    ports:
+      - '8080:8080'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - node -e "fetch('http://localhost:8080/internal/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  mcp:
+    <<: *node-base
+    command: ['npm', 'run', '-w', '@knowzy/mcp-server', 'dev']
+    environment:
+      <<: *node-env
+      OTEL_SERVICE_NAME: knowzy-mcp
+    # No `ports`. Internal ingress only — the one component that will hold
+    # Graph credentials is never reachable from the host.
+    expose:
+      - '8081'
+
+  jobs:
+    <<: *node-base
+    command: ['npm', 'run', '-w', '@knowzy/jobs', 'dev']
+    environment:
+      <<: *node-env
+      OTEL_SERVICE_NAME: knowzy-jobs
+    # No ingress at all (architecture.md §12.1).
+
+  authoring-web:
+    <<: *node-base
+    command: ['npm', 'run', '-w', '@knowzy/authoring-web', 'dev']
+    environment:
+      <<: *node-env
+      OTEL_SERVICE_NAME: knowzy-authoring-web
+      PUBLIC_API_BASE_URL: http://localhost:8080
+    ports:
+      - '3000:3000'
+
+  live-web:
+    <<: *node-base
+    command: ['npm', 'run', '-w', '@knowzy/live-web', 'dev']
+    environment:
+      <<: *node-env
+      OTEL_SERVICE_NAME: knowzy-live-web
+      PUBLIC_API_BASE_URL: http://localhost:8080
+    ports:
+      - '3001:3001'
+
+  # Notification capture. Release 1 delivers in-app only
+  # (knowledge-source-administration.md §8); mailpit is here for the phase that
+  # adds email, and is harmless until then.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - '8025:8025'
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+volumes:
+  postgres_data:
+  node_modules_root:

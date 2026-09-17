@@ -1,0 +1,32 @@
+{
+  "name": "@knowzy/configuration",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --emitDeclarationOnly",
+    "lint": "eslint src",
+    "test": "vitest run --dir src"
+  },
+  "dependencies": {
+    "@knowzy/shared-types": "*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@knowzy/eslint-config": "*",
+    "@knowzy/tsconfig": "*",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

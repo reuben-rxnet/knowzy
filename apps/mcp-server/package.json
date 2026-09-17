@@ -1,0 +1,30 @@
+{
+  "name": "@knowzy/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --emitDeclarationOnly",
+    "lint": "eslint src",
+    "test": "vitest run --dir src --passWithNoTests",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@knowzy/configuration": "*",
+    "@knowzy/content-extraction": "*",
+    "@knowzy/database": "*",
+    "@knowzy/knowledge-source-adapters": "*",
+    "@knowzy/observability": "*",
+    "@knowzy/shared-types": "*",
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "@knowzy/eslint-config": "*",
+    "@knowzy/tsconfig": "*",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

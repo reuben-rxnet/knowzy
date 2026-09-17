@@ -1,0 +1,488 @@
+// Configuration key catalogue — environment-and-configuration.md §3.2 P1.
+//
+// Every key is declared once, with its type, default, permitted layers, and a
+// one-line description. An undeclared key cannot be read (P1), and a value out
+// of range falls back to the code default AND raises a platform finding rather
+// than crashing a request or silently using a nonsense value (P2).
+//
+// P4: no default points at a real tenant, site, list, or credential. Defaults
+// are safe-and-inert.
+
+import { z } from 'zod';
+import type { ConfigurationScope } from '@knowzy/shared-types';
+
+/** The layers of environment-and-configuration.md §3, highest precedence first. */
+export const CONFIG_LAYERS = [
+  'ASSESSMENT',
+  'PROFILE_OR_SOURCE',
+  'DOMAIN',
+  'PLATFORM',
+  'ENVIRONMENT',
+  'CODE_DEFAULT',
+] as const;
+export type ConfigLayer = (typeof CONFIG_LAYERS)[number];
+
+export interface ConfigDeclaration<T> {
+  /** Dotted key, stable forever. */
+  readonly key: string;
+  readonly description: string;
+  readonly schema: z.ZodType<T>;
+  readonly defaultValue: T;
+  /** Layers at which this key may be set. A row at any other layer is ignored. */
+  readonly layers: readonly ConfigLayer[];
+  /** Scope values that may carry an override for this key. */
+  readonly scopes: readonly ConfigurationScope[];
+}
+
+const decl = <T>(d: ConfigDeclaration<T>): ConfigDeclaration<T> => d;
+
+const PLATFORM_ONLY: readonly ConfigLayer[] = ['PLATFORM', 'CODE_DEFAULT'];
+const PLATFORM_OR_PROFILE: readonly ConfigLayer[] = [
+  'PROFILE_OR_SOURCE',
+  'PLATFORM',
+  'CODE_DEFAULT',
+];
+const DOWN_TO_ASSESSMENT: readonly ConfigLayer[] = [
+  'ASSESSMENT',
+  'PROFILE_OR_SOURCE',
+  'DOMAIN',
+  'PLATFORM',
+  'CODE_DEFAULT',
+];
+
+const proportion = z.number().min(0).max(1);
+const percentage = z.number().min(0).max(100);
+const positiveInt = z.number().int().positive();
+
+/**
+ * The catalogue. Generation and coverage defaults are transcribed from
+ * generation-governance.md §13; proficiency and gap defaults from
+ * live-learning-portal.md §5; privacy and retention from data-model.md §14 and
+ * reporting.md §7.
+ */
+export const CONFIG_KEYS = {
+  // ---------------------------------------------------------- generation
+  'generation.maxDocumentsPerJob': decl({
+    key: 'generation.maxDocumentsPerJob',
+    description: 'Upper bound on documents in one generation job. Caps unreviewable batches.',
+    schema: z.number().int().min(1).max(10),
+    defaultValue: 10,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'generation.maxQuestionsPerJob': decl({
+    key: 'generation.maxQuestionsPerJob',
+    description: 'Upper bound on requested questions in one generation job.',
+    schema: z.number().int().min(1).max(50),
+    defaultValue: 50,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'generation.requireObjectives': decl({
+    key: 'generation.requireObjectives',
+    description:
+      'Require objective-driven generation. Recommended true once the objective catalogue is populated.',
+    schema: z.boolean(),
+    defaultValue: false,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'generation.allowCoveredSectionFill': decl({
+    key: 'generation.allowCoveredSectionFill',
+    description: 'Permit fully covered sections as generation filler. Off: they are never filler.',
+    schema: z.boolean(),
+    defaultValue: false,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'generation.preflightTtlMinutes': decl({
+    key: 'generation.preflightTtlMinutes',
+    description: 'Lifetime of a preflight decision. An expired preflight cannot authorize a job.',
+    schema: z.number().int().min(5).max(240),
+    defaultValue: 60,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ------------------------------------------------------------ coverage
+  'coverage.charsPerQuestion': decl({
+    key: 'coverage.charsPerQuestion',
+    description: 'Assessable characters per target question when computing section capacity.',
+    schema: positiveInt,
+    defaultValue: 1200,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'coverage.minPerSection': decl({
+    key: 'coverage.minPerSection',
+    description: 'Lower clamp on a section target question count.',
+    schema: positiveInt,
+    defaultValue: 1,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'coverage.maxPerSection': decl({
+    key: 'coverage.maxPerSection',
+    description: 'Upper clamp on a section target question count.',
+    schema: positiveInt,
+    defaultValue: 5,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'coverage.minAssessableChars': decl({
+    key: 'coverage.minAssessableChars',
+    description: 'Sections below this are NON_ASSESSABLE and leave the coverage denominator.',
+    schema: positiveInt,
+    defaultValue: 300,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+
+  // ----------------------------------------------------------- duplicate
+  'duplicate.flagThreshold': decl({
+    key: 'duplicate.flagThreshold',
+    description: 'Composite score at or above which a draft is flagged for reviewer disposition.',
+    schema: proportion,
+    defaultValue: 0.75,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'duplicate.blockThreshold': decl({
+    key: 'duplicate.blockThreshold',
+    description: 'Composite score at or above which a draft is not persisted at all.',
+    schema: proportion,
+    defaultValue: 0.92,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'duplicate.suppressionStemLimit': decl({
+    key: 'duplicate.suppressionStemLimit',
+    description: 'Maximum do-not-duplicate stems supplied to the model.',
+    schema: z.number().int().min(0).max(500),
+    defaultValue: 100,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'duplicate.claudeAdjudication.enabled': decl({
+    key: 'duplicate.claudeAdjudication.enabled',
+    description: 'Advisory model verdict for flag-band pairs. Never auto-decides.',
+    schema: z.boolean(),
+    defaultValue: true,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ----------------------------------------------------------- objective
+  'objective.defaultTargets': decl({
+    key: 'objective.defaultTargets',
+    description: 'Default target question count per cognitive level.',
+    schema: z.object({ RECALL: positiveInt, APPLICATION: positiveInt, ANALYSIS: positiveInt }),
+    defaultValue: { RECALL: 3, APPLICATION: 4, ANALYSIS: 5 },
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // --------------------------------------------------------------- reuse
+  'reuse.reviewMinutesPerQuestion': decl({
+    key: 'reuse.reviewMinutesPerQuestion',
+    description:
+      'Constant behind the estimated duplicate-prevention savings. Always displayed with the figure.',
+    schema: z.number().positive(),
+    defaultValue: 4,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // --------------------------------------------------------- proficiency
+  'proficiency.thresholds': decl({
+    key: 'proficiency.thresholds',
+    description:
+      'Default bands. Must be contiguous, non-overlapping, and cover 0–100 exactly; copied onto every result.',
+    schema: z.array(
+      z.object({
+        band: z.string(),
+        minInclusive: percentage,
+        maxExclusive: z.number().min(0).max(100.01),
+      }),
+    ),
+    defaultValue: [
+      { band: 'CRITICAL_KNOWLEDGE_GAP', minInclusive: 0, maxExclusive: 40 },
+      { band: 'NEEDS_IMPROVEMENT', minInclusive: 40, maxExclusive: 60 },
+      { band: 'DEVELOPING', minInclusive: 60, maxExclusive: 75 },
+      { band: 'PROFICIENT', minInclusive: 75, maxExclusive: 90 },
+      { band: 'EXPERT', minInclusive: 90, maxExclusive: 100.01 },
+    ],
+    layers: DOWN_TO_ASSESSMENT,
+    scopes: ['PLATFORM', 'DOMAIN', 'ASSESSMENT'],
+  }),
+  'proficiency.gapThreshold': decl({
+    key: 'proficiency.gapThreshold',
+    description: 'Topic accuracy below which a topic is a knowledge gap.',
+    schema: percentage,
+    defaultValue: 60.0,
+    layers: DOWN_TO_ASSESSMENT,
+    scopes: ['PLATFORM', 'DOMAIN', 'ASSESSMENT'],
+  }),
+  'proficiency.minTopicQuestions': decl({
+    key: 'proficiency.minTopicQuestions',
+    description:
+      'Minimum questions before a topic can be reported as a gap. Below this it is INSUFFICIENT_EVIDENCE.',
+    schema: z.number().int().min(1),
+    defaultValue: 2,
+    layers: DOWN_TO_ASSESSMENT,
+    scopes: ['PLATFORM', 'DOMAIN', 'ASSESSMENT'],
+  }),
+  'proficiency.maxRecommendations': decl({
+    key: 'proficiency.maxRecommendations',
+    description: 'Maximum knowledge refreshers produced per result.',
+    schema: z.number().int().min(1).max(20),
+    defaultValue: 5,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ------------------------------------------------------- session rules
+  'session.idleExpiryHours': decl({
+    key: 'session.idleExpiryHours',
+    description: 'Idle window before an untimed session expires.',
+    schema: z.number().int().min(1).max(168),
+    defaultValue: 24,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'session.expiryGraceSeconds': decl({
+    key: 'session.expiryGraceSeconds',
+    description: 'Grace period absorbing network latency on a final submission.',
+    schema: z.number().int().min(0).max(120),
+    defaultValue: 10,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ------------------------------------------------ separation of duties
+  'approval.authorMayApproveOwn': decl({
+    key: 'approval.authorMayApproveOwn',
+    description: 'Whether an author may approve a question they authored.',
+    schema: z.boolean(),
+    defaultValue: false,
+    layers: ['DOMAIN', 'PLATFORM', 'CODE_DEFAULT'],
+    scopes: ['PLATFORM', 'DOMAIN'],
+  }),
+  'approval.editorMayApproveOwn': decl({
+    key: 'approval.editorMayApproveOwn',
+    description: 'Whether the last editor of the current version may approve it.',
+    schema: z.boolean(),
+    defaultValue: false,
+    layers: ['DOMAIN', 'PLATFORM', 'CODE_DEFAULT'],
+    scopes: ['PLATFORM', 'DOMAIN'],
+  }),
+  'approval.approverMayPublishOwn': decl({
+    key: 'approval.approverMayPublishOwn',
+    description: 'Whether an approver may publish their own approval.',
+    schema: z.boolean(),
+    defaultValue: true,
+    layers: ['DOMAIN', 'PLATFORM', 'CODE_DEFAULT'],
+    scopes: ['PLATFORM', 'DOMAIN'],
+  }),
+  'approval.smeMayApprove': decl({
+    key: 'approval.smeMayApprove',
+    description: 'Whether SMEs holding question.approve may approve.',
+    schema: z.boolean(),
+    defaultValue: true,
+    layers: ['DOMAIN', 'PLATFORM', 'CODE_DEFAULT'],
+    scopes: ['PLATFORM', 'DOMAIN'],
+  }),
+  'approval.bulkApproveCap': decl({
+    key: 'approval.bulkApproveCap',
+    description: 'Maximum items in one bulk approval.',
+    schema: z.number().int().min(1).max(200),
+    defaultValue: 25,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // -------------------------------------------------------------- privacy
+  'privacy.minimumGroupSize': decl({
+    key: 'privacy.minimumGroupSize',
+    description:
+      'Aggregates below this are suppressed. Configurable upward only; no override exists.',
+    schema: z.number().int().min(5).max(100),
+    defaultValue: 5,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ------------------------------------------------------------ platform
+  'platform.defaultTimeZone': decl({
+    key: 'platform.defaultTimeZone',
+    description: 'Tenant default display zone. Storage is always UTC.',
+    schema: z.string().min(1),
+    defaultValue: 'UTC',
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'reporting.timeZone': decl({
+    key: 'reporting.timeZone',
+    description: 'Zone used to resolve date-only report boundaries into a UTC interval.',
+    schema: z.string().min(1),
+    defaultValue: 'UTC',
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'platform.requireTwoPersonAdminGrant': decl({
+    key: 'platform.requireTwoPersonAdminGrant',
+    description: 'Require a second administrator to confirm an administration grant.',
+    schema: z.boolean(),
+    defaultValue: false,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ------------------------------------------------------------- budgets
+  'llm.dailyTokenBudget': decl({
+    key: 'llm.dailyTokenBudget',
+    description: 'Per-tenant daily token ceiling across all generation.',
+    schema: z.number().int().min(0),
+    defaultValue: 2_000_000,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.perJobTokenBudget': decl({
+    key: 'llm.perJobTokenBudget',
+    description: 'Token ceiling for a single generation job.',
+    schema: z.number().int().min(0),
+    defaultValue: 250_000,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'llm.concurrency': decl({
+    key: 'llm.concurrency',
+    description: 'Concurrent model calls across the job runner.',
+    schema: z.number().int().min(1).max(32),
+    defaultValue: 4,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ------------------------------------------------------------- sources
+  'source.maxDocumentBytes': decl({
+    key: 'source.maxDocumentBytes',
+    description: 'Size cap applied before a download completes.',
+    schema: z.number().int().min(1),
+    defaultValue: 26_214_400,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'SOURCE'],
+  }),
+  'source.maxCharsPerDocument': decl({
+    key: 'source.maxCharsPerDocument',
+    description: 'Extraction truncation cap. Truncation is reported, never silent.',
+    schema: z.number().int().min(1000),
+    defaultValue: 200_000,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'SOURCE'],
+  }),
+  'source.testConnectionRateLimitPerHour': decl({
+    key: 'source.testConnectionRateLimitPerHour',
+    description: 'Test Connection calls per source per hour, so the probe is not a load source.',
+    schema: z.number().int().min(1).max(100),
+    defaultValue: 10,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'source.concurrencyPerSource': decl({
+    key: 'source.concurrencyPerSource',
+    description: 'Concurrent adapter operations per source, so one source cannot throttle a tenant.',
+    schema: z.number().int().min(1).max(16),
+    defaultValue: 4,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM', 'SOURCE'],
+  }),
+
+  // ----------------------------------------------------------- retention
+  'retention.auditYears': decl({
+    key: 'retention.auditYears',
+    description: 'Audit retention in years. Minimum 1; configurable upward.',
+    schema: z.number().int().min(1).max(30),
+    defaultValue: 7,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'retention.syncHistoryDays': decl({
+    key: 'retention.syncHistoryDays',
+    description: 'Synchronization run history retention.',
+    schema: z.number().int().min(30),
+    defaultValue: 400,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'retention.sessionYears': decl({
+    key: 'retention.sessionYears',
+    description:
+      'Session and response retention. Answer-key snapshots are removed as early as this allows.',
+    schema: z.number().int().min(1).max(10),
+    defaultValue: 2,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'retention.resultYears': decl({
+    key: 'retention.resultYears',
+    description: 'Result detail retention before aggregation.',
+    schema: z.number().int().min(1).max(20),
+    defaultValue: 5,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'retention.notificationDays': decl({
+    key: 'retention.notificationDays',
+    description: 'Notification retention.',
+    schema: z.number().int().min(7),
+    defaultValue: 180,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'retention.exportDays': decl({
+    key: 'retention.exportDays',
+    description: 'Report export blob retention.',
+    schema: z.number().int().min(1).max(365),
+    defaultValue: 30,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ---------------------------------------------------------- idempotency
+  'idempotency.ttlHours': decl({
+    key: 'idempotency.ttlHours',
+    description: 'Client Idempotency-Key retention window.',
+    schema: z.number().int().min(1).max(168),
+    defaultValue: 24,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // -------------------------------------------------------- question bank
+  'questionBank.mappingProfileKey': decl({
+    key: 'questionBank.mappingProfileKey',
+    description: 'Active field mapping profile key for this environment.',
+    schema: z.string().min(1),
+    // P4: inert. The mock bank uses an identity mapping and needs no profile.
+    defaultValue: 'mock-identity',
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'questionBank.listTitle': decl({
+    key: 'questionBank.listTitle',
+    description: 'Display title of the Question Bank list. Resolved to a list ID at verification.',
+    schema: z.string().min(1),
+    defaultValue: 'Knowzy Question Bank',
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+} as const;
+
+export type ConfigKey = keyof typeof CONFIG_KEYS;
+export const CONFIG_KEY_LIST = Object.keys(CONFIG_KEYS) as readonly ConfigKey[];
+
+export type ConfigValue<K extends ConfigKey> = (typeof CONFIG_KEYS)[K]['defaultValue'];
+
+export const configDeclaration = <K extends ConfigKey>(key: K): (typeof CONFIG_KEYS)[K] =>
+  CONFIG_KEYS[key];

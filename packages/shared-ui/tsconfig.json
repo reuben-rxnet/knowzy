@@ -1,0 +1,7 @@
+{
+  "extends": "@knowzy/tsconfig/react.json",
+  "compilerOptions": {},
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"],
+  "references": [{ "path": "../shared-types" }]
+}

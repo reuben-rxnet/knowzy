@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(& \"C:\\\\Users\\\\REUBEN~1.DSO\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\D--Projects-Knowzy\\\\56d4e67a-0573-415e-8a34-3f53cc11dd6a\\\\scratchpad\\\\scaffold-packages.ps1\")"
+    ]
+  }
+}

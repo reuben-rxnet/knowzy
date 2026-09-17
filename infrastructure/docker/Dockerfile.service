@@ -1,0 +1,85 @@
+# Production image for a Node service deployable: api, mcp-server, or jobs.
+#
+# One image per deployable (architecture.md §12.1); the APP build argument
+# selects which. Built by CI, scanned, signed, and deployed BY DIGEST — the
+# same digest is promoted through dev, test, and prod
+# (environment-and-configuration.md §7 R1).
+#
+# security.md §14: non-root user, read-only root filesystem at runtime, no
+# shell in the final stage, base pinned by digest in CI.
+#
+#   docker build -f infrastructure/docker/Dockerfile.service \
+#     --build-arg APP=api -t knowzy/api .
+
+# ---------------------------------------------------------------- deps stage
+FROM node:22-bookworm-slim AS deps
+WORKDIR /repo
+
+# Copy only what affects dependency resolution, so this layer caches well.
+COPY package.json package-lock.json ./
+COPY turbo.json ./
+COPY tools/tsconfig/package.json        tools/tsconfig/
+COPY tools/eslint-config/package.json   tools/eslint-config/
+COPY packages/shared-types/package.json               packages/shared-types/
+COPY packages/shared-ui/package.json                  packages/shared-ui/
+COPY packages/observability/package.json              packages/observability/
+COPY packages/configuration/package.json              packages/configuration/
+COPY packages/database/package.json                   packages/database/
+COPY packages/authentication/package.json             packages/authentication/
+COPY packages/authorization/package.json              packages/authorization/
+COPY packages/content-extraction/package.json         packages/content-extraction/
+COPY packages/knowledge-source-adapters/package.json  packages/knowledge-source-adapters/
+COPY packages/claude-services/package.json            packages/claude-services/
+COPY packages/domain/package.json                     packages/domain/
+COPY packages/reporting/package.json                  packages/reporting/
+COPY packages/certificate-generator/package.json      packages/certificate-generator/
+COPY packages/testing/package.json                    packages/testing/
+COPY apps/api/package.json          apps/api/
+COPY apps/mcp-server/package.json   apps/mcp-server/
+COPY apps/jobs/package.json         apps/jobs/
+COPY apps/authoring-web/package.json apps/authoring-web/
+COPY apps/live-web/package.json     apps/live-web/
+
+RUN npm ci --no-audit --no-fund
+
+# --------------------------------------------------------------- build stage
+FROM deps AS build
+ARG APP
+WORKDIR /repo
+
+COPY . .
+
+# The Prisma client is generated from the checked-in schema.
+RUN npm run db:generate
+RUN npx turbo run build --filter=@knowzy/${APP}...
+
+# Drop dev dependencies from the tree that ships.
+RUN npm prune --omit=dev
+
+# ------------------------------------------------------------- runtime stage
+FROM node:22-bookworm-slim AS runtime
+ARG APP
+ENV NODE_ENV=production
+ENV APP_NAME=${APP}
+WORKDIR /repo
+
+# Non-root. Node's image already provides uid/gid 1000 as `node`.
+USER node
+
+COPY --from=build --chown=node:node /repo/node_modules ./node_modules
+COPY --from=build --chown=node:node /repo/package.json ./package.json
+COPY --from=build --chown=node:node /repo/packages ./packages
+COPY --from=build --chown=node:node /repo/apps/${APP} ./apps/${APP}
+
+# The container filesystem is read-only in deployment; nothing is written to
+# disk at runtime. Exports and certificates go to blob storage.
+EXPOSE 8080
+
+# WORKDIR expands the build argument, so one Dockerfile serves all three
+# services without a shell-form CMD. Node resolves the workspace node_modules
+# by walking up to /repo.
+WORKDIR /repo/apps/${APP}
+
+# Exec form: the process is PID 1 and receives SIGTERM directly, which the
+# graceful-shutdown handler in each app depends on.
+CMD ["node", "--enable-source-maps", "dist/index.js"]
