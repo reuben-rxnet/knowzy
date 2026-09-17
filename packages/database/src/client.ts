@@ -4,7 +4,8 @@
 // environment here: @knowzy/configuration is the only reader of process.env
 // (C3), so this module takes what it is given.
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 export type { Prisma };
 export { PrismaClient };
@@ -52,9 +53,7 @@ export const createPrismaClient = (options: DatabaseOptions): PrismaClient => {
  * check 5. Returns null when the table is absent, which is itself the answer:
  * the database has never been migrated.
  */
-export const readAppliedMigration = async (
-  client: DbClient,
-): Promise<string | null> => {
+export const readAppliedMigration = async (client: DbClient): Promise<string | null> => {
   const rows = await (client as PrismaClient).$queryRaw<{ migration_name: string }[]>`
     SELECT migration_name
     FROM _prisma_migrations

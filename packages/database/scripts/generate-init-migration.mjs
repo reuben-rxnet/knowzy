@@ -19,6 +19,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(here, '..');
@@ -63,12 +64,30 @@ const readBlock = (text, header) => {
   return null;
 };
 
+/**
+ * Reduces a model block to the lines that define the TABLE SHAPE: fields, the
+ * primary key, and the table name.
+ *
+ * Two things are excluded deliberately:
+ *   - `@@index`, because prerequisites.prisma omits indexes on purpose. 0001
+ *     creates the partitioned table with its primary key only; 0002_init adds
+ *     the indexes under Prisma's own generated names.
+ *   - doc comments, which carry no DDL.
+ *
+ * Carriage returns are stripped FIRST. With core.autocrlf=true on Windows a
+ * checked-out line ends in CR, and CR is a line terminator that `.` does not
+ * match -- so stripping comments before trimming silently strips nothing. That
+ * bug made this guard reject a schema that was in fact correct.
+ */
 const normalize = (block) =>
   block
     .split('\n')
+    .map((line) => line.replace(/\r/g, '').trim())
     .map((line) => line.replace(/\/\/.*$/, '').trim())
     .filter((line) => line.length > 0)
+    .filter((line) => !line.startsWith('@@index'))
     .map((line) => line.replace(/\s+/g, ' '))
+    .sort()
     .join('\n');
 
 const schemaText = readFileSync(join(prismaDir, 'schema.prisma'), 'utf8');
@@ -95,12 +114,26 @@ if (normalize(schemaAudit) !== normalize(prereqAudit)) {
 // -------------------------------------------------------------------------
 process.stdout.write('AuditEvent models match. Generating 0002_init...\n');
 
+// Resolve the Prisma CLI and run it with THIS node, rather than shelling out
+// to `npx`. Node 20+ refuses to spawn a .cmd or .bat without a shell (the
+// CVE-2024-27980 hardening), so `execFileSync('npx.cmd', ...)` fails on Windows
+// with EINVAL. Invoking the CLI's JS entry point directly is both portable and
+// faster, and it removes the shell-quoting hazard for paths containing spaces.
+const resolvePrismaCli = () => {
+  const req = createRequire(import.meta.url);
+  const manifestPath = req.resolve('prisma/package.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  const binRel = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.prisma;
+  if (!binRel) fail('could not find the prisma CLI entry point in its package.json.');
+  return join(dirname(manifestPath), binRel);
+};
+
 let sql;
 try {
   sql = execFileSync(
-    process.platform === 'win32' ? 'npx.cmd' : 'npx',
+    process.execPath,
     [
-      'prisma',
+      resolvePrismaCli(),
       'migrate',
       'diff',
       '--from-schema-datamodel',
@@ -109,10 +142,14 @@ try {
       join('prisma', 'schema.prisma'),
       '--script',
     ],
-    { cwd: pkgRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] },
+    { cwd: pkgRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
   );
-} catch {
-  fail('prisma migrate diff failed. Is prisma installed (npm install)?');
+} catch (error) {
+  // Surface the real reason. Swallowing it cost a debugging cycle once already.
+  const detail = [error?.stderr, error?.stdout, error?.message]
+    .filter((s) => typeof s === 'string' && s.trim().length > 0)
+    .join('\n');
+  fail(`prisma migrate diff failed.\n${detail}`);
 }
 
 if (!sql || sql.trim().length === 0) {

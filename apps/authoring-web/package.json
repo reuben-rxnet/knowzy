@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "cross-env NEXT_TELEMETRY_DISABLED=1 next build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run --dir src --passWithNoTests",
-    "dev": "next dev --port 3000",
-    "start": "next start --port 3000"
+    "dev": "cross-env NEXT_TELEMETRY_DISABLED=1 next dev --port 3000",
+    "start": "cross-env NEXT_TELEMETRY_DISABLED=1 next start --port 3000"
   },
   "dependencies": {
     "@knowzy/configuration": "*",
@@ -23,6 +23,7 @@
     "@knowzy/tsconfig": "*",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "cross-env": "^7.0.3",
     "typescript": "^5.6.3",
     "vitest": "^2.1.3"
   }

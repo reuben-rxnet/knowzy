@@ -18,8 +18,7 @@
 
 name: knowzy
 
-x-node-base: &node-base
-  # pinned minor; CI rebuilds weekly to absorb base patches
+x-node-base: &node-base # pinned minor; CI rebuilds weekly to absorb base patches
   image: node:22-bookworm-slim
   working_dir: /repo
   volumes:

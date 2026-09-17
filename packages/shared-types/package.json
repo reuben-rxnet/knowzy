@@ -12,12 +12,15 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "generated"],
+  "files": [
+    "dist",
+    "generated"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit false --emitDeclarationOnly",
     "lint": "eslint src",
-    "test": "vitest run --dir src",
+    "test": "vitest run --dir src --passWithNoTests",
     "codegen": "tsx scripts/codegen.ts",
     "codegen:check": "tsx scripts/codegen.ts --check"
   },

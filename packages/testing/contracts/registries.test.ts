@@ -160,13 +160,7 @@ describe('audit taxonomy', () => {
   it('declares 28 families across five prefixes', () => {
     expect(AUDIT_FAMILY_KEYS).toHaveLength(28);
     const prefixes = new Set(AUDIT_FAMILY_KEYS.map((f) => f.split('.')[0]));
-    expect([...prefixes].sort()).toEqual([
-      'ADMIN',
-      'AUTHORING',
-      'LEARNING',
-      'PLATFORM',
-      'REPORT',
-    ]);
+    expect([...prefixes].sort()).toEqual(['ADMIN', 'AUTHORING', 'LEARNING', 'PLATFORM', 'REPORT']);
   });
 
   it('derives family and category from an action consistently', () => {

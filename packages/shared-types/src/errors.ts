@@ -517,7 +517,8 @@ export const ERROR_REGISTRY = {
   MCP_UNAVAILABLE: {
     category: 'UPSTREAM',
     status: 503,
-    message: 'The knowledge gateway is unavailable. This is a platform issue, not a configuration issue.',
+    message:
+      'The knowledge gateway is unavailable. This is a platform issue, not a configuration issue.',
     retryable: true,
   },
   DEPENDENCY_DEGRADED: {
@@ -578,7 +579,14 @@ export const ProblemDetailsSchema = z.object({
     .array(z.object({ path: z.string(), code: z.string(), message: z.string() }))
     .nullable(),
   gateFailures: z
-    .array(z.object({ gate: z.number().int(), code: ErrorCodeSchema, passed: z.boolean(), detail: z.string().nullable() }))
+    .array(
+      z.object({
+        gate: z.number().int(),
+        code: ErrorCodeSchema,
+        passed: z.boolean(),
+        detail: z.string().nullable(),
+      }),
+    )
     .nullable(),
 });
 export type ProblemDetails = z.infer<typeof ProblemDetailsSchema>;

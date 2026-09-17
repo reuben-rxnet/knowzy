@@ -81,9 +81,7 @@ const seedRoles = async (): Promise<void> => {
     if (missing.length > 0) {
       // A role referencing an unseeded permission would silently under-grant,
       // which is exactly the class of bug the closed union exists to prevent.
-      throw new Error(
-        `Role ${role.key} references unseeded permissions: ${missing.join(', ')}`,
-      );
+      throw new Error(`Role ${role.key} references unseeded permissions: ${missing.join(', ')}`);
     }
 
     // Replace the matrix rather than merging: role definitions are seeded
@@ -134,11 +132,27 @@ const seedConfiguration = async (): Promise<void> => {
   // not required for a key to have a value.
   const platformKeys = CONFIG_KEY_LIST.filter((k) => CONFIG_KEYS[k].scopes.includes('PLATFORM'));
 
+  let created = 0;
+
   for (const key of platformKeys) {
     const declaration = CONFIG_KEYS[key];
-    await prisma.applicationConfiguration.upsert({
-      where: { key_scope_scopeId: { key, scope: 'PLATFORM', scopeId: null } },
-      create: {
+
+    // findFirst + create rather than upsert: `scopeId` is null for a
+    // PLATFORM row, and Prisma's compound-unique input rejects a null
+    // component. The real uniqueness is enforced by the partial unique index
+    // in migration 0003, because PostgreSQL treats NULLs as distinct and the
+    // composite unique therefore would not.
+    const existing = await prisma.applicationConfiguration.findFirst({
+      where: { key, scope: 'PLATFORM', scopeId: null },
+      select: { id: true },
+    });
+
+    // Do NOT overwrite an operator's value on re-seed. The seed establishes a
+    // baseline; it does not reset a deliberate configuration decision.
+    if (existing) continue;
+
+    await prisma.applicationConfiguration.create({
+      data: {
         key,
         scope: 'PLATFORM',
         scopeId: null,
@@ -146,12 +160,13 @@ const seedConfiguration = async (): Promise<void> => {
         valueType: typeof declaration.defaultValue,
         isSecretRef: false,
       },
-      // Do NOT overwrite an operator's value on re-seed. The seed establishes a
-      // baseline; it does not reset a deliberate configuration decision.
-      update: {},
     });
+    created += 1;
   }
-  log(`  configuration: ${platformKeys.length} platform defaults`);
+
+  log(
+    `  configuration: ${platformKeys.length} platform keys (${created} created, rest already present)`,
+  );
 };
 
 const seedFeatureFlags = async (environment: string): Promise<void> => {
@@ -369,7 +384,8 @@ const seedBadgeDefinitions = async (): Promise<void> => {
     {
       key: 'CONSISTENCY',
       name: 'Consistent Performer',
-      description: 'Pass three or more assessments in a rolling 90 days with an average of 80% or above.',
+      description:
+        'Pass three or more assessments in a rolling 90 days with an average of 80% or above.',
       category: 'CONSISTENCY',
       trigger: 'PERIODIC' as const,
       isRepeatable: true,
@@ -591,6 +607,8 @@ main()
   })
   .catch(async (error: unknown) => {
     process.exitCode = 1;
-    process.stderr.write(`Seed failed: ${error instanceof Error ? error.message : String(error)}\n`);
+    process.stderr.write(
+      `Seed failed: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
     await prisma.$disconnect();
   });

@@ -4,14 +4,8 @@
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": [
-    "src/**/*.ts",
-    "contracts/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ],
+  "include": ["src/**/*.ts", "contracts/**/*.ts"],
+  "exclude": ["node_modules", "dist"],
   "references": [
     {
       "path": "../shared-types"

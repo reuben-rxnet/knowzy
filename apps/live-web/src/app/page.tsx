@@ -1,5 +1,5 @@
 import { publicEnvironmentName } from '@knowzy/configuration';
-import { t } from '../copy.js';
+import { t } from '../copy';
 
 /**
  * Phase 1 learner landing page.

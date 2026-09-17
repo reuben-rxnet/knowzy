@@ -13,7 +13,7 @@
 // code in a browser bundle".
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -36,20 +36,45 @@ interface CruiseResult {
   readonly output: string;
 }
 
+/**
+ * Resolves the dependency-cruiser CLI and runs it with THIS node.
+ *
+ * Not via `npx`: Node 20+ refuses to spawn a .cmd or .bat without a shell (the
+ * CVE-2024-27980 hardening), so `execFileSync('npx.cmd', ...)` fails on Windows
+ * and — worse — fails *silently* from a test's point of view, returning empty
+ * output. That made all nine assertions below "pass the failure": they saw a
+ * non-zero exit and no rule name, which is indistinguishable from a broken
+ * config. Resolving the JS entry point directly is portable and observable.
+ */
+const resolveDepcruiseCli = (): string => {
+  const manifestPath = join(REPO_ROOT, 'node_modules', 'dependency-cruiser', 'package.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+    bin?: Record<string, string>;
+  };
+  const rel = manifest.bin?.['depcruise'];
+  if (!rel) throw new Error('could not resolve the depcruise CLI entry point');
+  return join(dirname(manifestPath), rel);
+};
+
 const runDependencyCruiser = (target: string): CruiseResult => {
+  const args = [
+    resolveDepcruiseCli(),
+    '--config',
+    '.dependency-cruiser.cjs',
+    '--output-type',
+    'err',
+    ...target.split(' '),
+  ];
   try {
-    const output = execFileSync(
-      process.platform === 'win32' ? 'npx.cmd' : 'npx',
-      ['depcruise', '--config', '.dependency-cruiser.cjs', '--output-type', 'err', target],
-      { cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-    );
+    const output = execFileSync(process.execPath, args, {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     return { exitCode: 0, output };
   } catch (error: unknown) {
     const e = error as { status?: number; stdout?: string; stderr?: string };
-    return {
-      exitCode: e.status ?? 1,
-      output: `${e.stdout ?? ''}${e.stderr ?? ''}`,
-    };
+    return { exitCode: e.status ?? 1, output: `${e.stdout ?? ''}${e.stderr ?? ''}` };
   }
 };
 

@@ -391,7 +391,8 @@ export const CONFIG_KEYS = {
   }),
   'source.concurrencyPerSource': decl({
     key: 'source.concurrencyPerSource',
-    description: 'Concurrent adapter operations per source, so one source cannot throttle a tenant.',
+    description:
+      'Concurrent adapter operations per source, so one source cannot throttle a tenant.',
     schema: z.number().int().min(1).max(16),
     defaultValue: 4,
     layers: PLATFORM_ONLY,

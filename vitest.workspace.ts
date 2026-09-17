@@ -29,6 +29,9 @@ export default defineWorkspace([
       environment: 'node',
       testTimeout: 30_000,
       passWithNoTests: true,
+      // Populates DATABASE_URL from .env so these suites RUN locally instead of
+      // skipping. A silent skip is indistinguishable from a pass.
+      setupFiles: ['./vitest.setup.integration.ts'],
     },
   },
 ]);

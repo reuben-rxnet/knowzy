@@ -14,11 +14,7 @@
 // assertable without spawning a process or standing up a dependency.
 
 import { KnowzyEnvSchema, type KnowzyEnv } from '@knowzy/shared-types';
-import {
-  CONFIG_KEYS,
-  CONFIG_KEY_LIST,
-  type ConfigKey,
-} from './keys.js';
+import { CONFIG_KEYS, CONFIG_KEY_LIST, type ConfigKey } from './keys.js';
 import { FEATURE_FLAG_KEYS, ceilingPermits, type FeatureFlagKey } from './flags.js';
 import {
   envVarsFor,
@@ -118,10 +114,7 @@ export interface StartupInput {
   readonly probes?: StartupProbes;
 }
 
-const pass = (
-  id: StartupCheckId,
-  detail: string,
-): StartupCheckOutcome => ({
+const pass = (id: StartupCheckId, detail: string): StartupCheckOutcome => ({
   id,
   result: 'PASS',
   disposition: CHECK_DISPOSITION[id],
@@ -173,11 +166,9 @@ export const validateStartup = async (input: StartupInput): Promise<StartupRepor
 
   if (!environment) {
     checks.push(
-      fail(
-        'ENV_NAME',
-        'KNOWZY_ENV is absent or not one of local, dev, test, prod.',
-        [`KNOWZY_ENV=${rawEnv['KNOWZY_ENV'] ?? '(unset)'}`],
-      ),
+      fail('ENV_NAME', 'KNOWZY_ENV is absent or not one of local, dev, test, prod.', [
+        `KNOWZY_ENV=${rawEnv['KNOWZY_ENV'] ?? '(unset)'}`,
+      ]),
     );
     // Every later check depends on knowing the environment. Reporting NOT_RUN
     // is honest; a cascade of misleading failures is not.
@@ -441,9 +432,7 @@ export const validateStartup = async (input: StartupInput): Promise<StartupRepor
     ceilingPermits('sharepoint.write.enabled', environment);
 
   if (!writeSwitchOn) {
-    checks.push(
-      notRun('QUESTION_BANK_TARGET', 'Not run: sharepoint.write.enabled is off.'),
-    );
+    checks.push(notRun('QUESTION_BANK_TARGET', 'Not run: sharepoint.write.enabled is off.'));
   } else if (!probes.questionBank) {
     checks.push(
       warn('QUESTION_BANK_TARGET', 'Writes are enabled but no bank probe is available.', [
@@ -487,8 +476,7 @@ export const validateStartup = async (input: StartupInput): Promise<StartupRepor
   }
 
   const fatal = checks.some((c) => c.disposition === 'FAIL_FAST' && c.result === 'FAIL');
-  const ready =
-    !fatal && !checks.some((c) => c.disposition === 'READINESS' && c.result === 'FAIL');
+  const ready = !fatal && !checks.some((c) => c.disposition === 'READINESS' && c.result === 'FAIL');
 
   return {
     deployable,

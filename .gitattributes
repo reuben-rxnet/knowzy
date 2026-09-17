@@ -1,0 +1,29 @@
+# Line endings.
+#
+# core.autocrlf=true on this machine checked files out with CRLF, while
+# .prettierrc.json sets endOfLine: lf. Without this file the two disagree and
+# `format:check` fails on every file — and a CRLF-vs-LF diff also defeated the
+# comment stripper in the 0002_init guard, which rejected a schema that was
+# actually correct.
+#
+# `eol=lf` makes the working tree match the repository regardless of platform,
+# so the formatter, the linter, and every string-processing script see the same
+# bytes everywhere.
+* text=auto eol=lf
+
+# Binary fixtures must never be line-ending converted; doing so corrupts them
+# and would silently break the extractors that read them.
+*.pdf   binary
+*.docx  binary
+*.pptx  binary
+*.xlsx  binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+
+# Generated and committed; diff them, but do not let a merge tool reformat them.
+packages/database/prisma/migrations/** -diff=auto
+packages/shared-types/generated/**     linguist-generated=true
+package-lock.json                      -diff merge=binary linguist-generated=true

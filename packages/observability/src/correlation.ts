@@ -19,8 +19,7 @@ export const newCorrelationId = (): string => `${PREFIX_CORRELATION}${token(16)}
 /** One per HTTP request or job attempt. A retry keeps the correlation ID (N3). */
 export const newRequestId = (): string => `${PREFIX_REQUEST}${token(8)}`;
 
-export const isCorrelationId = (value: string): boolean =>
-  /^c-[0-9a-f]{32}$/.test(value);
+export const isCorrelationId = (value: string): boolean => /^c-[0-9a-f]{32}$/.test(value);
 
 export interface CorrelationContext {
   readonly correlationId: string;

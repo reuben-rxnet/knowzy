@@ -137,12 +137,7 @@ describe('fail-fast check 2 — REQUIRED_VARIABLES', () => {
   });
 
   it('names EVERY missing variable at once, so one fix round suffices', async () => {
-    const {
-      DATABASE_URL: _a,
-      MCP_ENDPOINT: _b,
-      OTEL_SERVICE_NAME: _c,
-      ...sparse
-    } = validEnv;
+    const { DATABASE_URL: _a, MCP_ENDPOINT: _b, OTEL_SERVICE_NAME: _c, ...sparse } = validEnv;
     const report = await validateStartup(baseline({ rawEnv: sparse }));
     const problems = outcome(report, 'REQUIRED_VARIABLES').problems.join('\n');
     expect(problems).toContain('DATABASE_URL');
@@ -190,8 +185,7 @@ describe('fail-fast check 3 — PUBLIC_VAR_SAFETY', () => {
       baseline({
         rawEnv: {
           ...validEnv,
-          PUBLIC_TOKEN:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0.abcdefghijklmnop',
+          PUBLIC_TOKEN: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0.abcdefghijklmnop',
         },
       }),
     );
@@ -262,7 +256,10 @@ describe('fail-fast check 5 — DATABASE', () => {
       baseline({
         probes: {
           ...healthyProbes,
-          database: async () => ({ reachable: true, migrationVersion: '0001_platform_prerequisites' }),
+          database: async () => ({
+            reachable: true,
+            migrationVersion: '0001_platform_prerequisites',
+          }),
         },
       }),
     );
@@ -337,9 +334,7 @@ describe('fail-fast check 9 — CONFIG_RESOLVABLE', () => {
     expect(check.result).toBe('WARN');
     // A single bad row must not take the platform down.
     expect(report.fatal).toBe(false);
-    expect(report.findings.map((f) => f.checkKey)).toContain(
-      'configuration.storedValueRejected',
-    );
+    expect(report.findings.map((f) => f.checkKey)).toContain('configuration.storedValueRejected');
   });
 
   it('warns for an undeclared key rather than reading it (P1)', async () => {
@@ -347,8 +342,7 @@ describe('fail-fast check 9 — CONFIG_RESOLVABLE', () => {
       baseline({
         probes: {
           ...healthyProbes,
-          storedConfig: async () =>
-            ({ 'not.a.declared.key': true }) as Record<string, unknown>,
+          storedConfig: async () => ({ 'not.a.declared.key': true }) as Record<string, unknown>,
         },
       }),
     );

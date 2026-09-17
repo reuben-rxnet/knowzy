@@ -15,7 +15,7 @@ import tseslint from 'typescript-eslint';
 /** C1 — no SharePoint internal field names outside the adapter package. */
 const NO_INTERNAL_FIELD_NAMES = [
   {
-    selector: "Literal[value=/^field_[0-9]+$/]",
+    selector: 'Literal[value=/^field_[0-9]+$/]',
     message:
       'C1: SharePoint internal field names (field_n) may appear only in @knowzy/knowledge-source-adapters. Use a semantic key and resolve it through the mapping profile — see docs/sharepoint-field-mapping.md §4.1.',
   },
@@ -73,8 +73,7 @@ const NO_AMBIENT_CLOCK = [
   },
   {
     selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']",
-    message:
-      'C6: use the injected Clock, not Date.now(). See docs/data-model.md §9 T3.',
+    message: 'C6: use the injected Clock, not Date.now(). See docs/data-model.md §9 T3.',
   },
 ];
 
@@ -99,7 +98,9 @@ const baseTs = [
       ],
       '@typescript-eslint/no-non-null-assertion': 'error',
       eqeqeq: ['error', 'always', { null: 'ignore' }],
-      'no-console': ['error', { allow: [] }],
+      // No options: ESLint's schema requires `allow` to be non-empty, and
+      // there is nothing we want to allow. Apps write via process.stdout.
+      'no-console': 'error',
       // B10 — deep imports bypass the exports map, and a boundary that can be
       // bypassed by path is not a boundary.
       'no-restricted-imports': [

@@ -12,25 +12,24 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist", "prisma"],
+  "files": [
+    "dist",
+    "prisma"
+  ],
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --emitDeclarationOnly",
     "lint": "eslint src prisma",
-    "test": "vitest run --dir src",
+    "test": "vitest run --dir src --passWithNoTests",
     "test:integration": "vitest run --dir test",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:migrate:dev": "prisma migrate dev",
-    "prisma:migrate:status": "prisma migrate status",
-    "prisma:validate": "prisma validate && prisma format --check",
+    "prisma:generate": "cd ../.. && npm run db:generate",
+    "prisma:migrate:deploy": "cd ../.. && npm run db:migrate",
+    "prisma:migrate:dev": "cd ../.. && npm run db:migrate:dev",
+    "prisma:migrate:status": "cd ../.. && npm run db:migrate:status",
+    "prisma:validate": "cd ../.. && npm run db:validate",
     "bootstrap:init-migration": "node scripts/generate-init-migration.mjs",
-    "seed": "tsx prisma/seed.ts",
-    "reset": "prisma migrate reset --force --skip-seed && npm run prisma:migrate:deploy && npm run seed"
-  },
-  "prisma": {
-    "schema": "prisma/schema.prisma",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "cd ../.. && npm run db:seed",
+    "reset": "cd ../.. && npm run db:reset"
   },
   "dependencies": {
     "@knowzy/configuration": "*",

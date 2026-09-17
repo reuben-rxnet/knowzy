@@ -8,13 +8,13 @@ This file covers only how to run and work on the code; it deliberately repeats
 nothing from the design set. Where code and documentation disagree, the
 documentation is right and the code is the defect.
 
-| I want to… | Read |
-| --- | --- |
-| Understand what this is | [docs/executive-summary.md](docs/executive-summary.md) |
-| Understand how it is built | [docs/architecture.md](docs/architecture.md) |
-| Find my way around the repository | [docs/repository-structure.md](docs/repository-structure.md) |
-| Know what ships when | [docs/implementation-roadmap.md](docs/implementation-roadmap.md) |
-| Know what a term means | [docs/glossary.md](docs/glossary.md) |
+| I want to…                        | Read                                                             |
+| --------------------------------- | ---------------------------------------------------------------- |
+| Understand what this is           | [docs/executive-summary.md](docs/executive-summary.md)           |
+| Understand how it is built        | [docs/architecture.md](docs/architecture.md)                     |
+| Find my way around the repository | [docs/repository-structure.md](docs/repository-structure.md)     |
+| Know what ships when              | [docs/implementation-roadmap.md](docs/implementation-roadmap.md) |
+| Know what a term means            | [docs/glossary.md](docs/glossary.md)                             |
 
 ---
 
@@ -23,14 +23,14 @@ documentation is right and the code is the defect.
 Phase 1 of eleven ([implementation-roadmap.md §3](docs/implementation-roadmap.md)).
 What exists and what does not:
 
-| Built | Not built yet |
-| --- | --- |
-| Monorepo, package boundaries enforced in CI | Identity and authorization (Phase 2) |
-| Full Prisma schema, migrations, seeds | Knowledge sources and documents (Phase 3) |
-| Layered configuration, feature flags, startup validation | Generation and governance (Phase 4) |
-| Redaction, structured logging, correlation | Review and approval (Phase 5) |
-| Transactional audit writer | Assessments, quiz, scoring (Phase 6) |
-| Local Docker topology, CI pipeline | Everything in Phases 7–11 |
+| Built                                                    | Not built yet                             |
+| -------------------------------------------------------- | ----------------------------------------- |
+| Monorepo, package boundaries enforced in CI              | Identity and authorization (Phase 2)      |
+| Full Prisma schema, migrations, seeds                    | Knowledge sources and documents (Phase 3) |
+| Layered configuration, feature flags, startup validation | Generation and governance (Phase 4)       |
+| Redaction, structured logging, correlation               | Review and approval (Phase 5)             |
+| Transactional audit writer                               | Assessments, quiz, scoring (Phase 6)      |
+| Local Docker topology, CI pipeline                       | Everything in Phases 7–11                 |
 
 Nine of the fourteen packages are deliberate placeholders. They exist so the
 boundary rules apply from the first commit — a rule that only starts applying
@@ -64,14 +64,14 @@ generates the init migration on first run, applies migrations, and seeds. Every
 other service waits for it to finish successfully, so nothing starts against an
 unmigrated database.
 
-| Service | URL |
-| --- | --- |
-| Authoring Portal | http://localhost:3000 |
-| Live Learning Portal | http://localhost:3001 |
-| API | http://localhost:8080/internal/health/live |
-| Startup report | http://localhost:8080/internal/health/startup |
-| Mailpit | http://localhost:8025 |
-| PostgreSQL | `localhost:5432` (`knowzy` / `knowzy`) |
+| Service              | URL                                           |
+| -------------------- | --------------------------------------------- |
+| Authoring Portal     | http://localhost:3000                         |
+| Live Learning Portal | http://localhost:3001                         |
+| API                  | http://localhost:8080/internal/health/live    |
+| Startup report       | http://localhost:8080/internal/health/startup |
+| Mailpit              | http://localhost:8025                         |
+| PostgreSQL           | `localhost:5432` (`knowzy` / `knowzy`)        |
 
 The MCP server publishes **no port**, locally or in deployment. It is the only
 component that will hold Graph credentials, and keeping it unreachable from the
@@ -94,11 +94,11 @@ npm run dev
 CI does not create them; it fails with an actionable message if they are
 missing, because generating them silently would hide a setup mistake.
 
-| Artifact | Command | Why it is committed |
-| --- | --- | --- |
-| `package-lock.json` | `npm install` | CI installs with a frozen lockfile ([§6](docs/repository-structure.md#6-tooling)) |
+| Artifact                                         | Command                                                | Why it is committed                                                                                      |
+| ------------------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `package-lock.json`                              | `npm install`                                          | CI installs with a frozen lockfile ([§6](docs/repository-structure.md#6-tooling))                        |
 | `packages/database/prisma/migrations/0002_init/` | `npm run -w @knowzy/database bootstrap:init-migration` | Migrations are checked in ([data-model.md §15](docs/data-model.md#15-prisma-conventions-and-migrations)) |
-| `packages/shared-types/generated/` | `npm run codegen` | The contract is diff-checked against the Zod validators (G6) |
+| `packages/shared-types/generated/`               | `npm run codegen`                                      | The contract is diff-checked against the Zod validators (G6)                                             |
 
 Migrations `0001` and `0003` are hand-written for what Prisma cannot express —
 extensions, the UUIDv7 generator, the partitioned audit table, CHECK
@@ -122,15 +122,15 @@ npm run verify      # everything CI checks, in CI's order
 
 Individually:
 
-| Command | Enforces |
-| --- | --- |
-| `npm run typecheck` | Strict TypeScript across every package |
-| `npm run lint` | Content rules C1–C8 ([§5.2](docs/repository-structure.md#52-content-rules)) |
-| `npm run lint:boundaries` | Import-graph rules B1–B10 ([§5.1](docs/repository-structure.md#51-layer-rules)) |
-| `npm run codegen:check` | Generated contract matches the Zod validators |
-| `npm run test:unit` | Pure functions, including the redactor |
-| `npm run test:contract` | Registries, answer-key protection, planted boundary violations |
-| `npm run test:integration` | Needs `DATABASE_URL`; skips itself without one |
+| Command                    | Enforces                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| `npm run typecheck`        | Strict TypeScript across every package                                          |
+| `npm run lint`             | Content rules C1–C8 ([§5.2](docs/repository-structure.md#52-content-rules))     |
+| `npm run lint:boundaries`  | Import-graph rules B1–B10 ([§5.1](docs/repository-structure.md#51-layer-rules)) |
+| `npm run codegen:check`    | Generated contract matches the Zod validators                                   |
+| `npm run test:unit`        | Pure functions, including the redactor                                          |
+| `npm run test:contract`    | Registries, answer-key protection, planted boundary violations                  |
+| `npm run test:integration` | Needs `DATABASE_URL`; skips itself without one                                  |
 
 ### Things the tooling will stop you doing
 

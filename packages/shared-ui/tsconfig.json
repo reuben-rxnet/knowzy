@@ -1,7 +1,14 @@
 {
-  "extends": "@knowzy/tsconfig/react.json",
-  "compilerOptions": {},
+  "extends": "@knowzy/tsconfig/react-library.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src"
+  },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"],
-  "references": [{ "path": "../shared-types" }]
+  "references": [
+    {
+      "path": "../shared-types"
+    }
+  ]
 }

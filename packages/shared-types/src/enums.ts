@@ -80,7 +80,12 @@ export const SYNC_FAILURE_PHASE = ['LISTING', 'DOWNLOAD', 'EXTRACTION', 'INDEXIN
 export const SyncFailurePhaseSchema = z.enum(SYNC_FAILURE_PHASE);
 export type SyncFailurePhase = z.infer<typeof SyncFailurePhaseSchema>;
 
-export const SYNC_FAILURE_STATE = ['PENDING_RETRY', 'QUARANTINED', 'DISMISSED', 'RESOLVED'] as const;
+export const SYNC_FAILURE_STATE = [
+  'PENDING_RETRY',
+  'QUARANTINED',
+  'DISMISSED',
+  'RESOLVED',
+] as const;
 export const SyncFailureStateSchema = z.enum(SYNC_FAILURE_STATE);
 export type SyncFailureState = z.infer<typeof SyncFailureStateSchema>;
 
@@ -399,13 +404,7 @@ export type NotificationChannel = z.infer<typeof NotificationChannelSchema>;
 /** Only IN_APP is delivered in release 1 — knowledge-source-administration.md §8. */
 export const RELEASE_1_NOTIFICATION_CHANNELS: readonly NotificationChannel[] = ['IN_APP'];
 
-export const NOTIFICATION_STATE = [
-  'PENDING',
-  'DELIVERED',
-  'READ',
-  'DISMISSED',
-  'FAILED',
-] as const;
+export const NOTIFICATION_STATE = ['PENDING', 'DELIVERED', 'READ', 'DISMISSED', 'FAILED'] as const;
 export const NotificationStateSchema = z.enum(NOTIFICATION_STATE);
 export type NotificationState = z.infer<typeof NotificationStateSchema>;
 

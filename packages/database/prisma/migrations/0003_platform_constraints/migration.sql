@@ -493,3 +493,29 @@ BEGIN
   END IF;
 END
 $$;
+
+-- ===========================================================================
+-- Uniqueness where a nullable column participates
+--
+-- PostgreSQL treats NULLs as DISTINCT in a unique index, so a composite unique
+-- containing a nullable column does not prevent duplicates when that column is
+-- NULL. `@@unique([key, scope, scopeId])` on application_configuration
+-- therefore does NOT stop two PLATFORM rows for one key, which is exactly the
+-- case the platform uses most.
+--
+-- These partial indexes are what actually enforce the uniqueness described in
+-- data-model.md §10. Prisma cannot express them.
+-- ===========================================================================
+
+CREATE UNIQUE INDEX "application_configuration_platform_uidx"
+  ON "application_configuration" ("key", "scope")
+  WHERE "scope_id" IS NULL;
+
+COMMENT ON INDEX "application_configuration_platform_uidx" IS
+  'Enforces one row per (key, scope) when scope_id IS NULL; the composite unique cannot, because NULLs are distinct.';
+
+-- Same shape, same reason: one draft question per proposed QuestionID, but the
+-- column is nullable until the ID is allocated.
+CREATE UNIQUE INDEX "draft_question_proposed_id_uidx"
+  ON "draft_question" ("proposed_question_id")
+  WHERE "proposed_question_id" IS NOT NULL;

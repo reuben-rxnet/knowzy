@@ -10,12 +10,7 @@
 // code.
 
 import type { ConfigurationScope } from '@knowzy/shared-types';
-import {
-  CONFIG_KEYS,
-  type ConfigKey,
-  type ConfigLayer,
-  type ConfigValue,
-} from './keys.js';
+import { CONFIG_KEYS, type ConfigKey, type ConfigLayer, type ConfigValue } from './keys.js';
 
 /** Precedence order, highest first (§3). */
 const LAYER_ORDER: readonly ConfigLayer[] = [

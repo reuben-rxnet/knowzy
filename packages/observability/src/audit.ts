@@ -157,10 +157,7 @@ const defaultSeverity = (action: string, outcome: AuditOutcome): AuditSeverity =
   return 'INFO';
 };
 
-const filterDetail = (
-  action: string,
-  detail: Record<string, unknown>,
-): Record<string, unknown> => {
+const filterDetail = (action: string, detail: Record<string, unknown>): Record<string, unknown> => {
   const allowed = new Set<string>([
     ...UNIVERSAL_DETAIL_KEYS,
     ...(DETAIL_ALLOWLIST[action as AuditAction] ?? []),
@@ -251,7 +248,6 @@ export const buildAuditEvent = (
   };
 };
 
-export const isKnownAuditAction = (action: string): action is AuditAction =>
-  ACTION_SET.has(action);
+export const isKnownAuditAction = (action: string): action is AuditAction => ACTION_SET.has(action);
 
 export { DETAIL_ALLOWLIST, UNIVERSAL_DETAIL_KEYS, VALUE_DIFF_ACTIONS };

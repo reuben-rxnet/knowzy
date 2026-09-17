@@ -1,0 +1,83 @@
+{
+  "//": "Solution-style root config. `files: []` means it compiles nothing itself. It exists so `tsc -b .` builds the whole graph in dependency order, so the IDE resolves cross-package types, and so dependency-cruiser can resolve modules (repository-structure.md \u00a75).",
+  "//paths": "The path mapping is for dependency-cruiser, not the compiler. Without it, `@knowzy/x` resolves through each package's exports map into `dist/`, which .dependency-cruiser.cjs excludes \u2014 so the boundary rules, written against `^packages/x/`, never matched and B1-B9 were silently vacuous for cross-package imports. The planted-violation suite caught it.",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@knowzy/authentication": ["./packages/authentication/src/index.ts"],
+      "@knowzy/authorization": ["./packages/authorization/src/index.ts"],
+      "@knowzy/certificate-generator": ["./packages/certificate-generator/src/index.ts"],
+      "@knowzy/claude-services": ["./packages/claude-services/src/index.ts"],
+      "@knowzy/configuration": ["./packages/configuration/src/index.ts"],
+      "@knowzy/content-extraction": ["./packages/content-extraction/src/index.ts"],
+      "@knowzy/database": ["./packages/database/src/index.ts"],
+      "@knowzy/domain": ["./packages/domain/src/index.ts"],
+      "@knowzy/knowledge-source-adapters": ["./packages/knowledge-source-adapters/src/index.ts"],
+      "@knowzy/observability": ["./packages/observability/src/index.ts"],
+      "@knowzy/reporting": ["./packages/reporting/src/index.ts"],
+      "@knowzy/shared-types": ["./packages/shared-types/src/index.ts"],
+      "@knowzy/shared-ui": ["./packages/shared-ui/src/index.ts"],
+      "@knowzy/testing": ["./packages/testing/src/index.ts"]
+    }
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/authentication"
+    },
+    {
+      "path": "./packages/authorization"
+    },
+    {
+      "path": "./packages/certificate-generator"
+    },
+    {
+      "path": "./packages/claude-services"
+    },
+    {
+      "path": "./packages/configuration"
+    },
+    {
+      "path": "./packages/content-extraction"
+    },
+    {
+      "path": "./packages/database"
+    },
+    {
+      "path": "./packages/domain"
+    },
+    {
+      "path": "./packages/knowledge-source-adapters"
+    },
+    {
+      "path": "./packages/observability"
+    },
+    {
+      "path": "./packages/reporting"
+    },
+    {
+      "path": "./packages/shared-types"
+    },
+    {
+      "path": "./packages/shared-ui"
+    },
+    {
+      "path": "./packages/testing"
+    },
+    {
+      "path": "./apps/api"
+    },
+    {
+      "path": "./apps/authoring-web"
+    },
+    {
+      "path": "./apps/jobs"
+    },
+    {
+      "path": "./apps/live-web"
+    },
+    {
+      "path": "./apps/mcp-server"
+    }
+  ]
+}

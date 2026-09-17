@@ -19,8 +19,7 @@ module.exports = {
       severity: 'error',
       from: { path: '^apps/(authoring-web|live-web)/' },
       to: {
-        path:
-          '^packages/(database|knowledge-source-adapters|claude-services|domain|reporting|certificate-generator|content-extraction)/',
+        path: '^packages/(database|knowledge-source-adapters|claude-services|domain|reporting|certificate-generator|content-extraction)/',
       },
     },
 
@@ -125,17 +124,16 @@ module.exports = {
     },
 
     // ---------------------------------------------------------------- B10
-    {
-      name: 'b10-no-deep-imports',
-      comment:
-        'B10: import from a package entry point only. A boundary that can be bypassed by path is not a boundary.',
-      severity: 'error',
-      from: {},
-      to: { path: '^packages/[^/]+/(src|dist)/.+', pathNot: '^packages/[^/]+/(src|dist)/index\\.' },
-      // Within a package, relative imports into its own src are expected; the
-      // rule fires only on cross-package deep paths.
-      module: { viaOnly: {} },
-    },
+    //
+    // B10 (no deep imports) is enforced by ESLint's `no-restricted-imports`
+    // against the `@knowzy/*/src/*` and `@knowzy/*/dist/*` patterns, not here.
+    //
+    // dependency-cruiser resolves a cross-package deep import to the same
+    // on-disk path as a package's own relative import, so a path-based rule at
+    // this layer cannot distinguish "packages/a imported packages/b/src/thing"
+    // from "packages/b imported ./thing" — it would reject every intra-package
+    // relative import. The specifier is what carries the intent, and ESLint is
+    // the tool that sees specifiers.
 
     // ----------------------------------------------------- supporting hygiene
     {
@@ -170,8 +168,28 @@ module.exports = {
   ],
 
   options: {
-    doNotFollow: { path: 'node_modules', dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer'] },
-    exclude: { path: '(\\.test\\.tsx?$|\\.spec\\.tsx?$|/dist/|/\\.next/|/coverage/)' },
+    doNotFollow: {
+      path: 'node_modules',
+      dependencyTypes: ['npm', 'npm-dev', 'npm-optional', 'npm-peer'],
+    },
+    // Tooling config and generated ambient declarations are not part of the
+    // runtime dependency graph. Cruising them makes `no-non-package-json` fire
+    // on `eslint.config.mjs -> @knowzy/eslint-config` (a devDependency that
+    // resolves through a workspace symlink outside the cruised scope) and on
+    // `next-env.d.ts -> next/image-types/global` (an ambient reference that
+    // Next generates). Neither is a boundary question.
+    exclude: {
+      path: [
+        '[.]test[.]tsx?$',
+        '[.]spec[.]tsx?$',
+        '/dist/',
+        '/[.]next/',
+        '/coverage/',
+        '(^|/)eslint[.]config[.]mjs$',
+        '(^|/)next-env[.]d[.]ts$',
+        '(^|/)(vitest|next|tailwind|postcss|prettier)[.]config[.](js|cjs|mjs|ts)$',
+      ].join('|'),
+    },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: 'tsconfig.json' },
     enhancedResolveOptions: {

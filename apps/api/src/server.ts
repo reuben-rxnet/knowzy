@@ -9,7 +9,7 @@
 // What IS built here is the part every later route depends on: correlation,
 // security headers, and the problem+json error contract.
 
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import {
   ERROR_REGISTRY,
   PROBLEM_TYPE_BASE,
@@ -94,7 +94,10 @@ export const buildServer = (deps: ServerDeps): FastifyInstance => {
   });
 
   // -------------------------------------------------------- error contract
-  app.setErrorHandler((error, request, reply) => {
+  // `error` is annotated explicitly: Fastify 5 does not infer FastifyError
+  // here, and an implicit `unknown` would silently permit reading arbitrary
+  // properties off it once someone casts.
+  app.setErrorHandler((error: FastifyError, request, reply) => {
     const correlationId = request.correlation?.correlationId ?? 'c-unknown';
     const code: ErrorCode =
       error.statusCode === 404

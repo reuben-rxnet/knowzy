@@ -55,33 +55,46 @@ export const configurationRepository = (client: DbClient) => ({
     correlationId: string;
   }): Promise<{ previousValue: unknown }> {
     const db = client as PrismaClient;
-    const existing = await db.applicationConfiguration.findUnique({
-      where: {
-        key_scope_scopeId: { key: args.key, scope: args.scope, scopeId: args.scopeId },
-      },
-      select: { value: true },
+
+    // findFirst + explicit create/update rather than upsert.
+    //
+    // Two reasons, both structural:
+    //   1. Prisma's compound-unique input rejects a null component, so
+    //      `findUnique({ key_scope_scopeId: { scopeId: null } })` does not
+    //      typecheck for a PLATFORM-scoped row.
+    //   2. PostgreSQL treats NULLs as DISTINCT in a unique index, so
+    //      @@unique([key, scope, scopeId]) would not have prevented two
+    //      PLATFORM rows for one key anyway. Migration 0003 adds a partial
+    //      unique index for the scopeId IS NULL case, which is what actually
+    //      enforces the uniqueness data-model.md §10 describes.
+    const existing = await db.applicationConfiguration.findFirst({
+      where: { key: args.key, scope: args.scope, scopeId: args.scopeId },
+      select: { id: true, value: true },
     });
 
-    await db.applicationConfiguration.upsert({
-      where: {
-        key_scope_scopeId: { key: args.key, scope: args.scope, scopeId: args.scopeId },
-      },
-      create: {
-        key: args.key,
-        scope: args.scope,
-        scopeId: args.scopeId,
-        value: args.value as object,
-        valueType: args.valueType,
-        isSecretRef: args.isSecretRef ?? false,
-        updatedByUserId: args.actorUserId,
-      },
-      update: {
-        value: args.value as object,
-        valueType: args.valueType,
-        isSecretRef: args.isSecretRef ?? false,
-        updatedByUserId: args.actorUserId,
-      },
-    });
+    if (existing) {
+      await db.applicationConfiguration.update({
+        where: { id: existing.id },
+        data: {
+          value: args.value as object,
+          valueType: args.valueType,
+          isSecretRef: args.isSecretRef ?? false,
+          updatedByUserId: args.actorUserId,
+        },
+      });
+    } else {
+      await db.applicationConfiguration.create({
+        data: {
+          key: args.key,
+          scope: args.scope,
+          scopeId: args.scopeId,
+          value: args.value as object,
+          valueType: args.valueType,
+          isSecretRef: args.isSecretRef ?? false,
+          updatedByUserId: args.actorUserId,
+        },
+      });
+    }
 
     await db.configurationChange.create({
       data: {

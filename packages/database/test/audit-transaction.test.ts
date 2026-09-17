@@ -48,8 +48,7 @@ describeIfDb('transactWithAudit — U1 audit/state coupling', () => {
     await prisma.$disconnect();
   });
 
-  const auditEventsFor = (entityId: string) =>
-    prisma.auditEvent.findMany({ where: { entityId } });
+  const auditEventsFor = (entityId: string) => prisma.auditEvent.findMany({ where: { entityId } });
 
   // -------------------------------------------------------------------------
 

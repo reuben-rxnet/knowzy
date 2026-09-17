@@ -43,7 +43,12 @@ describe('LearnerQuestionDto (K2)', () => {
       presentationIndex: 0,
       questionType: 'MULTIPLE_CHOICE_4' as const,
       questionText: 'Which command clears the ARP cache on the Linux jump host?',
-      options: { A: 'arp -d *', B: 'ip neigh flush all', C: 'netsh int ip reset', D: 'ifconfig -a' },
+      options: {
+        A: 'arp -d *',
+        B: 'ip neigh flush all',
+        C: 'netsh int ip reset',
+        D: 'ifconfig -a',
+      },
       selectedOption: null,
       isFlagged: false,
     };

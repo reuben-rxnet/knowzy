@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
-import { t } from '../copy.js';
+import { t } from '../copy';
 
 export const metadata: Metadata = {
   title: `${t('app.name')} — ${t('app.portal')}`,
