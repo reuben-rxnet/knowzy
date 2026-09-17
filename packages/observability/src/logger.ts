@@ -4,6 +4,7 @@
 // (U7). Nothing here is a substitute for an AuditEvent, and an audit record
 // must never be reconstructed from logs.
 
+import { createRequire } from 'node:module';
 import pino, { type Logger as PinoLogger } from 'pino';
 import { redact } from './redaction.js';
 
@@ -39,6 +40,32 @@ const wrap = (base: PinoLogger): Logger => ({
   child: (context) => wrap(base.child(redact(context) as object)),
 });
 
+/**
+ * Pretty-printing transport for local development.
+ *
+ * Resolved defensively and never allowed to fail the process. `pino` throws
+ * "unable to determine transport target" at construction if the transport
+ * cannot be resolved, and because the logger is built during bootstrap that
+ * threw before the API, MCP server, and job runner could bind a port — a
+ * cosmetic developer convenience taking down three services.
+ *
+ * Structured JSON on stdout is the real contract (security.md §12). Colour is
+ * a nicety, so its absence degrades to plain JSON with a note rather than
+ * stopping anything.
+ */
+const prettyTransport = (wanted: boolean): Record<string, unknown> => {
+  if (!wanted) return {};
+  try {
+    createRequire(import.meta.url).resolve('pino-pretty');
+    return { transport: { target: 'pino-pretty', options: { colorize: true } } };
+  } catch {
+    process.stderr.write(
+      'pino-pretty is not resolvable; logging plain JSON instead of pretty output.\n',
+    );
+    return {};
+  }
+};
+
 export const createLogger = (options: LoggerOptions): Logger => {
   const base = pino({
     name: options.serviceName,
@@ -65,9 +92,7 @@ export const createLogger = (options: LoggerOptions): Logger => {
       level: (label) => ({ level: label }),
     },
     timestamp: pino.stdTimeFunctions.isoTime,
-    ...(options.pretty
-      ? { transport: { target: 'pino-pretty', options: { colorize: true } } }
-      : {}),
+    ...prettyTransport(options.pretty === true),
   });
 
   return wrap(base);

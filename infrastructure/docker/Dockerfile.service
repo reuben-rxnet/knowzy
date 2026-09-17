@@ -63,6 +63,13 @@ ENV NODE_ENV=production
 ENV APP_NAME=${APP}
 WORKDIR /repo
 
+# Prisma detects its query-engine variant by running `openssl version`. The slim
+# image ships neither the CLI nor libssl, so without this Prisma falls back to
+# the openssl-1.1.x engine on a host that actually has OpenSSL 3. Installed
+# before dropping to the non-root user, and the apt lists are removed so the
+# layer stays small.
+RUN apt-get update  && apt-get install -y --no-install-recommends openssl ca-certificates  && rm -rf /var/lib/apt/lists/*
+
 # Non-root. Node's image already provides uid/gid 1000 as `node`.
 USER node
 

@@ -18,8 +18,14 @@
 
 name: knowzy
 
-x-node-base: &node-base # pinned minor; CI rebuilds weekly to absorb base patches
-  image: node:22-bookworm-slim
+x-node-base: &node-base
+  # Built from ../docker/Dockerfile.dev, which adds openssl to the slim image.
+  # Prisma detects its engine variant by running `openssl version`; without it
+  # the fallback engine merely happens to work, which is not a foundation.
+  build:
+    context: ../..
+    dockerfile: infrastructure/docker/Dockerfile.dev
+  image: knowzy-dev-node:local
   working_dir: /repo
   volumes:
     - ../..:/repo
@@ -67,7 +73,10 @@ services:
   # for this to complete successfully, so a service never starts against an
   # unmigrated database — which startup check 5 would fail anyway, loudly.
   migrate:
-    image: node:22-bookworm-slim
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.dev
+    image: knowzy-dev-node:local
     working_dir: /repo
     volumes:
       - ../..:/repo

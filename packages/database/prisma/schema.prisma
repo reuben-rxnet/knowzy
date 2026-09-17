@@ -20,6 +20,10 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
+  // Explicit rather than detected. The container base is Debian 12 (OpenSSL 3);
+  // naming the target means the correct engine is always present even if
+  // detection fails, which it does on an image without the openssl CLI.
+  binaryTargets   = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
