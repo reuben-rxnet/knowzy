@@ -55,6 +55,21 @@ export default defineWorkspace([
       environment: 'node',
       testTimeout: 30_000,
       passWithNoTests: true,
+      /**
+       * ONE file at a time. These suites share a single PostgreSQL database and
+       * mutate the same rows — a generation suite and a review suite both clear
+       * `draft_question`. Run in parallel they fail for reasons that have
+       * nothing to do with the code, and worse, they can PASS while hiding a
+       * real defect because one file's leftovers satisfy another's setup.
+       *
+       * Per-file schemas or a database per worker would restore the
+       * parallelism; until then correctness is worth the wall-clock.
+       */
+      fileParallelism: false,
+      // fileParallelism alone was not enough: the runner still gave each file
+      // its own worker. A single fork makes the serialization actual.
+      pool: 'forks',
+      poolOptions: { forks: { singleFork: true } },
       // Populates DATABASE_URL from .env so these suites RUN locally instead of
       // skipping. A silent skip is indistinguishable from a pass.
       setupFiles: ['./vitest.setup.integration.ts'],

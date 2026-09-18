@@ -17,8 +17,11 @@
 import { describe, expect, it } from 'vitest';
 import type {
   AdapterContext,
+  BankContext,
+  BankItemWrite,
   ExtractedContent,
   KnowledgeSourceAdapter,
+  QuestionBankAdapter,
   SourceItem,
   SyncEvent,
 } from '@knowzy/knowledge-source-adapters';
@@ -497,6 +500,100 @@ export const runAdapterConformanceSuite = (subject: ConformanceSubject): void =>
       it.todo('section lineage across document versions (needs versioned fixtures)');
       it.todo('failure isolation across a ten-document extraction');
       it.todo('end-to-end: approved, published, assessable, scoreable question');
+    });
+  });
+};
+
+/**
+ * The bank half of the conformance suite — §8, the "Bank (bank adapters only)"
+ * group: "operationKey reuse creates one item; stale ifMatch returns a
+ * conditional failure; retire sets inactive without deleting; NO DELETE METHOD
+ * EXISTS."
+ *
+ * Separate from the source suite because §1.1 makes these two INDEPENDENT
+ * ports — an adapter implements one or the other, never both.
+ */
+export interface BankConformanceSubject {
+  readonly name: string;
+  readonly bank: QuestionBankAdapter;
+  readonly context: () => BankContext;
+  readonly sampleItem: (questionId: string) => BankItemWrite;
+}
+
+export const runBankConformanceSuite = (subject: BankConformanceSubject): void => {
+  describe(`bank conformance: ${subject.name}`, () => {
+    it('declares whether it supports conditional updates', () => {
+      // false is a legal answer, and it means publishing is REFUSED for that
+      // bank rather than falling back to a blind overwrite.
+      expect(typeof subject.bank.capabilities.supportsConditionalUpdate).toBe('boolean');
+    });
+
+    it('exposes NO delete method (G7)', () => {
+      for (const name of ['deleteItem', 'delete', 'remove', 'purge', 'destroy']) {
+        expect(name in subject.bank, name).toBe(false);
+      }
+    });
+
+    it('creates one item for a reused operation key', async () => {
+      const ctx = subject.context();
+      const item = subject.sampleItem('KNZ-CONF-2026-000100');
+      const first = await subject.bank.createItem(ctx, item, 'conf-key-1');
+      const replay = await subject.bank.createItem(ctx, item, 'conf-key-1');
+      expect(replay.itemId).toBe(first.itemId);
+      expect(replay.outcome).toBe('ALREADY_CURRENT');
+
+      const page = await subject.bank.queryItems(ctx, {});
+      expect(page.items.filter((row) => row.questionId === item.questionId)).toHaveLength(1);
+    });
+
+    it('creates one item even for a DIFFERENT key with the same QuestionID', async () => {
+      const ctx = subject.context();
+      const item = subject.sampleItem('KNZ-CONF-2026-000101');
+      const first = await subject.bank.createItem(ctx, item, 'conf-key-a');
+      const second = await subject.bank.createItem(ctx, item, 'conf-key-b');
+      expect(second.itemId).toBe(first.itemId);
+    });
+
+    it('returns a conditional failure on a stale ifMatch', async () => {
+      const ctx = subject.context();
+      const created = await subject.bank.createItem(
+        ctx,
+        subject.sampleItem('KNZ-CONF-2026-000102'),
+        'conf-key-etag-1',
+      );
+      await subject.bank.updateItem(ctx, created.itemId, { version: 2 }, created.eTag, 'conf-key-etag-2');
+      await expect(
+        subject.bank.updateItem(ctx, created.itemId, { version: 3 }, created.eTag, 'conf-key-etag-3'),
+      ).rejects.toThrow();
+    });
+
+    it('retires by setting inactive, without deleting', async () => {
+      const ctx = subject.context();
+      const item = subject.sampleItem('KNZ-CONF-2026-000103');
+      const created = await subject.bank.createItem(ctx, item, 'conf-key-retire-1');
+      await subject.bank.retireItem(
+        ctx,
+        created.itemId,
+        created.eTag,
+        'Retired by the conformance suite.',
+        'conf-key-retire-2',
+      );
+
+      const found = await subject.bank.findByQuestionId(ctx, item.questionId);
+      expect(found).not.toBeNull();
+      expect(found?.isActive).toBe(false);
+      expect(found?.status).toBe('Retired');
+    });
+
+    it('records the operation key on every write result', async () => {
+      const ctx = subject.context();
+      const result = await subject.bank.createItem(
+        ctx,
+        subject.sampleItem('KNZ-CONF-2026-000104'),
+        'conf-key-record',
+      );
+      expect(result.operationKey).toBe('conf-key-record');
+      expect(result.fieldsWritten.length).toBeGreaterThan(0);
     });
   });
 };

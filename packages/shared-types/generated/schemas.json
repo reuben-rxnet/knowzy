@@ -1158,6 +1158,12 @@
                           "null"
                         ]
                       },
+                      "field": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
                       "gate": {
                         "type": "integer"
                       },
@@ -1169,7 +1175,8 @@
                       "gate",
                       "code",
                       "passed",
-                      "detail"
+                      "detail",
+                      "field"
                     ],
                     "type": "object"
                   },

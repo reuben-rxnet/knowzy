@@ -292,6 +292,28 @@ export const CONFIG_KEYS = {
     layers: ['DOMAIN', 'PLATFORM', 'CODE_DEFAULT'],
     scopes: ['PLATFORM', 'DOMAIN'],
   }),
+  // Gate 2 of authoring-portal.md §5.7 says "below the CONFIGURED minimum
+  // length", and gate 9 says "any CONFIGURED required metadata field" — so both
+  // need a declaration. Without them the gates would carry hardcoded numbers
+  // that no administrator could change, which architecture.md §4 forbids.
+  'approval.minQuestionTextLength': decl({
+    key: 'approval.minQuestionTextLength',
+    description:
+      'Minimum question text length accepted at submit and approval (gate 2). Below this a stem is too terse to test anything.',
+    schema: z.number().int().min(1).max(1000),
+    defaultValue: 15,
+    layers: ['DOMAIN', 'PLATFORM', 'CODE_DEFAULT'],
+    scopes: ['PLATFORM', 'DOMAIN'],
+  }),
+  'approval.requiredMetadataFields': decl({
+    key: 'approval.requiredMetadataFields',
+    description:
+      'Source metadata field names that must be present before approval (gate 9). Empty means none are required.',
+    schema: z.array(z.string().min(1)).max(50),
+    defaultValue: [],
+    layers: ['DOMAIN', 'PLATFORM', 'CODE_DEFAULT'],
+    scopes: ['PLATFORM', 'DOMAIN'],
+  }),
   'approval.bulkApproveCap': decl({
     key: 'approval.bulkApproveCap',
     description: 'Maximum items in one bulk approval.',

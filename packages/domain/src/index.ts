@@ -57,4 +57,71 @@ export {
   type RunGenerationArgs,
 } from './generation/generation-service.js';
 
+// ------------------------------------------------------------ review (M4)
+
+export {
+  evaluateApprovalGates,
+  gateResultsForAudit,
+  type GateCode,
+  type GateEvaluation,
+  type GatePolicyState,
+  type GateResult,
+  type GateSourceState,
+  type GateSubject,
+} from './review/gates.js';
+
+export {
+  evaluateApprovalSeparation,
+  evaluatePublishSeparation,
+  BreakGlassNotPermittedError,
+  DEFAULT_SEPARATION_POLICIES,
+  type SeparationDecision,
+  type SeparationPolicies,
+} from './review/separation-of-duties.js';
+
+export {
+  findTransition,
+  requireTransition,
+  APPROVAL_QUEUE_STATUSES,
+  AUTHOR_QUEUE_STATUSES,
+  CommentRequiredError,
+  TRANSITIONS,
+  TransitionNotPermittedError,
+  type TransitionRule,
+} from './review/transitions.js';
+
+export {
+  addReview,
+  dispositionDuplicate,
+  evaluateGatesForQuestion,
+  transitionQuestion,
+  GatesFailedError,
+  PermissionRequiredError,
+  QuestionNotFoundError,
+  type ActorContext,
+  type ReviewDeps,
+  type TransitionResult,
+} from './review/review-service.js';
+
+export {
+  editDraftQuestion,
+  readVersionHistory,
+  EvidenceBrokenByEditError,
+  NotEditableError,
+  type EditResult,
+  type FieldDiff,
+  type QuestionEdit,
+  type VersionHistoryEntry,
+} from './review/versioning.js';
+
+export {
+  operationKeyFor,
+  publishApprovedQuestions,
+  retirePublishedQuestion,
+  PublishNotPermittedError,
+  type PublishBatchResult,
+  type PublishItemOutcome,
+  type PublishTarget,
+} from './review/publishing.js';
+
 export const PACKAGE_NAME = '@knowzy/domain' as const;

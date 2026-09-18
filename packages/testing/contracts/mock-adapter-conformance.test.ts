@@ -6,16 +6,25 @@
 // This file is the first half of that; Phase 7 adds the second, calling the
 // same `runAdapterConformanceSuite` with its own subject.
 
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   createMockKnowledgeSourceAdapter,
+  createMockQuestionBankAdapter,
   fixtureDocumentId,
   MOCK_CAPABILITIES,
   type AdapterContext,
+  type BankContext,
+  type BankItemWrite,
 } from '@knowzy/knowledge-source-adapters';
 import { systemClock } from '@knowzy/observability';
-import { runAdapterConformanceSuite } from './adapter-conformance.js';
+import {
+  runAdapterConformanceSuite,
+  runBankConformanceSuite,
+} from './adapter-conformance.js';
 
 const FIXTURE_ROOT = fileURLToPath(new URL('../../../fixtures/knowledge', import.meta.url));
 const SOURCE_KEY = 'support-operations';
@@ -51,6 +60,57 @@ runAdapterConformanceSuite({
   deniedDocumentPath: 'Policies/board-remuneration.md',
   unstructuredDocumentPath: 'Policies/acceptable-use.txt',
   documentId: fixtureDocumentId,
+});
+
+// The bank half of the suite. §1.1: two INDEPENDENT ports, so the bank gets its
+// own subject rather than being bolted onto the source adapter's.
+runBankConformanceSuite({
+  name: 'MockQuestionBankAdapter',
+  // A temp directory, so the suite never reads or writes the committed
+  // fixtures/bank state a developer may be looking at.
+  bank: createMockQuestionBankAdapter({ fixtureRoot: mkdtempSync(join(tmpdir(), 'knowzy-conf-bank-')) }),
+  context: (): BankContext => ({
+    targetSiteId: 'conformance-site',
+    targetListId: 'conformance-list',
+    correlationId: 'bank-conformance',
+    actorUserId: '00000000-0000-0000-0000-00000000000a',
+    signal: new AbortController().signal,
+  }),
+  sampleItem: (questionId: string): BankItemWrite => ({
+    questionId,
+    internalQuestionId: '00000000-0000-0000-0000-00000000000b',
+    questionType: 'MULTIPLE_CHOICE_4',
+    questionText: 'Within how long must a severity one incident reach the duty manager?',
+    optionA: 'Fifteen minutes',
+    optionB: 'One hour',
+    optionC: 'One business day',
+    optionD: 'End of shift',
+    correctAnswer: 'A',
+    explanation: 'The procedure sets a fifteen-minute limit.',
+    domain: 'Support Operations',
+    domainCode: 'CONF',
+    topic: 'Escalation',
+    sourceDocumentName: 'incident-escalation.md',
+    sourceUrl: 'mock://SOPs/Network/incident-escalation.md',
+    sourceDocumentId: 'doc-1',
+    sourceSectionKey: 'section-1',
+    supportingEvidence: 'the duty manager within fifteen minutes',
+    sourceContentHash: 'hash',
+    sourceVersion: '3.0',
+    confidenceIndicator: 0.77,
+    generationJobId: null,
+    claudeModel: null,
+    promptVersion: null,
+    status: 'Approved',
+    isActive: true,
+    isPublished: true,
+    version: 1,
+    approvedBy: null,
+    approvalDate: null,
+    publishedBy: null,
+    publishedDate: null,
+    correlationId: 'bank-conformance',
+  }),
 });
 
 // Mock-specific behaviour: things the contract does not require of every

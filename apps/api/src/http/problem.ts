@@ -18,6 +18,14 @@ export const toProblem = (args: {
   detail?: string;
   details?: Record<string, unknown> | null;
   retryAfterSeconds?: number | null;
+  /**
+   * The full approval-gate checklist.
+   *
+   * error-handling.md §328: a VALIDATION failure shows "ALL failures at once,
+   * each linking to the field that fixes it". The field existed in the shape
+   * from Phase 1 and was always null; this is what fills it.
+   */
+  gateFailures?: ProblemDetails['gateFailures'];
 }): ProblemDetails => {
   const definition = ERROR_REGISTRY[args.code];
   return {
@@ -37,6 +45,6 @@ export const toProblem = (args: {
     instance: args.instance,
     details: args.details ?? null,
     fieldErrors: null,
-    gateFailures: null,
+    gateFailures: args.gateFailures ?? null,
   };
 };

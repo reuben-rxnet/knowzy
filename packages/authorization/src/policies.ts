@@ -102,6 +102,16 @@ export const POLICIES = {
     portals: AUTHORING,
     description: 'Publish an approved question to the Question Bank.',
   },
+  'question.retire': {
+    permission: 'question.retire',
+    portals: AUTHORING,
+    description: 'Retire a published question. The bank item is never deleted.',
+  },
+  'question.archive': {
+    permission: 'question.archive',
+    portals: AUTHORING,
+    description: 'Archive a draft, rejected, or retired question.',
+  },
 
   // ----------------------------------------------------------- assessments
   'assessment.read': {

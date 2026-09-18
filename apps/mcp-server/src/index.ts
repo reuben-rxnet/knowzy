@@ -17,6 +17,7 @@ import {
   enforceStartup,
   formatStartupReport,
   readProcessEnv,
+  resolveFlag,
   resolveKnowzyEnv,
   validateStartup,
 } from '@knowzy/configuration';
@@ -32,6 +33,7 @@ import { toolNames } from './tools/registry.js';
 import './tools/source-administration.js';
 import './tools/source-navigation.js';
 import './tools/generation.js';
+import './tools/question-bank.js';
 
 const PORT = 8081;
 
@@ -40,6 +42,15 @@ export const TOOL_REGISTRY_VERSION = '1';
 
 /** Fixture tree for the mock adapter. Registered in `local` only (§6). */
 const FIXTURE_ROOT = fileURLToPath(new URL('../../../fixtures/knowledge', import.meta.url));
+/**
+ * Where the mock question bank persists items (§6).
+ *
+ * `.state/` because this is machine state, not a committed fixture: it changes
+ * every time someone publishes locally, and .gitignore already excludes it.
+ * Writing published items into the tracked fixture tree would put one
+ * developer's local publishes into everyone's checkout.
+ */
+const BANK_FIXTURE_ROOT = fileURLToPath(new URL('../../../fixtures/bank/.state', import.meta.url));
 
 const main = async (): Promise<void> => {
   const rawEnv = readProcessEnv();
@@ -85,7 +96,7 @@ const main = async (): Promise<void> => {
   // throws otherwise, so this cannot be turned into a production fallback.
   const adapterRegistry = createAdapterRegistry({
     environment: knowzyEnv,
-    ...(isLocal ? { fixtureRoot: FIXTURE_ROOT } : {}),
+    ...(isLocal ? { fixtureRoot: FIXTURE_ROOT, bankFixtureRoot: BANK_FIXTURE_ROOT } : {}),
   });
 
   registerToolRoutes(app, {
@@ -97,6 +108,12 @@ const main = async (): Promise<void> => {
       logger,
       environment: knowzyEnv,
       adapterFor: adapterRegistry.forSource,
+      questionBank: adapterRegistry.questionBank,
+      // Read from the flag resolver rather than assumed: G4 defaults it off and
+      // the ceiling forbids it outside test and prod.
+      sharePointWriteEnabled: resolveFlag('sharepoint.write.enabled', knowzyEnv).effective,
+      bankSiteId: rawEnv['QUESTION_BANK_SITE_ID'] ?? '',
+      bankListId: rawEnv['QUESTION_BANK_LIST_ID'] ?? '',
       limits: { maxBytes: 25_000_000, maxCharsPerDocument: 200_000, pageSize: 50 },
     },
   });

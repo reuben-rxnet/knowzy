@@ -11,6 +11,24 @@
 // them: it is the substrate for the conformance suite both must pass.
 
 export * from './contract.js';
+// Re-exported, not redeclared: the port lives in @knowzy/shared-types so
+// @knowzy/domain can speak it without crossing B3. See that file's header.
+export type {
+  BankCapabilities,
+  BankContext,
+  BankItem,
+  BankItemWrite,
+  BankPage,
+  BankQuery,
+  BankWriteResult,
+  QuestionBankAdapter,
+} from '@knowzy/shared-types';
+export { BankItemNotFoundError, BankPreconditionFailedError } from '@knowzy/shared-types';
+export {
+  createMockQuestionBankAdapter,
+  MOCK_BANK_CAPABILITIES,
+  type MockBankOptions,
+} from './mock/mock-question-bank.js';
 export {
   createMockKnowledgeSourceAdapter,
   MOCK_CAPABILITIES,

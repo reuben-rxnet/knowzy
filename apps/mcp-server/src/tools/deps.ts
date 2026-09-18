@@ -7,7 +7,10 @@
 
 import type { PrismaClient } from '@knowzy/database';
 import type { Clock, Logger } from '@knowzy/observability';
-import type { KnowledgeSourceAdapter } from '@knowzy/knowledge-source-adapters';
+import type {
+  KnowledgeSourceAdapter,
+  QuestionBankAdapter,
+} from '@knowzy/knowledge-source-adapters';
 import type { KnowzyEnv } from '@knowzy/shared-types';
 
 export interface SourceRow {
@@ -34,6 +37,18 @@ export interface ToolDeps {
   readonly environment: KnowzyEnv;
   /** Resolves the adapter that serves a source, or throws if none is registered. */
   readonly adapterFor: (source: SourceRow) => KnowledgeSourceAdapter;
+  /**
+   * The Question Bank port, or null when no bank is registered.
+   *
+   * Null is a real state, not an oversight: an environment with no bank
+   * configured must report that publishing is unavailable rather than fail with
+   * a null dereference at the moment someone presses publish.
+   */
+  readonly questionBank: QuestionBankAdapter | null;
+  /** G4. Gates SharePoint writes only; see resolveBankTarget. */
+  readonly sharePointWriteEnabled: boolean;
+  readonly bankSiteId: string;
+  readonly bankListId: string;
   readonly limits: {
     readonly maxBytes: number;
     readonly maxCharsPerDocument: number;

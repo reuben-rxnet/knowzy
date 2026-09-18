@@ -599,6 +599,15 @@ export const ProblemDetailsSchema = z.object({
         code: ErrorCodeSchema,
         passed: z.boolean(),
         detail: z.string().nullable(),
+        /**
+         * The field that fixes this failure.
+         *
+         * error-handling.md §328 requires each gate failure to link to the
+         * field that resolves it; without the name the client can list
+         * problems but cannot point at them. Null for a gate that is not about
+         * a field, such as separation of duties.
+         */
+        field: z.string().nullable(),
       }),
     )
     .nullable(),

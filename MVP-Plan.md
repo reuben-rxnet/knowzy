@@ -44,7 +44,57 @@ forgotten one.
 | workflows.md §2.2 | Generation runs **in-process** on the job-creation request instead of returning 202 and enqueuing on the job runner. | `runGenerationJob` is a domain function with no process affinity, so moving it behind the existing pg-boss queue is wiring, not redesign. Until then a large job holds the request open. |
 | workflows.md §2.3 retrieval | The run reads pinned sections from the index rather than re-calling `extract_document_content` through MCP. | The purpose of retrieval-time verification is kept: the run compares each document's current `contentHash` against what the scope captured and aborts with `DOCUMENT_CONTENT_DRIFT` rather than grounding questions in text that has since changed. |
 | generation-governance.md §4.4 | Duplicate scoring computes trigram similarity in process instead of via `pg_trgm`. | Verification and scoring must both run BEFORE anything is persisted, so there is nothing in the database to compare against yet. The implementation mirrors `pg_trgm.similarity()` so a score here and a score from the database agree. |
+| sharepoint-question-bank.md G4 | The mock bank is writable in `local` even though `sharepoint.write.enabled` is off and its ceiling forbids it outside test and prod. | G4 gates writes to **SharePoint**; the mock bank is a different implementation of the same port writing to a local JSON file, and knowledge-source-adapters.md §6 requires the whole pipeline — publish included — to be exercisable with no tenant credentials. The gate is therefore "may THIS bank be written in THIS environment": MOCK in `local` only (the registry refuses to construct it elsewhere), SHAREPOINT only when the flag is on, otherwise dry-run. Every publish response states `dryRun` and the bank type, so nothing is ambiguous. |
 | §2.8 / live Claude | Generation uses a deterministic local generator, not a Claude call. | A documented time-boxing lever, and the zero-credential local path requires it. The generator quotes the document verbatim and goes through the SAME gate chain as a model response, so the gates are exercised for real. `modelId` records `knowzy-deterministic-local-1`, so no job row can suggest a Claude model produced these. |
+
+## M4 and M5, as built
+
+| Piece | Where |
+| --- | --- |
+| The 13 approval gates | `packages/domain/src/review/gates.ts` — all failures returned at once, each naming the field that fixes it |
+| Separation of duties + break-glass | `src/review/separation-of-duties.ts` — the four §3.4 policies |
+| The transition table | `src/review/transitions.ts` — the state machine as data, with permission, comment requirement, and gating per edge |
+| Review, approval, comments, dispositions | `src/review/review-service.ts` — one transactional path for every transition |
+| Versioning | `src/review/versioning.ts` — snapshot, field diff, evidence re-verified on every edit |
+| Publishing and retirement | `src/review/publishing.ts` — operation keys, pre-write existence check, conditional update, G9 ordering |
+| `QuestionBankAdapter` port | `packages/shared-types/src/question-bank-port.ts` — no delete method exists |
+| `MockQuestionBankAdapter` | `packages/knowledge-source-adapters/src/mock` — real operation-key uniqueness, real ETag semantics, real 412 |
+| 5 MCP bank tools | `apps/mcp-server/src/tools/question-bank.ts` |
+| 13 API routes | `apps/api/src/routes/review.ts` |
+| 65 integration tests | `packages/domain/test/review-pipeline.test.ts` |
+
+**Verified live:** generate → claim → edit (version 2, evidence re-verified) →
+SME endorsement → submit (13 gates) → the author holding both roles refused
+with a 403 `SEPARATION_OF_DUTIES` naming gate 13 → break-glass refused while
+disabled → a distinct approver approves with gate results persisted → publish
+to `KNZ-SUPPORT_OPS-2026-000001` with a verified item id → replay publishes
+nothing → retire leaves the item in place, inactive, with its comment → the
+audit chain carries the bank item id and ETag G6 requires.
+
+**Defects found by running it, not by reading it:**
+
+1. **A boundary violation I introduced.** Putting the bank port in the adapters
+   package made `@knowzy/domain` reach it, which B3 forbids transitively. The
+   port is semantic-key vocabulary — explicitly *not* SharePoint names — so it
+   moved to `@knowzy/shared-types`, where the domain can speak the interface
+   while only the adapters implement it.
+2. **Published identifiers were not monotonic.** The `KNZ-{DOMAIN}-{YYYY}-{SEQ}`
+   sequence came from `count(proposedQuestionId != null)`. Archive or delete a
+   draft and the count falls, so the next publish reissues an id a bank item
+   already holds — the pre-write existence check then finds that item and
+   reports `ALREADY_PUBLISHED`, and a brand-new question silently appears to be
+   a different one. Now derived from the maximum already issued in
+   `PublishedQuestionReference`, whose rows are never deleted.
+3. **A submit reported `gates.passed: false` while succeeding**, because gate 13
+   does not apply at submit but was still evaluated as a failure the caller
+   filtered out. It now reports as a pass with that reason, so the checklist
+   always has 13 rows and the result never contradicts the outcome.
+4. **Integration test files ran in parallel against one database**, deleting
+   each other's rows. Worse than flaky: a suite could pass because another
+   file's leftovers satisfied its setup. Now serialized with one fork, and the
+   review suite gets a fresh bank list per test.
+5. **Publish and retire audit detail was dropped** by the redactor's allow-list
+   — including the bank item id and ETag that G6 names explicitly.
 
 ## Milestones
 
@@ -175,7 +225,7 @@ implementation and everything calls it" was therefore unsatisfiable; the
 alternative was a second copy, which is the specific failure that rule exists
 to prevent. The pipeline moved to `@knowzy/shared-types`, the only package every
 consumer may import, and content-extraction re-exports it.
-- [ ] M4 Review and approval
-- [ ] M5 Publish
+- [x] M4 Review and approval — verified live end to end
+- [x] M5 Publish — verified live end to end (folded into M4)
 - [ ] M6 Quiz and scoring
 - [ ] M7 Thin UI

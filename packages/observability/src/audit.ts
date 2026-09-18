@@ -120,6 +120,45 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'inputTokenCount',
     'outputTokenCount',
   ],
+  // M4 review and approval. Counts, ids, hashes, decisions and field NAMES —
+  // never question text, option text, evidence spans, or comment bodies. The
+  // comment lives on QuestionReview and the diff on DraftQuestionVersion;
+  // audit-model.md §8 keeps both out of a seven-year store.
+  'AUTHORING.QUESTION.EDITED': ['version', 'changedFields', 'evidenceReverified', 'reviewKind', 'reviewOutcome'],
+  'AUTHORING.QUESTION.SUBMITTED': ['version', 'gatesPassed', 'evaluatedGateCount'],
+  'AUTHORING.QUESTION.APPROVED': ['version', 'gatesPassed', 'evaluatedGateCount', 'breakGlass'],
+  'AUTHORING.QUESTION.APPROVAL_OVERRIDE': [
+    'version',
+    'gatesPassed',
+    'evaluatedGateCount',
+    'breakGlass',
+  ],
+  'AUTHORING.QUESTION.CHANGES_REQUESTED': ['version'],
+  'AUTHORING.QUESTION.REJECTED': ['version'],
+  'AUTHORING.QUESTION.ARCHIVED': ['version'],
+  'AUTHORING.QUESTION.DUPLICATE_DISPOSITIONED': ['disposition'],
+  'AUTHORING.QUESTION.REUSED': ['includeAnswerKey', 'bankItemId'],
+  // G6 names exactly what a publish audit must carry: "the item ID, ETag,
+  // version, field set written, and correlation ID". Dropping any of them would
+  // make the audit unable to answer "what did we write, and where".
+  'AUTHORING.QUESTION.PUBLISHED': [
+    'bankItemId',
+    'bankETag',
+    'publishedVersion',
+    'operationType',
+    'fieldCount',
+    'bankType',
+    'batchSize',
+    'publishedCount',
+    'failedCount',
+    'dryRun',
+  ],
+  'AUTHORING.QUESTION.RETIRED': [
+    'bankItemId',
+    'bankETag',
+    'publishedVersion',
+    'operationType',
+  ],
   'AUTHORING.QUESTION.CREATED': [
     'jobId',
     'sectionKey',

@@ -8,7 +8,9 @@
 
 import {
   createMockKnowledgeSourceAdapter,
+  createMockQuestionBankAdapter,
   type KnowledgeSourceAdapter,
+  type QuestionBankAdapter,
 } from '@knowzy/knowledge-source-adapters';
 import type { KnowzyEnv } from '@knowzy/shared-types';
 import type { SourceRow } from '../tools/deps.js';
@@ -37,11 +39,22 @@ export interface AdapterRegistryOptions {
   readonly environment: KnowzyEnv;
   /** Required to register the mock; ignored outside `local`. */
   readonly fixtureRoot?: string;
+  /** Where the mock bank persists its items. Defaults to `fixtureRoot`. */
+  readonly bankFixtureRoot?: string;
 }
 
 export interface AdapterRegistry {
   readonly registeredTypes: readonly string[];
   readonly forSource: (source: SourceRow) => KnowledgeSourceAdapter;
+  /**
+   * The Question Bank, or null.
+   *
+   * knowledge-source-adapters.md §1.1: two INDEPENDENT ports, with separate
+   * credentials and separate permission grants. They are resolved separately
+   * here for the same reason — a source adapter being available says nothing
+   * about whether the bank is writable.
+   */
+  readonly questionBank: QuestionBankAdapter | null;
 }
 
 export const createAdapterRegistry = (options: AdapterRegistryOptions): AdapterRegistry => {
@@ -60,8 +73,16 @@ export const createAdapterRegistry = (options: AdapterRegistryOptions): AdapterR
   // read. Registering a stand-in that returned fixture data would make a
   // misconfigured production source look like a working one.
 
+  // The mock bank carries the same prohibition as the mock source: fixtures on
+  // disk, local only, and the process refuses to construct it elsewhere.
+  const questionBank =
+    options.fixtureRoot === undefined
+      ? null
+      : createMockQuestionBankAdapter({ fixtureRoot: options.bankFixtureRoot ?? options.fixtureRoot });
+
   return {
     registeredTypes: [...adapters.keys()].sort(),
+    questionBank,
     forSource: (source: SourceRow): KnowledgeSourceAdapter => {
       const adapter = adapters.get(source.sourceType);
       if (!adapter) throw new NoAdapterRegisteredError(source.sourceType);
