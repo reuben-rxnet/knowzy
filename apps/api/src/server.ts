@@ -10,12 +10,10 @@
 // security headers, and the problem+json error contract.
 
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
-import {
-  ERROR_REGISTRY,
-  PROBLEM_TYPE_BASE,
-  type ErrorCode,
-  type ProblemDetails,
-} from '@knowzy/shared-types';
+import type { ErrorCode } from '@knowzy/shared-types';
+import { toProblem } from './http/problem.js';
+import { registerRoutes, type KnowzyRoute, type RouteDeps } from './http/route.js';
+import { ALL_ROUTES } from './routes/index.js';
 import { startCorrelation, type Logger } from '@knowzy/observability';
 import type { StartupReport } from '@knowzy/configuration';
 
@@ -25,38 +23,14 @@ export interface ServerDeps {
   /** Re-evaluated by the readiness probe so a recovered dependency is noticed. */
   readonly readiness: () => Promise<StartupReport>;
   readonly startupReport: StartupReport;
+  /** Everything a policy-gated route handler is given. */
+  readonly routeDeps: RouteDeps;
+  /**
+   * Overridable so a test can register a subset. Defaults to the full registry,
+   * which is what the completeness test compares against.
+   */
+  readonly routes?: readonly KnowzyRoute[];
 }
-
-/** Builds a problem+json body. E7: codes carry no dynamic content. */
-export const toProblem = (args: {
-  code: ErrorCode;
-  correlationId: string;
-  instance: string;
-  detail?: string;
-  details?: Record<string, unknown> | null;
-  retryAfterSeconds?: number | null;
-}): ProblemDetails => {
-  const definition = ERROR_REGISTRY[args.code];
-  return {
-    type: `${PROBLEM_TYPE_BASE}${args.code}`,
-    title: args.code
-      .toLowerCase()
-      .split('_')
-      .join(' ')
-      .replace(/^./, (c) => c.toUpperCase()),
-    status: definition.status,
-    code: args.code,
-    category: definition.category,
-    detail: args.detail ?? definition.message,
-    retryable: definition.retryable,
-    retryAfterSeconds: args.retryAfterSeconds ?? null,
-    correlationId: args.correlationId,
-    instance: args.instance,
-    details: args.details ?? null,
-    fieldErrors: null,
-    gateFailures: null,
-  };
-};
 
 export const buildServer = (deps: ServerDeps): FastifyInstance => {
   const app = Fastify({
@@ -173,6 +147,10 @@ export const buildServer = (deps: ServerDeps): FastifyInstance => {
     // an empty 200 here would claim a metrics endpoint that reports nothing.
     reply.status(501).type('text/plain').send('# metrics not implemented in Phase 1\n');
   });
+
+  // Business routes. Every one carries a declared policy, enforced by a
+  // preHandler in registerRoutes — there is no path that skips the gate.
+  registerRoutes(app, deps.routes ?? ALL_ROUTES, deps.routeDeps);
 
   return app;
 };

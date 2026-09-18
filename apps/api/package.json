@@ -12,6 +12,8 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@knowzy/authentication": "*",
+    "@knowzy/authorization": "*",
     "@knowzy/configuration": "*",
     "@knowzy/database": "*",
     "@knowzy/observability": "*",

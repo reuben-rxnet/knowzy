@@ -11,7 +11,8 @@ import {
   resolveKnowzyEnv,
 } from '@knowzy/configuration';
 import { createLogger, systemClock } from '@knowzy/observability';
-import { createPrismaClient } from '@knowzy/database';
+import { createSubjectResolver } from '@knowzy/authentication';
+import { createAuditWriter, createPrismaClient, subjectLookupRepository } from '@knowzy/database';
 import { buildServer } from './server.js';
 import { runApiStartupValidation } from './startup.js';
 
@@ -54,11 +55,28 @@ const main = async (): Promise<void> => {
 
   enforceStartup(report);
 
+  // Identity. In `local` this is the stub issuer, which reads a header naming
+  // a seeded user; it refuses to construct in any other environment, so it
+  // cannot become an authentication bypass in a deployed one.
+  const resolver = createSubjectResolver({
+    environment: environment === 'unknown' ? 'local' : environment,
+    lookup: subjectLookupRepository(prisma),
+  });
+  logger.info('subject resolver ready', { kind: resolver.kind });
+
+  const auditWriter = createAuditWriter({ clock: systemClock });
+
   const app = buildServer({
     logger,
     environment,
     startupReport: report,
     readiness: () => runApiStartupValidation({ prisma, mockAdaptersRegistered: () => isLocal }),
+    routeDeps: {
+      prisma,
+      auditWriter,
+      logger,
+      resolveSubject: (headers) => resolver.resolve(headers),
+    },
   });
 
   const shutdown = async (signal: string): Promise<void> => {

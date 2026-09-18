@@ -10,4 +10,5 @@ export * from './errors.js';
 export * from './audit.js';
 export * from './question.js';
 export * from './scope.js';
+export * from './subject.js';
 export * from './envelope.js';

@@ -1,18 +1,10 @@
 // @knowzy/authentication
 //
-// Token validation, JWKS caching, subject resolution, on-behalf-of broker.
+// Token validation, subject resolution, and (later) the on-behalf-of broker —
+// security.md §2.
 //
-// Boundary: Owns token validation only. Policy decisions belong to @knowzy/authorization.
-//
-// NOT IMPLEMENTED IN PHASE 1. This package exists in the Foundation phase so
-// the boundary rules in repository-structure.md §5 are enforceable from the
-// first commit — a rule that only starts applying once the code arrives is a
-// rule the code will already have broken. Implementation lands in Phase 2.
-//
-// The placeholder exports below keep the module resolvable without asserting
-// any behaviour. They are removed by the phase that implements this package.
+// Boundary: owns authentication only. Policy decisions belong to
+// @knowzy/authorization. The database lookup is injected, so this package
+// performs no data access itself.
 
-export const PACKAGE_NAME = '@knowzy/authentication' as const;
-
-/** The delivery phase that implements this package. */
-export const IMPLEMENTED_IN = 'Phase 2' as const;
+export * from './subject-resolver.js';

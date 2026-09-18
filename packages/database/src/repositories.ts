@@ -9,7 +9,13 @@
 // asserted for all of them by the contract test, so a new unscoped read fails
 // the build rather than review.
 
-import type { ConfigurationScope, DataScope, PermissionKey, RoleKey } from '@knowzy/shared-types';
+import type {
+  ConfigurationScope,
+  DataScope,
+  PermissionKey,
+  RoleKey,
+  Subject,
+} from '@knowzy/shared-types';
 import type { Clock } from '@knowzy/observability';
 import type { DbClient, PrismaClient } from './client.js';
 import { andPredicates, sourcePredicate, unscoped } from './scoped.js';
@@ -369,5 +375,78 @@ export const auditPartitionRepository = (client: DbClient) => ({
       SELECT count(*)::bigint AS count FROM audit_event_default
     `;
     return Number(rows[0]?.count ?? 0);
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Subject lookup
+//
+// Implements the SubjectLookup port that @knowzy/authentication injects. Roles,
+// permissions, and scopes all come from the database, never from token claims
+// (ADR-011), and account status travels with the subject so the policy engine
+// can refuse a suspended account on the current request (S5).
+// ---------------------------------------------------------------------------
+
+export const subjectLookupRepository = (client: DbClient) => ({
+  /** Resolves by UPN or entraObjectId. Returns null rather than throwing. */
+  async byIdentifier(identifier: string): Promise<Subject | null> {
+    const db = client as PrismaClient;
+
+    const user = await db.user.findFirst({
+      where: {
+        OR: [{ entraObjectId: identifier }, { userPrincipalName: identifier }],
+      },
+      select: {
+        id: true,
+        entraObjectId: true,
+        displayName: true,
+        status: true,
+        authoringPortalAccess: true,
+        livePortalAccess: true,
+        roles: {
+          where: { revokedAt: null },
+          select: {
+            role: {
+              select: {
+                key: true,
+                permissions: { select: { permission: { select: { key: true } } } },
+              },
+            },
+          },
+        },
+        domainScopes: { where: { revokedAt: null }, select: { domainId: true } },
+        teams: { select: { teamId: true } },
+        sourceAccess: {
+          where: { revokedAt: null },
+          select: { sourceId: true, mode: true },
+        },
+      },
+    });
+
+    if (!user) return null;
+
+    const permissions = [
+      ...new Set(
+        user.roles.flatMap((r) => r.role.permissions.map((p) => p.permission.key as PermissionKey)),
+      ),
+    ];
+
+    return {
+      userId: user.id,
+      entraObjectId: user.entraObjectId,
+      displayName: user.displayName,
+      roles: user.roles.map((r) => r.role.key),
+      permissions,
+      status: user.status,
+      authoringPortalAccess: user.authoringPortalAccess,
+      livePortalAccess: user.livePortalAccess,
+      // Empty arrays mean UNRESTRICTED on that dimension (access-control.md §5),
+      // which is why the seeded users — who carry no explicit scopes — can act
+      // across domains in local development.
+      domainIds: user.domainScopes.map((d) => d.domainId),
+      teamIds: user.teams.map((t) => t.teamId),
+      allowSourceIds: user.sourceAccess.filter((s) => s.mode === 'ALLOW').map((s) => s.sourceId),
+      denySourceIds: user.sourceAccess.filter((s) => s.mode === 'DENY').map((s) => s.sourceId),
+    };
   },
 });

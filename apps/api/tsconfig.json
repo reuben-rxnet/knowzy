@@ -7,9 +7,23 @@
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"],
   "references": [
-    { "path": "../../packages/shared-types" },
-    { "path": "../../packages/observability" },
-    { "path": "../../packages/configuration" },
-    { "path": "../../packages/database" }
+    {
+      "path": "../../packages/authentication"
+    },
+    {
+      "path": "../../packages/authorization"
+    },
+    {
+      "path": "../../packages/configuration"
+    },
+    {
+      "path": "../../packages/database"
+    },
+    {
+      "path": "../../packages/observability"
+    },
+    {
+      "path": "../../packages/shared-types"
+    }
   ]
 }
