@@ -140,6 +140,130 @@ const reviewDeps = (deps: RouteDeps) => ({ prisma: deps.prisma, clock: systemClo
 
 export const reviewRoutes = [
   defineRoute({
+    method: 'GET',
+    url: '/api/v1/authoring/questions/:questionId',
+    policy: 'question.read',
+    portal: 'AUTHORING',
+    summary: 'One question, with its evidence, confidence, duplicate state, and reviews.',
+    handler: async (ctx, request, reply, deps) => {
+      const params = QuestionParams.safeParse(request.params);
+      if (!params.success) {
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
+      }
+
+      const question = await deps.prisma.draftQuestion.findFirst({
+        where: {
+          id: params.data.questionId,
+          // P3 again: the caller's own scope, not a re-derived one. A question
+          // outside the caller's domains is NOT FOUND, not forbidden.
+          ...(ctx.scope.domainIds.length > 0 ? { domainId: { in: [...ctx.scope.domainIds] } } : {}),
+        },
+        include: {
+          domain: { select: { code: true, name: true } },
+          topic: { select: { name: true } },
+          reviews: { orderBy: { createdAt: 'asc' } },
+          approvals: { orderBy: { decidedAt: 'asc' } },
+          publishedRef: { select: { questionId: true, publishedVersion: true, status: true } },
+        },
+      });
+      if (question === null) {
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'NOT_FOUND',
+          'No question with that id is visible to you.',
+        );
+      }
+
+      const payload = question.answerPayload as {
+        options: Record<string, string>;
+        correctOption: string;
+      };
+
+      // An AUTHORING projection, so the proposed answer belongs in it. The
+      // learner projection is a different type built from an explicit field
+      // list (K4) and is never derived from this row.
+      return {
+        questionId: question.id,
+        status: question.status,
+        version: question.version,
+        questionType: question.questionType,
+        questionText: question.questionText,
+        options: payload.options,
+        proposedCorrectOption: payload.correctOption,
+        explanation: question.explanation,
+        domain: { code: question.domain.code, name: question.domain.name },
+        topic: question.topic.name,
+        createdByUserId: question.createdByUserId,
+        needsRevalidation: question.needsRevalidation,
+        revalidationReason: question.revalidationReason,
+        source: {
+          documentName: question.sourceDocumentName,
+          folderPath: question.sourceFolderPath,
+          url: question.sourceUrl,
+          sectionKey: question.sectionKey,
+          versionAtGeneration: question.sourceVersionAtGeneration,
+        },
+        evidence: {
+          span: question.supportingEvidence,
+          startOffset: question.evidenceStartOffset,
+          endOffset: question.evidenceEndOffset,
+          mode: question.evidenceVerificationMode,
+          similarityScore: question.evidenceSimilarityScore,
+        },
+        confidence: {
+          score: question.confidenceScore,
+          components: question.confidenceComponents,
+        },
+        duplicate: {
+          maxSimilarityScore: question.maxSimilarityScore,
+          disposition: question.duplicateDisposition,
+          note: question.duplicateDispositionNote,
+          blocksApproval:
+            question.duplicateDispositionNote !== null && question.duplicateDisposition === null,
+        },
+        generatedBy: { jobId: question.generationJobId, modelId: question.modelId },
+        published:
+          question.publishedRef === null || question.publishedRef === undefined
+            ? null
+            : {
+                bankQuestionId: question.publishedRef.questionId,
+                publishedVersion: question.publishedRef.publishedVersion,
+                status: question.publishedRef.status,
+              },
+        reviews: question.reviews.map((review) => ({
+          reviewId: review.id,
+          kind: review.kind,
+          outcome: review.outcome,
+          comment: review.comment,
+          questionVersion: review.questionVersion,
+          reviewerUserId: review.reviewerUserId,
+          createdAt: review.createdAt,
+        })),
+        // Who decided, and on which version. An approval that predates the
+        // current version is exactly what gate 9 refuses to accept, so the
+        // version is shown next to the decision rather than left implicit.
+        approvals: question.approvals.map((approval) => ({
+          approvalId: approval.id,
+          decision: approval.decision,
+          comment: approval.comment,
+          questionVersion: approval.questionVersion,
+          approverUserId: approval.approverUserId,
+          decidedAt: approval.decidedAt,
+        })),
+        createdAt: question.createdAt,
+      };
+    },
+  }),
+
+  defineRoute({
     method: 'PATCH',
     url: '/api/v1/authoring/questions/:questionId',
     policy: 'question.edit',
@@ -148,7 +272,13 @@ export const reviewRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = QuestionParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A question id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
       }
       const body = z
         .object({
@@ -195,7 +325,13 @@ export const reviewRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = QuestionParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A question id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
       }
       try {
         return await transitionQuestion({
@@ -219,7 +355,13 @@ export const reviewRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = QuestionParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A question id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
       }
       try {
         const context = await evaluateGatesForQuestion(reviewDeps(deps), params.data.questionId, {
@@ -252,9 +394,18 @@ export const reviewRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = QuestionParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A question id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
       }
-      return { questionId: params.data.questionId, versions: await readVersionHistory(deps.prisma, params.data.questionId) };
+      return {
+        questionId: params.data.questionId,
+        versions: await readVersionHistory(deps.prisma, params.data.questionId),
+      };
     },
   }),
 
@@ -275,7 +426,13 @@ export const reviewRoutes = [
         .strict()
         .safeParse(request.body ?? {});
       if (!params.success || !body.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A kind, outcome, and comment are required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A kind, outcome, and comment are required.',
+        );
       }
       try {
         return await addReview({
@@ -339,7 +496,13 @@ export const reviewRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = QuestionParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A question id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
       }
       try {
         const result = await transitionQuestion({
@@ -371,7 +534,13 @@ export const reviewRoutes = [
         .strict()
         .safeParse(request.body ?? {});
       if (!params.success || !body.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'Invalid approval payload.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'Invalid approval payload.',
+        );
       }
       try {
         const result = await transitionQuestion({
@@ -406,7 +575,13 @@ export const reviewRoutes = [
       const params = QuestionParams.safeParse(request.params);
       const body = CommentBody.safeParse(request.body ?? {});
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A question id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
       }
       if (!body.success) {
         return problemReply(
@@ -442,7 +617,13 @@ export const reviewRoutes = [
       const params = QuestionParams.safeParse(request.params);
       const body = CommentBody.safeParse(request.body ?? {});
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A question id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
       }
       if (!body.success) {
         return problemReply(
@@ -519,7 +700,13 @@ export const reviewRoutes = [
         .strict()
         .safeParse(request.body ?? {});
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A question id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required.',
+        );
       }
       if (!body.success) {
         return problemReply(

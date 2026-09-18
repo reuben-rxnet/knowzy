@@ -161,7 +161,12 @@ services:
     environment:
       <<: *node-env
       OTEL_SERVICE_NAME: knowzy-authoring-web
+      # Browser-visible: what a link in the page would point at.
       PUBLIC_API_BASE_URL: http://localhost:8080
+      # Server-only: the web app calls the API from its own process over the
+      # compose network, so the browser never talks to the API directly and
+      # never holds a subject header. localhost:8080 would not resolve here.
+      API_INTERNAL_BASE_URL: http://api:8080
     ports:
       - '3000:3000'
 
@@ -172,6 +177,7 @@ services:
       <<: *node-env
       OTEL_SERVICE_NAME: knowzy-live-web
       PUBLIC_API_BASE_URL: http://localhost:8080
+      API_INTERNAL_BASE_URL: http://api:8080
     ports:
       - '3001:3001'
 

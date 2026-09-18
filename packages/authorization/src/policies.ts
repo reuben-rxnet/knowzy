@@ -36,6 +36,14 @@ const LIVE: readonly PortalContext[] = ['LIVE', 'SYSTEM'];
  */
 export const POLICIES = {
   // ----------------------------------------------------- source administration
+  // Read-only taxonomy, so an authoring screen can offer a domain and topic by
+  // NAME. Without it the UI would have to make someone paste a UUID, and a
+  // pasted UUID is a wrong UUID.
+  'taxonomy.read': {
+    permission: 'taxonomy.read',
+    portals: AUTHORING,
+    description: 'Read the domain and topic catalogue.',
+  },
   'source.read': {
     permission: 'source.read',
     portals: AUTHORING,

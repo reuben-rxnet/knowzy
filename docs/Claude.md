@@ -42,27 +42,39 @@ and depend on it: every route must have a declared policy, and the registry
 test fails the build on a handler without one.
 
 Current Status:
-- Phases 1-6 complete. All seven MVP objectives verified end to end over HTTP
-  on the mock adapters, with no tenant credentials.
+- Phases 1-6 complete, plus M7 (the thin UI). All seven MVP objectives verified
+  end to end IN A BROWSER on the mock adapters, with no tenant credentials.
   See docs/MVP-READINESS.md for the full assessment.
-- Last live walkthrough: 5 questions generated from 2 documents, approved,
-  published as KNZ-SUPPORT_OPS-2026-000001..005, an assessment published with
-  its eligibility snapshot pinned, a session taken with resume mid-quiz,
-  scored 75.00% PROFICIENT with per-topic accuracy.
+- Both portals serve real screens: authoring on :3000 (sources, document
+  browser, generate, review queue, question approval, publish) and learning on
+  :3001 (assessment list, start, quiz, results). Server components plus server
+  actions — the browser never calls the API and never holds a subject header.
+- Last live walkthrough (M7, through the two portals): source tested and
+  synchronized, 6 drafts generated from 4 documents, claimed, submitted,
+  approved by a different identity, published as
+  KNZ-SUPPORT_OPS-2026-000001..006, an assessment published with a pinned pool
+  of 6, three learner attempts including a mid-quiz resume, scored 100.00%
+  EXPERT on the attempt answered correctly. Gate 13 failed for the author and
+  passed for the approver, on screen, which is separation of duties visible in
+  the UI.
 - npm run verify passes: typecheck 30/30, lint 19/19, build 19/19,
   tests 430 passing + 6 todo across 14 files, boundaries 0 errors,
   codegen contract clean, format clean.
 - 3 migrations apply from empty; seed is idempotent.
 - Full docker compose stack verified: postgres, api, mcp, jobs, both web apps.
-- 19 of 36 MCP tools registered; 45 API routes, every one with a declared
-  policy.
+- 19 of 36 MCP tools registered; 48 API routes, every one with a declared
+  policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
+  screen asks for a pasted UUID), GET /authoring/assessments, and
+  GET /authoring/questions/:id.
 
 Environment:
 - Node.js, npm, Docker, Git all installed and working
 
 Still Open:
-- M7 (thin UI) is NOT built. Both web apps still serve Phase 1 shells, so
-  nothing above is usable by a human without curl.
+- The UI is the MINIMUM that demonstrates the workflow. No dashboard, badges,
+  certificates, reports, or assessment builder (assessment creation is one form
+  on the Publish page). See MVP-READINESS.md 7.1 for the full exclusion list.
+- No test drives the UI. A broken screen is found by a person, not the build.
 - No live Claude call. Generation uses a deterministic local generator and
   records modelId = knowzy-deterministic-local-1. Question QUALITY has never
   been tested against Claude, which is the product's actual purpose.
@@ -82,7 +94,7 @@ Next Immediate Task:
    trust until something outside this machine has verified the tree.
 2. Wire the live Claude generator behind the existing QuestionGenerator port
    (packages/claude-services/src/generator.ts) and review a real batch.
-3. Then M7: the thin UI across both portals.
+3. Automate the end-to-end acceptance script, now that there is a UI to drive.
 
 Working Commands:
 - Setup on a fresh clone requires three generate-once artifacts:
@@ -118,3 +130,19 @@ Gotchas learned by execution (each of these cost real time):
   against code that no longer exists.
 - When a suite passes first try, mutate the thing it claims to check and
   confirm it fails. Three "passing" mechanisms in this codebase were vacuous.
+- The web containers DO NOT see host file edits (no inotify across the Windows
+  bind mount). `next dev` compiles a route once and keeps serving it, so an
+  edit looks like it did nothing. Fix: docker compose ... restart
+  authoring-web live-web. This wasted a diagnosis; the code was right the whole
+  time.
+- A host `npm run build` can also break the container node_modules volume, not
+  just `npm install`. Same fix: `up migrate`, then restart api and mcp.
+- The MOCK question bank persists to a JSON file under the fixture root, so it
+  survives a database teardown. After the integration tests wipe
+  published_question_reference, a republish reports ALREADY_PUBLISHED for ids
+  the bank still holds. That is the adapter being right about its own state;
+  delete the file if a clean publish demo is wanted.
+- preflight.offeredActions is ALWAYS the four workflows.md 4.2 actions and
+  never includes GENERATE_NEW, which is what a never-processed document
+  recommends. Any UI listing the offered actions must union in the
+  recommendation or the recommended action cannot be chosen.

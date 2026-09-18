@@ -232,9 +232,7 @@ export const generationRoutes = [
           ...(body.data.justification === undefined
             ? {}
             : { justification: body.data.justification }),
-          ...(body.data.objectiveIds === undefined
-            ? {}
-            : { objectiveIds: body.data.objectiveIds }),
+          ...(body.data.objectiveIds === undefined ? {} : { objectiveIds: body.data.objectiveIds }),
           actor: {
             userId: ctx.subject.userId,
             displayName: ctx.subject.displayName,
@@ -359,7 +357,7 @@ export const generationRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const query = z
         .object({
-          queue: z.enum(['author', 'approval']).default('author'),
+          queue: z.enum(['author', 'approval', 'publish']).default('author'),
           domainId: z.string().uuid().optional(),
           jobId: z.string().uuid().optional(),
           limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -372,7 +370,12 @@ export const generationRoutes = [
       const statuses =
         query.data.queue === 'author'
           ? (['DRAFT', 'AUTHOR_REVIEW', 'CHANGES_REQUESTED'] as const)
-          : (['SUBMITTED_FOR_APPROVAL'] as const);
+          : query.data.queue === 'approval'
+            ? (['SUBMITTED_FOR_APPROVAL'] as const)
+            : // The publisher's queue: approved, and therefore publishable.
+              // Approval is what makes a question eligible, so this is a filter
+              // on the same list rather than a separate surface.
+              (['APPROVED'] as const);
 
       const questions = await deps.prisma.draftQuestion.findMany({
         where: {

@@ -1,33 +1,76 @@
+import Link from 'next/link';
 import { publicEnvironmentName } from '@knowzy/configuration';
 import { t } from '../copy';
+import { switchSubject } from './actions';
+import { currentSubject, DEMO_SUBJECTS } from '../lib/identity';
 
 /**
- * Phase 1 landing page.
+ * Home, and the identity picker.
  *
- * Deliberately not a dashboard. The Authoring Dashboard is specified in
- * authoring-portal.md §2 and depends on reporting read models (Phase 10) and
- * the pipeline states that Phases 3–5 create. A mocked dashboard here would
- * display counts the platform has not measured, which X2 forbids: "Never claim
- * more than the platform knows."
+ * Still not a dashboard: the Authoring Dashboard in authoring-portal.md §2
+ * depends on reporting read models that do not exist yet, and a mocked one
+ * would display counts the platform has never measured (X2).
  *
- * The environment is read on the server. It is the one value this page can
- * state truthfully.
+ * What it does instead is the thing the demonstration actually needs — choose
+ * which seeded identity is acting. The role catalogue separates authoring from
+ * approval, so the workflow CANNOT be walked by one person, and this page is
+ * where you change hands.
  */
-export default function Page() {
-  // Read through the public-subset accessor, never process.env (C3). That
-  // accessor cannot return a server-side variable, which is what keeps B1
-  // true for the browser bundle.
+export default async function Page() {
+  // The public subset, never process.env (C3). It cannot return a server-only
+  // variable, which is what keeps the browser bundle inside B1.
   const environment = publicEnvironmentName();
+  const subject = await currentSubject();
 
   return (
     <article>
-      <h1>{t('phase1.heading')}</h1>
-      <p>{t('phase1.body')}</p>
-      <dl>
-        <dt>{t('phase1.environmentLabel')}</dt>
+      <h1>{t('home.heading')}</h1>
+      <p className="lede">{t('home.intro')}</p>
+
+      <h2>{t('home.identityHeading')}</h2>
+      <p className="lede">{t('home.identityIntro')}</p>
+      <form action={switchSubject}>
+        <fieldset>
+          <legend>{t('home.identityLabel')}</legend>
+          {DEMO_SUBJECTS.map((option) => (
+            <label key={option.upn} style={{ fontWeight: 400 }}>
+              <input
+                type="radio"
+                name="subject"
+                value={option.upn}
+                defaultChecked={option.upn === subject.upn}
+              />{' '}
+              <strong>{option.label}</strong> <span className="muted">— {option.can}</span>
+            </label>
+          ))}
+          <button type="submit">{t('home.identitySubmit')}</button>
+        </fieldset>
+      </form>
+
+      <h2>{t('home.stepsHeading')}</h2>
+      <ol>
+        <li>
+          <Link href="/sources">{t('home.step1')}</Link>
+        </li>
+        <li>{t('home.step2')}</li>
+        <li>
+          <Link href="/generate">{t('home.step3')}</Link>
+        </li>
+        <li>
+          <Link href="/review">{t('home.step4')}</Link>
+        </li>
+        <li>{t('home.step5')}</li>
+        <li>
+          <Link href="/publish">{t('home.step6')}</Link>
+        </li>
+      </ol>
+
+      <h2>{t('home.liveHeading')}</h2>
+      <p>{t('home.liveBody')}</p>
+
+      <dl className="kv">
+        <dt>{t('shell.environment')}</dt>
         <dd>{environment}</dd>
-        <dt>{t('phase1.nextLabel')}</dt>
-        <dd>{t('phase1.nextValue')}</dd>
       </dl>
     </article>
   );

@@ -3,6 +3,8 @@
 **Status:** Implementation status report
 **Date:** 2026-09-18
 **Assessed commit:** `8d2df76` (`MVP M6: assessment, quiz session, and deterministic scoring`)
+**Amended for M7 (thin UI):** §1, §7.1, and §10. Everything else still describes `8d2df76`; the
+M7 change was additive — no API behaviour, invariant, or test in §2–§6 was altered by it.
 **Assessed against:** the seven MVP objectives in [../MVP-Plan.md](../MVP-Plan.md), scoped from
 [initial-end-to-end-proof.md](initial-end-to-end-proof.md)
 
@@ -18,14 +20,16 @@
 
 **All seven MVP objectives are achieved and verified end to end, with no tenant credentials.**
 
-The MVP is **demonstrable over HTTP and not shippable to users.** The pipeline from knowledge source
-to learner score is complete, tested, and audited. What is missing is the user interface, the real
-SharePoint and Entra integrations, and a single CI execution — see §7 and §9.
+The MVP is **demonstrable in a browser and not shippable to users.** The pipeline from knowledge
+source to learner score is complete, tested, and audited, and M7 added the minimum UI needed to walk
+it without curl. What is missing is everything beyond that minimum — the specified authoring
+dashboard, badges, certificates, and reporting surfaces — plus the real SharePoint and Entra
+integrations and a single CI execution. See §7 and §9.
 
 | Question | Answer |
 | --- | --- |
-| Can a complete quiz lifecycle be demonstrated today? | Yes, over HTTP, on the mock adapters |
-| Can a learner use it? | No — there is no UI (§7.1) |
+| Can a complete quiz lifecycle be demonstrated today? | Yes, in the browser, on the mock adapters |
+| Can a learner use it? | For a demonstration, yes; for daily use, no (§7.1) |
 | Can it be pointed at a real tenant? | No — the SharePoint adapter is Phase 7 (§7.2) |
 | Has anything run outside this machine? | No — CI has never executed (§7.4) |
 | Are the ten design invariants intact? | Yes, all ten (§4) |
@@ -162,9 +166,21 @@ vacuous.
 
 ## 7. What is not done
 
-### 7.1 No user interface
-Both Next.js applications still serve their Phase 1 shells. Everything in §2 is reachable over HTTP
-only. This is milestone M7 and is the single largest gap between "works" and "usable".
+### 7.1 Minimum UI only
+M7 built the ten screens the workflow needs and nothing else: knowledge sources, document browser,
+generate, review queue, question approval, publish (with a small assessment section) in the
+Authoring Portal, and assessment list, start, quiz, and results in the Live Learning Portal. Both
+apps are server-rendered and call the API from their own process, so the browser never holds an
+identity header.
+
+What that leaves out is most of the specified product. The Authoring Dashboard
+(authoring-portal.md §2) needs the Phase 10 reporting read models and does not exist; neither do
+badges, certificates, refresher scheduling, or any report surface. There is no assessment builder —
+creating one is a single form on the Publish page, which covers what the learner portal needs to
+have anything to serve and no more. The identity picker is a demonstration affordance over the local
+stub issuer and refuses to exist outside `local`. Every form except the identity switch needs
+JavaScript, because the results those forms return — a failed gate, a per-item publish outcome — have
+to stay on screen.
 
 ### 7.2 Mock adapters only
 `SharePointKnowledgeSourceAdapter` (Phase 7) and `SharePointQuestionBankAdapter` (Phase 8) do not
@@ -246,8 +262,11 @@ In order, on the reasoning that each unblocks the next:
    This is the only remaining unknown about whether the product works, as opposed to whether the
    pipeline works.
 3. **Automate the end-to-end acceptance script** (§7.5), so the seam between stages is covered.
-4. **Build M7, the thin UI**, across both portals. The MVP is not usable without it.
-5. **Phase 7 and 8** against a real tenant, taking the conformance suite as the specification.
+   M7 made the workflow clickable, which is not the same as covered: no test drives the UI, so a
+   broken screen would be found by a person, not by the build.
+4. **Phase 7 and 8** against a real tenant, taking the conformance suite as the specification.
+
+M7 (the thin UI) is done — see §7.1 for what it deliberately left out.
 
 ---
 

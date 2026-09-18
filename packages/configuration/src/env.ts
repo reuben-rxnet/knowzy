@@ -173,6 +173,17 @@ export const ENV_VARS: readonly EnvVarDeclaration[] = [
     description: 'The only API value a browser receives.',
   },
   {
+    name: 'API_INTERNAL_BASE_URL',
+    deployables: WEB,
+    schema: anyUrl,
+    // Not required at startup: a web app that never renders a page which calls
+    // the API does not need it, and the client throws a clear error rather than
+    // fetching a wrong address. Declared here so the value has ONE resolution
+    // path (C3) and appears in the configuration surface like everything else.
+    requiredIn: [],
+    description: 'Server-side API address. Never reaches the browser (B1).',
+  },
+  {
     name: 'MOCK_FIXTURE_ROOT',
     deployables: SERVICES,
     schema: z.string().min(1),

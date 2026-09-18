@@ -1,0 +1,272 @@
+/* Minimal, legible defaults. No design system here on purpose: M7 is the
+   smallest UI that demonstrates the workflow, and @knowzy/shared-ui remains
+   unimplemented rather than half-implemented.
+
+   What is NOT skipped: a visible focus ring (K3), readable contrast, and a
+   layout that works without JavaScript. Those are accessibility floor, not
+   styling. */
+
+:root {
+  --ink: #16191d;
+  --muted: #5b6470;
+  --line: #d4d9e0;
+  --bg: #ffffff;
+  --panel: #f6f7f9;
+  --accent: #1f4e9c;
+  --pass: #1a6b3c;
+  --fail: #a4212f;
+  --warn: #8a5300;
+  --focus: #0b5fff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Visible only when focused, and the first focusable element (S2). */
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 10;
+  background: var(--bg);
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--focus);
+}
+
+header[role='banner'] {
+  border-bottom: 1px solid var(--line);
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+nav[aria-label] ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+main {
+  padding: 1.25rem;
+  max-width: 68rem;
+}
+
+footer[role='contentinfo'] {
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 1.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+h2 {
+  font-size: 1.15rem;
+  margin: 1.75rem 0 0.5rem;
+}
+h3 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.35rem;
+}
+
+p,
+ul,
+ol {
+  margin: 0.5rem 0;
+}
+
+.lede {
+  color: var(--muted);
+  max-width: 54rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+  font-size: 0.9375rem;
+}
+caption {
+  text-align: left;
+  color: var(--muted);
+  font-size: 0.875rem;
+  padding-bottom: 0.35rem;
+}
+th,
+td {
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: var(--panel);
+  font-weight: 600;
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+}
+legend {
+  font-weight: 600;
+  padding: 0 0.35rem;
+}
+label {
+  display: block;
+  font-weight: 600;
+  margin: 0.6rem 0 0.2rem;
+}
+.hint {
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+input[type='text'],
+input[type='number'],
+textarea,
+select {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  max-width: 34rem;
+  width: 100%;
+}
+select[multiple] {
+  min-height: 8rem;
+}
+textarea {
+  min-height: 4.5rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  margin: 0.5rem 0.4rem 0 0;
+}
+button.secondary {
+  background: var(--bg);
+  color: var(--accent);
+}
+button.danger {
+  background: var(--bg);
+  color: var(--fail);
+  border-color: var(--fail);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+}
+.problem {
+  border-left: 4px solid var(--fail);
+}
+.okpanel {
+  border-left: 4px solid var(--pass);
+}
+
+.pass {
+  color: var(--pass);
+  font-weight: 600;
+}
+.fail {
+  color: var(--fail);
+  font-weight: 600;
+}
+.warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+blockquote {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.9rem;
+  border-left: 4px solid var(--line);
+  background: var(--panel);
+  font-style: normal;
+}
+
+code,
+.mono {
+  font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+  font-size: 0.875em;
+}
+
+dl.kv {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 1rem;
+  margin: 0.5rem 0;
+}
+dl.kv dt {
+  color: var(--muted);
+}
+dl.kv dd {
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+ul.plain {
+  list-style: none;
+  padding: 0;
+}
+
+.evidence {
+  background: #fff8d8;
+  padding: 0 0.1rem;
+}
+
+.inline {
+  display: inline;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: flex-end;
+}

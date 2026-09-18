@@ -125,6 +125,89 @@ export const learningRoutes = [
   // ------------------------------------------------------------- authoring
 
   defineRoute({
+    method: 'GET',
+    url: '/api/v1/authoring/taxonomy',
+    policy: 'taxonomy.read',
+    portal: 'AUTHORING',
+    summary: 'The active domain and topic catalogue, for selection by name.',
+    handler: async (ctx, _request, _reply, deps) => {
+      const domains = await deps.prisma.domain.findMany({
+        where: {
+          isActive: true,
+          ...(ctx.scope.domainIds.length > 0 ? { id: { in: [...ctx.scope.domainIds] } } : {}),
+        },
+        orderBy: { name: 'asc' },
+        include: { topics: { where: { isActive: true }, orderBy: { name: 'asc' } } },
+      });
+
+      return {
+        domains: domains.map((domain) => ({
+          domainId: domain.id,
+          code: domain.code,
+          name: domain.name,
+          requireSmeSignoff: domain.requireSmeSignoff,
+          topics: domain.topics.map((topic) => ({
+            topicId: topic.id,
+            name: topic.name,
+            slug: topic.slug,
+          })),
+        })),
+      };
+    },
+  }),
+
+  defineRoute({
+    method: 'GET',
+    url: '/api/v1/authoring/assessments',
+    policy: 'assessment.read',
+    portal: 'AUTHORING',
+    summary: 'Assessments with their published version and pinned pool size.',
+    handler: async (ctx, _request, _reply, deps) => {
+      const assessments = await deps.prisma.assessment.findMany({
+        where: {
+          ...(ctx.scope.domainIds.length > 0 ? { domainId: { in: [...ctx.scope.domainIds] } } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: {
+          domain: { select: { name: true } },
+          versions: {
+            orderBy: { versionNumber: 'desc' },
+            take: 1,
+            include: {
+              snapshots: { orderBy: { snapshotAt: 'desc' }, take: 1 },
+              _count: { select: { sessions: true } },
+            },
+          },
+        },
+      });
+
+      return {
+        count: assessments.length,
+        assessments: assessments.map((assessment) => {
+          const version = assessment.versions[0];
+          const snapshot = version?.snapshots[0];
+          const pool = (snapshot?.poolMembers ?? []) as unknown[];
+          return {
+            assessmentId: assessment.id,
+            name: assessment.name,
+            domain: assessment.domain.name,
+            status: assessment.status,
+            versionNumber: version?.versionNumber ?? null,
+            versionStatus: version?.status ?? null,
+            questionCount: version?.questionCount ?? null,
+            passPercentage: version === undefined ? null : Number(version.passPercentage),
+            // The PINNED pool, which is what a session may draw from — not the
+            // live pool, which may since have grown or shrunk.
+            pinnedPoolSize: snapshot === undefined ? null : pool.length,
+            sessionCount: version?._count.sessions ?? 0,
+          };
+        }),
+      };
+    },
+  }),
+
+  defineRoute({
     method: 'POST',
     url: '/api/v1/authoring/assessments',
     policy: 'assessment.manage',
@@ -200,10 +283,19 @@ export const learningRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = IdParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A version id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A version id is required.',
+        );
       }
       try {
-        const result = await validateAssessmentVersion(deps.prisma, params.data.assessmentVersionId);
+        const result = await validateAssessmentVersion(
+          deps.prisma,
+          params.data.assessmentVersionId,
+        );
         return {
           ...result,
           // Every problem at once, so an author is not fixing one shortfall per
@@ -226,7 +318,13 @@ export const learningRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = IdParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A version id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A version id is required.',
+        );
       }
       try {
         return await transitionAssessmentVersion({
@@ -251,7 +349,13 @@ export const learningRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = IdParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A version id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A version id is required.',
+        );
       }
       try {
         return await transitionAssessmentVersion({
@@ -276,7 +380,13 @@ export const learningRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = IdParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A version id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A version id is required.',
+        );
       }
       try {
         const published = await publishAssessmentVersion({
@@ -387,7 +497,13 @@ export const learningRoutes = [
         .strict()
         .safeParse(request.body ?? {});
       if (!body.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'An assessmentId is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'An assessmentId is required.',
+        );
       }
       const idempotencyKey = request.headers['idempotency-key'];
 
@@ -417,7 +533,13 @@ export const learningRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = SessionParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A session id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A session id is required.',
+        );
       }
       try {
         const resumed = await resumeSession({
@@ -430,7 +552,12 @@ export const learningRoutes = [
         const answers = await deps.prisma.quizResponse.findMany({
           where: { sessionId: params.data.sessionId, isLatest: true },
           orderBy: { presentationIndex: 'asc' },
-          select: { presentationIndex: true, responsePayload: true, isFlagged: true, answeredAt: true },
+          select: {
+            presentationIndex: true,
+            responsePayload: true,
+            isFlagged: true,
+            answeredAt: true,
+          },
         });
         const payload = {
           ...resumed,
@@ -459,7 +586,13 @@ export const learningRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = SessionParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A session id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A session id is required.',
+        );
       }
       try {
         const current = await currentQuestion({
@@ -552,7 +685,13 @@ export const learningRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = SessionParams.safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A session id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A session id is required.',
+        );
       }
       try {
         const result = await completeSession({
@@ -613,7 +752,13 @@ export const learningRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const params = z.object({ resultId: z.string().uuid() }).safeParse(request.params);
       if (!params.success) {
-        return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'A result id is required.');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A result id is required.',
+        );
       }
       try {
         const result = await readResult({
