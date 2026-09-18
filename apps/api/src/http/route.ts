@@ -18,6 +18,7 @@ import type { DataScope, PortalContext, Subject } from '@knowzy/shared-types';
 import { authorize, type PolicyName } from '@knowzy/authorization';
 import type { AuditWriter, PrismaClient } from '@knowzy/database';
 import type { Logger } from '@knowzy/observability';
+import type { McpClient } from '../mcp/client.js';
 import { toProblem } from './problem.js';
 
 export interface RouteContext {
@@ -30,6 +31,13 @@ export interface RouteContext {
 
 export interface RouteDeps {
   readonly prisma: PrismaClient;
+  /**
+   * The only path from the API to a knowledge source (ADR-003).
+   *
+   * It is a dependency rather than an import so a test can substitute a fake,
+   * and because B2 forbids this app from importing the adapter package at all.
+   */
+  readonly mcp: McpClient;
   readonly auditWriter: AuditWriter;
   readonly logger: Logger;
   readonly resolveSubject: (

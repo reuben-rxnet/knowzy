@@ -1,0 +1,14 @@
+{
+  "sourceVersion": "4.1",
+  "sourceCreatedAt": "2024-11-08T13:20:00.000Z",
+  "sourceModifiedAt": "2025-04-22T10:05:00.000Z",
+  "mimeType": "text/html",
+  "metadata": {
+    "Owner": "Data Protection Officer",
+    "ReviewCycle": "Annual",
+    "Classification": "Internal"
+  },
+  "access": {
+    "default": "ALLOWED"
+  }
+}

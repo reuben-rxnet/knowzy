@@ -60,6 +60,21 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   'ADMIN.ACCESS.SCOPE_CHANGED': ['dimension', 'targetUserId', 'added', 'removed'],
   'ADMIN.ACCESS.PORTAL_ACCESS_CHANGED': ['targetUserId', 'authoring', 'live'],
   'ADMIN.CONFIGURATION.UPDATED': ['key', 'scope', 'scopeId', 'valueType'],
+  // M2. Counts and outcomes only: no document name, no heading, no extracted
+  // text. A sync row is kept for years, so it records HOW MUCH happened, never
+  // WHAT the documents said.
+  'ADMIN.SOURCE.CONNECTION_TESTED': ['ok', 'durationMs', 'checks'],
+  'ADMIN.SOURCE.SYNC_COMPLETED': [
+    'mode',
+    'scanned',
+    'added',
+    'modified',
+    'unchanged',
+    'deleted',
+    'failed',
+    'extractedChars',
+  ],
+  'ADMIN.SOURCE.SYNC_FAILED': ['mode', 'scanned', 'failed'],
   'ADMIN.FEATUREFLAG.ENABLED': ['key', 'environment', 'ceiling'],
   'ADMIN.FEATUREFLAG.DISABLED': ['key', 'environment'],
   'ADMIN.FEATUREFLAG.ROLLOUT_CHANGED': ['key', 'environment'],
@@ -68,6 +83,16 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   'ADMIN.TAXONOMY.TOPIC_CREATED': ['domainCode', 'slug'],
   'ADMIN.USER.PROVISIONED': ['entraObjectId', 'source'],
   'ADMIN.USER.RECONCILED': ['added', 'flaggedForRemoval'],
+  // contentHash identifies WHICH content was extracted without reproducing any
+  // of it, which is what makes an extraction traceable without putting document
+  // text in the audit store.
+  'AUTHORING.DOCUMENT.CONTENT_EXTRACTED': [
+    'status',
+    'charCount',
+    'sectionCount',
+    'truncated',
+    'contentHash',
+  ],
   'PLATFORM.AUTH.SIGN_IN_SUCCEEDED': ['portal'],
   'PLATFORM.AUTH.SIGN_IN_FAILED': ['portal', 'stage'],
   'PLATFORM.AUTH.TOKEN_REJECTED': ['reasonDetail'],

@@ -22,7 +22,8 @@
     "test": "vitest run --dir src --passWithNoTests"
   },
   "dependencies": {
-    "@knowzy/shared-types": "*"
+    "@knowzy/shared-types": "*",
+    "node-html-parser": "^6.1.13"
   },
   "devDependencies": {
     "@knowzy/eslint-config": "*",

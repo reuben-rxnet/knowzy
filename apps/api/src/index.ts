@@ -13,6 +13,7 @@ import {
 import { createLogger, systemClock } from '@knowzy/observability';
 import { createSubjectResolver } from '@knowzy/authentication';
 import { createAuditWriter, createPrismaClient, subjectLookupRepository } from '@knowzy/database';
+import { createMcpClient } from './mcp/client.js';
 import { buildServer } from './server.js';
 import { runApiStartupValidation } from './startup.js';
 
@@ -75,6 +76,7 @@ const main = async (): Promise<void> => {
       prisma,
       auditWriter,
       logger,
+      mcp: createMcpClient({ baseUrl: rawEnv['MCP_ENDPOINT'] ?? 'http://mcp:8081' }),
       resolveSubject: (headers) => resolver.resolve(headers),
     },
   });

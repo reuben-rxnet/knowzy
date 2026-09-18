@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@knowzy/configuration": "*",
+    "@knowzy/knowledge-source-adapters": "*",
     "@knowzy/observability": "*",
     "@knowzy/shared-types": "*"
   },

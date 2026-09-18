@@ -1,0 +1,39 @@
+Acceptable Use of Support Tooling
+
+Support tooling exists to resolve customer tickets. This note records what
+counts as acceptable use of the remote access tools, the diagnostic scripts, and
+the administrative consoles issued to the support organisation. It is written as
+continuous prose deliberately: it has no headings, and the platform must segment
+it honestly rather than inventing a structure it does not have.
+
+Remote access to a customer device requires the customer's explicit consent for
+each session, captured in the ticket before the session begins. Consent given
+for one session does not carry to the next. The agent states what they intend to
+do, does only that, and ends the session when the task is complete. Recording a
+session is permitted only where the customer has been told and has agreed, and a
+recording is stored in the ticket rather than on the agent's device.
+
+Diagnostic scripts are run from the approved script library only. An agent does
+not modify a script before running it, and does not run a script obtained from a
+colleague, a vendor, or a search result. Where the library has no script for the
+task, the agent raises a request with the tooling team, because a script that
+has not been reviewed may change state on a production system in ways the agent
+cannot predict or explain afterwards.
+
+Administrative consoles are used with the agent's own named account. An agent
+does not use a colleague's session, does not leave a console unlocked, and does
+not hold an administrative session open beyond the task that needed it. Where a
+task requires elevation the agent requests it, performs the task, and allows the
+elevation to lapse rather than retaining it for convenience.
+
+Personal use of support tooling is not permitted in any form. This includes
+looking up one's own account, testing a script against personal equipment, and
+using remote access software to reach a home device. The tooling is instrumented
+and the logs are reviewed; the reason personal use is prohibited outright is
+that it makes the audit trail unreadable, not that any single instance is
+harmful on its own.
+
+An agent who believes a tool is behaving incorrectly stops using it and reports
+it to the tooling team the same day. Continuing to use a tool that produces
+results the agent cannot explain risks acting on a false diagnosis, which costs
+the customer more than the delay of waiting for a fix.

@@ -536,7 +536,10 @@ const seedMockSource = async (ownerUserId: string): Promise<void> => {
       name: 'Mock Support Operations',
       description: 'Fixture-backed source for local development. No tenant credentials required.',
       sourceType: 'MOCK',
-      connection: { fixtureRoot: 'fixtures/knowledge/support-operations', authMethod: 'NONE' },
+      // `sourceKey` names the fixture TREE, not a filesystem path: the MCP
+      // server owns where fixtures live, so a source row cannot point the
+      // adapter at an arbitrary directory.
+      connection: { sourceKey: 'support-operations', authMethod: 'NONE' },
       restrictions: { roles: [], domains: [], teams: [], functions: [] },
       usableForGeneration: true,
       usableForRefreshers: true,
@@ -549,15 +552,29 @@ const seedMockSource = async (ownerUserId: string): Promise<void> => {
       syncSchedule: { mode: 'MANUAL' },
       isActive: true,
       ownerUserId,
+      // Two containers, mirroring the top level of the fixture tree. Only the
+      // file types a registered extractor can actually handle are included:
+      // listing `pdf` here would promise coverage the platform cannot deliver
+      // until that extractor exists.
       paths: {
         create: [
           {
-            containerId: 'documents',
-            containerName: 'Documents',
-            folderPath: '/SOPs/Network',
-            includedFileTypes: ['pdf', 'docx', 'pptx', 'xlsx', 'txt', 'html'],
+            containerId: 'SOPs',
+            containerName: 'SOPs',
+            folderPath: '/',
+            includedFileTypes: ['md', 'txt', 'html'],
             excludedFileTypes: [],
-            includedMetadata: [],
+            includedMetadata: ['Owner', 'ReviewCycle', 'Classification'],
+            requiresFullSync: true,
+            isActive: true,
+          },
+          {
+            containerId: 'Policies',
+            containerName: 'Policies',
+            folderPath: '/',
+            includedFileTypes: ['md', 'txt', 'html'],
+            excludedFileTypes: [],
+            includedMetadata: ['Owner', 'ReviewCycle', 'Classification'],
             requiresFullSync: true,
             isActive: true,
           },

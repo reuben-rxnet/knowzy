@@ -23,7 +23,8 @@
   },
   "dependencies": {
     "@knowzy/shared-types": "*",
-    "@knowzy/observability": "*"
+    "@knowzy/observability": "*",
+    "@knowzy/content-extraction": "*"
   },
   "devDependencies": {
     "@knowzy/eslint-config": "*",

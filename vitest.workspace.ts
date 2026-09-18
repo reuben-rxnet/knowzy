@@ -1,3 +1,5 @@
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineWorkspace } from 'vitest/config';
 
 // Test projects mirror repository-structure.md §7.
@@ -5,8 +7,30 @@ import { defineWorkspace } from 'vitest/config';
 // `integration` is separated because it needs a migrated PostgreSQL; its tests
 // skip themselves when DATABASE_URL is absent, so `npm test` works on a machine
 // with no database while CI runs them for real.
+
+/**
+ * Resolve `@knowzy/*` to package SOURCE, not to `dist`.
+ *
+ * Without this, a cross-package import resolves through the package `exports`
+ * map into `dist/index.js`, so a test asserts against whatever was last built.
+ * That is not a slow feedback loop — it is a test that can pass against code
+ * that no longer exists: deleting a guard from `src` and re-running the suite
+ * leaves it green until someone rebuilds. Found by mutating an adapter's
+ * permission filter and watching the conformance suite stay green.
+ *
+ * The root tsconfig carries the same mapping in `compilerOptions.paths` for
+ * dependency-cruiser's benefit; this is the runtime half of it.
+ */
+const packagesDir = fileURLToPath(new URL('./packages', import.meta.url));
+const workspaceAliases = Object.fromEntries(
+  readdirSync(packagesDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => [`@knowzy/${entry.name}`, `${packagesDir}/${entry.name}/src/index.ts`]),
+);
+
 export default defineWorkspace([
   {
+    resolve: { alias: workspaceAliases },
     test: {
       name: 'unit',
       include: ['packages/*/src/**/*.test.ts'],
@@ -15,6 +39,7 @@ export default defineWorkspace([
     },
   },
   {
+    resolve: { alias: workspaceAliases },
     test: {
       name: 'contract',
       include: ['packages/testing/contracts/**/*.test.ts'],
@@ -23,6 +48,7 @@ export default defineWorkspace([
     },
   },
   {
+    resolve: { alias: workspaceAliases },
     test: {
       name: 'integration',
       include: ['packages/*/test/**/*.test.ts', 'apps/*/test/**/*.test.ts'],
