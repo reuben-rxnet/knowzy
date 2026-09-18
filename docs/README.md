@@ -74,6 +74,7 @@ No application code, scaffolding, or placeholder source files are produced at th
 | [environment-and-configuration.md](environment-and-configuration.md) | Environments, configuration precedence, secret storage, feature flags |
 | [implementation-roadmap.md](implementation-roadmap.md) | Phases 1–11, exit criteria, sequencing |
 | [initial-end-to-end-proof.md](initial-end-to-end-proof.md) | Smallest end-to-end slice and the recommended first milestone |
+| [MVP-READINESS.md](MVP-READINESS.md) | **Status report, not a specification.** What of the MVP is built, how it was verified, what is not done, and the recorded deviations |
 | [assumptions-and-tenant-configuration.md](assumptions-and-tenant-configuration.md) | Documented assumptions and the tenant-specific values still required |
 | [risks-and-decisions.md](risks-and-decisions.md) | Risks, assumptions, dependencies, architecture decision records |
 | [glossary.md](glossary.md) | Shared vocabulary |
