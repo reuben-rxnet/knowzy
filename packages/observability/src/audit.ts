@@ -176,6 +176,40 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'truncated',
     'contentHash',
   ],
+  // M6 assessment and session. Counts, ids, scores, and bands — never a
+  // question, an option, or a learner's CHOICE. audit-model.md §8 keeps
+  // per-answer content out of a seven-year store; it lives on QuizResponse with
+  // a two-year retention.
+  'AUTHORING.ASSESSMENT.CREATED': ['questionCount', 'strategy', 'topicCount'],
+  'AUTHORING.ASSESSMENT.SUBMITTED': [],
+  'AUTHORING.ASSESSMENT.APPROVED': [],
+  'AUTHORING.ASSESSMENT.PUBLISHED': [
+    'versionNumber',
+    'poolSize',
+    'questionCount',
+    'strategy',
+  ],
+  'LEARNING.SESSION.CREATED': [
+    'assessmentVersionId',
+    'attemptNumber',
+    'totalQuestions',
+    'strategy',
+    'poolSize',
+  ],
+  'LEARNING.SESSION.ANSWER_SAVED': ['presentationIndex', 'revision', 'writeSequence'],
+  'LEARNING.SESSION.RECOVERED': ['recoveryCount'],
+  'LEARNING.SESSION.EXPIRED': ['expiryPolicy', 'scored'],
+  'LEARNING.SESSION.COMPLETED': ['totalQuestions', 'answeredCount'],
+  'LEARNING.RESULT.SCORED': [
+    'percentageScore',
+    'passed',
+    'proficiencyBand',
+    'totalQuestions',
+    'correctAnswers',
+    'unansweredCount',
+    'scoringEngineVersion',
+    'resultState',
+  ],
   'PLATFORM.AUTH.SIGN_IN_SUCCEEDED': ['portal'],
   'PLATFORM.AUTH.SIGN_IN_FAILED': ['portal', 'stage'],
   'PLATFORM.AUTH.TOKEN_REJECTED': ['reasonDetail'],

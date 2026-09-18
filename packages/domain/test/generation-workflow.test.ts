@@ -157,10 +157,19 @@ describeDb('generation workflow', () => {
       select: { id: true },
     });
     if (stale.length > 0) {
-      await prisma.draftQuestionVersion.deleteMany({
-        where: { questionId: { in: stale.map((row) => row.id) } },
+      const ids = stale.map((row) => row.id);
+      // Dependents FIRST. A draft acquires publish references, approvals, and
+      // reviews once it has been through the M4 pipeline, and deleting the
+      // draft alone violates their foreign keys — which is how a later
+      // milestone's suite broke this one's setup.
+      await prisma.publishOperation.deleteMany({ where: { questionId: { in: ids } } });
+      await prisma.publishedQuestionReference.deleteMany({
+        where: { question: { id: { in: ids } } },
       });
-      await prisma.draftQuestion.deleteMany({ where: { id: { in: stale.map((row) => row.id) } } });
+      await prisma.questionApproval.deleteMany({ where: { questionId: { in: ids } } });
+      await prisma.questionReview.deleteMany({ where: { questionId: { in: ids } } });
+      await prisma.draftQuestionVersion.deleteMany({ where: { questionId: { in: ids } } });
+      await prisma.draftQuestion.deleteMany({ where: { id: { in: ids } } });
     }
 
     // A generation run MUTATES section assessability and coverage — that is the

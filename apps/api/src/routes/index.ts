@@ -10,6 +10,7 @@
 
 import type { KnowzyRoute } from '../http/route.js';
 import { generationRoutes } from './generation.js';
+import { learningRoutes } from './learning.js';
 import { reviewRoutes } from './review.js';
 import { sourceRoutes } from './sources.js';
 import { whoamiRoutes } from './whoami.js';
@@ -19,4 +20,5 @@ export const ALL_ROUTES: readonly KnowzyRoute[] = [
   ...sourceRoutes,
   ...generationRoutes,
   ...reviewRoutes,
+  ...learningRoutes,
 ];

@@ -124,4 +124,79 @@ export {
   type PublishTarget,
 } from './review/publishing.js';
 
+// -------------------------------------------------------- assessment (M6)
+
+export {
+  assertValidBandSet,
+  bandFor,
+  percentageOf,
+  roundHalfAwayFromZero,
+  scoreSession,
+  DEFAULT_PROFICIENCY_BANDS,
+  InvalidBandSetError,
+  SCORING_ENGINE_VERSION,
+  type ObjectiveScore,
+  type ProficiencyBandDefinition,
+  type ScoreArgs,
+  type ScoreResult,
+  type SnapshotQuestion,
+  type SnapshotResponse,
+  type TopicScore,
+} from './assessment/scoring.js';
+
+export {
+  allocateEvenly,
+  createSeededRandom,
+  intersectWithSnapshot,
+  onePerCluster,
+  seededShuffle,
+  selectQuestions,
+  PoolInsufficientError,
+  type EligibleQuestion,
+  type SelectionConfig,
+  type SelectionResult,
+  type SnapshotMember,
+} from './assessment/selection.js';
+
+export {
+  createAssessment,
+  evaluatePool,
+  publishAssessmentVersion,
+  transitionAssessmentVersion,
+  validateAssessmentVersion,
+  AssessmentConfigError,
+  AssessmentNotFoundError,
+  type CreateAssessmentArgs,
+  type CreatedAssessment,
+  type PoolEvaluation,
+  type PoolMember,
+  type PublishedAssessment,
+  type ValidationResult,
+} from './assessment/assessment-service.js';
+
+export {
+  assertNoAnswerKey,
+  completeSession,
+  currentQuestion,
+  deriveSessionId,
+  expireSession,
+  readResult,
+  recordSessionRecovery,
+  resumeSession,
+  startSession,
+  submitAnswer,
+  toLearnerQuestion,
+  NotEligibleError,
+  SequenceConflictError,
+  SessionNotActiveError,
+  SessionNotFoundError,
+  type CompletionResult,
+  type CurrentQuestionResult,
+  type LearnerContext,
+  type ResultView,
+  type SessionDeps,
+  type StartedSession,
+  type SubmitAnswerResult,
+} from './assessment/session-service.js';
+
 export const PACKAGE_NAME = '@knowzy/domain' as const;

@@ -96,6 +96,47 @@ audit chain carries the bank item id and ETag G6 requires.
 5. **Publish and retire audit detail was dropped** by the redactor's allow-list
    — including the bank item id and ETag that G6 names explicitly.
 
+## M6, as built
+
+| Piece | Where |
+| --- | --- |
+| Deterministic scoring | `packages/domain/src/assessment/scoring.ts` — half-away-from-zero to two decimals, decisions on the stored value, all four §5.2 worked examples asserted |
+| Seeded selection | `src/assessment/selection.ts` — mulberry32 + Fisher-Yates, so a selection replays identically years later |
+| Assessment creation and the eligibility snapshot | `src/assessment/assessment-service.ts` — pool validated before submit, snapshot pinned in the same transaction as publication |
+| Session lifecycle | `src/assessment/session-service.ts` — immutable snapshot, one question at a time, per-answer revisions, resume, expiry, recovery, scoring |
+| 12 API routes | `apps/api/src/routes/learning.ts` — 5 authoring, 7 learner |
+| 57 integration tests | `packages/domain/test/assessment-session.test.ts` |
+
+**Verified live, the whole MVP in one pass:** 5 questions generated from two
+documents → reviewed and approved → published as
+`KNZ-SUPPORT_OPS-2026-000001..005` → an assessment created, validated against
+the live pool of 5, and published with its snapshot pinned → the learner sees
+it as startable → session started with 4 of 5 questions selected → the
+server-side snapshot holds question ids, versions and keys while the wire
+carries only options → answered one right and one wrong → a double-click
+returned the original revision → the browser "closed" and resume returned index
+2 with both saved answers → finished → **75%, PROFICIENT, passed** with
+per-topic accuracy and no knowledge gap → a second complete returned the same
+result id → an answer after completion refused with `SESSION_NOT_ACTIVE` →
+another learner reading the result got 403 → attempt 2 opened a new session.
+
+**Defects found by running it:**
+
+1. **Cross-suite test coupling, twice more.** The M3 suite deleted drafts
+   without their publish references, approvals, and reviews, so the M4/M6
+   suites' rows broke its setup with a foreign-key violation. And the M6 suite
+   left its last test's rows behind. Both now tear down completely.
+2. **`Assessment.status` and `AssessmentVersion.status` are different
+   vocabularies.** The assessment becomes `ACTIVE`; `PUBLISHED` is a version
+   state. Conflating them would have broken §5.3's rule that version N stays
+   published while N+1 is drafted.
+3. **`ObjectiveResult` requires a `gapState`** the schema declares but §5.4
+   only describes for topics. The same minimum-evidence rule now applies to an
+   objective: one question about it is not enough to call it a gap.
+4. **The retirement CHECK constraint caught a test shortcut** — the database
+   refuses a half-retirement with no timestamp, actor, or comment, which is
+   exactly right.
+
 ## Milestones
 
 API and domain first, thin UI last, so a score is demonstrable over HTTP before
@@ -227,5 +268,5 @@ to prevent. The pipeline moved to `@knowzy/shared-types`, the only package every
 consumer may import, and content-extraction re-exports it.
 - [x] M4 Review and approval — verified live end to end
 - [x] M5 Publish — verified live end to end (folded into M4)
-- [ ] M6 Quiz and scoring
+- [x] M6 Quiz and scoring — verified live end to end
 - [ ] M7 Thin UI
