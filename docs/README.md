@@ -27,6 +27,7 @@ No application code, scaffolding, or placeholder source files are produced at th
 | UX designer | [ux-design.md](ux-design.md), [authoring-portal.md](authoring-portal.md), [live-learning-portal.md](live-learning-portal.md) |
 | Platform / release engineer | [environment-and-configuration.md](environment-and-configuration.md), [architecture.md](architecture.md#12-deployment-architecture) |
 | Delivery lead planning sprint 1 | [initial-end-to-end-proof.md](initial-end-to-end-proof.md) |
+| Using or demonstrating the running software | [USER-GUIDE.md](USER-GUIDE.md) |
 
 ---
 
@@ -74,6 +75,7 @@ No application code, scaffolding, or placeholder source files are produced at th
 | [environment-and-configuration.md](environment-and-configuration.md) | Environments, configuration precedence, secret storage, feature flags |
 | [implementation-roadmap.md](implementation-roadmap.md) | Phases 1–11, exit criteria, sequencing |
 | [initial-end-to-end-proof.md](initial-end-to-end-proof.md) | Smallest end-to-end slice and the recommended first milestone |
+| [USER-GUIDE.md](USER-GUIDE.md) | **Describes the software, not the design.** How to drive both portals: identities, the authoring workflow screen by screen, taking an assessment, what each refusal means, and what is not real yet |
 | [MVP-READINESS.md](MVP-READINESS.md) | **Status report, not a specification.** What of the MVP is built, how it was verified, what is not done, and the recorded deviations |
 | [assumptions-and-tenant-configuration.md](assumptions-and-tenant-configuration.md) | Documented assumptions and the tenant-specific values still required |
 | [risks-and-decisions.md](risks-and-decisions.md) | Risks, assumptions, dependencies, architecture decision records |

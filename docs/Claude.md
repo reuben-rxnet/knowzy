@@ -5,6 +5,12 @@ Architecture Source of Truth:
 - Where this file and /docs disagree, /docs wins.
 - docs/MVP-READINESS.md is a STATUS REPORT, not a specification. If it and the
   code disagree, the code is right and the report is stale.
+- docs/USER-GUIDE.md describes the SOFTWARE for the person driving it. It is
+  updated in the SAME COMMIT as any change to what a user sees or does: a new
+  screen, a moved control, a changed label, a new refusal, or anything promoted
+  out of its "not real yet" table. A milestone that changes the UI is not
+  finished until that file matches it, including its header block and change
+  log.
 
 Question Repository:
 - SharePoint Question Bank
