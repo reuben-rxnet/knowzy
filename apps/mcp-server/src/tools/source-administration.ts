@@ -132,7 +132,7 @@ export const testKnowledgeSource = registerTool({
     // and its audit event share one transaction (U1), so a recorded status can
     // never exist without the event that explains where it came from.
     await transactWithAudit({
-      prisma: deps.prisma as never,
+      prisma: deps.prisma,
       auditWriter,
       action: 'ADMIN.SOURCE.CONNECTION_TESTED',
       work: async (tx: TransactionClient) =>
@@ -312,7 +312,7 @@ export const synchronizeKnowledgeSource = registerTool({
     const auditWriter = createAuditWriter({ clock: deps.clock });
 
     await transactWithAudit({
-      prisma: deps.prisma as never,
+      prisma: deps.prisma,
       auditWriter,
       action: 'ADMIN.SOURCE.SYNC_COMPLETED',
       work: async (tx: TransactionClient) => {

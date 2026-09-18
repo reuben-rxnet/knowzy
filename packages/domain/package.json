@@ -22,8 +22,10 @@
     "test": "vitest run --dir src --passWithNoTests"
   },
   "dependencies": {
-    "@knowzy/shared-types": "*",
-    "@knowzy/observability": "*"
+    "@knowzy/claude-services": "*",
+    "@knowzy/database": "*",
+    "@knowzy/observability": "*",
+    "@knowzy/shared-types": "*"
   },
   "devDependencies": {
     "@knowzy/eslint-config": "*",

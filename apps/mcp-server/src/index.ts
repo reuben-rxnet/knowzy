@@ -31,6 +31,7 @@ import { toolNames } from './tools/registry.js';
 // than an unreachable one.
 import './tools/source-administration.js';
 import './tools/source-navigation.js';
+import './tools/generation.js';
 
 const PORT = 8081;
 
@@ -109,7 +110,7 @@ const main = async (): Promise<void> => {
     // claim more tools than are actually reachable.
     tools: toolNames().length,
     registeredAdapterTypes: adapterRegistry.registeredTypes,
-    note: '12 of 36 tools registered; see mcp-tools.md §2.',
+    note: 'Source administration, navigation, and generation governance registered; see mcp-tools.md §2.',
   }));
 
   process.on('SIGTERM', () => void app.close().then(() => process.exit(0)));

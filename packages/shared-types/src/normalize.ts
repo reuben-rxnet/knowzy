@@ -1,10 +1,20 @@
-// Text normalization — architecture.md §8.4 and knowledge-source-adapters.md
-// §2.4 X1.
+// Text normalization — architecture.md §8.4, knowledge-source-adapters.md §2.4
+// X1, and workflows.md §2.5.
 //
 // One pipeline, used by extraction, content hashing, evidence verification, and
 // similarity scoring. If any of those normalized differently, a question's
 // evidence would verify at generation time and fail later, so there is exactly
 // one implementation and everything calls it.
+//
+// It lives in @knowzy/shared-types rather than in @knowzy/content-extraction
+// because that is the ONLY package every consumer may import. Evidence
+// verification belongs to @knowzy/claude-services (architecture.md §365) and is
+// reached by @knowzy/domain, but B3 forbids domain from reaching
+// content-extraction even transitively. With the pipeline there, "exactly one
+// implementation and everything calls it" was unsatisfiable: the alternative
+// was a second copy, which is the specific failure this rule exists to
+// prevent. @knowzy/content-extraction re-exports these, so extraction's public
+// surface is unchanged.
 //
 // X8: deterministic. The same input produces byte-identical output, which is
 // what makes change detection and re-verification meaningful.
@@ -25,7 +35,11 @@ const CHARACTER_FOLDS: ReadonlyArray<readonly [RegExp, string]> = [
   // Ellipsis and non-breaking / zero-width space family.
   [/\u2026/g, '...'],
   [/[\u00A0\u2007\u202F]/g, ' '],
-  [/[\u200B\u200C\u200D\uFEFF]/g, ''],
+  // Alternation rather than a character class: the zero-width JOINER inside a
+  // class can combine with its neighbours, which is what
+  // no-misleading-character-class warns about. Each codepoint is removed on
+  // its own terms here.
+  [/\u200B|\u200C|\u200D|\uFEFF/g, ''],
   // Bullets that carry no meaning once structure is captured separately.
   [/[\u2022\u25CF\u25AA\u00B7]/g, '-'],
 ];

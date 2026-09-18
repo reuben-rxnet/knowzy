@@ -10,7 +10,7 @@
 
 import { parse, type HTMLElement, type Node, type TextNode } from 'node-html-parser';
 import { headingBlock, textBlock, type Block, type StructuredDocument } from '../structure.js';
-import { normalizeText } from '../normalize.js';
+import { normalizeText } from '@knowzy/shared-types';
 
 /** Elements whose entire subtree is discarded, contents included. */
 const DISCARDED = new Set([

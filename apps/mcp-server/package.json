@@ -15,6 +15,7 @@
     "@knowzy/configuration": "*",
     "@knowzy/content-extraction": "*",
     "@knowzy/database": "*",
+    "@knowzy/domain": "*",
     "@knowzy/knowledge-source-adapters": "*",
     "@knowzy/observability": "*",
     "@knowzy/shared-types": "*",

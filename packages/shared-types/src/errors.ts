@@ -138,6 +138,20 @@ export const ERROR_REGISTRY = {
     message: 'One or more selected documents are of a type that cannot be extracted.',
     retryable: false,
   },
+  /**
+   * The document changed between scoping a job and running it.
+   *
+   * Distinct from VERSION_CONFLICT, which is a concurrent EDIT to the same
+   * platform record. This is the source moving underneath a pinned scope, and
+   * the remedy differs: re-run the preflight so the questions are grounded in
+   * the current text rather than retrying the same job.
+   */
+  DOCUMENT_CONTENT_DRIFT: {
+    category: 'CONFLICT',
+    status: 409,
+    message: 'The source document changed after this generation was scoped.',
+    retryable: false,
+  },
   TAXONOMY_MISSING: {
     category: 'VALIDATION',
     status: 422,

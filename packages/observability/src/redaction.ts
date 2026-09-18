@@ -102,7 +102,30 @@ const looksLikeSecretValue = (value: string): boolean => {
 const matchesAny = (patterns: readonly RegExp[], key: string): boolean =>
   patterns.some((p) => p.test(key));
 
-export const isSecretKey = (key: string): boolean => matchesAny(SECRET_KEY_PATTERNS, key);
+/**
+ * Exact key names that the credential patterns match but which are NOT
+ * credentials.
+ *
+ * `/token/i` is deliberately broad, and it should stay that way — narrowing it
+ * to catch fewer credential shapes would be the wrong trade. But it also
+ * matches token COUNTS, which are cost figures the platform is required to
+ * account for (architecture.md §365). Writing "[redacted]" over a number
+ * misleads twice: the cost is lost, and the record implies a secret was there.
+ *
+ * The list is EXACT-MATCH and lowercase-compared, so it cannot be widened by
+ * accident: `accessTokenCount` is not on it and stays redacted.
+ */
+const SAFE_KEY_EXCEPTIONS: ReadonlySet<string> = new Set([
+  'inputtokencount',
+  'outputtokencount',
+  'totaltokencount',
+  'tokencount',
+]);
+
+export const isSecretKey = (key: string): boolean => {
+  if (SAFE_KEY_EXCEPTIONS.has(key.toLowerCase())) return false;
+  return matchesAny(SECRET_KEY_PATTERNS, key);
+};
 export const isContentKey = (key: string): boolean => matchesAny(CONTENT_KEY_PATTERNS, key);
 
 export interface RedactOptions {

@@ -41,6 +41,10 @@ forgotten one.
 | mcp-tools.md T7 vs audit-model.md §8 | The documents disagree: T7 says every tool invocation is audited, §8 lists "individual read requests (page loads, list queries)" as deliberately not audited. **Resolved in favour of the audit model**, which owns what the store contains and gives the reason. | `auditAction` is still a REQUIRED field; a read tool must name the rule that exempts it in `auditExemptionReason`, and a tool that WRITES cannot be exempt at all. Enforced at registration. |
 | knowledge-source-adapters.md §2.3 | PDF, DOCX, PPTX, XLSX, and SharePoint pages have no extractor. | A document of an unregistered type returns `UNSUPPORTED` with a reason and **no text**, never a silent skip. Adding one is a map entry plus a conformance fixture. |
 | §8 conformance groups | Section lineage, bank assertions, resilience (429/circuit), and end-to-end are not yet asserted. | Declared as `todo` in the suite rather than omitted, so the suite reports what it does not cover (6 todos). |
+| workflows.md §2.2 | Generation runs **in-process** on the job-creation request instead of returning 202 and enqueuing on the job runner. | `runGenerationJob` is a domain function with no process affinity, so moving it behind the existing pg-boss queue is wiring, not redesign. Until then a large job holds the request open. |
+| workflows.md §2.3 retrieval | The run reads pinned sections from the index rather than re-calling `extract_document_content` through MCP. | The purpose of retrieval-time verification is kept: the run compares each document's current `contentHash` against what the scope captured and aborts with `DOCUMENT_CONTENT_DRIFT` rather than grounding questions in text that has since changed. |
+| generation-governance.md §4.4 | Duplicate scoring computes trigram similarity in process instead of via `pg_trgm`. | Verification and scoring must both run BEFORE anything is persisted, so there is nothing in the database to compare against yet. The implementation mirrors `pg_trgm.similarity()` so a score here and a score from the database agree. |
+| §2.8 / live Claude | Generation uses a deterministic local generator, not a Claude call. | A documented time-boxing lever, and the zero-credential local path requires it. The generator quotes the document verbatim and goes through the SAME gate chain as a model response, so the gates are exercised for real. `modelId` records `knowzy-deterministic-local-1`, so no job row can suggest a Claude model produced these. |
 
 ## Milestones
 
@@ -107,7 +111,70 @@ matched its stored `sectionContentHash`. A second sync reported 4 unchanged.
    no entry for this milestone's actions, so counts arrived as `_droppedKeys`.
    Extended with counts and hashes only, never document text.
 
-- [ ] M3 Generation
+- [x] M3 Generation — verified live end to end, 301 tests
+
+### M3, as built
+
+| Piece | Where |
+| --- | --- |
+| Evidence verification (STRICT / STANDARD) | `packages/claude-services/src/evidence.ts` — the §2.5 rules, span bounds, section attribution, and offsets that re-locate |
+| Output schema, integrity, confidence | `src/output-schema.ts`, `src/integrity.ts`, `src/confidence.ts` — the six weighted confidence components, model self-report capped at 0.10 |
+| Untrusted-content framing | `src/framing.ts` — per-call random nonce delimiters, and generation grants NO tools |
+| Generator port + deterministic local generator | `src/generator.ts` — quotes the document verbatim, goes through the same gate chain as a model response |
+| Six preflight checks | `packages/domain/src/generation/preflight.ts` |
+| `ResolvedGenerationScope` | `src/generation/scope.ts` — a branded type; a forged object literal does not typecheck |
+| Job creation and the 11 preconditions | `src/generation/job-creation.ts` |
+| The gate chain and persistence | `src/generation/generation-service.ts` |
+| Duplicate scoring | `src/generation/similarity.ts` — the five documented weights, detection across ALL domains |
+| 2 MCP tools | `preflight_generation`, `record_preflight_decision` |
+| 5 API routes | preflight · decide · create-and-run · job read · author review queue |
+| 28 integration tests | `packages/domain/test/generation-workflow.test.ts` |
+
+**Verified live:** preflight over two documents → job refused with
+`PREFLIGHT_REQUIRED` until a decision is recorded → decision → 5 grounded
+drafts from 10 sections with all 5 shortfalls reported → every persisted
+evidence span re-located in the stored source text (`STRICT`, similarity
+1.000) → all 5 in the author review queue with options, proposed answer,
+evidence, and confidence breakdown → audit events per draft and per job.
+
+**Defects found by running it, not by reading it:**
+
+1. **Per-section insufficient-evidence results were silently discarded**
+   whenever any question succeeded. `GenerationOutput` is a union, so it can
+   carry questions or one insufficiency but not both — §2.7 requires every
+   section's reason recorded and shown. `GenerateResult.insufficientSections`
+   now carries them alongside. Four sections' reasons were being lost per run.
+2. **The `ResolvedGenerationScope` brand was vacuous.** `declare const` has no
+   runtime value, so assigning it threw; making it optional then let any object
+   literal satisfy the type. Fixed with a required phantom and verified by
+   compiling a forged literal and watching it fail.
+3. **A literal backspace character was written into a regex** in place of
+   ``, so the article-agreement fix never applied and distractors read "An
+   duty manager".
+4. **The integration suite depended on its own previous run.** A generation run
+   mutates section assessability and coverage, so tests passed or failed based
+   on execution order. It now resets the document to a known baseline before
+   every run.
+5. **Token counts were redacted from audit.** `/token/i` matched
+   `inputTokenCount`, writing `"[redacted]"` over a cost figure — losing the
+   accounting and implying a secret had been there. The redactor now carries an
+   exact-match safe-key exception list, with tests that `accessTokenCount`
+   stays redacted.
+6. **`??` precedence bug** in the preflight capacity sum (`sum + get() ?? 0`
+   parses as `(sum + get()) ?? 0`), caught by the typechecker.
+7. **Suppression was reported as insufficient evidence.** When a question for a
+   section already existed, stage-1 suppression produced nothing and the
+   section was reported as stating no testable rule — sending the author to fix
+   a document that was fine. The two cases now carry different reasons.
+
+**One architectural finding:** evidence verification belongs to
+`@knowzy/claude-services` (architecture.md §365) and is reached by
+`@knowzy/domain`, but B3 forbids domain from reaching `@knowzy/content-extraction`
+even transitively — where the normalization pipeline lived. "Exactly one
+implementation and everything calls it" was therefore unsatisfiable; the
+alternative was a second copy, which is the specific failure that rule exists
+to prevent. The pipeline moved to `@knowzy/shared-types`, the only package every
+consumer may import, and content-extraction re-exports it.
 - [ ] M4 Review and approval
 - [ ] M5 Publish
 - [ ] M6 Quiz and scoring

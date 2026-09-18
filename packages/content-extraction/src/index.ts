@@ -7,7 +7,10 @@
 // (knowledge-source-adapters.md §2.4 X1-X8) are testable without a source,
 // a network, or a database.
 
-export { normalizeText, normalizeForComparison } from './normalize.js';
+// Re-exported, not reimplemented: the pipeline lives in @knowzy/shared-types
+// so evidence verification and similarity scoring can reach it without
+// crossing a boundary rule. See that file's header.
+export { normalizeText, normalizeForComparison } from '@knowzy/shared-types';
 export { headingBlock, textBlock } from './structure.js';
 export type { Block, HeadingBlock, TextBlock, StructuredDocument } from './structure.js';
 export { sectionize } from './sectionize.js';

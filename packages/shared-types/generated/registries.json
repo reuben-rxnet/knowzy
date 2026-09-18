@@ -222,6 +222,11 @@
       "retryable": false,
       "status": 200
     },
+    "DOCUMENT_CONTENT_DRIFT": {
+      "category": "CONFLICT",
+      "retryable": false,
+      "status": 409
+    },
     "DOCUMENT_NOT_READY": {
       "category": "VALIDATION",
       "retryable": false,

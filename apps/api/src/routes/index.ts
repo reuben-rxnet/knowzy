@@ -9,7 +9,12 @@
 // Milestones add to this array; nothing else registers routes.
 
 import type { KnowzyRoute } from '../http/route.js';
+import { generationRoutes } from './generation.js';
 import { sourceRoutes } from './sources.js';
 import { whoamiRoutes } from './whoami.js';
 
-export const ALL_ROUTES: readonly KnowzyRoute[] = [...whoamiRoutes, ...sourceRoutes];
+export const ALL_ROUTES: readonly KnowzyRoute[] = [
+  ...whoamiRoutes,
+  ...sourceRoutes,
+  ...generationRoutes,
+];

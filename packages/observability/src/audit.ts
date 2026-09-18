@@ -83,6 +83,50 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   'ADMIN.TAXONOMY.TOPIC_CREATED': ['domainCode', 'slug'],
   'ADMIN.USER.PROVISIONED': ['entraObjectId', 'source'],
   'ADMIN.USER.RECONCILED': ['added', 'flaggedForRemoval'],
+  // M3 generation. Counts, ids, hashes, and scores only — no question text, no
+  // option text, no evidence span. `sectionKey` is a hash, not a heading, so it
+  // identifies the section without reproducing anything from the document.
+  'AUTHORING.GENERATION.PREFLIGHT_RUN': ['documentCount', 'recommendation'],
+  'AUTHORING.GENERATION.PREFLIGHT_VIEW': ['chosenAction'],
+  'AUTHORING.GENERATION.REQUESTED': [
+    'scope',
+    'documentCount',
+    'sectionCount',
+    'requestedQuestionCount',
+    'preflightId',
+  ],
+  'AUTHORING.GENERATION.REGENERATION_REQUESTED': [
+    'scope',
+    'documentCount',
+    'sectionCount',
+    'requestedQuestionCount',
+    'preflightId',
+  ],
+  'AUTHORING.GENERATION.JOB_COMPLETED': [
+    'jobStatus',
+    'requestedQuestionCount',
+    'acceptedQuestionCount',
+    'rejectionCounts',
+    'modelId',
+    'inputTokenCount',
+    'outputTokenCount',
+  ],
+  'AUTHORING.GENERATION.JOB_FAILED': [
+    'jobStatus',
+    'requestedQuestionCount',
+    'acceptedQuestionCount',
+    'rejectionCounts',
+    'modelId',
+    'inputTokenCount',
+    'outputTokenCount',
+  ],
+  'AUTHORING.QUESTION.CREATED': [
+    'jobId',
+    'sectionKey',
+    'evidenceMode',
+    'confidenceScore',
+    'maxSimilarityScore',
+  ],
   // contentHash identifies WHICH content was extracted without reproducing any
   // of it, which is what makes an extraction traceable without putting document
   // text in the audit store.

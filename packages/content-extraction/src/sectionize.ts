@@ -17,7 +17,7 @@
 
 import { createHash } from 'node:crypto';
 import type { Block, StructuredDocument } from './structure.js';
-import { normalizeText } from './normalize.js';
+import { normalizeText } from '@knowzy/shared-types';
 
 export interface SectionizeOptions {
   /** Hard cap on retained characters. Truncation ends at a section boundary. */

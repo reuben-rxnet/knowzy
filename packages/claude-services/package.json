@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@knowzy/shared-types": "*",
+    "zod": "^3.23.8",
     "@knowzy/observability": "*"
   },
   "devDependencies": {

@@ -11,7 +11,7 @@
 import { z } from 'zod';
 import type { ErrorCode } from '@knowzy/shared-types';
 import { defineRoute, type RouteContext } from '../http/route.js';
-import { McpCallError } from '../mcp/client.js';
+import { McpCallError, type McpClient } from '../mcp/client.js';
 import { toProblem } from '../http/problem.js';
 import type { FastifyReply } from 'fastify';
 
@@ -81,7 +81,7 @@ const SyncBody = z.object({ mode: z.enum(['FULL', 'INCREMENTAL']).default('FULL'
 /** Shared plumbing: every handler calls one tool with the caller's own scope. */
 const callTool = async <T>(
   ctx: RouteContext,
-  deps: { readonly mcp: import('../mcp/client.js').McpClient },
+  deps: { readonly mcp: McpClient },
   tool: string,
   args: Readonly<Record<string, unknown>>,
 ): Promise<T> =>

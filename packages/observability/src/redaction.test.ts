@@ -292,3 +292,22 @@ describe('classifyUserAgent', () => {
     expect(classifyUserAgent(null)).toBeNull();
   });
 });
+
+describe('safe-key exceptions', () => {
+  it('keeps token COUNTS, which are cost figures rather than credentials', () => {
+    expect(isSecretKey('inputTokenCount')).toBe(false);
+    expect(isSecretKey('outputTokenCount')).toBe(false);
+    expect(isSecretKey('totalTokenCount')).toBe(false);
+    expect(redact({ inputTokenCount: 1375, outputTokenCount: 820 })).toEqual({
+      inputTokenCount: 1375,
+      outputTokenCount: 820,
+    });
+  });
+
+  it('still redacts anything else containing "token"', () => {
+    // The exception list is exact-match, so it cannot be widened by accident.
+    for (const key of ['accessToken', 'token', 'refreshToken', 'accessTokenCount', 'oboTokenRef']) {
+      expect(isSecretKey(key), key).toBe(true);
+    }
+  });
+});

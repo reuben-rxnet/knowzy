@@ -8,7 +8,7 @@
 
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { normalizeForComparison, normalizeText } from './normalize.js';
+import { normalizeForComparison, normalizeText } from '@knowzy/shared-types';
 import { sectionize, type Section } from './sectionize.js';
 import { extractHtml } from './extractors/html.js';
 import { extractMarkdown, extractPlainText } from './extractors/text.js';

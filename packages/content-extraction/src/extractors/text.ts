@@ -3,7 +3,7 @@
 // Both produce blocks only; offsets belong to the sectionizer (X2).
 
 import { headingBlock, textBlock, type Block, type StructuredDocument } from '../structure.js';
-import { normalizeText } from '../normalize.js';
+import { normalizeText } from '@knowzy/shared-types';
 
 /**
  * Plain text.

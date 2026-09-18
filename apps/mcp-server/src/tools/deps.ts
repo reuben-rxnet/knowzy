@@ -5,7 +5,7 @@
 // Handlers receive a resolver rather than a concrete adapter, because which
 // adapter serves a source is a property of the source row.
 
-import type { DbClient } from '@knowzy/database';
+import type { PrismaClient } from '@knowzy/database';
 import type { Clock, Logger } from '@knowzy/observability';
 import type { KnowledgeSourceAdapter } from '@knowzy/knowledge-source-adapters';
 import type { KnowzyEnv } from '@knowzy/shared-types';
@@ -21,7 +21,14 @@ export interface SourceRow {
 }
 
 export interface ToolDeps {
-  readonly prisma: DbClient;
+  /**
+   * The pooled client, not a transaction client.
+   *
+   * Typed concretely because tools open their own transactions — a tool that
+   * writes state and its audit event must share one (U1), and a DbClient union
+   * cannot express that.
+   */
+  readonly prisma: PrismaClient;
   readonly clock: Clock;
   readonly logger: Logger;
   readonly environment: KnowzyEnv;

@@ -16,6 +16,7 @@
     "@knowzy/authorization": "*",
     "@knowzy/configuration": "*",
     "@knowzy/database": "*",
+    "@knowzy/domain": "*",
     "@knowzy/observability": "*",
     "@knowzy/shared-types": "*",
     "fastify": "^5.0.0",
