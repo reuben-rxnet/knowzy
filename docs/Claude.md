@@ -193,3 +193,26 @@ Gotchas learned by execution (each of these cost real time):
   never includes GENERATE_NEW, which is what a never-processed document
   recommends. Any UI listing the offered actions must union in the
   recommendation or the recommended action cannot be chosen.
+
+
+UI Source of Truth
+
+Authoritative UI specification:
+
+docs/ui/KNOWZY_Master_UI_UX_Design_and_Development_Prompt.docx
+
+Approved design references:
+
+design/dashboard.png
+design/knowledge-sources.png
+design/ai-quiz-generation.png
+design/review-queue.png
+design/approvals.png
+design/question-bank.png
+design/assessments.png
+design/reports.png
+design/administration.png
+
+UI modernization guidance:
+
+docs/ui/ui-modernization.md
