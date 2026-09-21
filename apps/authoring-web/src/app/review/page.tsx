@@ -140,7 +140,11 @@ export default async function ReviewQueuePage({
       {!result.ok ? <Problem problem={result.problem} /> : null}
 
       {result.ok && result.data.items.length === 0 ? (
-        <EmptyState title={t('review.empty')} description={t('review.emptyBody')} />
+        <EmptyState
+          title={t('review.empty')}
+          description={t('review.emptyBody')}
+          illustration="learning"
+        />
       ) : null}
 
       {result.ok && result.data.items.length > 0 ? (

@@ -42,11 +42,16 @@
 //   * The avatar is initials, not a photograph. No photo exists for a
 //     synthetic identity.
 //
+// The search, Copilot and notification glyphs are the APPROVED pack's icons
+// (`navigation/icon_search|copilot|notification.svg`), rendered as CSS masks so
+// they take the header's colour. The brand marks are the pack's too. Lucide is
+// still the authoring portal's icon set, where the pack has no equivalents.
+//
 // Every target is at least 44px (§7), every foreground on the navy is contrast
 // checked by `contrast.test.ts`, and the whole header is one landmark.
 
 import type { ReactNode } from 'react';
-import { Bell, Search, Sparkles } from 'lucide-react';
+import { KnowzyNavIcon } from './Asset.js';
 import { EssilorLuxotticaLogo, KnowzyWordmark } from './Brand.js';
 
 export interface AppHeaderProps {
@@ -102,7 +107,7 @@ export const AppHeader = ({
      */}
     <div className="mx-auto hidden w-full min-w-64 max-w-2xl items-center xl:flex">
       <div className="flex h-11 w-full items-center gap-3 rounded-lg bg-white/[0.08] px-4 text-white/55 ring-1 ring-inset ring-white/15">
-        <Search aria-hidden="true" className="size-4 shrink-0" />
+        <KnowzyNavIcon name="search" className="size-4" />
         <input
           type="search"
           disabled
@@ -125,7 +130,7 @@ export const AppHeader = ({
         title="KNOWZY Copilot is not available in this release"
         className="hidden h-11 items-center gap-2.5 rounded-lg px-3.5 text-left text-white/60 ring-1 ring-inset ring-white/15 2xl:flex"
       >
-        <Sparkles aria-hidden="true" className="size-5 shrink-0 text-brand-green" />
+        <KnowzyNavIcon name="copilot" className="size-5 text-brand-green" />
         <span className="flex flex-col leading-tight">
           <span className="text-base font-semibold text-white/85">KNOWZY Copilot</span>
           <span className="text-2xs font-semibold uppercase tracking-wider">Planned</span>
@@ -139,7 +144,7 @@ export const AppHeader = ({
         title="Notifications are not available in this release"
         className="grid size-target place-items-center rounded-lg text-white/60 ring-1 ring-inset ring-white/10"
       >
-        <Bell aria-hidden="true" className="size-5" />
+        <KnowzyNavIcon name="notification" className="size-5" />
         <span className="knowzy-sr-only">Notifications — not available in this release</span>
       </button>
 

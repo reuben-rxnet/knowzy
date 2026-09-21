@@ -9,7 +9,12 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./assets": {
+      "types": "./dist/assets/manifest.d.ts",
+      "import": "./dist/assets/manifest.js",
+      "default": "./dist/assets/manifest.js"
+    }
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

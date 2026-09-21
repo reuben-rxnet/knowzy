@@ -227,6 +227,7 @@ export default async function Page() {
       <PageHero
         title={t('home.heading')}
         purpose={t('home.intro')}
+        backdrop="wave"
         actions={
           <Badge tone="neutral" withIcon={false}>
             {t('shell.environment')}: {environment}

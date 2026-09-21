@@ -56,7 +56,11 @@ export default async function GeneratePage() {
     return (
       <div className="flex flex-col gap-6">
         <PageHero title={t('generate.heading')} purpose={t('generate.intro')} />
-        <EmptyState title={t('sources.empty')} description={t('generate.noUsableSource')} />
+        <EmptyState
+          title={t('sources.empty')}
+          description={t('generate.noUsableSource')}
+          illustration="idea"
+        />
       </div>
     );
   }

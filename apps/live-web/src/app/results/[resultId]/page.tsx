@@ -266,7 +266,11 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
         <CardHeader title={t('result.gapsHeading')} description={t('result.gapNote')} />
         <CardBody>
           {view.knowledgeGaps.length === 0 ? (
-            <EmptyState title={t('result.noGaps')} description={t('result.noGapsBody')} />
+            <EmptyState
+              title={t('result.noGaps')}
+              description={t('result.noGapsBody')}
+              illustration="goal"
+            />
           ) : (
             <DataTable caption={t('result.gapsHeading')} captionHidden>
               <THead>

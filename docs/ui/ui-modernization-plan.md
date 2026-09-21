@@ -1,8 +1,8 @@
 # KNOWZY — UI Modernization Plan (Phase 8)
 
-**Status:** Planning artifact, except §19, §21, §22 and §23 — UI-M1 (the shared shell), UI-M2
-(the authoring workflow chain), UI-M2b (real-data modernization) and UI-M3 (branding refinement and
-screen quality) are implemented. No API contract, server action, route, or domain
+**Status:** Planning artifact, except §19, §21, §22, §23 and §24 — UI-M1 (the shared shell),
+UI-M2 (the authoring workflow chain), UI-M2b (real-data modernization), UI-M3 (branding refinement
+and screen quality) and the design asset integration are implemented. No API contract, server action, route, or domain
 behaviour changed.
 **Created:** 2026-09-21 · **Revised:** 2026-09-21 (learner portal, capability matrix, milestones)
 **Assessed commit:** `bbb9df6`
@@ -1068,3 +1068,111 @@ Two items on the brief have no backing field, and inventing one was not an optio
 - **Sync history.** The source payload carries `connectionStatusAt` but no last-sync timestamp or
   outcome; a synchronization result exists only in the response to the action that ran it. Sync
   visibility is therefore the drawer and the document count, not a history.
+
+---
+
+## 24. Design Asset Integration (delivered)
+
+The approved asset pack integrated into both portals. No new route, endpoint, domain model or
+business capability, and no feature activated because an asset for it exists.
+
+Full classification and strategy: [`knowzy-design-asset-inventory.md`](knowzy-design-asset-inventory.md).
+This section records the decisions and what they cost.
+
+### 24.1 What went in
+
+| Set | Verdict | Where |
+| --- | --- | --- |
+| 4 branding marks | USE | The shell header, and the favicon through Next's metadata convention |
+| 11 navigation icons | USE | All eight learner destinations, plus the header's search, notification and Copilot affordances |
+| 5 illustrations | USE_AS_DECORATIVE | Four full-page empty states; two held in the registry unplaced |
+| 3 backdrops | USE_AS_DECORATIVE | The two landing heroes; one held unplaced |
+
+23 of 82 files. The other 59 are classified with a reason each: 28 deferred, 22 rejected, 7 needing
+third-party mark approval, 2 duplicating something the application already does better.
+
+### 24.2 Runtime strategy
+
+Strategy 1 of the integration specification's three (§6): **a synchronization script with a
+generated consistency check.**
+
+`npm run assets:sync` copies the manifest's 20 files from the immutable pack into each
+application's `public/assets/knowzy/`. Nothing reads the pack at runtime, and neither application
+depends on the other's `public` (ADR-001).
+
+`packages/testing/contracts/design-assets.test.ts` then fails `npm run verify` on all three ways
+this breaks: an asset that was never copied, a copy that was **edited in place** (byte comparison
+against the approved source), and a served file that no longer appears in the manifest. All three
+were planted and confirmed to fail before the approach was trusted.
+
+That test is the justification for copying at all. "Do not modify the approved assets" is worth
+nothing as a sentence; as a byte comparison in the build it is worth something.
+
+References go through a **typed registry** — `NAV_ICONS.home`, not a path string — so an asset
+component cannot be handed a traversal, and renaming an approved file is one edit that TypeScript
+propagates (spec §8).
+
+### 24.3 Three technical decisions
+
+**Navigation icons are CSS masks, not `<img>`.** The approved files are drawn with
+`fill="currentColor"`; an `<img>` has no colour to inherit and would render them black — wrong on
+the navy header and wrong for an active item. A mask paints the shape with `currentColor`, so one
+file serves inactive, active, hover and disabled, and the colour stays a token. The cost is that a
+mask is single-colour, so `icon_copilot.svg`'s green accent flattens; that is acceptable on a
+disabled control and is recorded rather than left to be discovered.
+
+**The four branding marks are inlined, as the documented exception.** Each needs a colour context an
+`<img>` cannot give: the logo is entirely `currentColor`; the wordmark mixes `currentColor` with the
+literal green `ZY` that §5.1 requires, which a mask would flatten; the tile carries three colours of
+its own. `brand-fidelity.test.ts` asserts each inlined mark still matches its approved file —
+viewBox, path data, stroke widths, fills, tagline text — and that the favicon and the tile are the
+same artwork. Transcribing artwork is only safe if something checks the transcription.
+
+**The learner sidebar moved to approved icons; the authoring sidebar did not.** The pack covers
+exactly the eight learner destinations. It contains no icon for a knowledge source, a generation
+job, a review queue, an approval, a question bank, publication, reports, governance or
+administration — so authoring keeps Lucide rather than having an invented asset or a half-migrated
+set. §2 forbids replacing the icon system globally without a reason; this is the reason, and it is
+written at the definition.
+
+### 24.4 What the pack's construction decided
+
+Two thirds of its "icons" are **a character, not a drawing**: `stats/*` and `categories/*` are a
+tinted circle plus a single Unicode glyph (`◎`, `▣`, `!`) rendered as `<text>` in Arial. They render
+only where the host font carries that glyph, and in a Linux container they can come out as
+missing-character boxes. The application's own icons are real paths, so those sixteen are deferred
+— and the reason is in the inventory rather than waiting to be rediscovered by someone wondering
+why a dashboard shows squares.
+
+Text baked into an image cannot be read by a screen reader, translated, or selected. That decided
+the level badges (`beginner` … `expert`), the quote card, and `pill_planned` — whose **style** was
+worth adopting in UI-M3 even though the file was not.
+
+`avatar_local_learner.svg` is the letters `LL` in a circle. `AppHeader` already computes initials
+for any identity, so the asset would hard-code one persona: classified DUPLICATE.
+
+### 24.5 What was refused
+
+- **No feature was activated by an asset.** Badges, Discover, Knowledge Library, My Learnings and
+  My Progress all have approved icons and all stay non-navigable with their capability status
+  intact. An icon is not a capability.
+- **No control became an image.** Every file under `actions/` and `controls/` is rejected on that
+  basis (spec §18). The header search is still a real disabled `<input type="search">`.
+- **No fabricated data.** `progress_72.svg` is a picture of a progress bar reading 72%; `Meter`
+  draws real values. The stats icons for streaks, points, hours, courses and certificates have no
+  data behind them at all.
+- **No third-party mark.** Seven files carry SAP, Azure, Udemy, Microsoft, Confluence or SharePoint
+  branding. That is not a decision this repository can make.
+
+### 24.6 Verification
+
+`npm run verify` green — **495 tests, 22 files**, including the 7 new asset-contract tests and 6
+brand-fidelity tests. Lint, typecheck and build clean.
+
+13 routes driven in Chrome: no console errors, and the structural accessibility audit reports no
+findings. All four asset kinds confirmed served with a 200 from both applications. Screenshots at
+1920, 1440 and 1280.
+
+Accessibility: navigation icons are `aria-hidden` (each sits beside its own label), illustrations
+and backdrops have empty accessible names, and the backdrop sits at 25% opacity in a region with no
+text on it, so contrast is untouched.

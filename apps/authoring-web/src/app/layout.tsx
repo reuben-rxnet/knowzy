@@ -16,8 +16,10 @@ export const metadata: Metadata = {
   title: `${t('app.name')} — ${t('app.portal')}`,
   description: t('home.intro'),
   robots: { index: false, follow: false },
-  // The approved mark from assets/branding, copied into public/ at UI-M1.
-  icons: { icon: '/icon.svg' },
+  // The approved favicon, from the design asset pack, served at the
+  // synchronized path (`npm run assets:sync`). The contract test asserts it
+  // is byte-identical to the approved source.
+  icons: { icon: '/assets/knowzy/branding/favicon.svg' },
 };
 
 export const viewport: Viewport = {

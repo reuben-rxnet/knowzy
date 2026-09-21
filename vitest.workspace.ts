@@ -22,11 +22,24 @@ import { defineWorkspace } from 'vitest/config';
  * dependency-cruiser's benefit; this is the runtime half of it.
  */
 const packagesDir = fileURLToPath(new URL('./packages', import.meta.url));
-const workspaceAliases = Object.fromEntries(
-  readdirSync(packagesDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => [`@knowzy/${entry.name}`, `${packagesDir}/${entry.name}/src/index.ts`]),
-);
+const workspaceAliases = {
+  /**
+   * Subpath exports, FIRST.
+   *
+   * Vite matches a string alias by prefix, so the generic `@knowzy/shared-ui`
+   * entry below would swallow `@knowzy/shared-ui/assets` and resolve it to
+   * `src/index.ts/assets`. Specific entries have to be declared ahead of it.
+   *
+   * `/assets` is the design-asset manifest, exported separately so a Node
+   * script or a contract test can read it without pulling React in.
+   */
+  '@knowzy/shared-ui/assets': `${packagesDir}/shared-ui/src/assets/manifest.ts`,
+  ...Object.fromEntries(
+    readdirSync(packagesDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => [`@knowzy/${entry.name}`, `${packagesDir}/${entry.name}/src/index.ts`]),
+  ),
+};
 
 export default defineWorkspace([
   {

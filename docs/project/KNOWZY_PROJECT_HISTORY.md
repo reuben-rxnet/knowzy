@@ -258,3 +258,43 @@ portals correctly reported as **API unreachable** rather than as an empty page. 
 `rm -rf apps/*/.next` and a web restart for the first, `docker compose … up migrate` and an
 api/mcp restart for the second. Worth knowing that the build deliverable and a running demo cannot
 share a machine state.
+
+---
+
+## Design Asset Integration
+
+| | |
+| --- | --- |
+| **Commit** | this one · 2026-09-21 · plan §24 |
+
+The approved 82-file asset pack integrated into both portals: 4 branding marks, 11 navigation
+icons, 5 illustrations and 3 backdrops in use; the other 59 files classified with a reason each in
+`docs/ui/knowzy-design-asset-inventory.md`.
+
+The strategy is a synchronization script from the immutable pack into each application's `public`,
+with a contract test that fails the build on a missing copy, an **edited** copy (byte comparison
+against the approved source), or a served file nothing references. All three faults were planted and
+confirmed to fail before the approach was trusted — copying approved artwork is only defensible if
+something verifies the copies.
+
+Two facts about the pack decided most of the classifications, and both are worth knowing before
+anyone reaches for it again:
+
+- Two thirds of its "icons" are a **Unicode character rendered as `<text>` in Arial**, not a
+  drawing. They render only where the host font carries the glyph, so in a container they can come
+  out as missing-character boxes. Sixteen files deferred on that basis.
+- Text baked into an image cannot be read by a screen reader, translated or selected. That ruled
+  out the level badges, the quote card, and `pill_planned` — whose style had already been adopted
+  in UI-M3 without the file.
+
+Nothing was activated because an asset existed for it. Badges, Discover, Knowledge Library, My
+Learnings and My Progress now show approved icons and remain non-navigable with their capability
+status unchanged.
+
+`npm run verify` green: 495 tests, 22 files. 13 routes browser-validated with no console errors and
+no accessibility findings.
+
+**A process lesson, recorded because it cost time three separate ways in one session:** never run
+the test suite in the background while validating in a browser. The integration suites truncate the
+development database, so screens come back empty mid-screenshot and it reads as a data-loading
+defect. Browser validation first, then `verify`, then re-seed.

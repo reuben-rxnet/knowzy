@@ -9,6 +9,8 @@
 // exposes a stack trace, a credential, an answer key, or inaccessible content.
 
 import type { ReactNode } from 'react';
+import { KnowzyIllustration } from './Asset.js';
+import type { IllustrationName } from '../assets/manifest.js';
 import {
   AlertTriangle,
   CloudOff,
@@ -57,20 +59,37 @@ export const EmptyState = ({
   title,
   description,
   actions,
+  illustration,
 }: {
   readonly title: ReactNode;
   readonly description?: ReactNode;
   readonly actions?: ReactNode;
-}) => (
-  <Frame
-    icon={<Inbox className="size-6" />}
-    tone="bg-neutral-soft text-ink-muted"
-    title={title}
-    {...(actions === undefined ? {} : { actions })}
-  >
-    {description}
-  </Frame>
-);
+  /**
+   * An approved illustration, for a state that fills a screen rather than a
+   * panel. Decorative: the heading and description carry the meaning, so the
+   * illustration renders with an empty accessible name (integration spec §19).
+   */
+  readonly illustration?: IllustrationName;
+}) =>
+  illustration === undefined ? (
+    <Frame
+      icon={<Inbox className="size-6" />}
+      tone="bg-neutral-soft text-ink-muted"
+      title={title}
+      {...(actions === undefined ? {} : { actions })}
+    >
+      {description}
+    </Frame>
+  ) : (
+    <Card className="flex flex-col items-center gap-4 px-6 py-10 text-center">
+      <KnowzyIllustration name={illustration} className="size-28" />
+      <h2 className="text-lg font-semibold text-brand-navy-text">{title}</h2>
+      {description === undefined ? null : (
+        <div className="max-w-prose text-sm text-ink-muted">{description}</div>
+      )}
+      {actions === undefined ? null : <div className="mt-1 flex gap-2">{actions}</div>}
+    </Card>
+  );
 
 /** A filter or search returned nothing — distinct from "nothing exists". */
 export const NoResultsState = ({

@@ -24,6 +24,21 @@ export {
   type BrandMarkProps,
 } from './components/Brand.js';
 
+// ------------------------------------------------------------ design assets
+export { KnowzyBackdrop, KnowzyIllustration, KnowzyNavIcon } from './components/Asset.js';
+export {
+  ASSET_BASE,
+  BACKDROPS,
+  FAVICON,
+  ILLUSTRATIONS,
+  NAV_ICONS,
+  SERVED_ASSETS,
+  assetUrl,
+  type BackdropName,
+  type IllustrationName,
+  type NavIconName,
+} from './assets/manifest.js';
+
 // -------------------------------------------------------------------- shell
 export { AppHeader, type AppHeaderProps } from './components/AppHeader.js';
 export {

@@ -1,27 +1,39 @@
 // The approved brand marks.
 //
-// These mirror the approved files, which remain the master copies:
+// **Canonical source, as of the design-asset integration:**
 //
-//   assets/branding/essilorluxottica-logo.svg.svg
-//   assets/branding/knowzy-wordmark.svg.svg
-//   assets/branding/favicon.ico.svg   (also served from each app's public/)
+//   design/approved/knowzy_design_elements_asset_pack/branding/
+//     essilorluxottica_logo.svg
+//     knowzy_wordmark.svg
+//     knowzy_icon.svg
+//     favicon.svg
 //
-// Every one is reproduced verbatim — same viewBox, same geometry, same fills,
-// same letter-spacing. Nothing here recolours, stretches, crops, or redraws an
-// asset: §5 permits approved assets only, and a mark that has been "improved"
-// in code is no longer the approved mark. The components take a `className`
-// for SIZE, and the SVG's own `preserveAspectRatio` default keeps the aspect
-// ratio whatever height it is given.
+// These replace the earlier `assets/branding/*` copies, which are superseded:
+// the pack's logo and wordmark are drawn with `currentColor`, where the old
+// wordmark hard-coded white. That single difference is why the pack wins —
+// the old mark could only ever sit on a dark header, and this one works on
+// any surface.
 //
-// They are inline SVG rather than `<img>` for two reasons, one of them
-// necessary: the EssilorLuxottica mark is drawn with `currentColor`, which an
-// `<img>` cannot inherit — it would render black on the navy header, and
-// hard-coding white instead would be recolouring the asset. Honouring
-// `currentColor` is following the asset, not overriding it. Inlining also
-// avoids two requests in a shell that every page renders.
+// Each component reproduces its file EXACTLY: same viewBox, same geometry,
+// same fills, same font metrics. `contrast.test.ts` asserts the colours and
+// `brand-fidelity.test.ts` asserts the geometry against the approved files, so
+// "do not modify the approved assets" is checked rather than promised. A
+// component takes a `className` for size only.
 //
-// If official artwork replaces those files, it replaces these components and
-// nothing else.
+// Why these four are inlined rather than served from `public/` like the rest
+// of the pack: each needs a colour context an `<img>` cannot provide.
+//
+//   * The logo is entirely `currentColor` — as an `<img>` it renders black,
+//     which is invisible on the navy header. Hard-coding white instead would
+//     be recolouring an approved asset.
+//   * The wordmark mixes `currentColor` (KNOW, tagline) with a literal green
+//     (`ZY`). A CSS mask — how the navigation icons are handled — would
+//     flatten both to one colour and lose the green `ZY` that §5.1 requires.
+//   * The tile carries its own navy, white and green, and is small enough that
+//     a request for it in the shell every page renders is not worth paying.
+//
+// The favicon IS served from `public/assets/knowzy/branding/favicon.svg`,
+// through Next's metadata convention, because that is what a favicon is.
 
 export interface BrandMarkProps {
   readonly className?: string;
@@ -35,19 +47,18 @@ export interface BrandMarkProps {
  */
 export const EssilorLuxotticaLogo = ({ className = '' }: BrandMarkProps) => (
   <svg
-    viewBox="0 0 760 110"
+    viewBox="0 0 620 90"
     role="img"
     aria-label="EssilorLuxottica"
     className={className}
     focusable="false"
   >
     <text
-      x="0"
-      y="78"
-      fontFamily="Arial, Helvetica, sans-serif"
-      fontSize="72"
+      x="4"
+      y="70"
+      fontFamily="Arial,Helvetica,sans-serif"
+      fontSize="62"
       fontWeight="600"
-      letterSpacing="-2.2"
       fill="currentColor"
     >
       EssilorLuxottica
@@ -56,41 +67,40 @@ export const EssilorLuxotticaLogo = ({ className = '' }: BrandMarkProps) => (
 );
 
 /**
- * The KNOWZY product mark — the tile from `favicon.ico.svg`.
+ * The KNOWZY product mark — the tile from `knowzy_icon.svg`, which is the same
+ * artwork as the favicon.
  *
- * The only piece of drawn artwork in the approved set: a navy tile, the K in
- * white, and three green bars. UI-M3 brought it into the header, where it does
- * what a typeset wordmark cannot — it reads as a product at a glance, and it
- * is the same mark as the browser tab.
+ * The only drawn artwork in the approved set: a navy tile, the K in white, and
+ * three green bars. It carries its own colours, so it sits on a dark or a
+ * light surface without treatment.
  *
- * It carries its own navy background, so it sits on a dark header without any
- * treatment; `aria-hidden` by default because the wordmark beside it already
- * names the product, and two identical labels would be read twice.
+ * `aria-hidden` by default, because wherever it appears the product is already
+ * named in text beside it and two identical labels would be announced twice.
  */
 export const KnowzyMark = ({
   className = '',
   labelled = false,
 }: BrandMarkProps & { readonly labelled?: boolean }) => (
   <svg
-    viewBox="0 0 128 128"
+    viewBox="0 0 256 256"
     className={className}
     focusable="false"
     {...(labelled ? { role: 'img', 'aria-label': 'KNOWZY' } : { 'aria-hidden': 'true' as const })}
   >
-    <rect width="128" height="128" rx="28" fill="#001E62" />
+    <rect x="18" y="18" width="220" height="220" rx="48" fill="#001E62" />
     <path
-      d="M28 35v58M28 64h29M57 35L30 64l31 29"
+      d="M62 64v128M62 128h58M120 64L65 128l62 64"
       fill="none"
-      stroke="#FFFFFF"
-      strokeWidth="12"
+      stroke="#fff"
+      strokeWidth="24"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <path
-      d="M72 36h28M72 64h24M72 92h28"
+      d="M150 66h52M150 128h42M150 190h52"
       fill="none"
       stroke="#00B388"
-      strokeWidth="12"
+      strokeWidth="24"
       strokeLinecap="round"
     />
   </svg>
@@ -99,47 +109,38 @@ export const KnowzyMark = ({
 /**
  * The KNOWZY product wordmark, with the green `ZY` §5.1 requires.
  *
- * The approved file fills `KNOW` white and the tagline `#DCE8FF`, so the
- * wordmark is drawn FOR A DARK BACKGROUND. That is not a limitation to work
- * around — the header is navy — but it is the reason this mark is not placed on
- * a light surface anywhere.
+ * The approved file fills `KNOW` and the tagline with `currentColor` and `ZY`
+ * with the brand green, so unlike the mark it replaces this one adapts to its
+ * surface: white on the navy header, navy on a white one.
  *
- * `withTagline` renders the approved second line; the shell drops it below
- * large viewports rather than shrinking it into illegibility.
+ * `withTagline` renders the approved second line. It is part of the same file,
+ * at the proportion the file sets — the tagline is deliberately not scaled
+ * independently of the wordmark.
  */
 export const KnowzyWordmark = ({
   className = '',
   withTagline = false,
 }: BrandMarkProps & { readonly withTagline?: boolean }) => (
   <svg
-    viewBox={withTagline ? '0 0 520 150' : '0 0 520 100'}
+    viewBox={withTagline ? '0 0 420 100' : '0 0 420 78'}
     role="img"
     aria-label={withTagline ? 'KNOWZY — Knowledge Today. Brighter Tomorrow.' : 'KNOWZY'}
     className={className}
     focusable="false"
   >
     <text
-      x="0"
-      y="82"
-      fontFamily="Arial, Helvetica, sans-serif"
-      fontSize="82"
+      x="4"
+      y="70"
+      fontFamily="Arial,Helvetica,sans-serif"
+      fontSize="68"
       fontWeight="700"
-      letterSpacing="-3"
-      fill="#FFFFFF"
+      fill="currentColor"
     >
       KNOW
       <tspan fill="#00B388">ZY</tspan>
     </text>
     {withTagline ? (
-      <text
-        x="3"
-        y="119"
-        fontFamily="Arial, Helvetica, sans-serif"
-        fontSize="20"
-        fontWeight="500"
-        letterSpacing=".2"
-        fill="#DCE8FF"
-      >
+      <text x="7" y="88" fontFamily="Arial,Helvetica,sans-serif" fontSize="12" fill="currentColor">
         Knowledge Today. Brighter Tomorrow.
       </text>
     ) : null}

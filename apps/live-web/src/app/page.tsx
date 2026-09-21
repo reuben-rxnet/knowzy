@@ -92,6 +92,7 @@ export default async function AssessmentListPage() {
       <PageHero
         title={t('home.heading')}
         purpose={t('home.intro')}
+        backdrop="wave"
         actions={
           result.ok ? (
             <Badge tone="neutral" withIcon={false}>
@@ -146,7 +147,11 @@ export default async function AssessmentListPage() {
       )}
 
       {result.ok && assessments.length === 0 ? (
-        <EmptyState title={t('home.empty')} description={t('home.emptyBody')} />
+        <EmptyState
+          title={t('home.empty')}
+          description={t('home.emptyBody')}
+          illustration="learning"
+        />
       ) : null}
 
       {assessments.length === 0 ? null : (

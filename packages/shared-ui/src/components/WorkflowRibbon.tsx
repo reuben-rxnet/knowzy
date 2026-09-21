@@ -14,6 +14,8 @@
 
 import type { ReactNode } from 'react';
 import { Check } from 'lucide-react';
+import { KnowzyBackdrop } from './Asset.js';
+import type { BackdropName } from '../assets/manifest.js';
 
 export interface WorkflowStage {
   readonly label: string;
@@ -123,6 +125,7 @@ export const PageHero = ({
   actions,
   art,
   eyebrow,
+  backdrop,
 }: {
   readonly title: string;
   readonly titleAccent?: string;
@@ -131,9 +134,11 @@ export const PageHero = ({
   readonly actions?: ReactNode;
   readonly art?: ReactNode;
   readonly eyebrow?: ReactNode;
+  /** An approved decorative backdrop, from the design asset pack. */
+  readonly backdrop?: BackdropName;
 }) => (
-  <div className="overflow-hidden rounded-lg border border-line bg-brand-surface shadow-card">
-    <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+  <div className="relative overflow-hidden rounded-lg border border-line bg-brand-surface shadow-card">
+    <div className="relative flex flex-wrap items-center justify-between gap-4 px-6 py-5">
       <div className="min-w-0 max-w-3xl">
         {eyebrow === undefined ? null : (
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-brand-blue">
@@ -166,6 +171,17 @@ export const PageHero = ({
       {art === undefined ? null : (
         <div aria-hidden="true" className="hidden shrink-0 xl:block">
           {art}
+        </div>
+      )}
+      {backdrop === undefined ? null : (
+        // Decorative, and deliberately confined: low opacity, right-hand
+        // third, and hidden below the wide breakpoint. No text sits on it, so
+        // it cannot affect the contrast of anything (§19, §21).
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/3 overflow-hidden opacity-25 xl:block"
+        >
+          <KnowzyBackdrop name={backdrop} className="h-full w-full object-cover" />
         </div>
       )}
     </div>

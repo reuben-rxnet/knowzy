@@ -9,21 +9,14 @@
 // does not turn a route into a client tree.
 
 import type { ReactNode } from 'react';
+import { KnowzyNavIcon } from './Asset.js';
 import {
-  BadgeCheck,
-  BarChart3,
-  BookOpen,
   Building2,
   ClipboardCheck,
-  FileCheck2,
   FileStack,
   GaugeCircle,
-  HelpCircle,
-  Home,
   Layers,
-  LibraryBig,
   ListChecks,
-  Search,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -119,25 +112,41 @@ export const AUTHORING_NAV: readonly NavItem[] = [
  * that LIVE-FULL-M1 onward build — none of them is a link, so none is a dead
  * end.
  */
+/*
+ * The icons here are the APPROVED pack's, not Lucide's: the pack covers
+ * exactly these eight learner destinations, so every one is the approved
+ * artwork. AUTHORING_NAV above keeps Lucide, because the pack contains no
+ * icon for a knowledge source, a generation job, a review queue, an approval,
+ * a question bank, publication, reports, governance or administration — and
+ * drawing one would be inventing an asset.
+ *
+ * That split is deliberate and documented rather than a half-finished
+ * migration (integration spec §2: do not replace the icon system globally
+ * without a reason).
+ */
 export const LEARNER_NAV: readonly NavItem[] = [
-  { label: 'Home', href: '/', icon: <Home className="size-5" />, status: 'IMPLEMENTED' },
+  { label: 'Home', href: '/', icon: <KnowzyNavIcon name="home" />, status: 'IMPLEMENTED' },
   {
     label: 'My Learnings',
-    icon: <BookOpen className="size-5" />,
+    icon: <KnowzyNavIcon name="myLearnings" />,
     status: 'REQUIRES_BACKEND_EXTENSION',
   },
   {
     label: 'Assessments',
     href: '/',
-    icon: <FileCheck2 className="size-5" />,
+    icon: <KnowzyNavIcon name="assessments" />,
     status: 'PARTIALLY_IMPLEMENTED',
     note: 'On Home in this release',
   },
-  { label: 'Discover', icon: <Search className="size-5" />, status: 'REQUIRES_BACKEND_EXTENSION' },
-  { label: 'Badges', icon: <BadgeCheck className="size-5" />, status: 'PLANNED' },
+  {
+    label: 'Discover',
+    icon: <KnowzyNavIcon name="discover" />,
+    status: 'REQUIRES_BACKEND_EXTENSION',
+  },
+  { label: 'Badges', icon: <KnowzyNavIcon name="badges" />, status: 'PLANNED' },
   {
     label: 'Knowledge Library',
-    icon: <LibraryBig className="size-5" />,
+    icon: <KnowzyNavIcon name="library" />,
     status: 'REQUIRES_BACKEND_EXTENSION',
   },
   {
@@ -146,13 +155,13 @@ export const LEARNER_NAV: readonly NavItem[] = [
     // a learner can see it today, but an unreachable item must not be styled
     // as a link.
     label: 'My Progress',
-    icon: <BarChart3 className="size-5" />,
+    icon: <KnowzyNavIcon name="progress" />,
     status: 'PLANNED',
     note: 'Per result, on your results page',
   },
   {
     label: 'Help & Support',
-    icon: <HelpCircle className="size-5" />,
+    icon: <KnowzyNavIcon name="help" />,
     status: 'REQUIRES_BACKEND_EXTENSION',
   },
 ] as const;
