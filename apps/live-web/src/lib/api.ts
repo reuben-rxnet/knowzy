@@ -66,7 +66,13 @@ export const api = async <T>(path: string, options: CallOptions = {}): Promise<A
     response = await fetch(`${baseUrl()}${path}`, {
       method: options.method ?? 'GET',
       headers: {
-        'content-type': 'application/json',
+        // Only when there IS a body. A request that declares
+        // `application/json` and sends nothing is malformed, and Fastify
+        // rejects it before any handler runs — which turned every bodyless
+        // POST (the learner's "Finish and score", Test connection, Claim,
+        // Submit, and the assessment steps) into a 400 VALIDATION_FAILED that
+        // looked like the page had sent bad data.
+        ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
         'x-knowzy-subject': subject.upn,
         ...(options.idempotencyKey === undefined
           ? {}
