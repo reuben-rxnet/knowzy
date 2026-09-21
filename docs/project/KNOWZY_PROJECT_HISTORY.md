@@ -868,3 +868,92 @@ baseline only survives because the defect above is fixed.
 
 Until that comparison runs, low yield is a property of **the generator**, not of the documents, and
 the two must not be conflated when reporting to stakeholders.
+
+---
+
+## Live Claude Generation workstream — planning, and a defect the planning found
+
+**2026-09-22.** Planning artifacts:
+[`LIVE_CLAUDE_IMPLEMENTATION_PLAN.md`](../integrations/LIVE_CLAUDE_IMPLEMENTATION_PLAN.md) ·
+[`LIVE_CLAUDE_EVALUATION_PLAN.md`](../integrations/LIVE_CLAUDE_EVALUATION_PLAN.md).
+No code written; the workstream is blocked on **T-29**.
+
+PILOT-T1 proved the platform ingests real documents, grounds questions in them, and carries them
+through review, approval, publication and a scored attempt. What it also proved is that the
+remaining bottleneck is **question quality**, and that the bottleneck is in the generator.
+
+### What the deterministic generator actually does
+
+Worth recording plainly, because the published question everyone has now seen invites the assumption
+that a model wrote it. Nothing did. `KNZ-SUPPORT_OPS-2026-000001` was assembled by
+`generator.ts`: the stem is a fixed template over the section heading, option A is the section's own
+sentence copied verbatim, option B swaps the first quantity (`one` → `three`) through
+`NUMERIC_SWAPS`, option C swaps the first modal (`only` → `in addition to any other case`) through
+`MODAL_SWAPS`, option D applies both, and the explanation is a second fixed template.
+`modelConfidence` is the constant `0.6`.
+
+So every distractor is a **mutation of the correct answer**, which produces a quality defect worth
+stating precisely: the correct option is identifiable from **form alone**, because it is the only one
+written in ordinary English. A question answerable without reading the source does not test the
+source, whatever its evidence span says. The evaluation plan turns that into a measurement — the
+**blind-stem test** — rather than leaving it an assertion, and that test needs no API key and no
+approval, so the baseline can be measured now.
+
+### A defect: my earlier fix was half a fix
+
+On the same day, generation was found writing `isAssessable: false` on any section it could not build
+a question from, and that was fixed. Reading `preflight.ts` against `generation-service.ts` while
+planning the evaluation showed **the same conflation had simply moved**. Generation still writes
+`coverageStatus = 'NON_ASSESSABLE'` on insufficiency, and preflight counts a section as uncovered
+only when its status is `NOT_COVERED` or `PARTIALLY_COVERED`. So a section the generator failed on
+stays in the denominator and is **excluded from the uncovered set**: the failure is counted as
+coverage.
+
+Measured on the pilot corpus rather than argued:
+
+| | Sections |
+| --- | ---: |
+| Assessable | 115 |
+| Genuinely carrying a question | **3** |
+| Marked `NON_ASSESSABLE` by generation, and so treated as covered | **106** |
+| Counted as uncovered | 6 |
+
+Preflight therefore reports **94.8% coverage** where the truth is **2.6%**. The 106 is exactly the
+106 recorded insufficiency reasons — **every refusal became a claim of coverage.** The mock source in
+the same database reads honestly (17 assessable, 17 uncovered) precisely because nothing has ever
+generated from it.
+
+Two lessons, both recorded because both cost something:
+
+1. **A fix to a conflation must follow the conflated value everywhere it is written**, not just where
+   it was noticed. Two columns carried the same wrong idea and only one was corrected.
+2. **`npm run verify` passed throughout.** 624 tests, and none of them asserts that a coverage
+   percentage means what the screen says it means. The gap was found by reading two files against
+   each other while planning a measurement — which is an argument for planning measurements.
+
+### What the planning settled
+
+- The seam is **one HTTP client and a budget layer**. The prompt (`framing.ts`, nonce-delimited
+  untrusted framing with an empty tool grant), the strict output schema, evidence verification,
+  integrity, composite confidence, scope enforcement, per-question model provenance and token
+  accounting are all built and are exercised today by the deterministic generator standing in for a
+  model.
+- **`ANTHROPIC_API_KEY_REF` already exists** and its schema refuses a raw key — two tests assert that
+  `sk-ant-…` fails at startup. So the pilot needs a local secret *resolver*, not a relaxed rule.
+- **The recorded prompt version is not the prompt that would be sent.** `PromptVersion.body` is
+  seeded as a hand-written paraphrase of what `framing.ts` builds in code. Harmless while no model
+  reads the prompt; permanently wrong provenance the moment one does, because the table is immutable
+  by design. The body must be derived from the framing code and guarded by a contract test.
+- The profile's `modelId`, `temperature` and `maxOutputTokens` are **stored and ignored**, and
+  `estimatedCost` is a column that is never written. The obvious fix — a hardcoded model constant in
+  the new generator — would produce correct-looking audit rows and still ignore the profile, so
+  per-profile construction plus an equality assertion is the decision.
+- Budgets, the concurrency cap and 429 backoff are specified in `architecture.md` §9 and **absent**.
+  They land with the generator, not after it.
+- The **decision rule is pre-registered** in the evaluation plan, before any model output is seen,
+  and explicitly excludes "the questions look better" — fluent text reads better than a template,
+  and fluency is not correctness.
+
+Steps 1–4 of the sequence — the coverage fix, the prompt-version fix, the blind-stem baseline and a
+control run — are **not blocked on T-29** and are worth doing regardless of what the approval
+decides.
