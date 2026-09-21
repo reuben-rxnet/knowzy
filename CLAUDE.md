@@ -342,4 +342,26 @@ Preserve:
 - deterministic scoring
 - answer-key protection
 - audit logging
+
+### Approved Design Asset Library
+
+Asset integration specification:
+
+- `docs/ui/KNOWZY_DESIGN_ASSET_INTEGRATION_AND_UI_POLISH.md`
+
+Approved source asset pack:
+
+- `design/approved/knowzy_design_elements_asset_pack/`
+
+The source asset pack is immutable reference material.
+
+The asset pack is an approved visual library, not a feature specification.
+
+Before using an asset, classify the related capability through the existing capability matrices.
+
+Do not activate an unimplemented feature merely because a visual asset exists for it.
+
+Runtime assets must be installed using the strategy documented during implementation.
+
+Interactive controls must remain semantic HTML or React controls.
   ``
