@@ -427,3 +427,85 @@ its owner rather than appended by a plan.
 The single recommendation these documents would most defend: **automate the 36-step acceptance script
 before swapping any adapter.** Four integrations are about to be replaced underneath a platform whose
 only end-to-end verification is a person clicking through it. Build the net before the trapeze.
+
+---
+
+## Enterprise access discovery, and a transitional path to real content
+
+**Delivered 2026-09-21.** Planning artifacts only; no application code changed.
+
+Four documents under `docs/integrations/`:
+[ACCESS_DISCOVERY_REPORT.md](../integrations/ACCESS_DISCOVERY_REPORT.md) ·
+[SHAREPOINT_DISCOVERY_PLAN.md](../integrations/SHAREPOINT_DISCOVERY_PLAN.md) ·
+[TENANT_ADMIN_REQUESTS.md](../integrations/TENANT_ADMIN_REQUESTS.md) ·
+[TRANSITIONAL_KNOWLEDGE_SOURCE_PLAN.md](../integrations/TRANSITIONAL_KNOWLEDGE_SOURCE_PLAN.md).
+
+**Access findings.** No Entra administrative or app-registration access. Graph authentication works
+and `/me` succeeds. Graph SharePoint queries return 403. A signed-in user can browse and download
+from the sites directly.
+
+**The diagnosis, which matters more than the findings.** A **403 rather than a 401** means
+authenticated but not authorized — so the token is valid and a consented scope is missing, which rules
+out credential, tenant and network causes entirely. Every Graph delegated permission that reads
+SharePoint site content requires admin consent, while `User.Read` does not. That is exactly why `/me`
+succeeds and `/sites` does not, and it means **no Graph SharePoint access is reachable by any
+self-service route.** Recorded so nobody spends a week looking for one. Self-registering an app would
+not help either: it can only obtain user-consentable scopes, so it reaches `/me` and stops.
+
+Also recorded: "Graph authentication works" reads like progress toward integration and is not. That
+token belongs to whatever first-party client made the call. Knowzy has no app registration, therefore
+no audience, therefore cannot be issued a token at all.
+
+**A correction to the readiness report, found while checking the access story.** Knowledge Sources
+were rated "ready behind a mock". That understated one thing materially: **only three extractors
+exist** — plain text, Markdown and HTML. PDF, DOCX, PPTX, XLSX and SharePoint Pages have none, and
+`ExtractInput.content` is typed `string`, so binary support is a **signature change** to the
+extraction entry point rather than the "additive map entry" the code comment suggests. A real
+SharePoint library is mostly the formats that do not work. Connecting Graph tomorrow would have
+surfaced a library the platform cannot read, so finding this before access rather than after is the
+most useful thing the investigation produced.
+
+**The transitional path, and a reversed caution.** The SharePoint discovery plan originally cautioned
+against ingesting documents by a non-Graph route. The direction was then given to do exactly that, so
+the caution now points at the plan that governs it instead of arguing against it — the objection was
+always about *how*, not *whether*.
+
+The mechanism: the OneDrive sync client mirrors a SharePoint document library to a local directory
+using the signed-in user's existing permissions, with no app registration, no consent and no Graph
+call. Knowzy reads it through a `FILE_REPOSITORY` adapter — a `SourceType` that already exists with a
+documented template. One adapter, three roots: synced library, synced OneDrive, managed upload
+directory. Graph `/me/drive` is explicitly out of scope; `Files.Read` is user-consentable, but
+requesting it still needs a registration.
+
+**What makes it defensible rather than expedient.** Template rule P1 makes emulating a capability a
+contract violation, so the four real losses are **declared, not hidden**:
+`supportsPermissionCheck: false` forces `getEffectiveAccess` to return `UNKNOWN` with
+`enforcement: 'PLATFORM'`; `supportsDelegatedAccess: false` rejects `DELEGATED_OBO` at configuration
+time; `supportsVersionLabels: false` makes the content hash decide and lets preflight report
+`CONTENT_CHANGED_UNVERSIONED` honestly. The losses stay visible on screen instead of fading into
+normality.
+
+**Three findings that shaped the design:**
+
+- **It cannot be the mock adapter pointed at another directory.** Startup check `MOCK_ISOLATION` fails
+  outside `local` when a mock adapter is registered, which is precisely what that check exists to
+  prevent. The tree reader is shared; the adapter is distinct.
+- **`sourceUrl` must be reconstructed to the real SharePoint URL.** It is non-nullable and flows into
+  the published bank record, so a local path would both break traceability for any future auditor and
+  write a username and machine layout into a SharePoint list that is authoritative and long-lived.
+  This single change is what determines whether the transitional path is a stepping stone or a
+  throwaway — everything else migrates for free.
+- **The corpus boundary is one person's access.** A mirrored library contains exactly what the syncing
+  user can see. That boundary is a *person*, which is not a governance boundary and cannot be audited
+  from the data. It needs a named documented account decided in week 1, because it cannot be recovered
+  after the fact.
+
+**Milestone PILOT-T1** sequences it: binary-capable extraction with PDF and DOCX first and round-trip
+X2 offset assertions, then the adapter, then URL reconstruction with a test asserting no emitted
+`sourceUrl` is a local path, then sidecars and the release-scope widening, then measure the real format
+distribution and `EXTRACTION_EMPTY` rate, then one library end to end, then the blind Claude quality
+comparison on real content. Steps 1 to 4 are gated on nobody.
+
+The tenant request document is written to be sent as-is, including a section on what is **not** being
+asked for — no `Sites.Read.All`, no `FullControl`, no directory read, no privileged roles for the
+team — offered so an administrator can check the scope rather than take it on trust.
