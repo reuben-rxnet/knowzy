@@ -154,6 +154,71 @@ jobs:
       - name: seed is idempotent
         run: npm run db:seed
 
+      # Synchronize the fixture documents.
+      #
+      # The seed creates the mock SOURCE and deliberately leaves it UNTESTED
+      # with no documents — connection health is never inferred
+      # (knowledge-source-administration.md §5.4 rule 1). Documents exist only
+      # after a synchronize, and three integration suites need an EXTRACTED
+      # document to review, approve, publish, and assess against.
+      #
+      # Until this step existed those 152 tests could only pass on a machine
+      # where somebody had synchronized by hand; on a fresh database their
+      # `beforeAll` threw and vitest skipped the lot, which reads in the summary
+      # very much like success. The first CI run is what found it.
+      #
+      # The sync runs through the real path — API to MCP to adapter — rather
+      # than a fixture script, because a test fixture that reimplements the
+      # thing under test drifts from it silently. Both services run in the
+      # background for the length of this step only.
+      #
+      # KNOWZY_ENV=local for these two processes, and only these: the mock
+      # adapters are registered in `local` alone (the registry throws
+      # elsewhere) and MOCK_FIXTURE_ROOT is forbidden outside it by the startup
+      # validator. The tests themselves still run under the job's `test`
+      # environment.
+      - name: synchronize fixture documents
+        env:
+          KNOWZY_ENV: local
+          MOCK_FIXTURE_ROOT: ./fixtures/knowledge
+          MCP_ENDPOINT: http://127.0.0.1:8081
+        run: |
+          npx tsx apps/mcp-server/src/index.ts > /tmp/mcp.log 2>&1 &
+          npx tsx apps/api/src/index.ts > /tmp/api.log 2>&1 &
+
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8081/internal/health/ready > /dev/null               && curl -sf -H 'x-knowzy-subject: source-administrator@local.invalid'                  http://127.0.0.1:8080/api/v1/authoring/sources > /dev/null; then
+              echo "mcp and api are answering"
+              break
+            fi
+            if [ "$i" = "60" ]; then
+              echo "::error::mcp or api never became ready; logs follow"
+              tail -40 /tmp/mcp.log /tmp/api.log
+              exit 1
+            fi
+            sleep 2
+          done
+
+          SOURCE_ID=$(curl -sf -H 'x-knowzy-subject: source-administrator@local.invalid'             http://127.0.0.1:8080/api/v1/authoring/sources             | python3 -c 'import json,sys; print(json.load(sys.stdin)["sources"][0]["sourceId"])')
+
+          # No content-type on the bodyless POST: Fastify rejects an empty body
+          # when one is declared.
+          curl -sf -X POST -H 'x-knowzy-subject: source-administrator@local.invalid'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/test-connection" > /dev/null
+
+          curl -sf -X POST -H 'x-knowzy-subject: source-administrator@local.invalid'             -H 'content-type: application/json' -d '{"mode":"FULL"}'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/synchronize"             | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"sync {d[\"outcome\"]}: scanned {d[\"scanned\"]}, added {d[\"added\"]}, {d[\"extractedChars\"]} characters extracted"); sys.exit(0 if d["outcome"] == "SUCCEEDED" else 1)'
+
+      # The suites above cannot run without the documents the previous step
+      # creates, so assert the precondition rather than discovering it as a
+      # skipped test.
+      - name: assert the fixtures are present
+        run: |
+          COUNT=$(PGPASSWORD=knowzy psql -h localhost -U knowzy -d knowzy -At             -c "SELECT count(*) FROM knowledge_document WHERE extraction_status = 'EXTRACTED';")
+          echo "extracted documents: $COUNT"
+          if [ "$COUNT" -lt 1 ]; then
+            echo "::error::No extracted document exists, so the domain integration suites would skip themselves."
+            exit 1
+          fi
+
       # Includes the audit rollback suite and the append-only enforcement.
       - name: integration tests
         run: npm run test:integration
@@ -199,8 +264,13 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
       # security.md §14: a high or critical finding fails the pipeline.
+      #
+      # The tag carries the `v`. Written as `0.24.0` this action does not
+      # resolve, and GitHub resolves every action in a job BEFORE running any
+      # step — so all five matrix legs failed in three seconds, before a single
+      # layer was built, with the build itself never exercised.
       - name: scan image
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: knowzy/${{ matrix.app }}:ci
           format: table

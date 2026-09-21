@@ -71,6 +71,11 @@ Current Status:
 - npm run verify passes: typecheck 30/30, lint 19/19, build 19/19,
   tests 430 passing + 6 todo across 14 files, boundaries 0 errors,
   codegen contract clean, format clean.
+- The integration project is 189 of those tests, and until 2026-09-21 three of
+  its suites (152 tests) only passed on a database where somebody had
+  SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
+  threw and vitest skipped them, which reads like success. CI now synchronizes
+  the fixtures before the suites run, and asserts an extracted document exists.
 - 3 migrations apply from empty; seed is idempotent.
 - Full docker compose stack verified: postgres, api, mcp, jobs, both web apps.
 - 19 of 36 MCP tools registered; 48 API routes, every one with a declared
@@ -89,11 +94,11 @@ Still Open:
 - No live Claude call. Generation uses a deterministic local generator and
   records modelId = knowzy-deterministic-local-1. Question QUALITY has never
   been tested against Claude, which is the product's actual purpose.
-- CI ran for the first time on 2026-09-21 and failed on `format:check`. Fixed
-  by formatting the tree (31 files prettier had never been run over), plus a
-  schema-drift fix and the audit gate below. The `images` job (5 Dockerfile
-  builds and a trivy HIGH/CRITICAL scan) has still never been exercised and is
-  the most likely next red.
+- CI first ran on 2026-09-21. Round 1 failed on `format:check`; round 2 passed
+  static gates and supply chain, and failed on the integration job (fixtures)
+  and all five image builds (an unresolvable action tag). Both fixed and
+  verified locally. The trivy SCAN itself has still never executed against an
+  image, so a base-image CVE could be the next red.
 - Deferred with reasons in docs/SECURITY-EXCEPTIONS.md: Next.js 15 -> 16 and
   Vitest 2 -> 5. Major upgrades whose advisories are not reachable here; both
   entries expire 2026-12-31.
@@ -169,6 +174,21 @@ Gotchas learned by execution (each of these cost real time):
   rollup. They often disagree (GHSA-qx2v-qp2m-jg93 is moderate while npm rolls
   postcss up to high). `--audit-level=high` blocks on the rollup, so the audit
   gate does too.
+- A freshly migrated and seeded database has 1 knowledge source and ZERO
+  documents: the seed leaves the source UNTESTED on purpose. Documents appear
+  only after a synchronize. Three integration suites need an EXTRACTED
+  document, so on a fresh database they skip themselves rather than fail
+  loudly. If a suite reports "N tests | N skipped", look for a missing
+  precondition before believing the summary.
+- There was NO .dockerignore, so `COPY . .` in the build stage copied the
+  host's node_modules over the one `npm ci` built inside the image, and
+  `tsc -b` failed with "File '@knowzy/tsconfig/node.json' not found". CI never
+  saw it (a fresh checkout has no node_modules); every local build hit it. The
+  images had never been built anywhere before 2026-09-21.
+- A GitHub Action tag must be exact: `aquasecurity/trivy-action@0.24.0` does
+  not resolve (the tags carry a `v`). Actions are resolved BEFORE any step
+  runs, so a bad tag fails the job in three seconds with nothing else
+  attempted — the build error behind it stayed invisible for a whole round.
 - preflight.offeredActions is ALWAYS the four workflows.md 4.2 actions and
   never includes GENERATE_NEW, which is what a never-processed document
   recommends. Any UI listing the offered actions must union in the

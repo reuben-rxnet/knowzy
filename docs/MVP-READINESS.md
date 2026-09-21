@@ -3,6 +3,7 @@
 **Status:** Implementation status report
 **Date:** 2026-09-18
 **Assessed commit:** `8d2df76` (`MVP M6: assessment, quiz session, and deterministic scoring`)
+**Amended 2026-09-21:** §7.5 records what the first CI executions found.
 **Amended for M7 (thin UI):** §1, §7.1, and §10. Everything else still describes `8d2df76`; the
 M7 change was additive — no API behaviour, invariant, or test in §2–§6 was altered by it.
 **Assessed against:** the seven MVP objectives in [../MVP-Plan.md](../MVP-Plan.md), scoped from
@@ -201,7 +202,28 @@ on a clean checkout, or on any other machine.
 ### 7.5 The end-to-end acceptance script is not automated
 [initial-end-to-end-proof.md](initial-end-to-end-proof.md) §3 defines a 36-step acceptance script.
 The equivalent was executed manually and reproducibly, but no automated test walks source → score in
-one pass. The integration suites cover each stage; nothing covers the seam between all of them.
+one pass. The integration suites cover each stage; nothing covers the seam between all of them. No
+test drives either portal's UI.
+
+**What the first CI executions found (2026-09-21).** CI had never run when this report was first
+written, and running it corrected three claims made above:
+
+1. **Three integration suites — 152 tests — had only ever passed on a prepared database.** They
+   require an EXTRACTED knowledge document, which exists only after a synchronize; a freshly
+   migrated and seeded database has none. On a fresh database their `beforeAll` threw and vitest
+   skipped all 152, which in a summary reads much like success. CI now synchronizes the fixtures
+   through the real API-to-MCP-to-adapter path and asserts an extracted document exists before the
+   suites run. All 189 integration tests now pass on a database nobody prepared by hand.
+2. **The container images had never been built.** `npm run verify` does not build them and the
+   compose stack runs from source, so `Dockerfile.service` and `Dockerfile.web` were unexercised.
+   A missing `.dockerignore` meant a local build copied the host's `node_modules` over the image's
+   own and failed in `tsc -b`; CI never saw that (a fresh checkout has no `node_modules`) and failed
+   earlier still, on an action tag that does not resolve.
+3. **The formatter had never been satisfied.** 31 files had never been run through Prettier, so the
+   `format:check` gate failed on its first execution.
+
+None of these were product defects. All three were claims that had never been tested outside one
+machine, which is what a first CI run is for.
 
 ### 7.6 Deferred by scope
 Knowledge refreshers, badges, certificates, reporting, the authoring dashboard, bulk operations,
