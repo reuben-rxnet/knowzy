@@ -63,9 +63,7 @@ export class BreakGlassNotPermittedError extends Error {
  * override can never be recorded for an approval that did not need one — an
  * override in the standing exception report must always mean something.
  */
-export const evaluateApprovalSeparation = (
-  args: ApprovalSeparationArgs,
-): SeparationDecision => {
+export const evaluateApprovalSeparation = (args: ApprovalSeparationArgs): SeparationDecision => {
   const violations: string[] = [];
 
   if (!args.policies.authorMayApproveOwn && args.authorUserId === args.approverUserId) {
@@ -87,7 +85,8 @@ export const evaluateApprovalSeparation = (
   if (violations.length === 0) {
     return {
       permitted: true,
-      reason: 'Separation of duties is satisfied: the approver is neither the author nor the last editor.',
+      reason:
+        'Separation of duties is satisfied: the approver is neither the author nor the last editor.',
       viaBreakGlass: false,
     };
   }

@@ -69,9 +69,7 @@ const toBankItem = (item: StoredItem): BankItem => ({
   fields: item.fields,
 });
 
-export const createMockQuestionBankAdapter = (
-  options: MockBankOptions,
-): QuestionBankAdapter => {
+export const createMockQuestionBankAdapter = (options: MockBankOptions): QuestionBankAdapter => {
   const pathFor = (ctx: BankContext): string =>
     join(options.fixtureRoot, `${ctx.targetListId.replace(/[^\w.-]/g, '_')}.json`);
 
@@ -109,9 +107,7 @@ export const createMockQuestionBankAdapter = (
       assertNotAborted(ctx);
       const all = load(ctx)
         .items.filter((item) =>
-          query.domainCode === undefined
-            ? true
-            : item.fields['domainCode'] === query.domainCode,
+          query.domainCode === undefined ? true : item.fields['domainCode'] === query.domainCode,
         )
         .filter((item) => (query.isActive === undefined ? true : item.isActive === query.isActive))
         .sort((a, b) => a.questionId.localeCompare(b.questionId));

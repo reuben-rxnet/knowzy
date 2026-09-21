@@ -183,8 +183,7 @@ export class CommentRequiredError extends Error {
 export const findTransition = (
   from: QuestionStatus,
   to: QuestionStatus,
-): TransitionRule | undefined =>
-  TRANSITIONS.find((rule) => rule.from === from && rule.to === to);
+): TransitionRule | undefined => TRANSITIONS.find((rule) => rule.from === from && rule.to === to);
 
 /**
  * Resolves a transition, or explains why there isn't one.

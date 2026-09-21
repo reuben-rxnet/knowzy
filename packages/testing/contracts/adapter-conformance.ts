@@ -387,7 +387,9 @@ export const runAdapterConformanceSuite = (subject: ConformanceSubject): void =>
       });
 
       it('reports a changed sourceVersion as modified', async () => {
-        const full = await collect(subject.adapter.synchronize(subject.context(), { mode: 'FULL' }));
+        const full = await collect(
+          subject.adapter.synchronize(subject.context(), { mode: 'FULL' }),
+        );
         const state = lastCheckpoint(full) ?? '{}';
         const stale = JSON.stringify(
           Object.fromEntries(
@@ -561,9 +563,21 @@ export const runBankConformanceSuite = (subject: BankConformanceSubject): void =
         subject.sampleItem('KNZ-CONF-2026-000102'),
         'conf-key-etag-1',
       );
-      await subject.bank.updateItem(ctx, created.itemId, { version: 2 }, created.eTag, 'conf-key-etag-2');
+      await subject.bank.updateItem(
+        ctx,
+        created.itemId,
+        { version: 2 },
+        created.eTag,
+        'conf-key-etag-2',
+      );
       await expect(
-        subject.bank.updateItem(ctx, created.itemId, { version: 3 }, created.eTag, 'conf-key-etag-3'),
+        subject.bank.updateItem(
+          ctx,
+          created.itemId,
+          { version: 3 },
+          created.eTag,
+          'conf-key-etag-3',
+        ),
       ).rejects.toThrow();
     });
 

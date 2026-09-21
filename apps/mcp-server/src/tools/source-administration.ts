@@ -11,7 +11,12 @@ import { z } from 'zod';
 import { createAuditWriter, transactWithAudit, type TransactionClient } from '@knowzy/database';
 import type { SyncEvent } from '@knowzy/knowledge-source-adapters';
 import { registerTool } from './registry.js';
-import { assertSourcePermitted, attributePath, buildAdapterContext, loadSource } from './adapter-context.js';
+import {
+  assertSourcePermitted,
+  attributePath,
+  buildAdapterContext,
+  loadSource,
+} from './adapter-context.js';
 import type { AuthorizationEnvelope } from './envelope.js';
 import type { ToolDeps } from './deps.js';
 

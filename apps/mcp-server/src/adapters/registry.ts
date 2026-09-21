@@ -61,11 +61,9 @@ export const createAdapterRegistry = (options: AdapterRegistryOptions): AdapterR
   const adapters = new Map<string, KnowledgeSourceAdapter>();
 
   if (options.fixtureRoot !== undefined) {
-    if (options.environment !== 'local') throw new MockAdapterNotPermittedError(options.environment);
-    adapters.set(
-      'MOCK',
-      createMockKnowledgeSourceAdapter({ fixtureRoot: options.fixtureRoot }),
-    );
+    if (options.environment !== 'local')
+      throw new MockAdapterNotPermittedError(options.environment);
+    adapters.set('MOCK', createMockKnowledgeSourceAdapter({ fixtureRoot: options.fixtureRoot }));
   }
 
   // SHAREPOINT lands in Phase 7. Until then a SharePoint source row resolves to
@@ -78,7 +76,9 @@ export const createAdapterRegistry = (options: AdapterRegistryOptions): AdapterR
   const questionBank =
     options.fixtureRoot === undefined
       ? null
-      : createMockQuestionBankAdapter({ fixtureRoot: options.bankFixtureRoot ?? options.fixtureRoot });
+      : createMockQuestionBankAdapter({
+          fixtureRoot: options.bankFixtureRoot ?? options.fixtureRoot,
+        });
 
   return {
     registeredTypes: [...adapters.keys()].sort(),

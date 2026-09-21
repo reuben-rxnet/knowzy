@@ -29,12 +29,12 @@ import {
 } from '@knowzy/claude-services';
 import { createAuditWriter, type DbClient, type PrismaClient } from '@knowzy/database';
 import type { Clock } from '@knowzy/observability';
-import type {
-  EvidenceMode,
-  GenerationReasonCode,
-  RejectionReason,
-} from '@knowzy/shared-types';
-import { assessDuplicate, type ComparableQuestion, type DuplicateThresholds } from './similarity.js';
+import type { EvidenceMode, GenerationReasonCode, RejectionReason } from '@knowzy/shared-types';
+import {
+  assessDuplicate,
+  type ComparableQuestion,
+  type DuplicateThresholds,
+} from './similarity.js';
 import { scopeSectionKeys, type ResolvedGenerationScope } from './scope.js';
 
 export interface GenerationRunContext {
@@ -145,7 +145,10 @@ const loadCorpus = async (client: DbClient): Promise<ComparableQuestion[]> => {
   });
 
   return rows.map((row) => {
-    const payload = row.answerPayload as { options?: Record<string, string>; correctOption?: string };
+    const payload = row.answerPayload as {
+      options?: Record<string, string>;
+      correctOption?: string;
+    };
     const options = Object.values(payload.options ?? {});
     return {
       questionId: row.id,
@@ -171,9 +174,7 @@ const asComparable = (
   sectionKey: question.sectionKey,
 });
 
-export const runGenerationJob = async (
-  args: RunGenerationArgs,
-): Promise<GenerationRunResult> => {
+export const runGenerationJob = async (args: RunGenerationArgs): Promise<GenerationRunResult> => {
   const { prisma, clock, scope, context, profile } = args;
   const generator = args.generator ?? createDeterministicGenerator();
   const startedAt = clock.now();
@@ -212,13 +213,13 @@ export const runGenerationJob = async (
 
   const { output, insufficientSections, modelId, inputTokens, outputTokens } =
     await generator.generate({
-    sections: scope.sections.map((section) => ({
-      sectionKey: section.sectionKey,
-      label: section.label,
-      text: section.text,
-    })),
-    doNotDuplicate,
-    requestedQuestionCount: args.requestedQuestionCount,
+      sections: scope.sections.map((section) => ({
+        sectionKey: section.sectionKey,
+        label: section.label,
+        text: section.text,
+      })),
+      doNotDuplicate,
+      requestedQuestionCount: args.requestedQuestionCount,
       domainName: profile.domainName,
       topicName: profile.topicName,
     });
@@ -518,7 +519,8 @@ export const runGenerationJob = async (
       await tx.documentSection.updateMany({
         where: { id: section.sectionId },
         data: {
-          coverageStatus: covered > 0 ? 'COVERED' : wasInsufficient ? 'NON_ASSESSABLE' : 'NOT_COVERED',
+          coverageStatus:
+            covered > 0 ? 'COVERED' : wasInsufficient ? 'NON_ASSESSABLE' : 'NOT_COVERED',
           ...(wasInsufficient
             ? {
                 isAssessable: false,
@@ -561,7 +563,10 @@ export const runGenerationJob = async (
     }
 
     await auditWriter.write(tx, {
-      action: status === 'FAILED' ? 'AUTHORING.GENERATION.JOB_FAILED' : 'AUTHORING.GENERATION.JOB_COMPLETED',
+      action:
+        status === 'FAILED'
+          ? 'AUTHORING.GENERATION.JOB_FAILED'
+          : 'AUTHORING.GENERATION.JOB_COMPLETED',
       outcome: status === 'SUCCEEDED' ? 'SUCCESS' : 'FAILURE',
       actorType: 'USER',
       actorUserId: context.actorUserId,

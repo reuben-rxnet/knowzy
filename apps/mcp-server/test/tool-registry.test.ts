@@ -108,15 +108,20 @@ describe('registration refuses an incomplete declaration', () => {
 
   it('refuses a tool with no portal, because nothing could call it', () => {
     expect(() =>
-      registerTool({ ...base, name: 'planted_no_portal', portals: [], auditAction: null,
-        auditExemptionReason: 'audit-model.md §8' }),
+      registerTool({
+        ...base,
+        name: 'planted_no_portal',
+        portals: [],
+        auditAction: null,
+        auditExemptionReason: 'audit-model.md §8',
+      }),
     ).toThrow(/declares no portal/);
   });
 
   it('refuses silence about audit: no action and no exemption reason', () => {
-    expect(() => registerTool({ ...base, name: 'planted_silent_audit', auditAction: null })).toThrow(
-      /no audit action and no exemption reason/,
-    );
+    expect(() =>
+      registerTool({ ...base, name: 'planted_silent_audit', auditAction: null }),
+    ).toThrow(/no audit action and no exemption reason/);
   });
 
   it('refuses a write tool that claims an audit exemption', () => {

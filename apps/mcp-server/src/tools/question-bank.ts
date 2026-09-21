@@ -93,7 +93,15 @@ registerTool({
         status: true,
         version: true,
         proposedQuestionId: true,
-        publishedRef: { select: { questionId: true, publishedVersion: true, sharePointItemId: true, eTag: true, status: true } },
+        publishedRef: {
+          select: {
+            questionId: true,
+            publishedVersion: true,
+            sharePointItemId: true,
+            eTag: true,
+            status: true,
+          },
+        },
       },
     });
     if (!question) throw new Error(`No question with id ${input.questionId}.`);
@@ -134,11 +142,7 @@ registerTool({
             },
       // Stated plainly so a caller does not have to infer it from the shape.
       action:
-        item === null
-          ? 'CREATE'
-          : item.version === question.version
-            ? 'ALREADY_CURRENT'
-            : 'UPDATE',
+        item === null ? 'CREATE' : item.version === question.version ? 'ALREADY_CURRENT' : 'UPDATE',
     };
   },
 });

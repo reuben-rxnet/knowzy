@@ -94,7 +94,10 @@ export const trigramSimilarity = (a: string, b: string): number => {
  * zero-width characters, collapses whitespace), so an offset found in
  * normalized space would not point at the same characters in the stored text.
  */
-const locateExact = (sectionText: string, needle: string): { start: number; end: number } | null => {
+const locateExact = (
+  sectionText: string,
+  needle: string,
+): { start: number; end: number } | null => {
   // The fast path: the model quoted verbatim, which is the common case.
   const direct = sectionText.indexOf(needle);
   if (direct !== -1) return { start: direct, end: direct + needle.length };
@@ -107,7 +110,7 @@ const locateExact = (sectionText: string, needle: string): { start: number; end:
   const firstWord = target.split(' ')[0] ?? '';
   const lowerSection = sectionText.toLowerCase();
 
-  for (let start = lowerSection.indexOf(firstWord); start !== -1; ) {
+  for (let start = lowerSection.indexOf(firstWord); start !== -1;) {
     // The normalized form can be shorter or longer than the original, so the
     // window is probed around the needle's length rather than fixed to it.
     for (let extra = -8; extra <= Math.max(16, Math.floor(needle.length * 0.25)); extra += 1) {
@@ -149,7 +152,10 @@ const locateBestWindow = (
       // Windows far from the needle's length cannot score 0.95; skipping them
       // keeps this bounded without changing the outcome.
       if (length < needle.length * 0.5 || length > needle.length * 2) continue;
-      const score = trigramSimilarity(target, normalizeForComparison(sectionText.slice(start, end)));
+      const score = trigramSimilarity(
+        target,
+        normalizeForComparison(sectionText.slice(start, end)),
+      );
       if (best === null || score > best.score) best = { start, end, score };
     }
   }

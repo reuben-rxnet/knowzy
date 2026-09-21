@@ -242,8 +242,10 @@ export const runPreflight = async (args: RunPreflightArgs): Promise<PreflightRes
     const capacity = Math.max(
       1,
       Math.ceil(
-        assessable.reduce((sum, section) => sum + (sectionCharCounts.get(section.sectionKey) ?? 0), 0) /
-          args.charsPerQuestion,
+        assessable.reduce(
+          (sum, section) => sum + (sectionCharCounts.get(section.sectionKey) ?? 0),
+          0,
+        ) / args.charsPerQuestion,
       ),
     );
     const saturation = existingStemCount / capacity;

@@ -21,10 +21,7 @@ import {
   type BankItemWrite,
 } from '@knowzy/knowledge-source-adapters';
 import { systemClock } from '@knowzy/observability';
-import {
-  runAdapterConformanceSuite,
-  runBankConformanceSuite,
-} from './adapter-conformance.js';
+import { runAdapterConformanceSuite, runBankConformanceSuite } from './adapter-conformance.js';
 
 const FIXTURE_ROOT = fileURLToPath(new URL('../../../fixtures/knowledge', import.meta.url));
 const SOURCE_KEY = 'support-operations';
@@ -68,7 +65,9 @@ runBankConformanceSuite({
   name: 'MockQuestionBankAdapter',
   // A temp directory, so the suite never reads or writes the committed
   // fixtures/bank state a developer may be looking at.
-  bank: createMockQuestionBankAdapter({ fixtureRoot: mkdtempSync(join(tmpdir(), 'knowzy-conf-bank-')) }),
+  bank: createMockQuestionBankAdapter({
+    fixtureRoot: mkdtempSync(join(tmpdir(), 'knowzy-conf-bank-')),
+  }),
   context: (): BankContext => ({
     targetSiteId: 'conformance-site',
     targetListId: 'conformance-list',
@@ -175,9 +174,7 @@ describe('MockKnowledgeSourceAdapter specifics', () => {
   it('injects a deterministic extraction failure without failing the run', async () => {
     const faulted = createMockKnowledgeSourceAdapter({
       fixtureRoot: FIXTURE_ROOT,
-      faults: [
-        { relativePath: 'SOPs/Network/incident-escalation.md', kind: 'EXTRACTION_FAILED' },
-      ],
+      faults: [{ relativePath: 'SOPs/Network/incident-escalation.md', kind: 'EXTRACTION_FAILED' }],
     });
     const content = await faulted.extractContent(
       context(),

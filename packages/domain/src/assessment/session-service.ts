@@ -29,11 +29,7 @@ import {
   type SnapshotMember,
 } from './selection.js';
 import { evaluatePool } from './assessment-service.js';
-import {
-  scoreSession,
-  type ProficiencyBandDefinition,
-  type SnapshotQuestion,
-} from './scoring.js';
+import { scoreSession, type ProficiencyBandDefinition, type SnapshotQuestion } from './scoring.js';
 
 export class NotEligibleError extends Error {
   constructor(
@@ -180,14 +176,21 @@ export const startSession = async (args: StartSessionArgs): Promise<StartedSessi
   const prisma = deps.prisma;
 
   if (!learner.permissions.includes('learning.session.create')) {
-    throw new NotEligibleError('FORBIDDEN', 'Starting an assessment requires "learning.session.create".');
+    throw new NotEligibleError(
+      'FORBIDDEN',
+      'Starting an assessment requires "learning.session.create".',
+    );
   }
 
   // §4.5: "Parallel sessions for one assessment — blocked by default; an
   // existing IN_PROGRESS session must be resumed or abandoned." Resuming is
   // the friendlier half of that rule, so it happens automatically.
   const existing = await prisma.quizSession.findFirst({
-    where: { learnerUserId: learner.userId, assessmentId: args.assessmentId, status: 'IN_PROGRESS' },
+    where: {
+      learnerUserId: learner.userId,
+      assessmentId: args.assessmentId,
+      status: 'IN_PROGRESS',
+    },
     select: { id: true },
   });
   if (existing) {
@@ -322,7 +325,10 @@ export const startSession = async (args: StartSessionArgs): Promise<StartedSessi
   if (missing.length > 0) {
     throw new PoolInsufficientError(
       `${missing.length} selected question(s) could not be read from the published bank projection.`,
-      { required: selection.selected.length, available: selection.selected.length - missing.length },
+      {
+        required: selection.selected.length,
+        available: selection.selected.length - missing.length,
+      },
     );
   }
 
@@ -466,15 +472,20 @@ export interface CurrentQuestionResult {
   readonly allowBackNavigation: boolean;
 }
 
-const loadSession = async (
-  prisma: PrismaClient,
-  learnerUserId: string,
-  sessionId: string,
-) => {
+const loadSession = async (prisma: PrismaClient, learnerUserId: string, sessionId: string) => {
   const session = await prisma.quizSession.findFirst({
     // Scoped to the learner: a session id is not an authorization token.
     where: { id: sessionId, learnerUserId },
-    include: { assessmentVersion: { select: { allowBackNavigation: true, passPercentage: true, proficiencyThresholds: true, scoreOnExpiry: true } } },
+    include: {
+      assessmentVersion: {
+        select: {
+          allowBackNavigation: true,
+          passPercentage: true,
+          proficiencyThresholds: true,
+          scoreOnExpiry: true,
+        },
+      },
+    },
   });
   if (!session) throw new SessionNotFoundError(sessionId);
   return session;
@@ -503,10 +514,16 @@ export const currentQuestion = async (args: {
     where: { sessionId: session.id, isLatest: true },
   });
 
-  const question = toLearnerQuestion(snapshot, latest === null ? null : {
-    selectedOption: (latest.responsePayload as { selectedOption?: string }).selectedOption ?? null,
-    isFlagged: latest.isFlagged,
-  });
+  const question = toLearnerQuestion(
+    snapshot,
+    latest === null
+      ? null
+      : {
+          selectedOption:
+            (latest.responsePayload as { selectedOption?: string }).selectedOption ?? null,
+          isFlagged: latest.isFlagged,
+        },
+  );
   assertNoAnswerKey(question, 'the current-question response');
 
   return {
@@ -740,10 +757,16 @@ const nextQuestionOrNull = async (
   const latest = await deps.prisma.quizResponse.findFirst({
     where: { sessionId, presentationIndex: index, isLatest: true },
   });
-  const question = toLearnerQuestion(snapshot, latest === null ? null : {
-    selectedOption: (latest.responsePayload as { selectedOption?: string }).selectedOption ?? null,
-    isFlagged: latest.isFlagged,
-  });
+  const question = toLearnerQuestion(
+    snapshot,
+    latest === null
+      ? null
+      : {
+          selectedOption:
+            (latest.responsePayload as { selectedOption?: string }).selectedOption ?? null,
+          isFlagged: latest.isFlagged,
+        },
+  );
   assertNoAnswerKey(question, 'the next-question response');
   return question;
 };
@@ -786,9 +809,7 @@ export interface CompleteSessionArgs {
   readonly resultState?: 'SCORED' | 'EXPIRED' | 'ABANDONED';
 }
 
-export const completeSession = async (
-  args: CompleteSessionArgs,
-): Promise<CompletionResult> => {
+export const completeSession = async (args: CompleteSessionArgs): Promise<CompletionResult> => {
   const { deps, learner } = args;
   const prisma = deps.prisma;
   const session = await loadSession(prisma, learner.userId, args.sessionId);
@@ -861,7 +882,8 @@ export const completeSession = async (
       selectedOption: (row.responsePayload as { selectedOption?: string }).selectedOption ?? null,
     })),
     passPercentage: Number(session.assessmentVersion.passPercentage),
-    bands: session.assessmentVersion.proficiencyThresholds as unknown as ProficiencyBandDefinition[],
+    bands: session.assessmentVersion
+      .proficiencyThresholds as unknown as ProficiencyBandDefinition[],
     ...(args.gapThreshold === undefined ? {} : { gapThreshold: args.gapThreshold }),
     ...(args.minTopicQuestions === undefined ? {} : { minTopicQuestions: args.minTopicQuestions }),
     ...(args.resultState === undefined ? {} : { resultState: args.resultState }),
@@ -1001,7 +1023,9 @@ export const completeSession = async (
       isKnowledgeGap: topic.isKnowledgeGap,
       gapState: topic.gapState,
     })),
-    knowledgeGaps: score.topics.filter((topic) => topic.isKnowledgeGap).map((topic) => topic.topicId),
+    knowledgeGaps: score.topics
+      .filter((topic) => topic.isKnowledgeGap)
+      .map((topic) => topic.topicId),
     replayed: false,
   };
 };
@@ -1121,7 +1145,11 @@ export interface ResultView {
     readonly isKnowledgeGap: boolean;
     readonly gapState: string;
   }[];
-  readonly knowledgeGaps: readonly { readonly topicId: string; readonly topicName: string; readonly topicAccuracy: number }[];
+  readonly knowledgeGaps: readonly {
+    readonly topicId: string;
+    readonly topicName: string;
+    readonly topicAccuracy: number;
+  }[];
 }
 
 /**

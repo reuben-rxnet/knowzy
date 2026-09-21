@@ -105,7 +105,9 @@ export const sourceRoutes = [
     handler: async (ctx, request, reply, deps) => {
       try {
         return await callTool(ctx, deps, 'list_knowledge_sources', {
-          includeInactive: request.query !== null && typeof request.query === 'object' &&
+          includeInactive:
+            request.query !== null &&
+            typeof request.query === 'object' &&
             (request.query as Record<string, unknown>)['includeInactive'] === 'true',
         });
       } catch (error) {
@@ -223,7 +225,12 @@ export const sourceRoutes = [
       if (!params.success) return badRequest(ctx, reply, request.url, 'sourceId');
       const query = ListItemsQuery.safeParse(request.query ?? {});
       if (!query.success) {
-        return badRequest(ctx, reply, request.url, query.error.issues[0]?.path.join('.') ?? 'query');
+        return badRequest(
+          ctx,
+          reply,
+          request.url,
+          query.error.issues[0]?.path.join('.') ?? 'query',
+        );
       }
       try {
         return await callTool(ctx, deps, 'list_source_items', {

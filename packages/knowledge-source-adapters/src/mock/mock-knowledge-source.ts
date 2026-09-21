@@ -372,7 +372,8 @@ export const createMockKnowledgeSourceAdapter = (
         for (const d of visibleDocuments(ctx)) {
           if (d.containerId !== query.containerId) continue;
           if (folder.length > 0 && !d.folderPath.startsWith(`${folder}/`)) continue;
-          const remainder = folder.length > 0 ? d.folderPath.slice(folder.length + 1) : d.folderPath;
+          const remainder =
+            folder.length > 0 ? d.folderPath.slice(folder.length + 1) : d.folderPath;
           if (remainder.length === 0) continue;
           folders.add(remainder.split('/')[0] ?? '');
         }
@@ -388,7 +389,11 @@ export const createMockKnowledgeSourceAdapter = (
         }));
 
       const items: SourceItem[] = [...folderItems, ...documents.map(toSourceItem)];
-      return paginate(items, query.cursor, query.pageSize ?? ctx.limits.pageSize ?? DEFAULT_PAGE_SIZE);
+      return paginate(
+        items,
+        query.cursor,
+        query.pageSize ?? ctx.limits.pageSize ?? DEFAULT_PAGE_SIZE,
+      );
     },
 
     async searchDocuments(ctx: AdapterContext, query: SearchQuery): Promise<Page<SearchHit>> {
@@ -425,7 +430,11 @@ export const createMockKnowledgeSourceAdapter = (
       }
 
       hits.sort((a, b) => b.score - a.score || a.document.name.localeCompare(b.document.name));
-      return paginate(hits, query.cursor, query.pageSize ?? ctx.limits.pageSize ?? DEFAULT_PAGE_SIZE);
+      return paginate(
+        hits,
+        query.cursor,
+        query.pageSize ?? ctx.limits.pageSize ?? DEFAULT_PAGE_SIZE,
+      );
     },
 
     async getDocument(ctx: AdapterContext, id: SourceDocumentId): Promise<SourceDocument | null> {

@@ -212,9 +212,7 @@ const ACTOR_PATTERN = new RegExp(`\\b(${Object.keys(ACTOR_SWAPS).join('|')})\\b`
 
 /** The second modal occurrence, when a sentence states two obligations. */
 const swapSecondModal = (sentence: string): string | null => {
-  const matches = [
-    ...sentence.matchAll(/\b(must|may|never|only|requires|require|cannot)\b/gi),
-  ];
+  const matches = [...sentence.matchAll(/\b(must|may|never|only|requires|require|cannot)\b/gi)];
   const second = matches[1];
   if (!second?.[0]) return null;
   const replacement = MODAL_SWAPS[second[0].toLowerCase()];
@@ -234,13 +232,7 @@ const swapSecondModal = (sentence: string): string | null => {
 const fixArticles = (text: string): string =>
   text.replace(/\b(a|an|A|An)\s+([A-Za-z])/g, (_match, article: string, letter: string) => {
     const vowel = 'aeiouAEIOU'.includes(letter);
-    const fixed = vowel
-      ? article[0] === 'A'
-        ? 'An'
-        : 'an'
-      : article[0] === 'A'
-        ? 'A'
-        : 'a';
+    const fixed = vowel ? (article[0] === 'A' ? 'An' : 'an') : article[0] === 'A' ? 'A' : 'a';
     return `${fixed} ${letter}`;
   });
 

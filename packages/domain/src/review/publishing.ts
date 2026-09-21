@@ -20,7 +20,12 @@
 import { createHash } from 'node:crypto';
 import { createAuditWriter, type PrismaClient, type TransactionClient } from '@knowzy/database';
 import type { BankContext, BankItemWrite, QuestionBankAdapter } from '@knowzy/shared-types';
-import { evaluateGatesForQuestion, GatesFailedError, type ActorContext, type ReviewDeps } from './review-service.js';
+import {
+  evaluateGatesForQuestion,
+  GatesFailedError,
+  type ActorContext,
+  type ReviewDeps,
+} from './review-service.js';
 import { evaluatePublishSeparation, DEFAULT_SEPARATION_POLICIES } from './separation-of-duties.js';
 
 export class PublishNotPermittedError extends Error {
@@ -63,12 +68,7 @@ export interface PublishTarget {
 export interface PublishItemOutcome {
   readonly questionId: string;
   readonly outcome:
-    | 'PUBLISHED'
-    | 'ALREADY_PUBLISHED'
-    | 'UPDATED'
-    | 'DRY_RUN'
-    | 'GATE_FAILED'
-    | 'FAILED';
+    'PUBLISHED' | 'ALREADY_PUBLISHED' | 'UPDATED' | 'DRY_RUN' | 'GATE_FAILED' | 'FAILED';
   readonly bankItemId: string | null;
   readonly publishedVersion: number | null;
   readonly operationKey: string;
@@ -134,9 +134,7 @@ const nextBankQuestionId = async (
   return proposedQuestionId(domainCode, year, highest + 1);
 };
 
-export const publishApprovedQuestions = async (
-  args: PublishArgs,
-): Promise<PublishBatchResult> => {
+export const publishApprovedQuestions = async (args: PublishArgs): Promise<PublishBatchResult> => {
   const { deps, bank, target, actor } = args;
 
   if (!actor.permissions.includes('question.publish')) {
@@ -161,8 +159,7 @@ export const publishApprovedQuestions = async (
 
   const batchId = createHash('sha256')
     .update(
-      args.idempotencyKey ??
-        `${actor.correlationId}|${[...args.questionIds].sort().join(',')}`,
+      args.idempotencyKey ?? `${actor.correlationId}|${[...args.questionIds].sort().join(',')}`,
       'utf8',
     )
     .digest('hex')
@@ -192,9 +189,8 @@ export const publishApprovedQuestions = async (
     publishedCount: items.filter(
       (item) => item.outcome === 'PUBLISHED' || item.outcome === 'UPDATED',
     ).length,
-    failedCount: items.filter(
-      (item) => item.outcome === 'FAILED' || item.outcome === 'GATE_FAILED',
-    ).length,
+    failedCount: items.filter((item) => item.outcome === 'FAILED' || item.outcome === 'GATE_FAILED')
+      .length,
   };
 };
 
@@ -348,7 +344,8 @@ const publishOne = async (args: PublishOneArgs): Promise<PublishItemOutcome> => 
   // consume an identifier in the published series.
   const year = deps.clock.now().getUTCFullYear();
   const questionIdForBank =
-    question.proposedQuestionId ?? (await nextBankQuestionId(prisma, question.domain.code, question.domainId, year));
+    question.proposedQuestionId ??
+    (await nextBankQuestionId(prisma, question.domain.code, question.domainId, year));
 
   const write: BankItemWrite = {
     questionId: questionIdForBank,
@@ -472,7 +469,9 @@ const publishOne = async (args: PublishOneArgs): Promise<PublishItemOutcome> => 
           isPublished: true,
           domainId: question.domainId,
           topicId: question.topicId,
-          questionTextHash: createHash('sha256').update(question.questionText, 'utf8').digest('hex'),
+          questionTextHash: createHash('sha256')
+            .update(question.questionText, 'utf8')
+            .digest('hex'),
           answerPayloadHash: createHash('sha256')
             .update(JSON.stringify(question.answerPayload), 'utf8')
             .digest('hex'),
@@ -491,7 +490,9 @@ const publishOne = async (args: PublishOneArgs): Promise<PublishItemOutcome> => 
           isPublished: true,
           publishedAt,
           publishedByUserId: actor.userId,
-          questionTextHash: createHash('sha256').update(question.questionText, 'utf8').digest('hex'),
+          questionTextHash: createHash('sha256')
+            .update(question.questionText, 'utf8')
+            .digest('hex'),
           answerPayloadHash: createHash('sha256')
             .update(JSON.stringify(question.answerPayload), 'utf8')
             .digest('hex'),
@@ -562,9 +563,10 @@ const publishOne = async (args: PublishOneArgs): Promise<PublishItemOutcome> => 
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'The publish failed.';
-    const code = error !== null && typeof error === 'object' && 'code' in error
-      ? String((error as { code: unknown }).code)
-      : 'UPSTREAM_UNEXPECTED';
+    const code =
+      error !== null && typeof error === 'object' && 'code' in error
+        ? String((error as { code: unknown }).code)
+        : 'UPSTREAM_UNEXPECTED';
 
     await prisma.publishOperation.update({
       where: { operationKey },
@@ -754,4 +756,3 @@ export const retirePublishedQuestion = async (
     detail: 'The bank item was marked inactive and Retired. It was not deleted.',
   };
 };
-

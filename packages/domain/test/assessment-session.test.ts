@@ -124,9 +124,9 @@ describe('scoring arithmetic (live-learning-portal.md §5.2)', () => {
   });
 
   it('refuses an empty or inverted band', () => {
-    expect(() =>
-      assertValidBandSet([{ band: 'BAD', minInclusive: 50, maxExclusive: 50 }]),
-    ).toThrow(InvalidBandSetError);
+    expect(() => assertValidBandSet([{ band: 'BAD', minInclusive: 50, maxExclusive: 50 }])).toThrow(
+      InvalidBandSetError,
+    );
   });
 
   const question = (
@@ -334,28 +334,72 @@ describe('selection is reproducible (workflows.md §6.1)', () => {
       { questionId: 'q2', publishedVersion: 2 },
     ];
     const live = [
-      { questionId: 'q1', publishedVersion: 1, topicId: 't', similarityClusterId: null, approvedAt: null },
+      {
+        questionId: 'q1',
+        publishedVersion: 1,
+        topicId: 't',
+        similarityClusterId: null,
+        approvedAt: null,
+      },
       // Republished at v3 — NOT the v2 the approver pinned.
-      { questionId: 'q2', publishedVersion: 3, topicId: 't', similarityClusterId: null, approvedAt: null },
+      {
+        questionId: 'q2',
+        publishedVersion: 3,
+        topicId: 't',
+        similarityClusterId: null,
+        approvedAt: null,
+      },
       // Never in the snapshot at all.
-      { questionId: 'q9', publishedVersion: 1, topicId: 't', similarityClusterId: null, approvedAt: null },
+      {
+        questionId: 'q9',
+        publishedVersion: 1,
+        topicId: 't',
+        similarityClusterId: null,
+        approvedAt: null,
+      },
     ];
     expect(intersectWithSnapshot(snapshot, live).map((q) => q.questionId)).toEqual(['q1']);
   });
 
   it('keeps one question per similarity cluster, by approval recency', () => {
     const pool = [
-      { questionId: 'old', publishedVersion: 1, topicId: 't', similarityClusterId: 'c1', approvedAt: new Date('2026-01-01') },
-      { questionId: 'new', publishedVersion: 1, topicId: 't', similarityClusterId: 'c1', approvedAt: new Date('2026-06-01') },
-      { questionId: 'solo', publishedVersion: 1, topicId: 't', similarityClusterId: null, approvedAt: null },
+      {
+        questionId: 'old',
+        publishedVersion: 1,
+        topicId: 't',
+        similarityClusterId: 'c1',
+        approvedAt: new Date('2026-01-01'),
+      },
+      {
+        questionId: 'new',
+        publishedVersion: 1,
+        topicId: 't',
+        similarityClusterId: 'c1',
+        approvedAt: new Date('2026-06-01'),
+      },
+      {
+        questionId: 'solo',
+        publishedVersion: 1,
+        topicId: 't',
+        similarityClusterId: null,
+        approvedAt: null,
+      },
     ];
-    const kept = onePerCluster(pool).map((q) => q.questionId).sort();
+    const kept = onePerCluster(pool)
+      .map((q) => q.questionId)
+      .sort();
     expect(kept).toEqual(['new', 'solo']);
   });
 
   it('refuses a short pool rather than padding it', () => {
     const pool = [
-      { questionId: 'q1', publishedVersion: 1, topicId: 't', similarityClusterId: null, approvedAt: null },
+      {
+        questionId: 'q1',
+        publishedVersion: 1,
+        topicId: 't',
+        similarityClusterId: null,
+        approvedAt: null,
+      },
     ];
     expect(() =>
       selectQuestions(pool, { strategy: 'RANDOM_POOL', questionCount: 5 }, 'seed'),
@@ -388,7 +432,13 @@ describe('selection is reproducible (workflows.md §6.1)', () => {
 
   it('refuses a FIXED_SET that lost a member', () => {
     const pool = [
-      { questionId: 'a', publishedVersion: 1, topicId: 't', similarityClusterId: null, approvedAt: null },
+      {
+        questionId: 'a',
+        publishedVersion: 1,
+        topicId: 't',
+        similarityClusterId: null,
+        approvedAt: null,
+      },
     ];
     expect(() =>
       selectQuestions(
@@ -416,7 +466,9 @@ describe('selection is reproducible (workflows.md §6.1)', () => {
     }));
     const first = selectQuestions(pool, { strategy: 'TOPIC_BALANCED', questionCount: 4 }, 'seed');
     const again = selectQuestions(pool, { strategy: 'TOPIC_BALANCED', questionCount: 4 }, 'seed');
-    expect(first.selected.map((q) => q.questionId)).toEqual(again.selected.map((q) => q.questionId));
+    expect(first.selected.map((q) => q.questionId)).toEqual(
+      again.selected.map((q) => q.questionId),
+    );
     expect(first.selected).toHaveLength(4);
     // Two per topic.
     expect(first.selected.filter((q) => q.topicId === 't1')).toHaveLength(2);
@@ -494,7 +546,13 @@ describeDb('quiz session lifecycle', () => {
     userId: learnerId,
     displayName: 'Local Learner',
     roles: ['LEARNER'],
-    permissions: ['learning.access', 'learning.assessment.list', 'learning.session.create', 'learning.session.own', 'learning.result.own'],
+    permissions: [
+      'learning.access',
+      'learning.assessment.list',
+      'learning.session.create',
+      'learning.session.own',
+      'learning.result.own',
+    ],
     correlationId: 'm6-learner',
     requestId: 'm6-learner-request',
     ...overrides,
@@ -665,7 +723,12 @@ describeDb('quiz session lifecycle', () => {
     });
 
     for (const questionId of run.acceptedQuestionIds) {
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
       await transitionQuestion({
         deps: deps(),
         questionId,
@@ -1024,9 +1087,13 @@ describeDb('quiz session lifecycle', () => {
       });
       expect(revisions).toHaveLength(2);
       expect(revisions[0]?.isLatest).toBe(false);
-      expect((revisions[0]?.responsePayload as { selectedOption: string }).selectedOption).toBe('A');
+      expect((revisions[0]?.responsePayload as { selectedOption: string }).selectedOption).toBe(
+        'A',
+      );
       expect(revisions[1]?.isLatest).toBe(true);
-      expect((revisions[1]?.responsePayload as { selectedOption: string }).selectedOption).toBe('C');
+      expect((revisions[1]?.responsePayload as { selectedOption: string }).selectedOption).toBe(
+        'C',
+      );
     });
 
     it('returns the original result for a replayed idempotency key', async () => {
@@ -1054,9 +1121,7 @@ describeDb('quiz session lifecycle', () => {
       expect(twice.replayed).toBe(true);
       expect(twice.revision).toBe(once.revision);
       // One write, not two — and the second option was NOT applied.
-      expect(
-        await prisma.quizResponse.count({ where: { sessionId: started.sessionId } }),
-      ).toBe(1);
+      expect(await prisma.quizResponse.count({ where: { sessionId: started.sessionId } })).toBe(1);
     });
 
     it('rejects an out-of-order write', async () => {

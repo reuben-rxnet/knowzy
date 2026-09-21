@@ -131,8 +131,7 @@ registerTool({
       check5: result.check5,
       check6: result.check6,
       // Stated so a caller cannot mistake a recommendation for authorization.
-      decisionRequired:
-        'A preflight authorizes nothing until an action is recorded against it.',
+      decisionRequired: 'A preflight authorizes nothing until an action is recorded against it.',
     };
   },
 });

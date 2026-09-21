@@ -89,15 +89,14 @@ interface LoadedQuestion {
   readonly evidenceMode: 'STRICT' | 'STANDARD';
 }
 
-const loadQuestion = async (
-  prisma: PrismaClient,
-  questionId: string,
-): Promise<LoadedQuestion> => {
+const loadQuestion = async (prisma: PrismaClient, questionId: string): Promise<LoadedQuestion> => {
   const row = await prisma.draftQuestion.findUnique({
     where: { id: questionId },
     include: {
       domain: { select: { id: true, requireSmeSignoff: true } },
-      generationJob: { select: { profile: { select: { duplicateFlagThreshold: true, evidenceStrictness: true } } } },
+      generationJob: {
+        select: { profile: { select: { duplicateFlagThreshold: true, evidenceStrictness: true } } },
+      },
       versions: { orderBy: { version: 'desc' }, take: 1, select: { changedByUserId: true } },
     },
   });
@@ -297,7 +296,7 @@ export interface TransitionArgs {
 }
 
 export interface TransitionResult {
-  readonly questionId: string
+  readonly questionId: string;
   readonly from: QuestionStatus;
   readonly to: QuestionStatus;
   readonly version: number;
@@ -469,7 +468,12 @@ export interface AddReviewArgs {
  */
 export const addReview = async (
   args: AddReviewArgs,
-): Promise<{ reviewId: string; questionVersion: number; kind: ReviewKind; outcome: ReviewOutcome }> => {
+): Promise<{
+  reviewId: string;
+  questionVersion: number;
+  kind: ReviewKind;
+  outcome: ReviewOutcome;
+}> => {
   const { deps, actor } = args;
   if (!actor.permissions.includes('question.review')) {
     throw new PermissionRequiredError('question.review');

@@ -490,7 +490,10 @@ describeDb('generation workflow', () => {
     });
 
     it('refuses more than ten documents', () => {
-      const many = Array.from({ length: 11 }, (_, i) => ({ ...documents[0]!, documentId: `d${i}` }));
+      const many = Array.from({ length: 11 }, (_, i) => ({
+        ...documents[0]!,
+        documentId: `d${i}`,
+      }));
       expect(() =>
         resolveGenerationScope({ scope: 'ENTIRE_DOCUMENT', documents: many, sections: [] }),
       ).toThrow(/at most 10 documents/);
@@ -779,7 +782,8 @@ describeDb('generation workflow', () => {
             questions: [
               {
                 sectionKey: sections[0]!.sectionKey,
-                questionText: 'Within how long must a severity one incident reach the duty manager?',
+                questionText:
+                  'Within how long must a severity one incident reach the duty manager?',
                 options: {
                   A: 'Within fifteen minutes',
                   B: 'Within one hour',
@@ -796,7 +800,10 @@ describeDb('generation workflow', () => {
           // accepted question: the union output cannot carry both, which is the
           // bug a live run exposed.
           insufficientSections: [
-            { sectionKey: sections[1]!.sectionKey, reason: 'States ownership but no testable rule.' },
+            {
+              sectionKey: sections[1]!.sectionKey,
+              reason: 'States ownership but no testable rule.',
+            },
           ],
           modelId: 'test-partial-generator',
           inputTokens: 1,

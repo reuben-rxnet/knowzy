@@ -97,7 +97,9 @@ export const intersectWithSnapshot = (
   snapshot: readonly SnapshotMember[],
   eligible: readonly EligibleQuestion[],
 ): EligibleQuestion[] => {
-  const pinned = new Set(snapshot.map((member) => `${member.questionId}@${member.publishedVersion}`));
+  const pinned = new Set(
+    snapshot.map((member) => `${member.questionId}@${member.publishedVersion}`),
+  );
   return eligible.filter((question) =>
     pinned.has(`${question.questionId}@${question.publishedVersion}`),
   );
@@ -130,7 +132,9 @@ export const onePerCluster = (pool: readonly EligibleQuestion[]): EligibleQuesti
     }
   }
 
-  return [...unclustered, ...best.values()].sort((a, b) => a.questionId.localeCompare(b.questionId));
+  return [...unclustered, ...best.values()].sort((a, b) =>
+    a.questionId.localeCompare(b.questionId),
+  );
 };
 
 export interface SelectionConfig {
@@ -148,11 +152,7 @@ export interface SelectionResult {
   readonly strategy: SelectionStrategy;
 }
 
-const requireCount = (
-  available: number,
-  required: number,
-  what: string,
-): void => {
+const requireCount = (available: number, required: number, what: string): void => {
   if (available < required) {
     throw new PoolInsufficientError(
       `${what}: ${required} question(s) are required and ${available} are available. The learner is not served a short or padded assessment.`,

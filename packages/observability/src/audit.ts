@@ -124,7 +124,13 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   // never question text, option text, evidence spans, or comment bodies. The
   // comment lives on QuestionReview and the diff on DraftQuestionVersion;
   // audit-model.md §8 keeps both out of a seven-year store.
-  'AUTHORING.QUESTION.EDITED': ['version', 'changedFields', 'evidenceReverified', 'reviewKind', 'reviewOutcome'],
+  'AUTHORING.QUESTION.EDITED': [
+    'version',
+    'changedFields',
+    'evidenceReverified',
+    'reviewKind',
+    'reviewOutcome',
+  ],
   'AUTHORING.QUESTION.SUBMITTED': ['version', 'gatesPassed', 'evaluatedGateCount'],
   'AUTHORING.QUESTION.APPROVED': ['version', 'gatesPassed', 'evaluatedGateCount', 'breakGlass'],
   'AUTHORING.QUESTION.APPROVAL_OVERRIDE': [
@@ -153,12 +159,7 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'failedCount',
     'dryRun',
   ],
-  'AUTHORING.QUESTION.RETIRED': [
-    'bankItemId',
-    'bankETag',
-    'publishedVersion',
-    'operationType',
-  ],
+  'AUTHORING.QUESTION.RETIRED': ['bankItemId', 'bankETag', 'publishedVersion', 'operationType'],
   'AUTHORING.QUESTION.CREATED': [
     'jobId',
     'sectionKey',
@@ -183,12 +184,7 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   'AUTHORING.ASSESSMENT.CREATED': ['questionCount', 'strategy', 'topicCount'],
   'AUTHORING.ASSESSMENT.SUBMITTED': [],
   'AUTHORING.ASSESSMENT.APPROVED': [],
-  'AUTHORING.ASSESSMENT.PUBLISHED': [
-    'versionNumber',
-    'poolSize',
-    'questionCount',
-    'strategy',
-  ],
+  'AUTHORING.ASSESSMENT.PUBLISHED': ['versionNumber', 'poolSize', 'questionCount', 'strategy'],
   'LEARNING.SESSION.CREATED': [
     'assessmentVersionId',
     'attemptNumber',

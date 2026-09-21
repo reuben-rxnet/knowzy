@@ -7,10 +7,7 @@
 // configured, which is what makes "sources are data, not code" safe.
 
 import type { SourceType } from '@knowzy/shared-types';
-import type {
-  AdapterContext,
-  KnowledgeSourcePathConfig,
-} from '@knowzy/knowledge-source-adapters';
+import type { AdapterContext, KnowledgeSourcePathConfig } from '@knowzy/knowledge-source-adapters';
 import type { AuthorizationEnvelope } from './envelope.js';
 import type { SourceRow, ToolDeps } from './deps.js';
 
@@ -37,17 +34,14 @@ export class SourceAccessDeniedError extends Error {
  * @knowzy/shared-types: an explicit deny cannot be overridden by an allow list
  * that happens to include the same source.
  */
-export const assertSourcePermitted = (
-  envelope: AuthorizationEnvelope,
-  sourceId: string,
-): void => {
+export const assertSourcePermitted = (envelope: AuthorizationEnvelope, sourceId: string): void => {
   if (envelope.dataScope.denySourceIds.includes(sourceId)) {
     throw new SourceAccessDeniedError(sourceId, 'the source is explicitly denied for this user');
   }
   const allowList = envelope.dataScope.sourceIds;
   // An empty allow list means unrestricted on this dimension, not "none".
   if (allowList.length > 0 && !allowList.includes(sourceId)) {
-    throw new SourceAccessDeniedError(sourceId, 'the source is outside this user\'s source scope');
+    throw new SourceAccessDeniedError(sourceId, "the source is outside this user's source scope");
   }
 };
 

@@ -279,12 +279,16 @@ describeDb('review, approval, and publishing pipeline', () => {
         ['PUBLISHED', 'RETIRED'],
       ] as const;
       for (const [from, to] of mustComment) {
-        expect(requireTransition(from, to, 'a reason').commentRequired, `${from}->${to}`).toBe(true);
+        expect(requireTransition(from, to, 'a reason').commentRequired, `${from}->${to}`).toBe(
+          true,
+        );
       }
     });
 
     it('gates submit, approve, and publish, and nothing else', () => {
-      expect(TRANSITIONS.filter((rule) => rule.gated).map((rule) => `${rule.from}->${rule.to}`)).toEqual([
+      expect(
+        TRANSITIONS.filter((rule) => rule.gated).map((rule) => `${rule.from}->${rule.to}`),
+      ).toEqual([
         'AUTHOR_REVIEW->SUBMITTED_FOR_APPROVAL',
         'SUBMITTED_FOR_APPROVAL->APPROVED',
         'APPROVED->PUBLISHED',
@@ -331,7 +335,8 @@ describeDb('review, approval, and publishing pipeline', () => {
       domainId: 'd',
       topicId: 't',
       sourceMetadata: { Owner: 'Network Operations' },
-      supportingEvidence: 'the duty manager within fifteen minutes of the first report of an incident',
+      supportingEvidence:
+        'the duty manager within fifteen minutes of the first report of an incident',
       evidenceStartOffset: 0,
       evidenceEndOffset: 74,
       sectionKey: 'sk',
@@ -460,9 +465,9 @@ describeDb('review, approval, and publishing pipeline', () => {
         baseSource(),
         basePolicy(),
       );
-      expect(result.failures.find((f) => f.code === 'DUPLICATE_THRESHOLD_EXCEEDED')?.detail).toContain(
-        '0.810',
-      );
+      expect(
+        result.failures.find((f) => f.code === 'DUPLICATE_THRESHOLD_EXCEEDED')?.detail,
+      ).toContain('0.810');
     });
 
     it('gate 10 — dispositioned DISTINCT unblocks it', () => {
@@ -482,9 +487,9 @@ describeDb('review, approval, and publishing pipeline', () => {
         baseSource(),
         basePolicy(),
       );
-      expect(result.failures.find((f) => f.code === 'DUPLICATE_THRESHOLD_EXCEEDED')?.detail).toContain(
-        'Reject it instead',
-      );
+      expect(
+        result.failures.find((f) => f.code === 'DUPLICATE_THRESHOLD_EXCEEDED')?.detail,
+      ).toContain('Reject it instead');
     });
 
     it('gate 11 — the source document is gone', () => {
@@ -697,7 +702,8 @@ describeDb('review, approval, and publishing pipeline', () => {
         lastEditorUserId: 'u1',
         policies: { ...DEFAULT_SEPARATION_POLICIES, breakGlassEnabled: true },
         breakGlass: {
-          justification: 'The only approver is on leave and this question blocks a compliance deadline.',
+          justification:
+            'The only approver is on leave and this question blocks a compliance deadline.',
         },
       });
       expect(decision.permitted).toBe(true);
@@ -879,7 +885,12 @@ describeDb('review, approval, and publishing pipeline', () => {
   describe('the path refuses what it should', () => {
     it('refuses an approval by the author', async () => {
       const questionId = await freshDraft();
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
       await transitionQuestion({
         deps: deps(),
         questionId,
@@ -1016,7 +1027,12 @@ describeDb('review, approval, and publishing pipeline', () => {
         data: { maxSimilarityScore: 0.83, duplicateDisposition: null },
       });
 
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
 
       // §3.2 gates SUBMIT on all 13 too, so an undispositioned flag stops the
       // question before an approver ever sees it.
@@ -1058,7 +1074,12 @@ describeDb('review, approval, and publishing pipeline', () => {
         where: { id: questionId },
         data: { maxSimilarityScore: 0.95 },
       });
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
       await dispositionDuplicate({
         deps: deps(),
         questionId,
@@ -1129,7 +1150,12 @@ describeDb('review, approval, and publishing pipeline', () => {
 
     it('records the mandatory comment when changes are requested', async () => {
       const questionId = await freshDraft();
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
       await transitionQuestion({
         deps: deps(),
         questionId,
@@ -1167,7 +1193,12 @@ describeDb('review, approval, and publishing pipeline', () => {
   describe('versioning (§3.5)', () => {
     it('increments the version, records a field diff, and re-verifies the evidence', async () => {
       const questionId = await freshDraft();
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
 
       const before = await prisma.draftQuestion.findUniqueOrThrow({ where: { id: questionId } });
       const result = await editDraftQuestion({
@@ -1189,7 +1220,12 @@ describeDb('review, approval, and publishing pipeline', () => {
 
     it('refuses an edit that breaks the grounding', async () => {
       const questionId = await freshDraft();
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
 
       await expect(
         editDraftQuestion({
@@ -1213,7 +1249,12 @@ describeDb('review, approval, and publishing pipeline', () => {
 
     it('invalidates a duplicate disposition when the question text changes', async () => {
       const questionId = await freshDraft();
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
       await prisma.draftQuestion.update({
         where: { id: questionId },
         data: { maxSimilarityScore: 0.8, duplicateDisposition: 'DISTINCT' },
@@ -1224,7 +1265,9 @@ describeDb('review, approval, and publishing pipeline', () => {
         clock: systemClock,
         questionId,
         actor: actor(authorId),
-        edit: { questionText: 'Within what period must the duty manager be told of a severity one?' },
+        edit: {
+          questionText: 'Within what period must the duty manager be told of a severity one?',
+        },
       });
 
       // The reviewer judged the OLD text distinct; gate 10 must be re-satisfied.
@@ -1249,7 +1292,12 @@ describeDb('review, approval, and publishing pipeline', () => {
 
     it('writes no snapshot for a no-op edit', async () => {
       const questionId = await freshDraft();
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
       const row = await prisma.draftQuestion.findUniqueOrThrow({ where: { id: questionId } });
 
       const result = await editDraftQuestion({
@@ -1438,7 +1486,11 @@ describeDb('review, approval, and publishing pipeline', () => {
       const result = await publishApprovedQuestions({
         deps: deps(),
         bank,
-        target: { ...target, writesEnabled: false, dryRunReason: 'Writes are off in this environment.' },
+        target: {
+          ...target,
+          writesEnabled: false,
+          dryRunReason: 'Writes are off in this environment.',
+        },
         questionIds: [questionId],
         actor: actor(publisherId, { roles: ['PUBLISHER'] }),
         signal: new AbortController().signal,
@@ -1523,9 +1575,11 @@ describeDb('review, approval, and publishing pipeline', () => {
           actorUserId: publisherId,
           signal: new AbortController().signal,
         },
-        (await prisma.publishedQuestionReference.findFirstOrThrow({
-          where: { question: { id: questionId } },
-        })).questionId,
+        (
+          await prisma.publishedQuestionReference.findFirstOrThrow({
+            where: { question: { id: questionId } },
+          })
+        ).questionId,
       );
       expect(item).not.toBeNull();
       expect(item?.isActive).toBe(false);
@@ -1575,16 +1629,26 @@ describeDb('review, approval, and publishing pipeline', () => {
         data: { maxSimilarityScore: 0.9 },
       });
 
-      const advisory = await evaluateGatesForQuestion(deps(), questionId, {
-        userId: approverId,
-        roles: ['QUIZ_APPROVER'],
-        permissions: ALL_PERMISSIONS,
-      }, { separationApplies: true });
+      const advisory = await evaluateGatesForQuestion(
+        deps(),
+        questionId,
+        {
+          userId: approverId,
+          roles: ['QUIZ_APPROVER'],
+          permissions: ALL_PERMISSIONS,
+        },
+        { separationApplies: true },
+      );
       expect(advisory.evaluation.failures.map((f) => f.code)).toContain(
         'DUPLICATE_THRESHOLD_EXCEEDED',
       );
 
-      await transitionQuestion({ deps: deps(), questionId, to: 'AUTHOR_REVIEW', actor: actor(authorId) });
+      await transitionQuestion({
+        deps: deps(),
+        questionId,
+        to: 'AUTHOR_REVIEW',
+        actor: actor(authorId),
+      });
       try {
         await transitionQuestion({
           deps: deps(),

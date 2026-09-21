@@ -135,7 +135,12 @@ export const evaluateApprovalGates = (
   // --- 1. Source evidence missing or unverified
   if (subject.supportingEvidence.trim().length === 0) {
     results.push(
-      fail(1, 'EVIDENCE_MISSING', 'The question carries no supporting evidence span.', 'supportingEvidence'),
+      fail(
+        1,
+        'EVIDENCE_MISSING',
+        'The question carries no supporting evidence span.',
+        'supportingEvidence',
+      ),
     );
   } else if (subject.evidenceEndOffset <= subject.evidenceStartOffset) {
     results.push(
@@ -171,7 +176,12 @@ export const evaluateApprovalGates = (
   const blank = OPTION_KEYS.filter((key) => (subject.options[key] ?? '').trim().length === 0);
   results.push(
     blank.length > 0
-      ? fail(3, 'OPTION_MISSING', `Option(s) ${blank.join(', ')} are missing or blank.`, `option${blank[0]}`)
+      ? fail(
+          3,
+          'OPTION_MISSING',
+          `Option(s) ${blank.join(', ')} are missing or blank.`,
+          `option${blank[0]}`,
+        )
       : pass(3, 'OPTION_MISSING', 'All four options are present.'),
   );
 
@@ -380,7 +390,11 @@ export const evaluateApprovalGates = (
   if (policy.smeSignoffRequired) {
     results.push(
       policy.smeEndorsedVersion === subject.version
-        ? pass(14, 'SME_SIGNOFF_REQUIRED', `Endorsed by a subject matter expert for version ${subject.version}.`)
+        ? pass(
+            14,
+            'SME_SIGNOFF_REQUIRED',
+            `Endorsed by a subject matter expert for version ${subject.version}.`,
+          )
         : fail(
             14,
             'SME_SIGNOFF_REQUIRED',

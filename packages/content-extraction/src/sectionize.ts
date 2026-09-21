@@ -106,10 +106,7 @@ const groupBlocks = (blocks: readonly Block[]): PendingSection[] => {
 
   let current: PendingSection | null = null;
 
-  const open = (
-    heading: { level: number; text: string } | null,
-    block?: Block,
-  ): PendingSection => {
+  const open = (heading: { level: number; text: string } | null, block?: Block): PendingSection => {
     let headingPath: string | null = null;
     let parentPath: string | null = null;
 

@@ -20,7 +20,11 @@ import { createAuditWriter, type PrismaClient, type TransactionClient } from '@k
 import type { Clock } from '@knowzy/observability';
 import type { SelectionStrategy } from '@knowzy/shared-types';
 import type { ActorContext } from '../review/review-service.js';
-import { assertValidBandSet, DEFAULT_PROFICIENCY_BANDS, type ProficiencyBandDefinition } from './scoring.js';
+import {
+  assertValidBandSet,
+  DEFAULT_PROFICIENCY_BANDS,
+  type ProficiencyBandDefinition,
+} from './scoring.js';
 import { allocateEvenly, PoolInsufficientError, type SnapshotMember } from './selection.js';
 
 export class AssessmentConfigError extends Error {
@@ -64,9 +68,7 @@ export interface CreatedAssessment {
   readonly versionNumber: number;
 }
 
-export const createAssessment = async (
-  args: CreateAssessmentArgs,
-): Promise<CreatedAssessment> => {
+export const createAssessment = async (args: CreateAssessmentArgs): Promise<CreatedAssessment> => {
   if (!args.actor.permissions.includes('assessment.manage')) {
     throw new AssessmentConfigError('Creating an assessment requires "assessment.manage".');
   }
@@ -286,7 +288,10 @@ export const validateAssessmentVersion = async (
     });
   }
 
-  if (version.selectionStrategy === 'TOPIC_BALANCED' || version.selectionStrategy === 'TOPIC_DISTRIBUTION') {
+  if (
+    version.selectionStrategy === 'TOPIC_BALANCED' ||
+    version.selectionStrategy === 'TOPIC_DISTRIBUTION'
+  ) {
     const config = version.selectionConfig as { topicCounts?: Record<string, number> };
     const counts =
       version.selectionStrategy === 'TOPIC_DISTRIBUTION'

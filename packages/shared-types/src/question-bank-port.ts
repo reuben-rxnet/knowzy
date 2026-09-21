@@ -145,11 +145,7 @@ export interface QuestionBankAdapter {
   findByQuestionId(ctx: BankContext, questionId: string): Promise<BankItem | null>;
   queryItems(ctx: BankContext, query: BankQuery): Promise<BankPage<BankItem>>;
 
-  createItem(
-    ctx: BankContext,
-    item: BankItemWrite,
-    operationKey: string,
-  ): Promise<BankWriteResult>;
+  createItem(ctx: BankContext, item: BankItemWrite, operationKey: string): Promise<BankWriteResult>;
 
   /** `ifMatch` is required, not optional — that is the point (G8). */
   updateItem(

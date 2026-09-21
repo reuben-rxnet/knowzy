@@ -16,7 +16,11 @@
 import type { FastifyInstance } from 'fastify';
 import { createAuditWriter, subjectLookupRepository, type DbClient } from '@knowzy/database';
 import type { Clock, Logger } from '@knowzy/observability';
-import { EnvelopeInvalidError, verifyEnvelope, type AuthorizationEnvelope } from '../tools/envelope.js';
+import {
+  EnvelopeInvalidError,
+  verifyEnvelope,
+  type AuthorizationEnvelope,
+} from '../tools/envelope.js';
 import { resolveTool, toolsForPortal, type ToolPortal } from '../tools/registry.js';
 import type { ToolDeps } from '../tools/deps.js';
 
@@ -49,7 +53,9 @@ const intersectWithCurrentState = async (
   prisma: DbClient,
   envelope: AuthorizationEnvelope,
 ): Promise<{ permissions: Set<string>; roles: readonly string[] } | null> => {
-  const subject = await subjectLookupRepository(prisma).byIdentifier(envelope.subject.entraObjectId);
+  const subject = await subjectLookupRepository(prisma).byIdentifier(
+    envelope.subject.entraObjectId,
+  );
   if (!subject) return null;
 
   const fresh = new Set<string>(subject.permissions);
@@ -93,7 +99,8 @@ export const registerToolRoutes = (app: FastifyInstance, options: InvokeOptions)
       try {
         envelope = verifyEnvelope(body.envelope, { clock }).envelope;
       } catch (error) {
-        const detail = error instanceof EnvelopeInvalidError ? error.message : 'Malformed envelope.';
+        const detail =
+          error instanceof EnvelopeInvalidError ? error.message : 'Malformed envelope.';
         // An envelope rejection IS audited: audit-model.md exempts reads, not
         // security events, and PLATFORM.SECURITY.ENVELOPE_VERIFICATION_FAILED
         // exists for exactly this.
@@ -213,5 +220,4 @@ const readErrorCode = (error: unknown): string => {
 
 // Re-exported so the API's client and the contract test share one spelling of
 // the route rather than two string literals that can drift.
-export const TOOL_INVOKE_PATH = (toolName: string): string =>
-  `/internal/tools/${toolName}/invoke`;
+export const TOOL_INVOKE_PATH = (toolName: string): string => `/internal/tools/${toolName}/invoke`;
