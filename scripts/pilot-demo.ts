@@ -128,7 +128,7 @@ const main = async (): Promise<void> => {
     SUBJECTS.author,
     `/api/v1/authoring/sources/${source.sourceId}/containers`,
   );
-  const documentIds: string[] = [];
+  const candidates: { id: string; name: string; sections: number }[] = [];
   for (const container of containers.containers) {
     const items = await call<{
       items: {
@@ -145,11 +145,34 @@ const main = async (): Promise<void> => {
     );
     for (const item of items.items) {
       if (item.documentId === null || !item.isSelectable) continue;
-      documentIds.push(item.documentId);
-      say(`${String(item.sectionCount ?? 0).padStart(2)} sections`, item.name);
+      candidates.push({
+        id: item.documentId,
+        name: item.name,
+        sections: item.sectionCount ?? 0,
+      });
     }
   }
-  if (documentIds.length === 0) throw new Error('No selectable documents after synchronization.');
+  if (candidates.length === 0) throw new Error('No selectable documents after synchronization.');
+  say(`${candidates.length} selectable document(s)`);
+
+  // Generation is capped at ten documents per job — `generation.maxDocumentsPerJob`,
+  // which exists so a batch stays reviewable. A real corpus is larger than
+  // that, so a selection is REQUIRED rather than optional, and passing
+  // everything is refused with GENERATION_SELECTION_REQUIRED.
+  //
+  // Chosen by section count, descending: the documents with the most
+  // assessable structure are the ones most likely to state testable rules.
+  // Ties break on name so the selection is deterministic across runs.
+  const MAX_DOCUMENTS_PER_JOB = 10;
+  const selected = [...candidates]
+    .sort((a, b) => b.sections - a.sections || (a.name < b.name ? -1 : 1))
+    .slice(0, MAX_DOCUMENTS_PER_JOB);
+  const documentIds = selected.map((entry) => entry.id);
+
+  say(`selected the ${selected.length} richest for this job (cap is ${MAX_DOCUMENTS_PER_JOB}):`);
+  for (const entry of selected) {
+    say(`  ${String(entry.sections).padStart(3)} sections`, entry.name);
+  }
 
   // ── 5. Preflight and the recorded decision ───────────────────────────────
   step('5. Preflight, then record the decision');
@@ -283,20 +306,25 @@ const main = async (): Promise<void> => {
 
   // ── 10. Publish ──────────────────────────────────────────────────────────
   step('10. Publish to the Question Bank');
-  const published = freshlyGenerated
-    ? await call<{
-        publishedCount: number;
-        failedCount: number;
-        items: { outcome: string; bankItemId: string | null }[];
-      }>(SUBJECTS.publisher, '/api/v1/authoring/question-bank/publish', {
-        method: 'POST',
-        body: { questionIds },
-      })
-    : { publishedCount: 0, failedCount: 0, items: [] };
+  // Always attempted, whether or not this run generated anything: a question
+  // approved by an earlier run still needs publishing, and the endpoint
+  // already refuses anything that is not APPROVED. Guarding this on freshness
+  // meant a re-run left approved questions unpublished and the assessment
+  // with an empty pool.
+  const published = await call<{
+    publishedCount: number;
+    failedCount: number;
+    items: { outcome: string; bankItemId: string | null; detail?: string }[];
+  }>(SUBJECTS.publisher, '/api/v1/authoring/question-bank/publish', {
+    method: 'POST',
+    body: { questionIds },
+  });
   say(`published=${published.publishedCount} failed=${published.failedCount}`);
-  for (const item of published.items) say(' ', item.outcome, item.bankItemId ?? '');
-  if (!freshlyGenerated) {
-    say('skipped: nothing newly approved to publish');
+  for (const item of published.items) {
+    say(' ', item.outcome, item.bankItemId ?? '', item.detail ?? '');
+  }
+  if (published.publishedCount === 0 && published.failedCount === 0) {
+    say('nothing to publish — every question was already in the bank');
   } else if (published.publishedCount === 0) {
     say(
       'NOTE: nothing was published. The mock bank persists OUTSIDE the database, so after a ' +
@@ -417,10 +445,13 @@ const main = async (): Promise<void> => {
     const keys = Object.keys(options);
     const correct = answerKey.get(current.question?.questionText ?? '') ?? keys[0];
 
-    // Exactly one wrong answer, on the last question.
+    // Exactly one wrong answer, on the last question — but only when the pool
+    // is large enough for that to leave a pass. On a three-question pool one
+    // wrong answer is 66.7%, below the 70% mark, so the demonstration would
+    // show a failure caused by the harness rather than by the content.
     const isLast = current.currentIndex === current.totalQuestions - 1;
     let choice = correct;
-    if (isLast && deliberatelyWrong === 0) {
+    if (isLast && deliberatelyWrong === 0 && current.totalQuestions >= 4) {
       choice = keys.find((key) => key !== correct) ?? correct;
       deliberatelyWrong += 1;
     }

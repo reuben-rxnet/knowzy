@@ -3,22 +3,15 @@
 **This file is the authoritative pilot-corpus register.** It is updated in the same commit as every
 real pilot-corpus change.
 
-> **Real-corpus status: `BLOCKED_BY_LOCAL_SYNC_CONFIGURATION`.** Re-verified 2026-09-21, after the
-> business confirmed the corpus exists.
+> **Real-corpus status: `EXECUTED`.** 2026-09-22.
 >
-> The documents **do exist**, and they are **not where the approved pilot decision said they would
-> be**: they are in the owner's **personal OneDrive** at
-> `Documents / Reuben / Projects / Knowzy / SOPs / SOPs`, not in the
-> `CentralRxOperationsSupport` site's `Shared Documents` library. Neither location is synchronized
-> to this workstation, so no local root exists to read. §1.2 records exactly what was checked and
-> §1.4 records the two consequences, one of which would silently break the provenance of every
-> published question.
+> The approved pilot corpus is synchronized locally and has been processed end to end: **28 real
+> SOP documents**, **122,106 characters extracted**, **234 sections**, questions generated, reviewed,
+> approved by a second identity, published to the Question Bank, an assessment pinned, and a learner
+> attempt scored. No fixture content took part; §4 is entirely real-corpus measurement.
 >
-> A **complete end-to-end demonstration has nevertheless been executed** — through the real
-> FILE_REPOSITORY adapter, over real PDF, DOCX, PPTX, XLSX, Markdown and text documents, from
-> synchronization to a scored learner attempt. It runs against the committed **fixture mirror**, and
-> every figure in §4 is labelled as such. Nothing here claims a SharePoint or OneDrive web URL was
-> read directly, because none was.
+> Nothing here read a SharePoint or OneDrive **web URL**. The documents were read from the local
+> synchronized mirror; the SharePoint URL appears only as reconstructed provenance on each record.
 
 ---
 
@@ -26,95 +19,86 @@ real pilot-corpus change.
 
 ### 1.1 The approved source
 
-| Field                              | Value                                                                                                                                  |
-| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **Site**                           | Central Rx Operations Support                                                                                                          |
-| **Library**                        | Shared Documents                                                                                                                       |
-| **Folder**                         | `Reuben / Projects / Knowzy`                                                                                                           |
-| **Initial corpus subfolder**       | `SOPs`                                                                                                                                 |
-| **Canonical SharePoint URL**       | `https://luxotticagroup.sharepoint.com/sites/CentralRxOperationsSupport/Shared%20Documents/Reuben/Projects/Knowzy`                     |
-| **Synchronization method**         | OneDrive synchronization client (_Add shortcut to OneDrive_ or _Sync_). No Microsoft Graph call, no app registration, no admin consent |
-| **Named synchronization identity** | The current corporate OneDrive account. **Transitional pilot decision** — §2.4                                                         |
-| **Local synchronized root**        | **Not configured.** See §1.2 and §6                                                                                                    |
-| **Data classification**            | Internal. Not yet confirmed per document — the `Classification` column is captured per document where a sidecar supplies it            |
-| **Business owner**                 | Not yet assigned                                                                                                                       |
-| **Technical owner**                | Not yet assigned                                                                                                                       |
-| **Pilot status**                   | `BLOCKED_BY_LOCAL_SYNC_CONFIGURATION` for the real corpus; code and fixture-backed validation complete                                 |
-| **Last validation date**           | 2026-09-21                                                                                                                             |
+| Field                              | Value                                                                                                                                                                       |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Site**                           | Central Rx Operations Support                                                                                                                                               |
+| **Library**                        | Shared Documents                                                                                                                                                            |
+| **Folder**                         | `Reuben / Projects / Knowzy`                                                                                                                                                |
+| **Corpus folder**                  | `SOPs` (documents sit one level deeper, at `SOPs/SOPs/`)                                                                                                                    |
+| **Canonical SharePoint URL**       | `https://{tenant}.sharepoint.com/sites/CentralRxOperationsSupport/Shared%20Documents/Reuben/Projects/Knowzy` — held in the source row, not in source code (content rule C2) |
+| **Synchronization method**         | OneDrive shortcut, **pinned** (_Always keep on this device_). No Graph call, no app registration, no admin consent                                                          |
+| **Named synchronization identity** | The project owner's corporate OneDrive account. **Transitional pilot decision** — §2.4                                                                                      |
+| **Local synchronized root**        | Configured, and **machine-specific** — §1.3                                                                                                                                 |
+| **Data classification**            | Internal. Operational support SOPs                                                                                                                                          |
+| **Business owner**                 | Not yet assigned                                                                                                                                                            |
+| **Technical owner**                | Not yet assigned                                                                                                                                                            |
+| **Pilot status**                   | **`EXECUTED`** on the real corpus                                                                                                                                           |
+| **Last validation date**           | 2026-09-22                                                                                                                                                                  |
 
-The **sharing URL** supplied by the business is deliberately **not recorded here and never persisted**.
-It carries a sharing token (`?d=…&csf=1&web=1&e=…`) which is credential-shaped and expires, so storing
-it would both leak a secret into every document record and rot as provenance.
-`normalizeWebUrlBase()` refuses a URL with a query string or a `/:f:/` sharing segment at
-configuration time.
+The **sharing URL** is deliberately not recorded and never persisted: it carries a sharing token
+(`?d=…&csf=1&e=…`) which is credential-shaped and expires, so storing it would leak a secret into
+every document record and rot as provenance. `normalizeWebUrlBase()` refuses one at configuration
+time.
 
-### 1.2 What was checked on this workstation, and what was found
+### 1.2 Local availability, verified
 
-Checked twice: first against the authoritative OneDrive sync-engine registry
-(`HKCU:\SOFTWARE\SyncEngines\Providers\OneDrive`), then again after the business confirmed the
-corpus existed. No unrelated user directory was scanned.
+| #   | Check                                       | Result                                                                                                                                                    |
+| --- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Approved mirror root exists and is readable | **Yes**                                                                                                                                                   |
+| 2   | `SOPs` corpus folder exists                 | **Yes** — documents are nested one level deeper, at `SOPs/SOPs/`                                                                                          |
+| 3   | File count                                  | **29** files, 20.2 MB                                                                                                                                     |
+| 4   | Placeholders                                | **None.** Zero zero-length files, and both folders carry the OneDrive _pinned_ attribute                                                                  |
+| 5   | Local availability proven by reading        | **Yes** — Test Connection read a byte from a 10-document sample; every one had local content                                                              |
+| 6   | Supported formats present                   | **Yes** — 27 DOCX, 1 PDF, 1 CSV                                                                                                                           |
+| 7   | Unsupported formats                         | **1** — the CSV has no registered extractor and was skipped with that reason                                                                              |
+| 8   | Canonical URL maps to relative paths        | **Yes** — every emitted `sourceUrl` is an `https://` SharePoint URL, asserted by a build-failing test that no provenance value matches a local-path shape |
+| 9   | Container resolution                        | `SOPs` resolved as the one container, matching the configured path row                                                                                    |
 
-| #   | Check                                                                                                                                                             | Result                                                                                                                                                                                     |
-| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | OneDrive commercial root exists and is synchronized                                                                                                               | **Yes** — and it is the _personal_ OneDrive namespace (`.../personal/{user}/Documents/`)                                                                                                   |
-| 2   | A sync mount exists for the `CentralRxOperationsSupport` library                                                                                                  | **Yes** — one, mounted as a shortcut named **`Knowledge Base`**                                                                                                                            |
-| 3   | That mount contains `Reuben / Projects / Knowzy`                                                                                                                  | **No.** It is a _different_ subfolder of the same library, holding `AEL Support Documents`, `Aichi Lab`, `OFS & CAFE` and similar                                                          |
-| 4   | `Reuben`, `Projects`, `Knowzy` or `SOPs` anywhere under the OneDrive root                                                                                         | **No match** at depth 4. Two near-misses, both rejected: `Desktop/home docs/Reuben` is unrelated personal content, and `Documents IT Process & Services…/Projects` belongs to another site |
-| 5   | The exact breadcrumb path from the business's screenshot, tested directly — `…/OneDrive - {Org}/Reuben`, `…/Reuben/Projects`, `…/Knowzy`, `…/SOPs`, `…/SOPs/SOPs` | **All five absent**                                                                                                                                                                        |
-| 6   | Anything at all modified under the OneDrive root in the previous six hours                                                                                        | Only unrelated folders. **Nothing resembling the corpus arrived**                                                                                                                          |
-| 7   | Files locally available, not placeholders                                                                                                                         | **Not reached** — there is no folder to inspect                                                                                                                                            |
-| 8   | Supported formats present                                                                                                                                         | **Not reached**                                                                                                                                                                            |
-| 9   | Canonical URL maps to local relative paths                                                                                                                        | **Verified against the fixture mirror**, not the real corpus                                                                                                                               |
-
-**Conclusion.** The corpus is visible in the browser and absent from the filesystem. The OneDrive
-client has not been asked to make that subtree available on this machine — the folder is cloud-only,
-or excluded from selective sync. Per the instruction not to choose a root silently, none was
-selected.
+**Two earlier diagnoses were wrong, and both are recorded so the reasoning is auditable.** The corpus
+was first reported absent because the OneDrive web breadcrumb
+(`Documents / Reuben / Projects / Knowzy / SOPs / SOPs`) showed a _shortcut_, so every path derived
+from it was missing on disk. A filename search then found the documents under a **different** synced
+library (`RepondeurAI-Sharepoint`), which led to a second wrong conclusion about which site owned
+them. The approved root above settles it. The lesson, recorded: **search for a distinctive filename,
+not for a folder name a breadcrumb implies.**
 
 ### 1.3 Operational configuration — machine-specific, not provenance
 
-> **Restricted section.** Everything here is **machine-specific operational configuration**. It is
-> never persisted as authoritative source provenance, never written to a document record, an audit
-> detail, a citation, a published question or a Question Bank item, and never returned in a browser
-> response.
+> **Restricted section.** Machine-specific operational configuration. Never persisted as authoritative
+> provenance, never written to a document record, an audit detail, a citation, a published question or
+> a Question Bank item, and never returned in a browser response.
 
-| Field                                    | Value                                                                                |
-| ---------------------------------------- | ------------------------------------------------------------------------------------ |
-| `PILOT_MIRROR_ROOT` (real corpus)        | **Not set.** Supply in a local `.env`; never committed                               |
-| `PILOT_MIRROR_ROOT` (fixture, committed) | `./fixtures/pilot-mirror`                                                            |
-| Example real value                       | `C:/Users/<you>/OneDrive - <Org>/<Shortcut>/Projects/Knowzy` — **illustrative only** |
+| Field                               | Value                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| Approved mirror root (host)         | `…/OneDrive - {Org}/Shortcuts/Central Rx Operations Support - Knowzy`     |
+| In-container path                   | `/corpus` — the host root is bind-mounted **read-only**                   |
+| `PILOT_MIRROR_ROOT`                 | `/corpus` (compose default; always valid because the mount always exists) |
+| `PILOT_CORPUS_HOST_PATH`            | The host root above. Supplied from the environment, **never committed**   |
+| Fallback with no host configuration | `./fixtures/pilot-mirror`, the committed fixture                          |
+
+The mount is **read-only by design**, not by convenience: a knowledge source is read-only to the
+platform by contract (`writeCapable: false`), and mounting a customer's synchronized folder writable
+would make that a promise rather than a property.
 
 A build-failing test asserts that **no emitted `sourceUrl` or `webUrl` matches a local-path shape** —
 drive letter, UNC prefix, `file://`, POSIX home or mount path, or a OneDrive folder name — across
-`listItems`, `getDocument`, `searchDocuments` and `synchronize`. The detector itself is mutation-tested,
-so the assertion cannot quietly stop matching.
+`listItems`, `getDocument`, `searchDocuments` and `synchronize`. The detector itself is
+mutation-tested.
 
----
+### 1.4 Provenance, settled
 
-### 1.4 Two corrections the business's screenshot forced, one of them consequential
+The documents are in the **Central Rx Operations Support** site library, under
+`Shared Documents / Reuben / Projects / Knowzy / SOPs / SOPs`, reached locally through a pinned
+OneDrive shortcut. `provenance` is therefore `SHAREPOINT_MIRROR` and `webUrlBase` is that folder's
+canonical URL.
 
-The screenshot of the corpus settles a question the approved pilot decision had answered
-differently, and both consequences matter more than they look.
-
-**1. The documents are in personal OneDrive, not the site library.** The breadcrumb reads
-`Documents / Reuben / Projects / Knowzy / SOPs / SOPs` under the owner's own OneDrive, whose URL
-namespace is `.../personal/{user}/Documents/`. The approved canonical URL recorded in §1.1 points at
-`/sites/CentralRxOperationsSupport/Shared Documents/Reuben/Projects/Knowzy`.
-
-**Those are different locations, and `webUrlBase` must match the real one.** If the site URL were
-configured while the bytes came from personal OneDrive, every document record and every published
-Question Bank item would carry a provenance link that resolves to nothing — which is precisely the
-failure `web-url.ts` exists to prevent, arriving by a different route. The canonical URL must be
-confirmed against the actual location before a real run, and §1.1 is flagged accordingly.
-
-**2. `provenance` should therefore be `ONEDRIVE_MIRROR`, not `SHAREPOINT_MIRROR`.** The adapter
-supports both and treats them identically for reading; the value exists so a screen can state
-truthfully where the content came from.
-
-One thing to check while unblocking: the breadcrumb ends `SOPs / SOPs`, and the **inner** `SOPs`
-carries a globe badge — the marker for an _added shortcut_ to another location. A shortcut's target
-may sync differently from an ordinary folder, so confirm which of the two `SOPs` folders actually
-holds the documents, and point the root at the one that does.
+Why this needed settling, and why it matters more than it looks: the same 29 filenames also appear
+under a second synced library (`RepondeurAI-Sharepoint`), and the OneDrive web breadcrumb showed the
+corpus under _personal_ `Documents`. Three plausible owners, one correct answer. **Configuring the
+wrong one would not have failed loudly** — synchronization and generation would both have succeeded,
+and every published question would simply have carried a provenance link that resolves to nothing.
+That is the failure `web-url.ts` exists to prevent, arriving by a route nobody had considered, and it
+is why the canonical URL is a required field rather than an optional convenience.
 
 ## 2. Corpus Governance
 
@@ -226,151 +210,222 @@ published questions carry a local path and do not migrate at all.
 
 ## 3. Document Register
 
-> **Populated from files that actually exist in the configured root**, by
-> `npx tsx scripts/corpus-report.ts <root>`. Never written by hand and never invented.
-> **Relative paths only.**
+> Populated from files that actually exist in the approved synchronized root, by
+> `npx tsx scripts/corpus-report.ts <root>` and the platform's own synchronization. Never written by
+> hand and never invented. **Relative paths only.**
 >
-> **Source of these rows: the FIXTURE MIRROR (`fixtures/pilot-mirror`), not the real pilot corpus.**
-> The real corpus is `BLOCKED_BY_LOCAL_SYNC_CONFIGURATION` (§1.2). Every row below describes a
-> repository-controlled fixture document.
+> **Source: the REAL approved pilot corpus.** 28 of 29 files processed; the 29th is listed in §3.1.
 
-| Document ID    | Relative Path                            | Document Name                     | Format | Domain           | Topic            | Knowledge Status                   | Content Hash   | Source Version | Extraction Status | Section Count | Generation Status | Draft Count | Approved Count | Published Count | Last Synchronized | Last Generated   | Notes                                                                         |
-| -------------- | ---------------------------------------- | --------------------------------- | ------ | ---------------- | ---------------- | ---------------------------------- | -------------- | -------------- | ----------------: | ------------- | ----------------: | ----------: | -------------: | --------------- | ----------------- | ---------------- | ----------------------------------------------------------------------------- |
-| `53b5c1047c05` | `Policies/restricted-board-pay.md`       | restricted-board-pay.md           | MD     | Not yet assigned | Not yet assigned | EXCLUDED (declared not accessible) | `7f8952edf27f` | 2.0            |         EXTRACTED | 1             |  Not yet executed |           0 |              0 | 0               | 2025-06-01        | Not yet executed | Sidecar declares DENIED; excluded from listing, search and extraction         |
-| `82a57964bbc8` | `SOPs/acceptable-use.txt`                | acceptable-use.txt                | TXT    | Not yet assigned | Not yet assigned | INCLUDED                           | `8adcea30f1a0` | None declared  |         EXTRACTED | 1             |  Not yet executed |           0 |              0 | 0               | 2026-09-21        | Not yet executed | 1 assessable section                                                          |
-| `90af6dac00b5` | `SOPs/certificate-renewal-procedure.pdf` | certificate-renewal-procedure.pdf | PDF    | Not yet assigned | Not yet assigned | INCLUDED                           | `427c65fad466` | None declared  |         EXTRACTED | 2             |  Not yet executed |           0 |              0 | 0               | 2026-09-21        | Not yet executed | 2 sections, page references preserved; 0 assessable (fixture pages are short) |
-| `71e623b587da` | `SOPs/certificate-renewal.docx`          | certificate-renewal.docx          | DOCX   | Not yet assigned | Not yet assigned | INCLUDED                           | `0cdf39fa48cb` | 4.2            |         EXTRACTED | 2             |  Not yet executed |           0 |              0 | 0               | 2025-08-20        | Not yet executed | Real heading structure; sidecar supplies version and columns; 1 assessable    |
-| `04c390fb996d` | `SOPs/escalation-matrix.md`              | escalation-matrix.md              | MD     | Not yet assigned | Not yet assigned | INCLUDED                           | `8c91312212a3` | None declared  |         EXTRACTED | 4             |  Not yet executed |           0 |              0 | 0               | 2026-09-21        | Not yet executed | 2 assessable sections                                                         |
-| `07944374bcbc` | `SOPs/knowledge-transfer.pptx`           | knowledge-transfer.pptx           | PPTX   | Not yet assigned | Not yet assigned | INCLUDED                           | `051b959b9d29` | None declared  |         EXTRACTED | 2             |  Not yet executed |           0 |              0 | 0               | 2026-09-21        | Not yet executed | Presentation order verified; 0 assessable (slide text is fragmentary)         |
-| `e6687d6efd0d` | `SOPs/renewal-windows.xlsx`              | renewal-windows.xlsx              | XLSX   | Not yet assigned | Not yet assigned | INCLUDED                           | `6e0e0e4ceea2` | None declared  |         EXTRACTED | 1             |  Not yet executed |           0 |              0 | 0               | 2026-09-21        | Not yet executed | Sheet name carried; formula result read, not the formula; 0 assessable        |
+| Document ID    | Relative Path                                                                            | Document Name                                                                | Format | Domain             | Topic                  | Knowledge Status | Content Hash   | Source Version | Extraction Status | Sections | Assessable | Generation Status       | Last Synchronized | Notes        |
+| -------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | ------ | ------------------ | ---------------------- | ---------------- | -------------- | -------------- | ----------------- | -------: | ---------: | ----------------------- | ----------------- | ------------ |
+| `569b27f8f5ff` | `SOPs/SOPs/Archive and Purge folders Doc.docx`                                           | Archive and Purge folders Doc.docx                                           | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `1b5810bc48f4` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 2,041 chars  |
+| `a9ea72744ceb` | `SOPs/SOPs/azure RDR action steps.docx`                                                  | azure RDR action steps.docx                                                  | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `28bb920fc020` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 1,187 chars  |
+| `718fafaa42eb` | `SOPs/SOPs/Daily Operational Check – AICHI Azure Central Queue Monitoring.docx`          | Daily Operational Check – AICHI Azure Central Queue Monitoring.docx          | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `8f3215957b30` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 1,022 chars  |
+| `a6b7333d4647` | `SOPs/SOPs/ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx`                       | ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx                       | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `c5ddf5908283` | None declared  | EXTRACTED         |       10 |          0 | Selected for generation | 2026-09-21        | 3,788 chars  |
+| `e4a6e6dd0647` | `SOPs/SOPs/EMEA SQL Server Patching – Implementation Plan.docx`                          | EMEA SQL Server Patching – Implementation Plan.docx                          | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `85df98190447` | None declared  | EXTRACTED         |        2 |          2 | Selected for generation | 2026-09-21        | 1,892 chars  |
+| `b36679369858` | `SOPs/SOPs/EOLP RxNet Printing issue SOP.docx`                                           | EOLP RxNet Printing issue SOP.docx                                           | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `0c7d3af790fb` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 1,508 chars  |
+| `ffbed67a7967` | `SOPs/SOPs/EOLP Support SOP.pdf`                                                         | EOLP Support SOP.pdf                                                         | PDF    | Support Operations | Escalation and Billing | INCLUDED         | `fa25a9a22f24` | None declared  | EXTRACTED         |       35 |          0 | Selected for generation | 2026-09-21        | 10,488 chars |
+| `bca1daa6b468` | `SOPs/SOPs/EPROM Frame Sync SOP.docx`                                                    | EPROM Frame Sync SOP.docx                                                    | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `c9b131a755b8` | None declared  | EXTRACTED         |        7 |          0 | Selected for generation | 2026-09-21        | 1,670 chars  |
+| `79e54d2f0958` | `SOPs/SOPs/Grafana User Access Guide.docx`                                               | Grafana User Access Guide.docx                                               | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `eec436daaf37` | None declared  | EXTRACTED         |        3 |          1 | Selected for generation | 2026-09-21        | 1,018 chars  |
+| `ae7ab4970494` | `SOPs/SOPs/Handling TRTF Job Failures SAP and ESO Data Issues in EOLP.docx`              | Handling TRTF Job Failures SAP and ESO Data Issues in EOLP.docx              | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `9de37065ff65` | None declared  | EXTRACTED         |        2 |          2 | Selected for generation | 2026-09-21        | 2,011 chars  |
+| `cb6107532b1e` | `SOPs/SOPs/HOW TO RESEND F6 (F3 Before F6).docx`                                         | HOW TO RESEND F6 (F3 Before F6).docx                                         | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `86d0368606e6` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 1,266 chars  |
+| `e3e574938d52` | `SOPs/SOPs/Orders stuck in AWT Calculation - Process Selection Labs.docx`                | Orders stuck in AWT Calculation - Process Selection Labs.docx                | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `49ea39597878` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 1,170 chars  |
+| `d14c448a5c48` | `SOPs/SOPs/Rxnet Eolp Database Connection Pool Exhaustion Sop.docx`                      | Rxnet Eolp Database Connection Pool Exhaustion Sop.docx                      | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `16ad25b4679a` | None declared  | EXTRACTED         |       49 |          0 | Selected for generation | 2026-09-21        | 11,584 chars |
+| `7324df521b22` | `SOPs/SOPs/RxNet_L2_SSL_Certificate_Renewal_SOP.docx`                                    | RxNet_L2_SSL_Certificate_Renewal_SOP.docx                                    | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `b0478d4e9632` | None declared  | EXTRACTED         |       29 |          0 | Selected for generation | 2026-09-21        | 18,824 chars |
+| `95048fb3b3cd` | `SOPs/SOPs/SOP – Azure DevOps Query for Total Support Requests Handled by Dev Team.docx` | SOP – Azure DevOps Query for Total Support Requests Handled by Dev Team.docx | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `bc1f3668e758` | None declared  | EXTRACTED         |        2 |          1 | Selected for generation | 2026-09-21        | 1,512 chars  |
+| `c9febd5c4b54` | `SOPs/SOPs/SOP - Best Practices for Production Log Analysis Using Notepad.docx`          | SOP - Best Practices for Production Log Analysis Using Notepad.docx          | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `6c30f4e5975a` | None declared  | EXTRACTED         |        2 |          2 | Selected for generation | 2026-09-21        | 1,910 chars  |
+| `b8d122923427` | `SOPs/SOPs/SOP_Check_Email_Recipients_Alerts.docx`                                       | SOP_Check_Email_Recipients_Alerts.docx                                       | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `7e28d759491c` | None declared  | EXTRACTED         |        9 |          0 | Selected for generation | 2026-09-21        | 2,461 chars  |
+| `e9230fc5c19c` | `SOPs/SOPs/SOP for Handling TRTF Job Failure Alerts.docx`                                | SOP for Handling TRTF Job Failure Alerts.docx                                | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `a1981c95e382` | None declared  | EXTRACTED         |        5 |          0 | Selected for generation | 2026-09-21        | 6,242 chars  |
+| `f88e047861f0` | `SOPs/SOPs/SOP - High Memory Usage.docx`                                                 | SOP - High Memory Usage.docx                                                 | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `fb6a4a1806c3` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 2,456 chars  |
+| `dc7bd7b97400` | `SOPs/SOPs/SOP - Order Cancellation RxNet.docx`                                          | SOP - Order Cancellation RxNet.docx                                          | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `d344fe6bd5e4` | None declared  | EXTRACTED         |       13 |          0 | Selected for generation | 2026-09-21        | 5,440 chars  |
+| `b991006a4beb` | `SOPs/SOPs/SOP - Printer Management.docx`                                                | SOP - Printer Management.docx                                                | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `1472b06c3fc0` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 3,053 chars  |
+| `3be01f1cd30a` | `SOPs/SOPs/SOP_RELEASE_FLAG.docx`                                                        | SOP_RELEASE_FLAG.docx                                                        | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `0c8307b76094` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 895 chars    |
+| `867918b9ef75` | `SOPs/SOPs/SOP Retriggering F8 Interface - SAP Core Model Labs.docx`                     | SOP Retriggering F8 Interface - SAP Core Model Labs.docx                     | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `17cb08b37031` | None declared  | EXTRACTED         |        2 |          2 | Selected for generation | 2026-09-21        | 1,997 chars  |
+| `8407004b3861` | `SOPs/SOPs/SOP to Identify Replication Issues Between RxNet and Reporting Server.docx`   | SOP to Identify Replication Issues Between RxNet and Reporting Server.docx   | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `d52c95d4b543` | None declared  | EXTRACTED         |        2 |          1 | Selected for generation | 2026-09-21        | 1,575 chars  |
+| `15b480ef8879` | `SOPs/SOPs/Tickets SOP's.docx`                                                           | Tickets SOP's.docx                                                           | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `f94a8d2eb265` | None declared  | EXTRACTED         |       18 |          0 | Selected for generation | 2026-09-21        | 25,647 chars |
+| `c313794dbfa6` | `SOPs/SOPs/TRACELAB_Support_SOP.docx`                                                    | TRACELAB_Support_SOP.docx                                                    | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `bed789e68415` | None declared  | EXTRACTED         |       32 |          0 | Selected for generation | 2026-09-21        | 6,487 chars  |
+| `ec3aa81b831d` | `SOPs/SOPs/TRTF - How to Verify whether the Order reprocessed with HeadCapeAngle.docx`   | TRTF - How to Verify whether the Order reprocessed with HeadCapeAngle.docx   | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `ae1fd76c8c67` | None declared  | EXTRACTED         |        2 |          1 | Selected for generation | 2026-09-21        | 1,546 chars  |
+| `373b70f0c6dc` | `SOPs/SOPs/WCF - Retriggering jobs stuck in AWTCALCULATION.docx`                         | WCF - Retriggering jobs stuck in AWTCALCULATION.docx                         | DOCX   | Support Operations | Escalation and Billing | INCLUDED         | `824c04693ed8` | None declared  | EXTRACTED         |        1 |          1 | Selected for generation | 2026-09-21        | 1,416 chars  |
 
-### 3.1 Excluded, with the reason
+### 3.1 Not processed, with the reason
 
-| Relative Path                                | Reason                                     |
-| -------------------------------------------- | ------------------------------------------ |
-| `SOPs/desktop.ini`                           | ARTIFACT — OneDrive client file            |
-| `SOPs/~$certificate-renewal.docx`            | ARTIFACT — Office lock file                |
-| `SOPs/notes.rtf`                             | UNSUPPORTED_TYPE — no registered extractor |
-| `SOPs/certificate-renewal.docx.meta.json`    | SIDECAR — metadata input, not a document   |
-| `Policies/restricted-board-pay.md.meta.json` | SIDECAR — metadata input, not a document   |
+| Relative Path              | Reason                                                                                                                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SOPs/SOPs/*.csv` (1 file) | **UNSUPPORTED_TYPE** — no registered extractor. Reported at configuration time by Test Connection check 5, before synchronization, rather than discovered afterwards |
+| `desktop.ini`              | ARTIFACT — written by the OneDrive client. Readable text, so without an explicit exclusion it would extract _successfully_ into a nonsense section                   |
 
----
+**Every other file was processed.** No file was unavailable, so no file is marked unavailable.
 
 ## 4. Pilot Results
 
-**Executed end to end on 2026-09-21, against the FIXTURE MIRROR through the real FILE_REPOSITORY
-adapter.** Every figure below was read back from the API after the step ran. Nothing is estimated,
-and nothing that did not run is reported as zero.
+**Executed 2026-09-22 against the REAL approved SOP corpus**, through the real `FILE_REPOSITORY`
+adapter. Every figure was read back from the API or the database after the step ran. Nothing is
+estimated and no fixture content took part.
 
 ### 4.1 The run
 
-| Step                      | Result                                                                                                                                                                                         |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Test Connection**       | `ok: true`, **11 checks**: 7 PASS, 4 SKIP, 0 FAIL. SKIPs are the four capabilities this source genuinely lacks — credential, live search, delegated access — reported as SKIP rather than PASS |
-| **Synchronize** (FULL)    | `SUCCEEDED` · scanned **6** · added **6** · modified 0 · unchanged 0 · deleted 0 · failed **0** · extracted **2,432** characters                                                               |
-| **Preflight**             | Recommendation `GENERATE_NEW` (`NEW_KNOWLEDGE`). `CROSS_DOMAIN_DUPLICATES` 0 matches; `POOL_CONFLICTS` NOT_APPLICABLE                                                                          |
-| **Generate**              | **4 accepted of 6 requested**, across 4 sections. Rejections **0**. Insufficient-evidence sections **0**. Tokens 811 in / 1,072 out                                                            |
-| **Evidence verification** | **4 of 4 verified**, 0 rejected. Every span matched text extracted from a DOCX, a TXT or a Markdown file                                                                                       |
-| **Drafts**                | 4 created, all claimed and submitted by the author identity                                                                                                                                    |
-| **Separation of duties**  | The author's attempt to approve their own draft was **refused with HTTP 403** before any approval was recorded. Gate 13, demonstrated rather than asserted                                     |
-| **Approval**              | **4 approved** by a different identity (`approver@local.invalid`)                                                                                                                              |
-| **Publication**           | **4 published**, 0 failed → bank items `mock-item-000001`…`000004`, version 1                                                                                                                  |
-| **Assessment**            | Created, validated (pool **4**, valid, no problems), submitted, approved, published with a pinned eligibility snapshot                                                                         |
-| **Learner attempt**       | 1 attempt, 4 of 4 answered, **3 correct**, **75%**, **PASSED**, band **PROFICIENT**, 67 seconds                                                                                                |
-| **Answer-key protection** | The served question payload carried **no** correct-option field at any point                                                                                                                   |
+| Step                      | Result                                                                                                                                                                                                           |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Test Connection**       | `ok: true` — **11 checks**: 8 PASS, 3 SKIP, 0 FAIL. Local availability proven by reading a byte from a 10-document sample                                                                                        |
+| **Synchronize** (FULL)    | `SUCCEEDED` · scanned **28** · added **28** · failed **0** · **122,106 characters** extracted                                                                                                                    |
+| **Extraction**            | **28 of 28 succeeded.** 0 failures, 0 empty. **234 sections**, of which **22 assessable**                                                                                                                        |
+| **Unsupported**           | **1** file — a CSV, reported at configuration time rather than after synchronization                                                                                                                             |
+| **Document selection**    | 28 selectable, capped to the **10 richest** by section count (`generation.maxDocumentsPerJob` = 10). Passing all 28 is refused with `GENERATION_SELECTION_REQUIRED` — the cap exists so a batch stays reviewable |
+| **Preflight**             | `GENERATE_NEW` (`NEW_KNOWLEDGE`). 93 sections in scope across the 10 selected                                                                                                                                    |
+| **Generate**              | **3 accepted** of 6 requested. Tokens **21,354 in / 1,084 out**                                                                                                                                                  |
+| **Evidence verification** | **3 verified, 1 refused.** The refusal is recorded as `EVIDENCE_UNVERIFIED` — a real candidate whose quoted span did not verify against the source text, refused rather than persisted                           |
+| **Insufficient evidence** | **97 sections** reported, each with its own reason (§4.3)                                                                                                                                                        |
+| **Drafts**                | 3 created, claimed and submitted by the author identity                                                                                                                                                          |
+| **Separation of duties**  | The author's attempt to approve their own draft was **refused with HTTP 403** before any approval was recorded. Gate 13, demonstrated                                                                            |
+| **Approval**              | **3 approved** by a different identity                                                                                                                                                                           |
+| **Publication**           | **3 published**, 0 failed → `KNZ-SUPPORT_OPS-2026-000001…000003`                                                                                                                                                 |
+| **Assessment**            | Created, validated (pool **3**, valid), submitted, approved, published with a pinned eligibility snapshot                                                                                                        |
+| **Learner attempt**       | 3 of 3 answered, **3 correct**, **100%**, **PASSED**, band **EXPERT**                                                                                                                                            |
+| **Answer-key protection** | Asserted in the run: the served question payload carried no correct-option field at any point                                                                                                                    |
 
 ### 4.2 The metrics requested, with actual values
 
-| Metric                                      | Value                                                                                                                                       |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Documents discovered                        | **7** candidates in the configured paths (12 filesystem entries, 5 excluded — §3.1)                                                         |
-| Documents included                          | **6** — the seventh is declared not accessible and was correctly excluded                                                                   |
-| Documents excluded                          | **5** filesystem entries, plus **1** access-denied document                                                                                 |
-| Documents successfully extracted            | **6**                                                                                                                                       |
-| Extraction failures                         | **0**                                                                                                                                       |
-| Empty-content documents                     | **0**                                                                                                                                       |
-| Sections generated                          | **12** across the six documents (TXT 1 · PDF 2 · DOCX 2 · MD 4 · PPTX 2 · XLSX 1)                                                           |
-| — of which assessable                       | **4**                                                                                                                                       |
-| Questions generated                         | **4**                                                                                                                                       |
-| Questions rejected by evidence verification | **0**                                                                                                                                       |
-| Questions submitted for review              | **4**                                                                                                                                       |
-| Questions approved                          | **4**                                                                                                                                       |
-| Questions published                         | **4**                                                                                                                                       |
-| Assessments created                         | **1**, published with a pinned pool of 4                                                                                                    |
-| Learner attempts                            | **1**, scored 75%, PASSED, PROFICIENT                                                                                                       |
-| Generation-quality findings                 | **Not measured against a model.** Generation used the deterministic local generator; a Claude comparison needs the real corpus **and** T-29 |
+| Metric                                      | Value                                                                                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Documents discovered                        | **29** files in the corpus folder                                                                                            |
+| Documents included                          | **28**                                                                                                                       |
+| Documents unsupported                       | **1** (CSV — no registered extractor)                                                                                        |
+| Documents unavailable                       | **0** — no file was a placeholder, so none is marked unavailable                                                             |
+| Documents successfully extracted            | **28 of 28**                                                                                                                 |
+| Extraction failures                         | **0**                                                                                                                        |
+| Empty-content documents                     | **0**                                                                                                                        |
+| Characters extracted                        | **122,106**                                                                                                                  |
+| Sections generated                          | **234**                                                                                                                      |
+| — of which assessable                       | **22** (9.4%)                                                                                                                |
+| Questions generated                         | **3**                                                                                                                        |
+| Questions rejected by evidence verification | **1** (`EVIDENCE_UNVERIFIED`)                                                                                                |
+| Sections reporting insufficient evidence    | **97**                                                                                                                       |
+| Questions submitted for review              | **3**                                                                                                                        |
+| Questions approved                          | **3**                                                                                                                        |
+| Questions published                         | **3**                                                                                                                        |
+| Assessments created                         | **1**, published with a pinned pool of 3                                                                                     |
+| Learner attempts                            | **1**, scored **100%**, PASSED, EXPERT                                                                                       |
+| Generation-quality findings                 | §4.3. Not measured against a model — generation used the deterministic local generator; a Claude comparison still needs T-29 |
 
-### 4.3 Format distribution, and what it already tells us
+### 4.3 Two findings, and the first one I got wrong twice
 
-| Format | Documents | Sections |         Assessable sections |
-| ------ | --------: | -------: | --------------------------: |
-| MD     |         1 |        4 |                       **2** |
-| DOCX   |         1 |        2 |                       **1** |
-| TXT    |         1 |        1 |                       **1** |
-| PDF    |         1 |        2 |                       **0** |
-| PPTX   |         1 |        2 |                       **0** |
-| XLSX   |         1 |        1 |                       **0** |
-| RTF    |         1 |        — | not readable (no extractor) |
+This section is written with its own corrections visible, because the reasoning matters more than the
+conclusion.
 
-**Every one of the four questions came from Markdown, DOCX or plain text.** The PDF, the PowerPoint
-and the spreadsheet extracted cleanly — their text, page numbers, slide order and sheet names are all
-correct — and contributed **nothing**, because none of their sections reached the assessable length
-threshold.
+#### 4.3.1 A real defect: generation was mutating the curated assessability flag
 
-Partly that is fixture size. But it is the same shape as the real finding to expect: **extracting a
-format successfully is not the same as generating well from it.** A slide bullet reading
-"Renewal: 30 days" is a fragment, and the generator needs a sentence that states a rule. Measure this
-again on the real corpus before promising questions from decks or workbooks.
+After the first run only **22 of 234** sections were flagged assessable, and every document the job
+had selected showed **zero**. The tempting reading was that long procedural SOPs contain nothing
+assessable. Checking against section _length_ rather than the flag refuted it:
 
-### 4.4 Two things this run exposed that no test had
+| Documents                          | Sections | Flagged `is_assessable` |          Actually ≥ 300 chars |
+| ---------------------------------- | -------: | ----------------------: | ----------------------------: |
+| **Never** in a generation job (17) |       24 |                      21 | **21** — flag matched reality |
+| **Were** in a generation job (11)  |      210 |                   **0** |                        **95** |
 
-**The QuestionID sequence and the external bank can disagree after a database reset.** The first
-publish attempt returned `ALREADY_PUBLISHED` for all four questions and bound them to pre-existing
-bank items. The cause: `verify` had truncated the database, so the QuestionID sequence restarted at
-`…-000001`, while the mock bank's JSON file — which lives outside the database — still held items
-under those identifiers from an earlier demonstration. The adapter matched on **QuestionID**, not on
-content, so four new questions were silently bound to four unrelated bank items.
+`Rxnet Eolp Database Connection Pool Exhaustion Sop.docx` had 7 sections over 300 characters, one of
+2,513, and 0 flagged. The 94 flipped rows all carried one reason string —
+_"Insufficient assessable content: no testable rule stated."_ — and every one was over the threshold.
 
-This is the documented gotcha ("delete the file if a clean publish demo is wanted") with a
-consequence worth stating plainly: **a reset database plus a surviving bank file can attach new
-questions to old bank items, and the publish reports success.** Recovering it here required clearing
-the projection, the publish-operation ledger and the bank file together. On a real bank this would be
-a reconciliation case, which is exactly what Phase 8's drift detection exists for.
+`generation-service.ts` was writing `isAssessable: false` whenever a generator reported
+insufficiency, citing §6. **The spec does not say that.** §6.2 reserves `NON_ASSESSABLE` for the
+document's own structure — contents pages, revision histories, approval tables, legal notices,
+glossaries, reference lists — plus sections below `minAssessableChars`, and makes the flag
+author-curated, flippable only "with an audited reason". A generator's inability to build four
+plausible options is a fact about **that generator**, not about whether content can be assessed.
 
-**Assessment approval has no separation of duties.** `assessment.manage`, `assessment.approve` and
-`assessment.publish` are all held by the single `Assessment Manager` role, so one identity created,
-approved and published the assessment. Question approval enforces gate 13 strictly; assessment
-approval does not. Recorded as an observation about the seeded role matrix, not a defect — but a
-reviewer comparing the two workflows will notice.
+Three measured consequences:
+
+1. **The coverage denominator shrank silently.** Every coverage percentage afterwards was computed
+   against a smaller assessable set, so coverage read artificially complete.
+2. **A second run over the same documents failed with `GENERATION_SCOPE_EMPTY`** — not because the
+   corpus was exhausted, but because the flags had been cleared. This is what blocked generation from
+   the UI.
+3. **It destroys the baseline for comparing generators.** A model asked to work this corpus after the
+   deterministic pass would be handed one claiming almost nothing is assessable. That makes it a
+   blocker for the T-29 comparison rather than a cosmetic issue.
+
+**Fixed.** Generation still records the insufficiency on the job and still sets
+`coverageStatus = NON_ASSESSABLE` with the reason — the documentation-quality signal the code
+intended — but no longer touches `isAssessable`. The 101 affected rows were restored from their
+stored character counts, which is safe because the reason string is unique to that path and every
+restored row is over the threshold. Assessable sections went from 21 back to **115**.
+
+#### 4.3.2 The finding that survived: this corpus needs a model, not a sentence matcher
+
+Restoring the flags did **not** produce questions. With 115 assessable sections available and 93 in
+scope, a fresh run accepted **0** and reported 92 insufficient. A second job aimed specifically at the
+17 documents whose assessable sections had never been tried accepted **0 of 10 requested**, with all
+14 sections reporting insufficient evidence.
+
+So low yield was never caused by the defect. The cause is in the generator's selection rule:
+
+```
+RULE_SIGNAL = /\b(must|may|requires?|never|only|shall|cannot|is refused|is issued)\b/i
+```
+
+The deterministic generator needs a **declarative sentence containing a modal**, ideally with a
+quantity, from which three distinct plausible distractors can be formed. Real support SOPs are
+**imperative**: _"Click Retry"_, _"Run the query"_, _"Check the log"_, _"Navigate to the dashboard"_.
+They tell a reader what to do next, which is exactly right for their purpose and structurally
+invisible to this generator.
+
+The three questions that do exist prove the rule rather than break it. They came from
+`SOP - Order Cancellation RxNet.docx` (2) and `Tickets SOP's.docx` (1) — sections that happen to
+contain a modal, such as a decision matrix stating what _must_ happen in a scenario.
+
+**The honest yield for this corpus and this generator is 3 questions from 28 documents.** The platform
+declines to fabricate the rest, with a reason recorded per section, which is the behaviour the whole
+governance design exists to produce.
+
+**This is now the strongest available argument for T-29.** A model can read a procedure and ask what a
+technician must know to follow it; sentence matching cannot. The **106 recorded refusals across the
+two jobs are the baseline** to measure a model against — and that baseline only survives because the
+defect in §4.3.1 is fixed.
+
+Until that comparison runs, low yield is a property of **the generator**, not of the documents, and
+the two must not be conflated when reporting to stakeholders.
+
+### 4.4 One genuine evidence-verification refusal
+
+`EVIDENCE_UNVERIFIED` fired once on real content: a candidate question whose quoted span did not
+verify against the extracted section text, so **it was not persisted**. That is the grounding control
+doing its job on real documents for the first time, and it is worth more than the three accepted
+questions as evidence that the pipeline is sound.
 
 ## 5. Verification
 
-| Gate                                                                              | Result                                                                                                       |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Adapter conformance suite, **unrelaxed**, against `FileRepositoryKnowledgeSource` | **59 passed, 6 todo**                                                                                        |
-| Extraction invariants X1–X8, parameterized over PDF/DOCX/PPTX/XLSX                | **Passing**                                                                                                  |
-| No emitted `sourceUrl`/`webUrl` is a local path (mutation-tested detector)        | **Passing**                                                                                                  |
-| Partial-sync guard refuses a run and emits no deletions                           | **Passing**                                                                                                  |
-| Symlink, traversal and root-containment refusals                                  | **Passing**                                                                                                  |
-| Zip-bomb ratio guard refuses before inflating                                     | **Passing**                                                                                                  |
-| `desktop.ini` and lock files excluded                                             | **Passing**                                                                                                  |
-| Full pipeline on the fixture mirror, through the real adapter                     | **Executed** — synchronize to scored learner attempt (§4)                                                    |
-| Real-corpus run                                                                   | **`BLOCKED_BY_LOCAL_SYNC_CONFIGURATION`** — the corpus exists but is not synchronized to this machine (§1.2) |
+| Gate                                                                          | Result                                                      |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Real-corpus run, end to end                                                   | **EXECUTED** — synchronize to a scored learner attempt (§4) |
+| Adapter conformance suite, unrelaxed, against `FileRepositoryKnowledgeSource` | 59 passed, 6 todo                                           |
+| Extraction invariants X1–X8, parameterized over PDF/DOCX/PPTX/XLSX            | Passing                                                     |
+| No emitted `sourceUrl`/`webUrl` is a local path (mutation-tested detector)    | Passing                                                     |
+| Partial-sync guard refuses a run and emits no deletions                       | Passing                                                     |
+| Symlink, traversal and root-containment refusals                              | Passing                                                     |
+| `desktop.ini` and lock files excluded                                         | Passing, and exercised by the real corpus                   |
+| Answer-key protection during the learner attempt                              | Asserted in the run                                         |
+| Separation of duties (gate 13)                                                | Demonstrated: author self-approval refused 403              |
 
----
+## 6. Re-running and maintaining the corpus
 
-## 6. To unblock the real corpus
+```bash
+# 1. Point at the approved mirror (machine-specific; never committed)
+export PILOT_CORPUS_HOST_PATH="…/OneDrive - {Org}/Shortcuts/Central Rx Operations Support - Knowzy"
+docker compose -f infrastructure/compose/docker-compose.yml up -d mcp
 
-1. Open the canonical folder (§1.1) in a browser as the named synchronization identity.
-2. **Add shortcut to OneDrive**, or **Sync**.
-3. Wait for synchronization to complete; mark the folder **Always keep on this device** so no file
-   remains a placeholder.
-4. Set `PILOT_MIRROR_ROOT` in a local `.env` to the resulting path. **Do not commit it.**
-5. Record the **named synchronization identity** on the source as `mirrorAccountUpn`, and confirm with
-   the business that this person's access is an acceptable corpus boundary (§2.4).
-6. Configure `restrictions` and `UserSourceAccess` **before** synchronizing.
-7. Confirm retention (T-36) and the sensitivity exclusions.
-8. Run `npx tsx scripts/corpus-report.ts "$PILOT_MIRROR_ROOT"` and replace §3, §3.1 and §4 with its
-   output — in the same commit, per the standing rule.
-9. Run Test Connection and confirm all nine checks, especially check 5 (extractor coverage) and
-   _Files are locally available_.
+# 2. Rebuild the whole demonstration: Test Connection → … → learner attempt
+npx tsx scripts/pilot-demo.ts
+
+# 3. Re-measure the corpus for this register
+npx tsx scripts/corpus-report.ts "<mirror root>/SOPs"
+```
+
+`npm run verify` truncates the development database, so the demonstration must be rebuilt after it.
+That is what `scripts/pilot-demo.ts` is for, and it is re-runnable: on a populated database
+generation legitimately refuses with `GENERATION_SCOPE_EMPTY` or recommends `VIEW_EXISTING`, and the
+run reports that and carries on.
+
+**Still open:** the business and technical owners of this corpus are unassigned; retention (T-36) and
+the sensitivity exclusions are unconfirmed; and the corpus boundary is still one person's OneDrive
+account (§2.4), which is a transitional position and not a governance boundary.

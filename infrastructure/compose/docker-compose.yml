@@ -142,11 +142,31 @@ services:
     environment:
       <<: *node-env
       OTEL_SERVICE_NAME: knowzy-mcp
-      # The synchronized root for a FILE_REPOSITORY source. The committed
-      # default is the fixture mirror, which needs no OneDrive at all. A real
-      # synchronized root is machine-specific and is supplied from the host
-      # environment instead, never committed here.
-      PILOT_MIRROR_ROOT: ${PILOT_MIRROR_ROOT:-./fixtures/pilot-mirror}
+      # Where a FILE_REPOSITORY source reads from, INSIDE the container.
+      #
+      # A real synchronized folder lives on the host (a OneDrive mount), which
+      # the container cannot see, so it is bind-mounted at /corpus below and
+      # this always names the in-container path. The committed default is the
+      # fixture mirror, which needs no OneDrive at all.
+      #
+      # Defaults to `/corpus`, which is ALWAYS a valid in-container path
+      # because the mount below always exists — pointing at the fixture mirror
+      # when no host corpus is configured. Setting this from a POSIX shell on
+      # Windows is a trap: MSYS rewrites a leading-slash value into a Windows
+      # path, so `/corpus` arrives as `C:/.../Git/corpus`. Leaving it to the
+      # compose default avoids that entirely.
+      PILOT_MIRROR_ROOT: ${PILOT_MIRROR_ROOT:-/corpus}
+    volumes:
+      - ../..:/repo
+      - node_modules_root:/repo/node_modules
+      # The real pilot corpus, mounted READ-ONLY.
+      #
+      # `:ro` is a control, not a convenience: a knowledge source is read-only
+      # to the platform by contract (`writeCapable: false`), and mounting the
+      # customer's synchronized folder writable would make that a promise
+      # rather than a property. Defaults to the fixture mirror so the stack
+      # starts with no host configuration at all.
+      - ${PILOT_CORPUS_HOST_PATH:-../../fixtures/pilot-mirror}:/corpus:ro
     # No `ports`. Internal ingress only — the one component that will hold
     # Graph credentials is never reachable from the host.
     expose:

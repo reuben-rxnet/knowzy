@@ -506,8 +506,27 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     });
 
     // Coverage recompute. §6: a section with a question is COVERED; a section
-    // reported insufficient is NON_ASSESSABLE with the model's own reason, which
-    // is a documentation-quality signal rather than a platform failure.
+    // reported insufficient is NON_ASSESSABLE with the generator's own reason,
+    // which is a documentation-quality signal rather than a platform failure.
+    //
+    // It does NOT touch `isAssessable`, and that distinction is load-bearing.
+    // §6.2 reserves that flag for the document's own structure — tables of
+    // contents, revision histories, legal notices, and sections below
+    // `minAssessableChars` — and makes it author-curated, flippable only "with
+    // an audited reason". A generator's inability to build four plausible
+    // options is a fact about THAT GENERATOR, not about whether the content can
+    // be assessed.
+    //
+    // Writing `isAssessable: false` here used to conflate the two, and the
+    // consequences were measured on the first real corpus: 94 sections, every
+    // one comfortably over the length threshold, were permanently marked
+    // unassessable by a single run. A second generation over the same documents
+    // then failed with GENERATION_SCOPE_EMPTY — not because the corpus was
+    // exhausted, but because the flags had been cleared — and the coverage
+    // denominator every percentage is computed against had silently shrunk.
+    // Worst of all it destroys the baseline for comparing a different
+    // generator: a model asked to work the corpus afterwards would be handed
+    // one that says there is almost nothing left to assess.
     for (const section of scope.sections) {
       const covered = await tx.draftQuestion.count({
         where: {
@@ -523,7 +542,8 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
             covered > 0 ? 'COVERED' : wasInsufficient ? 'NON_ASSESSABLE' : 'NOT_COVERED',
           ...(wasInsufficient
             ? {
-                isAssessable: false,
+                // The reason is recorded so an author can read it, but
+                // `isAssessable` is left alone — see above.
                 nonAssessableReason: 'Insufficient assessable content: no testable rule stated.',
               }
             : {}),

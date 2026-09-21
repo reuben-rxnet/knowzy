@@ -781,3 +781,90 @@ Every one of the four questions came from **Markdown, DOCX or plain text**. The 
 Excel documents extracted cleanly — correct text, page numbers, slide order, sheet names — and
 produced **nothing**, because no section reached the assessable length threshold. Partly fixture size;
 mostly the real lesson, which is that extracting a format is not the same as generating well from it.
+
+---
+
+## The real SOP corpus, processed end to end
+
+**2026-09-22.** Registers:
+[`RealWorldPilot/CorpusManifest.md`](../../RealWorldPilot/CorpusManifest.md) ·
+[`PILOT-T1-CORPUS-SELECTION.md`](../integrations/PILOT-T1-CORPUS-SELECTION.md).
+
+The approved pilot corpus is synchronized locally and has been processed: **28 real SOP documents,
+122,106 characters, 234 sections**, through generation, review, approval by a second identity,
+publication, a pinned assessment and a scored learner attempt. No fixture content took part.
+
+### Finding the corpus took three attempts, and the method was the problem
+
+The corpus was first reported absent, then located in the wrong library, before the approved root
+settled it. All three readings came from the same mistake: **deriving a filesystem path from what a
+OneDrive web breadcrumb implied.** The breadcrumb showed
+`Documents / Reuben / Projects / Knowzy / SOPs / SOPs` under personal OneDrive, but the folders were
+shortcuts, so every path derived from it was missing on disk — and a filename search then found the
+same 29 filenames under an unrelated synced library, which produced a second confident wrong answer.
+
+**Searching for a distinctive filename is the right first move; trusting it to identify the owning
+library is not.** Recorded because the wasted effort was entirely avoidable.
+
+The container could not see the host folder either, so `/corpus` is now a **read-only** bind mount.
+Read-only is a control rather than a convenience: a knowledge source is read-only to the platform by
+contract (`writeCapable: false`), and mounting a customer's synchronized folder writable would make
+that a promise instead of a property.
+
+### The run
+
+28 of 29 files processed — the 29th is a CSV with no registered extractor, reported by Test Connection
+**before** synchronization rather than discovered as a failure after it. 0 extraction failures.
+Generation accepted **3** questions; evidence verification refused **1** candidate on real content,
+which is the grounding control working on documents nobody here wrote. The author's attempt to
+approve their own draft was refused with **403** before anything was recorded. Three published as
+`KNZ-SUPPORT_OPS-2026-000001…000003`, assessment pinned at a pool of 3, learner attempt **3/3, 100%,
+PASSED, EXPERT**, with no answer key anywhere in the served payload.
+
+### A real defect: generation was mutating a curated flag
+
+Generation wrote `isAssessable: false` on any section it could not build a question from, citing §6.
+**The spec does not say that.** §6.2 reserves `NON_ASSESSABLE` for the document's own structure —
+contents pages, revision histories, legal notices, sections below the length threshold — and makes the
+flag author-curated, flippable only "with an audited reason". A generator's inability to form four
+plausible options is a fact about that generator.
+
+Measured on real content: **101 sections, every one over the 300-character threshold, were marked
+unassessable by a single run.** Consequences — the coverage denominator shrank silently so coverage
+read artificially complete; a second run over the same documents failed `GENERATION_SCOPE_EMPTY`,
+which is what blocked generation from the UI; and it destroys the baseline for comparing generators,
+since a model asked to work the corpus afterwards would be handed one claiming almost nothing is
+assessable. That last consequence makes it a **blocker for the T-29 comparison**, not a cosmetic
+issue.
+
+Fixed: the insufficiency is still recorded on the job and still sets `coverageStatus` with its reason,
+but `isAssessable` is left alone. The affected rows were restored from their stored character counts,
+which is safe because the reason string is unique to that path and every restored row is over the
+threshold. Assessable sections went from 21 back to 115.
+
+### The finding that survived, after two wrong ones
+
+Restoring the flags produced **no** additional questions. A fresh run over 93 sections accepted 0; a
+second job aimed specifically at the documents whose assessable sections had never been tried
+accepted **0 of 10**, with all 14 sections insufficient.
+
+So low yield was never caused by the defect. The deterministic generator requires a **declarative
+sentence containing a modal** — `must|may|requires|never|only|shall|cannot` — from which three
+distinct distractors can be formed. Real support SOPs are **imperative**: *"Click Retry"*, *"Run the
+query"*, *"Check the log"*. They tell a reader what to do next, which is right for their purpose and
+structurally invisible to this generator. The three questions that exist came from sections that
+happen to contain a modal, such as a decision matrix.
+
+Two conclusions were drafted and withdrawn along the way, both recorded in the documents rather than
+quietly deleted: that long procedural SOPs contain nothing assessable (an artifact of the defect), and
+that section count anti-correlates with assessability (the data is simply inconsistent — 29 sections
+with 27 assessable, 49 sections with 7).
+
+**The honest yield for this corpus and this generator is 3 questions from 28 documents**, and the
+platform declines to fabricate the rest with a reason recorded per section. That is now the strongest
+available argument for T-29: a model can read a procedure and ask what a technician must know; sentence
+matching cannot. The **106 recorded refusals are the baseline** to measure a model against — and that
+baseline only survives because the defect above is fixed.
+
+Until that comparison runs, low yield is a property of **the generator**, not of the documents, and
+the two must not be conflated when reporting to stakeholders.
