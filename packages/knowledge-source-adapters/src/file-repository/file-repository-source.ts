@@ -73,6 +73,7 @@ import {
 import {
   hashTreeBytes,
   loadDirectoryTree,
+  probeReadable,
   readTreeBytes,
   TreeRootError,
   type DirectoryTree,
@@ -246,16 +247,6 @@ export const createFileRepositoryAdapter = (
     const fallback = config.sidecarsEnabled ? document.access.default : undefined;
     const outcome = declared ?? fallback ?? 'ALLOWED';
 
-    if (document.isPlaceholder) {
-      return {
-        decision: 'DENIED',
-        enforcement: 'PLATFORM',
-        summary:
-          'The file is a cloud placeholder with no local content. Mark the folder ' +
-          '"Always keep on this device" and synchronize it before generating from it.',
-      };
-    }
-
     return {
       decision: outcome === 'UNKNOWN' ? 'DENIED' : outcome,
       enforcement: 'PLATFORM',
@@ -424,23 +415,35 @@ export const createFileRepositoryAdapter = (
           detail: 'This source is read-only. The adapter exposes no write operation.',
         });
 
-        // Reported as a check rather than buried: a placeholder-only mirror is
-        // the single most likely operational failure and looks like a bug.
-        const placeholders = tree.documents.filter((document) => document.isPlaceholder);
-        if (placeholders.length > 0) {
-          checks.push({
-            name: 'Files are locally available',
-            outcome: 'FAIL',
-            detail:
-              `${placeholders.length} of ${tree.documents.length} document(s) are cloud ` +
-              'placeholders with no local content. Mark the folder "Always keep on this device".',
-          });
-        } else if (tree.documents.length > 0) {
-          checks.push({
-            name: 'Files are locally available',
-            outcome: 'PASS',
-            detail: 'Every matched document has local content.',
-          });
+        // Availability is PROVEN by reading a byte from a sample, not inferred
+        // from `stat`. A placeholder-only mirror is the most likely
+        // operational failure and looks like a platform defect, so it earns a
+        // check — but the check has to be trustworthy, and `Stats.blocks` is
+        // not (see `looksLikePlaceholder`).
+        if (tree.documents.length > 0) {
+          const sample = tree.documents.slice(0, 10);
+          const unreadable = sample
+            .map((document) => ({ document, probe: probeReadable(document) }))
+            .filter((entry) => !entry.probe.readable);
+
+          checks.push(
+            unreadable.length === 0
+              ? {
+                  name: 'Files are locally available',
+                  outcome: 'PASS',
+                  detail:
+                    `Read a byte from ${sample.length} of ${tree.documents.length} document(s); ` +
+                    'every one had local content.',
+                }
+              : {
+                  name: 'Files are locally available',
+                  outcome: 'FAIL',
+                  detail:
+                    `${unreadable.length} of ${sample.length} sampled document(s) could not be ` +
+                    'read. If the folder uses Files On-Demand, mark it "Always keep on this ' +
+                    'device" and let synchronization finish.',
+                },
+          );
         }
       }
 
@@ -481,11 +484,15 @@ export const createFileRepositoryAdapter = (
         if (accessFor(ctx, config, document).decision !== 'ALLOWED') return false;
         const container = document.containerId === '' ? '(root)' : document.containerId;
         if (query.containerId !== '' && container !== query.containerId) return false;
-        if (query.folderPath === undefined || query.folderPath === '') return true;
+        // `/` is the container ROOT, which is how a path row stores it: a
+        // database constraint requires a leading slash and normalizes the
+        // root to exactly '/'. Treating it as a folder NAME would match
+        // nothing and a configured source would list zero documents.
+        const wanted = query.folderPath?.replace(/^\/+/, '') ?? '';
+        if (wanted === '') return true;
         return query.recursive === true
-          ? document.folderPath === query.folderPath ||
-              document.folderPath.startsWith(`${query.folderPath}/`)
-          : document.folderPath === query.folderPath;
+          ? document.folderPath === wanted || document.folderPath.startsWith(`${wanted}/`)
+          : document.folderPath === wanted;
       });
 
       const pageSize = query.pageSize ?? ctx.limits.pageSize;

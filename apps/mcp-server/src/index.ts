@@ -94,9 +94,23 @@ const main = async (): Promise<void> => {
 
   // The mock adapter is registered ONLY in local, and createAdapterRegistry
   // throws otherwise, so this cannot be turned into a production fallback.
+  //
+  // `PILOT_MIRROR_ROOT` is read here and not from the source row: the root is
+  // machine-specific operational configuration, so it belongs to the
+  // environment. A relative value resolves against the repository, which is
+  // what makes the committed default (`./fixtures/pilot-mirror`) work
+  // identically in a container and on a workstation.
+  const mirrorRoot = rawEnv['PILOT_MIRROR_ROOT'];
   const adapterRegistry = createAdapterRegistry({
     environment: knowzyEnv,
     ...(isLocal ? { fixtureRoot: FIXTURE_ROOT, bankFixtureRoot: BANK_FIXTURE_ROOT } : {}),
+    ...(mirrorRoot === undefined || mirrorRoot.trim() === ''
+      ? {}
+      : {
+          fileRepositoryRoot: mirrorRoot.startsWith('.')
+            ? fileURLToPath(new URL(`../../../${mirrorRoot.replace(/^\.\//, '')}`, import.meta.url))
+            : mirrorRoot,
+        }),
   });
 
   registerToolRoutes(app, {

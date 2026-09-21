@@ -693,3 +693,91 @@ One observation worth carrying to the real corpus: the PPTX and XLSX fixtures pr
 assessable sections. That is partly fixture size, but it previews the real finding — slide and
 spreadsheet content rarely states a complete rule, and extracting a format successfully is not the
 same as generating well from it.
+
+---
+
+## Demonstration environment restored on the pilot corpus path
+
+**2026-09-21.** Register: [`RealWorldPilot/CorpusManifest.md`](../../RealWorldPilot/CorpusManifest.md) §4.
+
+The old synthetic demonstration data was **not** restored. The environment now runs the
+**transitional pilot path** — the real `FILE_REPOSITORY` adapter over real PDF, DOCX, PPTX, XLSX,
+Markdown and text documents — which is second in the stated priority order and the best available,
+because the first is blocked.
+
+**Real corpus: still `BLOCKED_BY_LOCAL_SYNC_CONFIGURATION`, and the diagnosis changed.** The business
+confirmed the corpus exists and supplied a screenshot of it, which settled two things the approved
+pilot decision had answered differently:
+
+- The documents are in the owner's **personal OneDrive** (`Documents / Reuben / Projects / Knowzy /
+  SOPs / SOPs`), **not** in the `CentralRxOperationsSupport` site library.
+- **The approved canonical URL therefore points at the wrong place.** Had it been configured as-is
+  while the bytes came from personal OneDrive, every document record and every published Question
+  Bank item would have carried a provenance link resolving to nothing — the exact failure
+  `web-url.ts` exists to prevent, arriving by a route nobody had considered. `provenance` should also
+  be `ONEDRIVE_MIRROR` rather than `SHAREPOINT_MIRROR`.
+
+Neither location is synchronized to this workstation. Verified six ways, including testing the exact
+breadcrumb path from the screenshot and checking for anything modified under the OneDrive root in the
+previous six hours. The folder is cloud-only or excluded from selective sync; no root was chosen
+silently.
+
+### What was closed to make this run at all
+
+PILOT-T1 had shipped the adapter but never wired it in, which only executing the milestone revealed:
+
+- **The adapter was not registered.** `FILE_REPOSITORY` now registers in the MCP adapter registry, in
+  every environment and with no fixture gate, because it is a real adapter — the environment
+  prohibition belongs to the mock. Its honesty lives in the capability declaration instead.
+- **No pilot source existed.** The seed now creates one, idempotently, with a repository-relative
+  `localRoot` so a fresh clone has a working demonstration and no machine-specific path is committed.
+  `PILOT_MIRROR_ROOT` overrides it from the environment and is passed through compose.
+- **`folderPath` normalization.** A database check constraint requires a leading `/` and normalizes a
+  container root to exactly `/`; the adapter had treated that as a folder *name* and matched nothing.
+
+### The placeholder heuristic, removed after a second failure
+
+`Stats.blocks` was already known to be unpopulated on Windows. Restricting the heuristic to POSIX did
+not help either: the services run in a **Linux container over a Windows bind mount**, which also
+reports `blocks: 0`. Test Connection therefore failed with "2 of 7 documents are cloud placeholders"
+for seven perfectly readable files.
+
+A heuristic that **denies content** on an unreliable field is worse than the problem it detects, so
+the inference is gone. Availability is now **proved by reading a byte** from a sample (`probeReadable`),
+and a failed read reports the OneDrive setting to change. Proving a file is readable by reading it is
+both always correct and easier to reason about.
+
+### The run
+
+Test Connection 11 checks, 7 PASS / 4 SKIP / 0 FAIL — the four SKIPs being capabilities this source
+genuinely lacks. Synchronize: 6 documents, 2,432 characters, 0 failures. Generation: **4 accepted of 6
+requested, 0 rejections, 0 insufficient-evidence sections**, every evidence span verified against text
+extracted from a DOCX, a TXT and a Markdown file. The author's attempt to approve their own draft was
+**refused with HTTP 403** before anything was recorded; a second identity approved all four. Published
+4 of 4. Assessment created, validated, approved, published with a pinned pool of 4. One learner
+attempt: 3 of 4 correct, **75%, PASSED, PROFICIENT**, with no correct-option field anywhere in the
+served payload.
+
+### Two things the run exposed that no test had
+
+**A reset database plus a surviving bank file can bind new questions to old bank items, and report
+success.** `verify` had truncated the database, restarting the QuestionID sequence at `…-000001`,
+while the mock bank's JSON file — which lives outside the database — still held items under those
+identifiers. The adapter matched on **QuestionID, not content**, returned `ALREADY_PUBLISHED` for all
+four, and marked them published against four unrelated items. Recovery required clearing the
+projection, the publish-operation ledger and the bank file together. On a real bank this is a
+reconciliation case, which is what Phase 8 drift detection is for — but the failure mode deserves
+naming: the publish looked like it worked.
+
+**Assessment approval has no separation of duties.** `assessment.manage`, `assessment.approve` and
+`assessment.publish` all belong to the single `Assessment Manager` role, so one identity created,
+approved and published the assessment. Question approval enforces gate 13 strictly; assessment
+approval does not. An observation about the seeded role matrix rather than a defect, but a reviewer
+comparing the two workflows will notice.
+
+### A note for whoever demonstrates this
+
+Every one of the four questions came from **Markdown, DOCX or plain text**. The PDF, PowerPoint and
+Excel documents extracted cleanly — correct text, page numbers, slide order, sheet names — and
+produced **nothing**, because no section reached the assessable length threshold. Partly fixture size;
+mostly the real lesson, which is that extracting a format is not the same as generating well from it.

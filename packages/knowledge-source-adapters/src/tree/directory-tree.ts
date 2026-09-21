@@ -25,7 +25,10 @@
 //   artifact exclusion  sync-client and Office lock files are not documents.
 
 import {
+  closeSync,
+  openSync,
   readFileSync,
+  readSync,
   readdirSync,
   realpathSync,
   statSync,
@@ -169,23 +172,27 @@ const readSidecar = (absolutePath: string): TreeSidecar => {
 };
 
 /**
- * Best-effort detection of a Files On-Demand placeholder — a file that lists at
- * its real size while its bytes are not local.
+ * A Files On-Demand placeholder CANNOT be detected reliably from `stat`, and
+ * this function records that conclusion rather than pretending otherwise.
  *
- * ADVISORY ONLY, and POSIX-only, for a reason that cost a debugging round:
- * `Stats.blocks` is NOT POPULATED ON WINDOWS. It is `0` for every file, so a
- * `blocks === 0` test there marks the entire corpus as placeholders — which
- * denied every document and made the adapter serve nothing.
+ * Two rounds of debugging established it:
  *
- * So this returns `false` on Windows rather than guessing, and a placeholder
- * is instead detected where it actually manifests: the read fails, and
- * `extractContent` reports that with an actionable reason. Denying access on a
- * heuristic would be worse than the problem it detects.
+ *   1. `Stats.blocks` is not populated on Windows — `0` for every file — so a
+ *      `blocks === 0` test marked the whole corpus as placeholders, denied
+ *      every document, and the adapter served nothing.
+ *   2. Restricting it to POSIX did not help either: the services run in a
+ *      Linux container over a WINDOWS BIND MOUNT, which also reports
+ *      `blocks: 0`. Test Connection then failed with "2 of 7 documents are
+ *      cloud placeholders" for seven perfectly readable files.
+ *
+ * A heuristic that DENIES CONTENT on an unreliable field is worse than the
+ * problem it detects, so no inference is made here. Availability is instead
+ * established by actually reading: Test Connection reads a few bytes from a
+ * sample (`probeReadable`), and `extractContent` maps a failed read to an
+ * actionable reason naming the OneDrive setting to change. Proving a file is
+ * readable by reading it is both cheaper to reason about and always correct.
  */
-const looksLikePlaceholder = (stats: Stats): boolean => {
-  if (process.platform === 'win32') return false;
-  return stats.size > 0 && typeof stats.blocks === 'number' && stats.blocks === 0;
-};
+const looksLikePlaceholder = (): boolean => false;
 
 /** Forward slashes always, so ids and URLs match across platforms. */
 const toPosix = (value: string): string => value.split(sep).join('/');
@@ -296,7 +303,7 @@ const walk = (context: WalkContext, absoluteDir: string, relativeDir: string): v
       mimeType: sidecar.mimeType ?? MIME_BY_EXTENSION[fileType] ?? 'application/octet-stream',
       metadata: sidecar.metadata ?? {},
       access: sidecar.access ?? {},
-      isPlaceholder: looksLikePlaceholder(stats),
+      isPlaceholder: looksLikePlaceholder(),
       absolutePath,
     });
   }
@@ -382,3 +389,46 @@ export const readTreeBytes = (
 /** SHA-256 of the file's bytes. The only reliable change signal here. */
 export const hashTreeBytes = (bytes: Uint8Array): string =>
   createHash('sha256').update(bytes).digest('hex');
+
+/**
+ * Proves a document's bytes are actually present, by reading a few of them.
+ *
+ * This is what replaces the unreliable `stat` heuristic above. A cloud
+ * placeholder fails here — or blocks and then fails — which is the only
+ * trustworthy signal available without a Graph call. Bounded to a handful of
+ * bytes so probing a sample costs nothing.
+ */
+export const probeReadable = (
+  document: TreeDocument,
+): { readonly readable: true } | { readonly readable: false; readonly reason: string } => {
+  let handle: number | undefined;
+  try {
+    handle = openSync(document.absolutePath, 'r');
+    const buffer = Buffer.alloc(1);
+    // A zero-length file is legitimately readable; anything else must yield a
+    // byte. `bytesRead` of 0 on a non-empty file is exactly the placeholder
+    // case, and is reported rather than inferred.
+    const bytesRead = readSync(handle, buffer, 0, 1, 0);
+    if (document.sizeBytes > 0 && bytesRead === 0) {
+      return {
+        readable: false,
+        reason:
+          'The file lists a size but yielded no bytes, which is how a cloud placeholder reads.',
+      };
+    }
+    return { readable: true };
+  } catch {
+    return {
+      readable: false,
+      reason: 'The file could not be opened for reading on this machine.',
+    };
+  } finally {
+    if (handle !== undefined) {
+      try {
+        closeSync(handle);
+      } catch {
+        // Nothing useful to do; the descriptor is abandoned either way.
+      }
+    }
+  }
+};

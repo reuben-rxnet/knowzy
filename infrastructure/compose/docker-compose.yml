@@ -142,6 +142,11 @@ services:
     environment:
       <<: *node-env
       OTEL_SERVICE_NAME: knowzy-mcp
+      # The synchronized root for a FILE_REPOSITORY source. The committed
+      # default is the fixture mirror, which needs no OneDrive at all. A real
+      # synchronized root is machine-specific and is supplied from the host
+      # environment instead, never committed here.
+      PILOT_MIRROR_ROOT: ${PILOT_MIRROR_ROOT:-./fixtures/pilot-mirror}
     # No `ports`. Internal ingress only — the one component that will hold
     # Graph credentials is never reachable from the host.
     expose:

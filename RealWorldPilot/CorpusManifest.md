@@ -3,12 +3,22 @@
 **This file is the authoritative pilot-corpus register.** It is updated in the same commit as every
 real pilot-corpus change.
 
-> **Real-corpus status: `BLOCKED_BY_LOCAL_SYNC_CONFIGURATION`.**
+> **Real-corpus status: `BLOCKED_BY_LOCAL_SYNC_CONFIGURATION`.** Re-verified 2026-09-21, after the
+> business confirmed the corpus exists.
 >
-> The approved pilot folder is **not synchronized to this workstation**. The Document Register below
-> is therefore populated from the **fixture mirror** that ships in the repository, and every row is
-> labelled as such. No row describes a real business document, and nothing here claims the SharePoint
-> web URL was read directly — it was not. §1.2 records exactly what was checked.
+> The documents **do exist**, and they are **not where the approved pilot decision said they would
+> be**: they are in the owner's **personal OneDrive** at
+> `Documents / Reuben / Projects / Knowzy / SOPs / SOPs`, not in the
+> `CentralRxOperationsSupport` site's `Shared Documents` library. Neither location is synchronized
+> to this workstation, so no local root exists to read. §1.2 records exactly what was checked and
+> §1.4 records the two consequences, one of which would silently break the provenance of every
+> published question.
+>
+> A **complete end-to-end demonstration has nevertheless been executed** — through the real
+> FILE_REPOSITORY adapter, over real PDF, DOCX, PPTX, XLSX, Markdown and text documents, from
+> synchronization to a scored learner attempt. It runs against the committed **fixture mirror**, and
+> every figure in §4 is labelled as such. Nothing here claims a SharePoint or OneDrive web URL was
+> read directly, because none was.
 
 ---
 
@@ -40,30 +50,26 @@ configuration time.
 
 ### 1.2 What was checked on this workstation, and what was found
 
-Checked against the authoritative OneDrive sync-engine registry
-(`HKCU:\SOFTWARE\SyncEngines\Providers\OneDrive`) rather than by guessing paths, and with one bounded
-search inside the OneDrive root only. No unrelated user directory was scanned.
+Checked twice: first against the authoritative OneDrive sync-engine registry
+(`HKCU:\SOFTWARE\SyncEngines\Providers\OneDrive`), then again after the business confirmed the
+corpus existed. No unrelated user directory was scanned.
 
-| #   | Check                                                                            | Result                                                                                                                                                                                     |
-| --- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | OneDrive commercial root exists                                                  | **Yes**                                                                                                                                                                                    |
-| 2   | A sync mount exists for `sites/CentralRxOperationsSupport/Shared Documents/`     | **Yes** — mounted as a shortcut named **`Knowledge Base`**                                                                                                                                 |
-| 3   | That mount contains `Reuben / Projects / Knowzy`                                 | **No.** It is a _different_ subfolder of the same library, holding `AEL Support Documents`, `Aichi Lab`, `OFS & CAFE`, and similar                                                         |
-| 4   | `Reuben`, `Projects` or `Knowzy` present anywhere in the OneDrive root (depth 3) | **No match.** Two near-misses, both rejected: `Desktop/home docs/Reuben` is the _personal_ OneDrive namespace, and `Documents IT Process & Services…/Projects` belongs to a different site |
-| 5   | SOPs folder exists locally                                                       | **No** — follows from 3 and 4                                                                                                                                                              |
-| 6   | Files locally available, not placeholders                                        | **Not reached**                                                                                                                                                                            |
-| 7   | Discovered file count plausible                                                  | **Not reached**                                                                                                                                                                            |
-| 8   | Supported formats present                                                        | **Not reached**                                                                                                                                                                            |
-| 9   | Canonical URL maps to local relative paths                                       | **Verified against the fixture mirror**, not against the real corpus                                                                                                                       |
+| #   | Check                                                                                                                                                             | Result                                                                                                                                                                                     |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | OneDrive commercial root exists and is synchronized                                                                                                               | **Yes** — and it is the _personal_ OneDrive namespace (`.../personal/{user}/Documents/`)                                                                                                   |
+| 2   | A sync mount exists for the `CentralRxOperationsSupport` library                                                                                                  | **Yes** — one, mounted as a shortcut named **`Knowledge Base`**                                                                                                                            |
+| 3   | That mount contains `Reuben / Projects / Knowzy`                                                                                                                  | **No.** It is a _different_ subfolder of the same library, holding `AEL Support Documents`, `Aichi Lab`, `OFS & CAFE` and similar                                                          |
+| 4   | `Reuben`, `Projects`, `Knowzy` or `SOPs` anywhere under the OneDrive root                                                                                         | **No match** at depth 4. Two near-misses, both rejected: `Desktop/home docs/Reuben` is unrelated personal content, and `Documents IT Process & Services…/Projects` belongs to another site |
+| 5   | The exact breadcrumb path from the business's screenshot, tested directly — `…/OneDrive - {Org}/Reuben`, `…/Reuben/Projects`, `…/Knowzy`, `…/SOPs`, `…/SOPs/SOPs` | **All five absent**                                                                                                                                                                        |
+| 6   | Anything at all modified under the OneDrive root in the previous six hours                                                                                        | Only unrelated folders. **Nothing resembling the corpus arrived**                                                                                                                          |
+| 7   | Files locally available, not placeholders                                                                                                                         | **Not reached** — there is no folder to inspect                                                                                                                                            |
+| 8   | Supported formats present                                                                                                                                         | **Not reached**                                                                                                                                                                            |
+| 9   | Canonical URL maps to local relative paths                                                                                                                        | **Verified against the fixture mirror**, not the real corpus                                                                                                                               |
 
-**Conclusion.** Exactly one candidate root for the _library_ exists, and it does not contain the
-approved folder. Per the instruction not to choose silently, no root was selected and the real-corpus
-configuration is marked blocked.
-
-**To unblock:** open the canonical folder in a browser, choose **Add shortcut to OneDrive** (or
-**Sync**), wait for synchronization to finish, mark the folder **Always keep on this device**, then set
-`PILOT_MIRROR_ROOT` to the resulting local path and re-run
-`npx tsx scripts/corpus-report.ts "$PILOT_MIRROR_ROOT"`.
+**Conclusion.** The corpus is visible in the browser and absent from the filesystem. The OneDrive
+client has not been asked to make that subtree available on this machine — the folder is cloud-only,
+or excluded from selective sync. Per the instruction not to choose a root silently, none was
+selected.
 
 ### 1.3 Operational configuration — machine-specific, not provenance
 
@@ -84,6 +90,31 @@ drive letter, UNC prefix, `file://`, POSIX home or mount path, or a OneDrive fol
 so the assertion cannot quietly stop matching.
 
 ---
+
+### 1.4 Two corrections the business's screenshot forced, one of them consequential
+
+The screenshot of the corpus settles a question the approved pilot decision had answered
+differently, and both consequences matter more than they look.
+
+**1. The documents are in personal OneDrive, not the site library.** The breadcrumb reads
+`Documents / Reuben / Projects / Knowzy / SOPs / SOPs` under the owner's own OneDrive, whose URL
+namespace is `.../personal/{user}/Documents/`. The approved canonical URL recorded in §1.1 points at
+`/sites/CentralRxOperationsSupport/Shared Documents/Reuben/Projects/Knowzy`.
+
+**Those are different locations, and `webUrlBase` must match the real one.** If the site URL were
+configured while the bytes came from personal OneDrive, every document record and every published
+Question Bank item would carry a provenance link that resolves to nothing — which is precisely the
+failure `web-url.ts` exists to prevent, arriving by a different route. The canonical URL must be
+confirmed against the actual location before a real run, and §1.1 is flagged accordingly.
+
+**2. `provenance` should therefore be `ONEDRIVE_MIRROR`, not `SHAREPOINT_MIRROR`.** The adapter
+supports both and treats them identically for reading; the value exists so a screen can state
+truthfully where the content came from.
+
+One thing to check while unblocking: the breadcrumb ends `SOPs / SOPs`, and the **inner** `SOPs`
+carries a globe badge — the marker for an _added shortcut_ to another location. A shortcut's target
+may sync differently from an ordinary folder, so confirm which of the two `SOPs` folders actually
+holds the documents, and point the root at the one that does.
 
 ## 2. Corpus Governance
 
@@ -227,66 +258,104 @@ published questions carry a local path and do not migrate at all.
 
 ## 4. Pilot Results
 
-**Measured against the fixture mirror.** Values marked _Not yet executed_ have not been run; values
-marked _Not measured_ are not recorded anywhere. **No value below is a placeholder zero.**
+**Executed end to end on 2026-09-21, against the FIXTURE MIRROR through the real FILE_REPOSITORY
+adapter.** Every figure below was read back from the API after the step ran. Nothing is estimated,
+and nothing that did not run is reported as zero.
 
-| Metric                                      | Value                | Basis                                                                                                                                 |
-| ------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Documents discovered                        | **12**               | Fixture mirror scan                                                                                                                   |
-| Documents included                          | **7**                | Registered extractor, not an artifact, bytes available                                                                                |
-| Documents excluded                          | **5**                | §3.1                                                                                                                                  |
-| Documents successfully extracted            | **7**                | All included documents                                                                                                                |
-| Extraction failures                         | **0**                | —                                                                                                                                     |
-| Empty-content documents                     | **0**                | The image-only PDF is a unit fixture, not part of the mirror                                                                          |
-| Sections generated                          | **13**               | Sectionizer output                                                                                                                    |
-| — of which assessable                       | **4**                | Below `minAssessableChars` otherwise                                                                                                  |
-| Questions generated                         | **Not yet executed** | Generation not run against this corpus                                                                                                |
-| Questions rejected by evidence verification | **Not yet executed** | —                                                                                                                                     |
-| Questions submitted for review              | **Not yet executed** | —                                                                                                                                     |
-| Questions approved                          | **Not yet executed** | —                                                                                                                                     |
-| Questions published                         | **Not yet executed** | —                                                                                                                                     |
-| Assessments created                         | **Not yet executed** | —                                                                                                                                     |
-| Learner attempts                            | **Not yet executed** | —                                                                                                                                     |
-| Generation-quality findings                 | **Not measured**     | Requires the real corpus **and** T-29 (approval to send excerpts to Anthropic). Generation today is the deterministic local generator |
+### 4.1 The run
 
-### 4.1 Format distribution
+| Step                      | Result                                                                                                                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Test Connection**       | `ok: true`, **11 checks**: 7 PASS, 4 SKIP, 0 FAIL. SKIPs are the four capabilities this source genuinely lacks — credential, live search, delegated access — reported as SKIP rather than PASS |
+| **Synchronize** (FULL)    | `SUCCEEDED` · scanned **6** · added **6** · modified 0 · unchanged 0 · deleted 0 · failed **0** · extracted **2,432** characters                                                               |
+| **Preflight**             | Recommendation `GENERATE_NEW` (`NEW_KNOWLEDGE`). `CROSS_DOMAIN_DUPLICATES` 0 matches; `POOL_CONFLICTS` NOT_APPLICABLE                                                                          |
+| **Generate**              | **4 accepted of 6 requested**, across 4 sections. Rejections **0**. Insufficient-evidence sections **0**. Tokens 811 in / 1,072 out                                                            |
+| **Evidence verification** | **4 of 4 verified**, 0 rejected. Every span matched text extracted from a DOCX, a TXT or a Markdown file                                                                                       |
+| **Drafts**                | 4 created, all claimed and submitted by the author identity                                                                                                                                    |
+| **Separation of duties**  | The author's attempt to approve their own draft was **refused with HTTP 403** before any approval was recorded. Gate 13, demonstrated rather than asserted                                     |
+| **Approval**              | **4 approved** by a different identity (`approver@local.invalid`)                                                                                                                              |
+| **Publication**           | **4 published**, 0 failed → bank items `mock-item-000001`…`000004`, version 1                                                                                                                  |
+| **Assessment**            | Created, validated (pool **4**, valid, no problems), submitted, approved, published with a pinned eligibility snapshot                                                                         |
+| **Learner attempt**       | 1 attempt, 4 of 4 answered, **3 correct**, **75%**, **PASSED**, band **PROFICIENT**, 67 seconds                                                                                                |
+| **Answer-key protection** | The served question payload carried **no** correct-option field at any point                                                                                                                   |
 
-| Format | Count | Extractable                      |
-| ------ | ----: | -------------------------------- |
-| MD     |     2 | Yes                              |
-| TXT    |     1 | Yes                              |
-| PDF    |     1 | Yes                              |
-| DOCX   |     1 | Yes                              |
-| PPTX   |     1 | Yes                              |
-| XLSX   |     1 | Yes                              |
-| RTF    |     1 | **No — no registered extractor** |
+### 4.2 The metrics requested, with actual values
 
-This table is the single most useful measurement to repeat against the **real** corpus: it states what
-fraction of a library the platform can read at all, and therefore how much extractor work stands
-between discovery and a working pilot.
+| Metric                                      | Value                                                                                                                                       |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Documents discovered                        | **7** candidates in the configured paths (12 filesystem entries, 5 excluded — §3.1)                                                         |
+| Documents included                          | **6** — the seventh is declared not accessible and was correctly excluded                                                                   |
+| Documents excluded                          | **5** filesystem entries, plus **1** access-denied document                                                                                 |
+| Documents successfully extracted            | **6**                                                                                                                                       |
+| Extraction failures                         | **0**                                                                                                                                       |
+| Empty-content documents                     | **0**                                                                                                                                       |
+| Sections generated                          | **12** across the six documents (TXT 1 · PDF 2 · DOCX 2 · MD 4 · PPTX 2 · XLSX 1)                                                           |
+| — of which assessable                       | **4**                                                                                                                                       |
+| Questions generated                         | **4**                                                                                                                                       |
+| Questions rejected by evidence verification | **0**                                                                                                                                       |
+| Questions submitted for review              | **4**                                                                                                                                       |
+| Questions approved                          | **4**                                                                                                                                       |
+| Questions published                         | **4**                                                                                                                                       |
+| Assessments created                         | **1**, published with a pinned pool of 4                                                                                                    |
+| Learner attempts                            | **1**, scored 75%, PASSED, PROFICIENT                                                                                                       |
+| Generation-quality findings                 | **Not measured against a model.** Generation used the deterministic local generator; a Claude comparison needs the real corpus **and** T-29 |
 
-### 4.2 An observation worth carrying forward
+### 4.3 Format distribution, and what it already tells us
 
-Only **4 of 13** fixture sections are assessable, and the PPTX and XLSX documents produced **none**.
-That is the fixture being small rather than a defect — but it previews the real finding: **slide and
-spreadsheet content rarely states a complete rule.** "Renewal: 30 days" is a fragment, and the
-generator needs a sentence. Extracting PPTX and XLSX successfully is not the same as generating well
-from them, and the coverage report will show that honestly rather than the platform pretending.
+| Format | Documents | Sections |         Assessable sections |
+| ------ | --------: | -------: | --------------------------: |
+| MD     |         1 |        4 |                       **2** |
+| DOCX   |         1 |        2 |                       **1** |
+| TXT    |         1 |        1 |                       **1** |
+| PDF    |         1 |        2 |                       **0** |
+| PPTX   |         1 |        2 |                       **0** |
+| XLSX   |         1 |        1 |                       **0** |
+| RTF    |         1 |        — | not readable (no extractor) |
 
----
+**Every one of the four questions came from Markdown, DOCX or plain text.** The PDF, the PowerPoint
+and the spreadsheet extracted cleanly — their text, page numbers, slide order and sheet names are all
+correct — and contributed **nothing**, because none of their sections reached the assessable length
+threshold.
+
+Partly that is fixture size. But it is the same shape as the real finding to expect: **extracting a
+format successfully is not the same as generating well from it.** A slide bullet reading
+"Renewal: 30 days" is a fragment, and the generator needs a sentence that states a rule. Measure this
+again on the real corpus before promising questions from decks or workbooks.
+
+### 4.4 Two things this run exposed that no test had
+
+**The QuestionID sequence and the external bank can disagree after a database reset.** The first
+publish attempt returned `ALREADY_PUBLISHED` for all four questions and bound them to pre-existing
+bank items. The cause: `verify` had truncated the database, so the QuestionID sequence restarted at
+`…-000001`, while the mock bank's JSON file — which lives outside the database — still held items
+under those identifiers from an earlier demonstration. The adapter matched on **QuestionID**, not on
+content, so four new questions were silently bound to four unrelated bank items.
+
+This is the documented gotcha ("delete the file if a clean publish demo is wanted") with a
+consequence worth stating plainly: **a reset database plus a surviving bank file can attach new
+questions to old bank items, and the publish reports success.** Recovering it here required clearing
+the projection, the publish-operation ledger and the bank file together. On a real bank this would be
+a reconciliation case, which is exactly what Phase 8's drift detection exists for.
+
+**Assessment approval has no separation of duties.** `assessment.manage`, `assessment.approve` and
+`assessment.publish` are all held by the single `Assessment Manager` role, so one identity created,
+approved and published the assessment. Question approval enforces gate 13 strictly; assessment
+approval does not. Recorded as an observation about the seeded role matrix, not a defect — but a
+reviewer comparing the two workflows will notice.
 
 ## 5. Verification
 
-| Gate                                                                              | Result                                    |
-| --------------------------------------------------------------------------------- | ----------------------------------------- |
-| Adapter conformance suite, **unrelaxed**, against `FileRepositoryKnowledgeSource` | **59 passed, 6 todo**                     |
-| Extraction invariants X1–X8, parameterized over PDF/DOCX/PPTX/XLSX                | **Passing**                               |
-| No emitted `sourceUrl`/`webUrl` is a local path (mutation-tested detector)        | **Passing**                               |
-| Partial-sync guard refuses a run and emits no deletions                           | **Passing**                               |
-| Symlink, traversal and root-containment refusals                                  | **Passing**                               |
-| Zip-bomb ratio guard refuses before inflating                                     | **Passing**                               |
-| `desktop.ini` and lock files excluded                                             | **Passing**                               |
-| Real-corpus run                                                                   | **`BLOCKED_BY_LOCAL_SYNC_CONFIGURATION`** |
+| Gate                                                                              | Result                                                                                                       |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Adapter conformance suite, **unrelaxed**, against `FileRepositoryKnowledgeSource` | **59 passed, 6 todo**                                                                                        |
+| Extraction invariants X1–X8, parameterized over PDF/DOCX/PPTX/XLSX                | **Passing**                                                                                                  |
+| No emitted `sourceUrl`/`webUrl` is a local path (mutation-tested detector)        | **Passing**                                                                                                  |
+| Partial-sync guard refuses a run and emits no deletions                           | **Passing**                                                                                                  |
+| Symlink, traversal and root-containment refusals                                  | **Passing**                                                                                                  |
+| Zip-bomb ratio guard refuses before inflating                                     | **Passing**                                                                                                  |
+| `desktop.ini` and lock files excluded                                             | **Passing**                                                                                                  |
+| Full pipeline on the fixture mirror, through the real adapter                     | **Executed** — synchronize to scored learner attempt (§4)                                                    |
+| Real-corpus run                                                                   | **`BLOCKED_BY_LOCAL_SYNC_CONFIGURATION`** — the corpus exists but is not synchronized to this machine (§1.2) |
 
 ---
 

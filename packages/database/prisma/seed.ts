@@ -644,6 +644,88 @@ const seedMockSource = async (ownerUserId: string): Promise<void> => {
   log('  mock source: Mock Support Operations (UNTESTED)');
 };
 
+const seedPilotFileRepositorySource = async (ownerUserId: string): Promise<void> => {
+  // The transitional pilot source: a FILE_REPOSITORY over a locally
+  // synchronized mirror of an approved SharePoint folder.
+  //
+  // `localRoot` is the committed repository-relative FIXTURE mirror, so a fresh
+  // clone has a working demonstration with no OneDrive at all. The real
+  // synchronized root is supplied by `PILOT_MIRROR_ROOT` in the environment and
+  // overrides this, because a machine-specific path must never be committed.
+  //
+  // `webUrlBase` is a NEUTRAL host here on purpose. Content rule C2 forbids a
+  // SharePoint tenant hostname in source, and the approved pilot URL is a
+  // customer identifier: it is recorded in RealWorldPilot/CorpusManifest.md,
+  // and an operator sets it on the source for a real run.
+  await prisma.knowledgeSource.upsert({
+    where: { name: 'KNOWZY Real-World Pilot SOP Corpus' },
+    create: {
+      name: 'KNOWZY Real-World Pilot SOP Corpus',
+      description:
+        'Transitional pilot source. Reads a locally synchronized mirror of an approved ' +
+        'SharePoint folder while Graph access awaits tenant consent. Access is enforced by ' +
+        'Knowzy, not by SharePoint.',
+      sourceType: 'FILE_REPOSITORY',
+      connection: {
+        localRoot: './fixtures/pilot-mirror',
+        provenance: 'SHAREPOINT_MIRROR',
+        webUrlBase:
+          'https://pilot-tenant.invalid/sites/CentralRxOperationsSupport/Shared%20Documents/Reuben/Projects/Knowzy',
+        mirrorAccountUpn: 'pilot.sync@example.invalid',
+        includePatterns: [],
+        excludePatterns: [],
+        supportedExtensions: [],
+        maxFileBytes: 33554432,
+        partialSyncFloor: 0.8,
+        sidecarsEnabled: true,
+        isActive: true,
+      },
+      restrictions: { roles: [], domains: [], teams: [], functions: [] },
+      usableForGeneration: true,
+      usableForRefreshers: false,
+      usableForExplanations: false,
+      // DELEGATED_OBO is REFUSED by this adapter: a directory carries no
+      // per-user SharePoint decision, and accepting the mode would
+      // misrepresent who enforces access.
+      permissionMode: 'APP_ONLY_SITES_SELECTED',
+      connectionStatus: 'UNTESTED',
+      connectionStatusAt: null,
+      syncSchedule: { mode: 'MANUAL' },
+      isActive: true,
+      ownerUserId,
+      // Every file type with a registered extractor, which now includes the
+      // four binary Office formats. Listing a type without an extractor would
+      // promise coverage the platform cannot deliver.
+      paths: {
+        create: [
+          {
+            containerId: 'SOPs',
+            containerName: 'SOPs',
+            folderPath: '/',
+            includedFileTypes: ['pdf', 'docx', 'pptx', 'xlsx', 'md', 'txt', 'html'],
+            excludedFileTypes: [],
+            includedMetadata: ['Owner', 'ReviewCycle', 'Classification'],
+            requiresFullSync: true,
+            isActive: true,
+          },
+          {
+            containerId: 'Policies',
+            containerName: 'Policies',
+            folderPath: '/',
+            includedFileTypes: ['pdf', 'docx', 'pptx', 'xlsx', 'md', 'txt', 'html'],
+            excludedFileTypes: [],
+            includedMetadata: ['Owner', 'ReviewCycle', 'Classification'],
+            requiresFullSync: true,
+            isActive: true,
+          },
+        ],
+      },
+    },
+    update: {},
+  });
+  log('  pilot source: KNOWZY Real-World Pilot SOP Corpus (FILE_REPOSITORY, UNTESTED)');
+};
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -670,6 +752,7 @@ const main = async (): Promise<void> => {
     const adminId = await seedLocalUsers();
     await seedLocalTaxonomy();
     if (adminId) await seedMockSource(adminId);
+    if (adminId) await seedPilotFileRepositorySource(adminId);
   } else {
     log('  skipping stub users and mock source: not a local environment (V2)');
   }

@@ -7,6 +7,7 @@
 // than coming up wrong.
 
 import {
+  createFileRepositoryAdapter,
   createMockKnowledgeSourceAdapter,
   createMockQuestionBankAdapter,
   type KnowledgeSourceAdapter,
@@ -41,6 +42,15 @@ export interface AdapterRegistryOptions {
   readonly fixtureRoot?: string;
   /** Where the mock bank persists its items. Defaults to `fixtureRoot`. */
   readonly bankFixtureRoot?: string;
+  /**
+   * The synchronized root for FILE_REPOSITORY sources, from
+   * `PILOT_MIRROR_ROOT`.
+   *
+   * Supplied by the ENVIRONMENT rather than read from the source row, because
+   * the root is machine-specific operational configuration and a source row is
+   * shared configuration. When absent, the row's own `localRoot` is used.
+   */
+  readonly fileRepositoryRoot?: string;
 }
 
 export interface AdapterRegistry {
@@ -65,6 +75,21 @@ export const createAdapterRegistry = (options: AdapterRegistryOptions): AdapterR
       throw new MockAdapterNotPermittedError(options.environment);
     adapters.set('MOCK', createMockKnowledgeSourceAdapter({ fixtureRoot: options.fixtureRoot }));
   }
+
+  // FILE_REPOSITORY is a REAL adapter and is registered in every environment.
+  //
+  // It carries no environment prohibition, unlike the mock, because it reads
+  // real documents from a real directory. What it cannot do is declared on the
+  // adapter instead: `supportsDelegatedAccess: false`, no version labels, and
+  // every access decision reported as platform-enforced. That is the whole
+  // argument for allowing it in a deployed environment at all — the losses are
+  // visible on screen rather than hidden behind a registration rule.
+  adapters.set(
+    'FILE_REPOSITORY',
+    createFileRepositoryAdapter(
+      options.fileRepositoryRoot === undefined ? {} : { rootOverride: options.fileRepositoryRoot },
+    ),
+  );
 
   // SHAREPOINT lands in Phase 7. Until then a SharePoint source row resolves to
   // NoAdapterRegisteredError, which is the honest answer: the source cannot be
