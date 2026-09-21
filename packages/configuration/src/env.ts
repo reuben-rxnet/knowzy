@@ -184,6 +184,19 @@ export const ENV_VARS: readonly EnvVarDeclaration[] = [
     description: 'Server-side API address. Never reaches the browser (B1).',
   },
   {
+    name: 'PILOT_MIRROR_ROOT',
+    deployables: SERVICES,
+    schema: z.string().min(1),
+    // Not required anywhere: a deployment with no file-repository source does
+    // not need it, and a source that needs it fails Test Connection with a
+    // stated reason rather than failing startup for everyone.
+    requiredIn: [],
+    description:
+      'Local root of a synchronized SharePoint or OneDrive mirror, for a FILE_REPOSITORY ' +
+      'source. OPERATIONAL configuration only: it is machine-specific, is never committed, ' +
+      'and is never persisted as document provenance.',
+  },
+  {
     name: 'MOCK_FIXTURE_ROOT',
     deployables: SERVICES,
     schema: z.string().min(1),

@@ -879,6 +879,7 @@
     ],
     "release1": [
       "SHAREPOINT",
+      "FILE_REPOSITORY",
       "MOCK"
     ]
   }

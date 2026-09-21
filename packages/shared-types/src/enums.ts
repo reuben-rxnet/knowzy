@@ -50,7 +50,22 @@ export const SourceTypeSchema = z.enum(SOURCE_TYPE);
 export type SourceType = z.infer<typeof SourceTypeSchema>;
 
 /** Adapters registered in release 1. Selecting any other type returns SOURCE_TYPE_NOT_AVAILABLE. */
-export const RELEASE_1_SOURCE_TYPES: readonly SourceType[] = ['SHAREPOINT', 'MOCK'];
+/**
+ * Source types this release supports.
+ *
+ * FILE_REPOSITORY is here as a TRANSITIONAL source, added deliberately and
+ * visibly rather than as a workaround: Graph SharePoint access requires tenant
+ * admin consent that does not exist yet, so a locally synchronized mirror of an
+ * approved SharePoint folder is how real documents reach the platform in the
+ * interim. It declares `supportsDelegatedAccess: false` and reports every
+ * access decision as platform-enforced, so what it cannot do is visible rather
+ * than emulated. See docs/integrations/TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md.
+ */
+export const RELEASE_1_SOURCE_TYPES: readonly SourceType[] = [
+  'SHAREPOINT',
+  'FILE_REPOSITORY',
+  'MOCK',
+];
 
 export const PERMISSION_MODE = ['DELEGATED_OBO', 'APP_ONLY_SITES_SELECTED'] as const;
 export const PermissionModeSchema = z.enum(PERMISSION_MODE);

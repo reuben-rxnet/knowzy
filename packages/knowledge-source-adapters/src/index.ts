@@ -30,6 +30,38 @@ export {
   type MockBankOptions,
 } from './mock/mock-question-bank.js';
 export {
+  createFileRepositoryAdapter,
+  DelegatedAccessNotSupportedError,
+  FILE_REPOSITORY_CAPABILITIES,
+  type FileRepositoryOptions,
+} from './file-repository/file-repository-source.js';
+export {
+  FILE_REPOSITORY_PROVENANCE,
+  FileRepositoryConnectionSchema,
+  parseFileRepositoryConnection,
+  type FileRepositoryConnection,
+  type FileRepositoryProvenance,
+} from './file-repository/connection.js';
+export {
+  canonicalDocumentUrl,
+  looksLikeLocalPath,
+  normalizeWebUrlBase,
+  provisionalDocumentUrl,
+  WebUrlConfigurationError,
+} from './file-repository/web-url.js';
+export {
+  extensionOf,
+  hashTreeBytes,
+  loadDirectoryTree,
+  readTreeBytes,
+  treeDocumentId,
+  TreeRootError,
+  type DirectoryTree,
+  type TreeDocument,
+  type TreeSidecar,
+  type TreeSkip,
+} from './tree/directory-tree.js';
+export {
   createMockKnowledgeSourceAdapter,
   MOCK_CAPABILITIES,
   type MockAdapterOptions,

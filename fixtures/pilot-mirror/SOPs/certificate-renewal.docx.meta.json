@@ -1,0 +1,14 @@
+{
+  "sourceVersion": "4.2",
+  "sourceCreatedAt": "2025-01-15T08:30:00.000Z",
+  "sourceModifiedAt": "2025-08-20T14:05:00.000Z",
+  "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "metadata": {
+    "Owner": "Service Operations Lead",
+    "ReviewCycle": "Annual",
+    "Classification": "Internal"
+  },
+  "access": {
+    "default": "ALLOWED"
+  }
+}

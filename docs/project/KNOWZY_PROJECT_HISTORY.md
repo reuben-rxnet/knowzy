@@ -578,3 +578,118 @@ Two decisions are needed before step 1, and both get settled by accident if nobo
 account defines the corpus**, and **which library** — where the binding criterion is content that
 states testable rules, because the most likely way this pilot disappoints is a well-integrated source
 whose content states nothing worth testing.
+
+---
+
+## PILOT-T1 — real-document ingestion from a synchronized folder
+
+**Delivered 2026-09-21.** Implementation, not a plan.
+Register: [`RealWorldPilot/CorpusManifest.md`](../../RealWorldPilot/CorpusManifest.md).
+Design: [`TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md`](../integrations/TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md).
+
+**Real-corpus status: `BLOCKED_BY_LOCAL_SYNC_CONFIGURATION`.** The approved pilot folder is not
+synchronized to this workstation, and the check was done properly rather than by guessing paths: the
+OneDrive sync-engine registry lists exactly one mount for
+`sites/CentralRxOperationsSupport/Shared Documents/`, and it is a shortcut named **`Knowledge Base`**
+pointing at a *different* subfolder of the same library. One bounded search inside the OneDrive root
+found no `Reuben`, `Projects` or `Knowzy` folder; the two near-misses were rejected because one is the
+personal OneDrive namespace and the other belongs to a different site. Per the instruction not to
+choose silently, no root was selected. Everything else was built and validated against a committed
+fixture mirror, and nothing claims the SharePoint web URL was read directly.
+
+### What was built
+
+**Four binary extractors, and one architectural correction that made them cheap.** `structure.ts`
+splits the work so an extractor **never computes an offset and never sees the final text** — it emits
+headings and paragraphs, and the sectionizer owns the string, which makes X2 true by construction. So
+each extractor is `bytes -> Block[]` and nothing more:
+
+- **PDF** through pdf.js, text only, with page numbers preserved, encrypted documents refused,
+  image-only documents reported `EMPTY` rather than as success, and no eval or canvas path.
+- **DOCX** through a purpose-written OOXML reader. The consequential policy: **tracked deletions are
+  excluded and insertions included**, because a question grounded in deleted text is a wrong question
+  that passes evidence verification. Comments, headers, footers, hidden runs and field instructions
+  are excluded, each with the reason written at the code.
+- **PPTX** in **presentation order** resolved from `presentation.xml`, not filename order — a
+  reordered deck otherwise reads backwards and silently changes how sections split.
+- **XLSX** with sheet names carried (they are what make a cell interpretable) and formula *results*
+  read rather than formulas.
+
+PPTX and XLSX were added mid-milestone on request. `.doc`/`.xls`/`.ppt` are deliberately absent: OLE
+compound files share no code with OOXML. `SHAREPOINT_PAGE` stays absent because a page has no file.
+
+The ZIP reader is written here rather than taken from a library, because **the reader is the security
+control**: ratio and absolute caps checked against the declared size *before* inflating and against
+the actual size after, an entry-count cap, encrypted-entry refusal, and traversal-shaped names
+rejected so they never reach a log line.
+
+**The FILE_REPOSITORY adapter**, distinct from the mock — which is not a style preference:
+`MOCK_ISOLATION` fails startup outside `local` when a mock adapter is registered, so re-pointing the
+mock would make every deployed environment refuse to start. The tree reader is shared; the identities
+are not.
+
+**The canonical URL reconstruction**, which is the whole reason this path is a stepping stone rather
+than a throwaway. `sourceUrl` is non-nullable and flows into the published Question Bank record, so a
+local path there would break traceability permanently *and* write a username and machine layout into a
+SharePoint list nobody will rewrite. A build-failing test asserts no emitted `sourceUrl` or `webUrl`
+matches a local-path shape across every adapter method, and the detector itself is mutation-tested.
+Sharing URLs are refused at configuration time because their query string carries a credential-shaped
+token that also expires.
+
+### Four bugs the tests found that reading the code did not
+
+- **`Stats.blocks` is not populated on Windows.** It is `0` for every file, so the placeholder
+  heuristic marked the entire corpus as cloud placeholders, denied every document, and the adapter
+  served nothing. Now POSIX-only and **advisory**: a placeholder is detected where it actually
+  manifests — the read fails — and reported with the OneDrive setting to change. Denying on a
+  heuristic was worse than the problem it detected.
+- **`destroy()` is on the pdf.js loading task, not the document proxy.** Calling it on the proxy threw
+  a `TypeError` in a `finally`, which discarded text that had already been extracted successfully.
+- **The conformance suite replays a flat `id -> version` checkpoint.** A bespoke state envelope made
+  every replayed state unparseable, so the adapter silently degraded each incremental run to a full
+  scan and never reported a deletion. The checkpoint now matches the shape the mock uses.
+- **`listItems` and `getDocument` did not filter by access**, so a document declared not accessible
+  appeared in listings. The suite caught it immediately.
+
+Two of my own test assertions were also wrong rather than the code: the em dash separator is folded to
+a hyphen by X1 normalization, and the fixture's "deleted" paragraph was never actually wrapped in
+`w:del`, so that assertion had been proving nothing.
+
+### The capability declaration, which is the argument for the whole adapter
+
+`supportsDelegatedAccess: false`, `supportsVersionLabels: false`, `writeCapable: false`, and every
+access decision `enforcement: 'PLATFORM'`. `supportsPermissionCheck` is **`true`**, and the earlier
+plan's `false` would have been unworkable — the contract forces `UNKNOWN`, and extraction and
+synchronization refuse any non-`ALLOWED` decision including `UNKNOWN`, so the adapter could never have
+served a document. The shared refusal rule was not weakened; the capability answers "can you answer",
+and `enforcement` answers "on whose authority".
+
+`supportedDocumentTypes` is **derived from the extractor registry** rather than written out, so the
+declaration cannot drift from what the platform can actually read.
+
+### Verification
+
+`npm run verify` exit 0 — **624 tests across 25 files**, up from 501. `build` 19/19. Boundaries 0
+errors, codegen clean, format clean. The audit gate passes: `pdfjs-dist` and `zod` introduced no new
+advisories.
+
+The **full adapter conformance suite passes against the real FILE_REPOSITORY adapter with no
+assertion relaxed and no group skipped** — 59 passed — which is what makes a transitional adapter
+trustworthy rather than merely present. X1–X8 are parameterized over all four binary formats, so each
+inherits every invariant rather than being spot-checked.
+
+Two gates earned their keep during the work: the boundary cruiser caught `zod` used without being
+declared a dependency, and content rule **C2** caught a SharePoint tenant hostname in a doc comment.
+The real tenant hostname was then removed from the conformance test too — it asserts the path-to-URL
+mapping, not a tenant, and the approved URL belongs in the corpus manifest.
+
+### What is measured, and what is not
+
+Against the fixture mirror: 12 discovered, 7 included, 5 excluded with a reason each, 7 extracted, 0
+failures, 13 sections of which **4 assessable**. Generation, review, approval, publication, assessment
+and learner attempts are recorded as **Not yet executed** rather than as zero.
+
+One observation worth carrying to the real corpus: the PPTX and XLSX fixtures produced **no**
+assessable sections. That is partly fixture size, but it previews the real finding — slide and
+spreadsheet content rarely states a complete rule, and extracting a format successfully is not the
+same as generating well from it.

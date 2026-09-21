@@ -153,6 +153,18 @@ const groupBlocks = (blocks: readonly Block[]): PendingSection[] => {
   return out.filter((s) => s.paragraphs.length > 0);
 };
 
+interface BlockLocation {
+  readonly pageNumber: number | null;
+  readonly slideNumber: number | null;
+  readonly sheetName: string | null;
+}
+
+const sameLocation = (a: BlockLocation, b: BlockLocation): boolean =>
+  a.pageNumber === b.pageNumber && a.slideNumber === b.slideNumber && a.sheetName === b.sheetName;
+
+/** The separator between paragraphs in the assembled text. */
+const PARAGRAPH_BREAK = '\n\n';
+
 /** Fixed windows for a document with no heading structure (X4). */
 const windowSections = (text: string, windowChars: number): PendingSection[] => {
   const paragraphs = text.split(/\n{2,}/).filter((p) => p.trim().length > 0);
@@ -193,11 +205,45 @@ export const sectionize = (
   if (document.hasHeadingStructure) {
     pending = groupBlocks(document.blocks);
   } else {
-    const joined = document.blocks
-      .filter((b): b is Extract<Block, { kind: 'text' }> => b.kind === 'text')
-      .map((b) => b.text)
-      .join('\n\n');
-    pending = windowSections(normalizeText(joined), opts.fallbackWindowChars);
+    // Consecutive blocks sharing a LOCATION are windowed together, so a page,
+    // slide or sheet reference survives into the section that cites it.
+    //
+    // Joining every block into one string first — which this did — discarded
+    // that reference for every format that has one, so a PDF section could not
+    // tell a reviewer which page to look at. Grouping also stops a window
+    // spanning a page boundary, which is better sectioning on its own.
+    //
+    // Behaviour for plain text, Markdown and HTML is UNCHANGED: their blocks
+    // all carry a null location, so they form exactly one group and window
+    // precisely as before. That matters because a different grouping would
+    // change `ordinalWithinParent`, and therefore every stored section key.
+    const groups: { location: BlockLocation; texts: string[] }[] = [];
+    for (const block of document.blocks) {
+      if (block.kind !== 'text') continue;
+      const location: BlockLocation = {
+        pageNumber: block.pageNumber ?? null,
+        slideNumber: block.slideNumber ?? null,
+        sheetName: block.sheetName ?? null,
+      };
+      const last = groups[groups.length - 1];
+      if (last !== undefined && sameLocation(last.location, location)) {
+        last.texts.push(block.text);
+      } else {
+        groups.push({ location, texts: [block.text] });
+      }
+    }
+
+    pending = groups
+      .flatMap((group) =>
+        windowSections(
+          normalizeText(group.texts.join(PARAGRAPH_BREAK)),
+          opts.fallbackWindowChars,
+        ).map((section) => ({ ...section, ...group.location })),
+      )
+      // Renumbered across the whole document, because `ordinalWithinParent` is
+      // half of the section key and all of the honest label. Per-group
+      // numbering would collide two sections on different pages onto one key.
+      .map((section, index) => ({ ...section, ordinalWithinParent: index + 1 }));
   }
 
   // The final text is assembled HERE and nowhere else, which is what guarantees

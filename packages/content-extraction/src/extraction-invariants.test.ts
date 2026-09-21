@@ -7,7 +7,9 @@
 // invariants rather than as incidental assertions about output shape.
 
 import { createHash } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { normalizeForComparison, normalizeText } from '@knowzy/shared-types';
 import { sectionize, type Section } from './sectionize.js';
 import { extractHtml } from './extractors/html.js';
@@ -45,28 +47,28 @@ const PLAIN = [
 ].join('\n\n');
 
 describe('X1 normalization', () => {
-  it('unifies line endings, folds punctuation, and collapses horizontal space', () => {
+  it('unifies line endings, folds punctuation, and collapses horizontal space', async () => {
     const raw = 'The policy’s  \t“scope”\r\nis — clear…';
     expect(normalizeText(raw)).toBe('The policy\'s "scope"\nis - clear...');
   });
 
-  it('preserves paragraph structure but collapses runs of blank lines', () => {
+  it('preserves paragraph structure but collapses runs of blank lines', async () => {
     expect(normalizeText('one\n\n\n\n\ntwo')).toBe('one\n\ntwo');
   });
 
-  it('rejoins a word hyphenated across a line break', () => {
+  it('rejoins a word hyphenated across a line break', async () => {
     expect(normalizeText('config-\nuration')).toBe('configuration');
   });
 
-  it('leaves a genuine compound at a line end alone', () => {
+  it('leaves a genuine compound at a line end alone', async () => {
     expect(normalizeText('read-\nOnly mode')).toBe('read-\nOnly mode');
   });
 
-  it('strips zero-width characters that would break span matching', () => {
+  it('strips zero-width characters that would break span matching', async () => {
     expect(normalizeText('po​licy﻿')).toBe('policy');
   });
 
-  it('uses one pipeline for comparison, differing only by case and wrapping', () => {
+  it('uses one pipeline for comparison, differing only by case and wrapping', async () => {
     expect(normalizeForComparison('The  Policy\nis clear')).toBe('the policy is clear');
   });
 });
@@ -87,7 +89,7 @@ describe('X2 offsets index the returned text and round-trip exactly', () => {
   ] as const;
 
   for (const [label, result] of cases) {
-    it(`round-trips every section (${label})`, () => {
+    it(`round-trips every section (${label})`, async () => {
       expect(result.sections.length).toBeGreaterThan(0);
       for (const section of result.sections) {
         expect(result.normalizedText.slice(section.startOffset, section.endOffset)).toBe(
@@ -96,7 +98,7 @@ describe('X2 offsets index the returned text and round-trip exactly', () => {
       }
     });
 
-    it(`hashes each section over its own text (${label})`, () => {
+    it(`hashes each section over its own text (${label})`, async () => {
       for (const section of result.sections) {
         expect(section.sectionContentHash).toBe(sha256(section.text));
       }
@@ -107,11 +109,11 @@ describe('X2 offsets index the returned text and round-trip exactly', () => {
 describe('X3 sections are ordered and non-overlapping', () => {
   const { sections } = sectionize(extractMarkdown(MARKDOWN));
 
-  it('numbers ordinals from one with no gaps', () => {
+  it('numbers ordinals from one with no gaps', async () => {
     expect(sections.map((s) => s.ordinal)).toEqual(sections.map((_, i) => i + 1));
   });
 
-  it('never overlaps and never runs backwards', () => {
+  it('never overlaps and never runs backwards', async () => {
     let previousEnd = -1;
     for (const section of sections) {
       expect(section.startOffset).toBeGreaterThan(previousEnd);
@@ -120,13 +122,13 @@ describe('X3 sections are ordered and non-overlapping', () => {
     }
   });
 
-  it('gives every section a distinct key', () => {
+  it('gives every section a distinct key', async () => {
     expect(new Set(sections.map((s) => s.sectionKey)).size).toBe(sections.length);
   });
 });
 
 describe('X4 headings are captured, never invented', () => {
-  it('captures the heading path from markdown structure', () => {
+  it('captures the heading path from markdown structure', async () => {
     const { sections } = sectionize(extractMarkdown(MARKDOWN));
     expect(sections.map((s) => s.headingPath)).toEqual([
       'Support Operations Handbook',
@@ -136,7 +138,7 @@ describe('X4 headings are captured, never invented', () => {
     ]);
   });
 
-  it('labels plain-text sections honestly instead of guessing a heading', () => {
+  it('labels plain-text sections honestly instead of guessing a heading', async () => {
     const { sections } = sectionize(extractPlainText(PLAIN));
     expect(sections.length).toBeGreaterThan(0);
     for (const section of sections) {
@@ -146,14 +148,14 @@ describe('X4 headings are captured, never invented', () => {
     }
   });
 
-  it('does not promote an ALL-CAPS line to a heading', () => {
+  it('does not promote an ALL-CAPS line to a heading', async () => {
     const { sections } = sectionize(
       extractPlainText(`ESCALATION POLICY\n\n${paragraph('Page the on-call engineer.')}`),
     );
     expect(sections.every((s) => s.heading === null)).toBe(true);
   });
 
-  it('marks document furniture non-assessable', () => {
+  it('marks document furniture non-assessable', async () => {
     const { sections } = sectionize(extractMarkdown(MARKDOWN));
     const furniture = sections.find((s) => s.heading === 'Revision History');
     expect(furniture?.isAssessable).toBe(false);
@@ -161,7 +163,7 @@ describe('X4 headings are captured, never invented', () => {
     expect(sections.find((s) => s.heading === 'Escalation')?.isAssessable).toBe(true);
   });
 
-  it('marks a section below the assessable minimum, with its length in the reason', () => {
+  it('marks a section below the assessable minimum, with its length in the reason', async () => {
     const { sections } = sectionize(extractMarkdown('## Scope\n\nApplies to retail only.'), {
       minAssessableChars: 300,
     });
@@ -181,21 +183,43 @@ describe('X5 an unextractable document returns a reason and no text', () => {
     expect(result.reason).not.toBeNull();
   };
 
-  it('reports an unregistered file type as UNSUPPORTED', () => {
-    const result = extractContent({ fileName: 'runbook.pdf', content: '%PDF-1.7' });
+  it('reports an unregistered file type as UNSUPPORTED', async () => {
+    // `.doc` is the LEGACY binary Word format. It is deliberately not
+    // registered — it is a different container from DOCX entirely — so it is
+    // the honest example of an unsupported type now that DOCX is supported.
+    const result = await extractContent({ fileName: 'runbook.doc', content: 'anything' });
     expect(result.status).toBe('UNSUPPORTED');
-    expect(result.reason).toContain('.pdf');
+    expect(result.reason).toContain('.doc');
     noText(result);
   });
 
-  it('reports a file with no extension rather than guessing', () => {
-    const result = extractContent({ fileName: 'README', content: 'text' });
+  it('refuses text supplied for a binary format rather than decoding it', async () => {
+    // Coercing here would hand a PDF parser a re-encoded string, or decode
+    // bytes as UTF-8 into mojibake that extracts "successfully" into nonsense.
+    const result = await extractContent({ fileName: 'runbook.pdf', content: '%PDF-1.7' });
+    expect(result.status).toBe('UNSUPPORTED');
+    expect(result.reason).toContain('requires binary content');
+    noText(result);
+  });
+
+  it('refuses bytes supplied for a text format', async () => {
+    const result = await extractContent({
+      fileName: 'notes.txt',
+      content: new Uint8Array([1, 2, 3]),
+    });
+    expect(result.status).toBe('UNSUPPORTED');
+    expect(result.reason).toContain('requires text content');
+    noText(result);
+  });
+
+  it('reports a file with no extension rather than guessing', async () => {
+    const result = await extractContent({ fileName: 'README', content: 'text' });
     expect(result.status).toBe('UNSUPPORTED');
     noText(result);
   });
 
-  it('reports an oversize document before parsing it', () => {
-    const result = extractContent(
+  it('reports an oversize document before parsing it', async () => {
+    const result = await extractContent(
       { fileName: 'big.txt', content: 'x'.repeat(5_000) },
       { maxBytes: 1_000 },
     );
@@ -204,23 +228,23 @@ describe('X5 an unextractable document returns a reason and no text', () => {
     noText(result);
   });
 
-  it('reports a document with no extractable text as EMPTY, not as success', () => {
-    const result = extractContent({ fileName: 'blank.txt', content: '   \n\n\t\n' });
+  it('reports a document with no extractable text as EMPTY, not as success', async () => {
+    const result = await extractContent({ fileName: 'blank.txt', content: '   \n\n\t\n' });
     expect(result.status).toBe('EMPTY');
     expect(result.reason).toContain('only images or no content');
     noText(result);
   });
 
-  it('never returns EXTRACTED with empty text', () => {
+  it('never returns EXTRACTED with empty text', async () => {
     for (const content of ['', '   ', '\n\n\n', '<html><body></body></html>']) {
-      const result = extractContent({ fileName: 'doc.html', content });
+      const result = await extractContent({ fileName: 'doc.html', content });
       expect(result.status).not.toBe('EXTRACTED');
       expect(result.charCount).toBe(0);
     }
   });
 
-  it('carries text and a hash only on the success path', () => {
-    const result = extractContent({ fileName: 'handbook.md', content: MARKDOWN });
+  it('carries text and a hash only on the success path', async () => {
+    const result = await extractContent({ fileName: 'handbook.md', content: MARKDOWN });
     expect(result.status).toBe('EXTRACTED');
     expect(result.normalizedText).not.toBeNull();
     expect(result.charCount).toBe(result.normalizedText?.length);
@@ -230,14 +254,20 @@ describe('X5 an unextractable document returns a reason and no text', () => {
 });
 
 describe('X6 truncation ends at a section boundary and is reported', () => {
-  const result = extractContent({ fileName: 'handbook.md', content: MARKDOWN }, { maxChars: 400 });
+  let result: Awaited<ReturnType<typeof extractContent>>;
+  beforeAll(async () => {
+    result = await extractContent(
+      { fileName: 'handbook.md', content: MARKDOWN },
+      { maxChars: 400 },
+    );
+  });
 
-  it('reports the truncation instead of silently shortening', () => {
+  it('reports the truncation instead of silently shortening', async () => {
     expect(result.truncated).toBe(true);
     expect(result.reason).toContain('Truncated at a section boundary');
   });
 
-  it('keeps whole sections only', () => {
+  it('keeps whole sections only', async () => {
     expect(result.sections.length).toBeGreaterThan(0);
     const last = result.sections[result.sections.length - 1];
     expect(last?.endOffset).toBe(result.normalizedText?.length);
@@ -248,48 +278,48 @@ describe('X6 truncation ends at a section boundary and is reported', () => {
     }
   });
 
-  it('does not report truncation when the document fits', () => {
-    const whole = extractContent({ fileName: 'handbook.md', content: MARKDOWN });
+  it('does not report truncation when the document fits', async () => {
+    const whole = await extractContent({ fileName: 'handbook.md', content: MARKDOWN });
     expect(whole.truncated).toBe(false);
     expect(whole.sections.length).toBeGreaterThan(result.sections.length);
   });
 });
 
 describe('X7 the content hash is SHA-256 of the normalized text', () => {
-  it('matches an independently computed digest', () => {
-    const result = extractContent({ fileName: 'handbook.md', content: MARKDOWN });
+  it('matches an independently computed digest', async () => {
+    const result = await extractContent({ fileName: 'handbook.md', content: MARKDOWN });
     expect(result.contentHash).toBe(sha256(result.normalizedText ?? ''));
   });
 
-  it('is unchanged by differences normalization removes', () => {
-    const windows = extractContent({
+  it('is unchanged by differences normalization removes', async () => {
+    const windows = await extractContent({
       fileName: 'handbook.md',
       content: MARKDOWN.replace(/\n/g, '\r\n'),
     });
-    const unix = extractContent({ fileName: 'handbook.md', content: MARKDOWN });
+    const unix = await extractContent({ fileName: 'handbook.md', content: MARKDOWN });
     expect(windows.contentHash).toBe(unix.contentHash);
   });
 
-  it('changes when the text changes', () => {
-    const edited = extractContent({
+  it('changes when the text changes', async () => {
+    const edited = await extractContent({
       fileName: 'handbook.md',
       content: MARKDOWN.replace('pager rotation table', 'escalation matrix'),
     });
-    const original = extractContent({ fileName: 'handbook.md', content: MARKDOWN });
+    const original = await extractContent({ fileName: 'handbook.md', content: MARKDOWN });
     expect(edited.contentHash).not.toBe(original.contentHash);
   });
 });
 
 describe('X8 extraction is deterministic', () => {
-  it('produces identical output across runs', () => {
-    const first = extractContent({ fileName: 'handbook.md', content: MARKDOWN });
-    const second = extractContent({ fileName: 'handbook.md', content: MARKDOWN });
+  it('produces identical output across runs', async () => {
+    const first = await extractContent({ fileName: 'handbook.md', content: MARKDOWN });
+    const second = await extractContent({ fileName: 'handbook.md', content: MARKDOWN });
     expect(JSON.stringify(second)).toBe(JSON.stringify(first));
   });
 
-  it('keeps section keys stable when unrelated content changes', () => {
-    const before = extractContent({ fileName: 'handbook.md', content: MARKDOWN });
-    const after = extractContent({
+  it('keeps section keys stable when unrelated content changes', async () => {
+    const before = await extractContent({ fileName: 'handbook.md', content: MARKDOWN });
+    const after = await extractContent({
       fileName: 'handbook.md',
       content: MARKDOWN.replace('pager rotation table', 'escalation matrix'),
     });
@@ -311,18 +341,110 @@ describe('HTML is sanitized, not swept with a regex', () => {
   ].join('');
   const result = sectionize(extractHtml(html));
 
-  it('discards script and style contents entirely', () => {
+  it('discards script and style contents entirely', async () => {
     expect(result.normalizedText).not.toContain('SCRIPTLEAK');
     expect(result.normalizedText).not.toContain('color:red');
     expect(result.normalizedText).not.toContain('alert');
   });
 
-  it('discards chrome that is not document content', () => {
+  it('discards chrome that is not document content', async () => {
     expect(result.normalizedText).not.toContain('Home');
     expect(result.normalizedText).not.toContain('Copyright notice');
   });
 
-  it('decodes entities so an evidence span from the rendered page matches', () => {
+  it('decodes entities so an evidence span from the rendered page matches', async () => {
     expect(result.sections[0]?.heading).toBe('Returns & Refunds');
   });
+});
+
+// ---------------------------------------------------------------------------
+// The same invariants, for the BINARY formats.
+//
+// Parameterized over PDF, DOCX, PPTX and XLSX so each one inherits X1-X8
+// rather than being spot-checked. A new binary extractor is added to this one
+// array and immediately has to satisfy every invariant the text formats do,
+// which is the point of holding them in a table.
+
+describe('X1-X8 hold for the binary formats too', () => {
+  const FIXTURES = join(import.meta.dirname, '..', 'test', 'fixtures');
+  const fixtureBytes = (name: string): Uint8Array =>
+    new Uint8Array(readFileSync(join(FIXTURES, name)));
+
+  const BINARY_CASES = [
+    ['pdf', 'sop-two-page.pdf'],
+    ['docx', 'sop.docx'],
+    ['pptx', 'deck.pptx'],
+    ['xlsx', 'policy.xlsx'],
+  ] as const;
+
+  for (const [label, fileName] of BINARY_CASES) {
+    describe(label, () => {
+      let result: Awaited<ReturnType<typeof extractContent>>;
+      beforeAll(async () => {
+        result = await extractContent({ fileName, content: fixtureBytes(fileName) });
+      });
+
+      it('extracts successfully with text and a hash', () => {
+        expect(result.status).toBe('EXTRACTED');
+        expect(result.normalizedText).not.toBeNull();
+        expect(result.contentHash).not.toBeNull();
+        expect(result.sections.length).toBeGreaterThan(0);
+      });
+
+      it('X2 round-trips every section offset into the returned text', () => {
+        for (const section of result.sections) {
+          expect(result.normalizedText?.slice(section.startOffset, section.endOffset)).toBe(
+            section.text,
+          );
+        }
+      });
+
+      it('X2 hashes each section over its own text', () => {
+        for (const section of result.sections) {
+          expect(section.sectionContentHash).toBe(sha256(section.text));
+        }
+      });
+
+      it('X3 numbers ordinals from one with no gaps, and never overlaps', () => {
+        expect(result.sections.map((s) => s.ordinal)).toEqual(
+          result.sections.map((_, index) => index + 1),
+        );
+        for (let i = 1; i < result.sections.length; i += 1) {
+          const previous = result.sections[i - 1];
+          const current = result.sections[i];
+          expect(current?.startOffset).toBeGreaterThanOrEqual(previous?.endOffset ?? 0);
+        }
+      });
+
+      it('X3 gives every section a distinct key', () => {
+        const keys = result.sections.map((s) => s.sectionKey);
+        expect(new Set(keys).size).toBe(keys.length);
+      });
+
+      it('X4 never claims a heading the document does not have', () => {
+        for (const section of result.sections) {
+          if (section.heading === null) {
+            expect(section.label).toMatch(/^Segment \d+ of \d+$/);
+          } else {
+            expect(section.label).toBe(section.heading);
+          }
+        }
+      });
+
+      it('X7 hashes the normalized text', () => {
+        expect(result.contentHash).toBe(sha256(result.normalizedText ?? ''));
+      });
+
+      it('X8 is deterministic across runs', async () => {
+        const again = await extractContent({ fileName, content: fixtureBytes(fileName) });
+        expect(JSON.stringify(again)).toBe(JSON.stringify(result));
+      });
+
+      it('X1 leaves no zero-width or CRLF artifacts in the text', () => {
+        const text = result.normalizedText ?? '';
+        expect(text).not.toMatch(/[\u200b-\u200d\ufeff]/);
+        expect(text).not.toContain('\r');
+      });
+    });
+  }
 });

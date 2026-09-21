@@ -23,7 +23,8 @@
   },
   "dependencies": {
     "@knowzy/shared-types": "*",
-    "node-html-parser": "^6.1.13"
+    "node-html-parser": "^6.1.13",
+    "pdfjs-dist": "^6.3.289"
   },
   "devDependencies": {
     "@knowzy/eslint-config": "*",

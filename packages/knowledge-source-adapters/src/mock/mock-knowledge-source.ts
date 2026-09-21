@@ -199,11 +199,11 @@ export const createMockKnowledgeSourceAdapter = (
       .documents.filter((d) => withinConfiguredPaths(ctx, d))
       .filter((d) => accessFor(ctx, d).decision === 'ALLOWED');
 
-  const extract = (
+  const extract = async (
     ctx: AdapterContext,
     document: FixtureDocument,
     extractOptions: ExtractOptions,
-  ): ExtractedContent => {
+  ): Promise<ExtractedContent> => {
     if (faultsByPath.get(document.relativePath) === 'EXTRACTION_FAILED') {
       return {
         status: 'FAILED',
@@ -214,7 +214,7 @@ export const createMockKnowledgeSourceAdapter = (
       };
     }
 
-    const result = extractFileContent(
+    const result = await extractFileContent(
       {
         fileName: document.name,
         content: readFixtureContent(document),
@@ -476,7 +476,7 @@ export const createMockKnowledgeSourceAdapter = (
         throw new Error(`Access to document ${id} is ${access.decision}.`);
       }
 
-      return extract(ctx, document, extractOptions);
+      return await extract(ctx, document, extractOptions);
     },
 
     async *synchronize(ctx: AdapterContext, request: SyncRequest): AsyncIterable<SyncEvent> {

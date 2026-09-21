@@ -1,0 +1,7 @@
+Shared accounts must never be used to access the certificate store.
+
+A request for elevated access must be approved by the team leader before it is granted.
+
+Any credential suspected of exposure must be rotated within four hours of the report.
+
+The service desk must record every elevated-access request in the change log.

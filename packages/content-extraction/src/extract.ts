@@ -20,6 +20,10 @@ import { sectionize, type Section, type SectionizeOptions } from './sectionize.j
 import type { StructuredDocument } from './structure.js';
 import { extractHtml } from './extractors/html.js';
 import { extractMarkdown, extractPlainText } from './extractors/text.js';
+import { DocxError, extractDocx } from './extractors/docx.js';
+import { PdfError, extractPdf } from './extractors/pdf.js';
+import { PptxError, extractPptx } from './extractors/pptx.js';
+import { XlsxError, extractXlsx } from './extractors/xlsx.js';
 
 export interface ExtractedContent {
   readonly status: ExtractionStatus;
@@ -37,8 +41,16 @@ export interface ExtractedContent {
 export interface ExtractInput {
   /** File name or path, used to choose an extractor. */
   readonly fileName: string;
-  /** Decoded text. Binary formats are not supported yet (see below). */
-  readonly content: string;
+  /**
+   * The document.
+   *
+   * A `string` for a text format, a `Uint8Array` for a binary one. Both are
+   * accepted on one field rather than two so there is exactly one input shape
+   * and a caller cannot supply neither or both. The registry decides which the
+   * selected extractor wants, and a mismatch is a stated refusal rather than a
+   * decode that silently produces mojibake.
+   */
+  readonly content: string | Uint8Array;
   readonly sizeBytes?: number;
 }
 
@@ -47,19 +59,13 @@ export interface ExtractOptions extends SectionizeOptions {
   readonly maxBytes?: number;
 }
 
-type ExtractorFn = (raw: string) => StructuredDocument;
+type TextExtractorFn = (raw: string) => StructuredDocument;
+type BinaryExtractorFn = (raw: Uint8Array) => StructuredDocument | Promise<StructuredDocument>;
 
 /**
- * Registered text extractors.
- *
- * PDF, DOCX, PPTX, XLSX, and SharePoint pages are declared in
- * architecture.md §8.4 and are NOT registered here yet: each needs a binary
- * parser, and every one of them must still satisfy X2 (offsets round-trip).
- * They are additive — a new entry in this map plus a conformance fixture — and
- * a document of an unregistered type returns UNSUPPORTED with a reason rather
- * than being silently skipped.
+ * Registered TEXT extractors — the extractor receives a decoded string.
  */
-const EXTRACTORS: ReadonlyMap<string, ExtractorFn> = new Map<string, ExtractorFn>([
+const EXTRACTORS: ReadonlyMap<string, TextExtractorFn> = new Map<string, TextExtractorFn>([
   ['txt', extractPlainText],
   ['text', extractPlainText],
   ['md', extractMarkdown],
@@ -69,10 +75,53 @@ const EXTRACTORS: ReadonlyMap<string, ExtractorFn> = new Map<string, ExtractorFn
   ['aspx', extractHtml],
 ]);
 
-export const SUPPORTED_EXTENSIONS: readonly string[] = [...EXTRACTORS.keys()];
+/**
+ * Registered BINARY extractors — the extractor receives bytes.
+ *
+ * SHAREPOINT_PAGE remains unregistered: a page has no file in a document
+ * library at all, so there are no bytes to extract. It is Graph canvas
+ * content and arrives with roadmap Phase 7.
+ *
+ * The LEGACY binary Office formats — `.doc`, `.xls`, `.ppt` — are also
+ * deliberately absent. They are entirely different containers from the OOXML
+ * ones (OLE compound files, not ZIP), share no code with these extractors, and
+ * are rare in a modern library. A document of an unregistered type returns
+ * UNSUPPORTED with a reason rather than being silently skipped.
+ */
+const BINARY_EXTRACTORS: ReadonlyMap<string, BinaryExtractorFn> = new Map<
+  string,
+  BinaryExtractorFn
+>([
+  ['pdf', (bytes) => extractPdf(bytes)],
+  ['docx', (bytes) => extractDocx(bytes)],
+  ['pptx', (bytes) => extractPptx(bytes)],
+  ['xlsx', (bytes) => extractXlsx(bytes)],
+]);
 
-/** Types a registered extractor can currently handle. */
-export const supportedDocumentTypes: readonly DocumentType[] = ['TXT', 'HTML'];
+export const SUPPORTED_EXTENSIONS: readonly string[] = [
+  ...EXTRACTORS.keys(),
+  ...BINARY_EXTRACTORS.keys(),
+];
+
+/** True when the selected extractor wants bytes rather than a decoded string. */
+export const isBinaryExtension = (extension: string): boolean =>
+  BINARY_EXTRACTORS.has(extension.toLowerCase());
+
+/**
+ * Types a registered extractor can currently handle.
+ *
+ * DERIVED from the registries rather than written out, so it cannot drift from
+ * them. An adapter declaring `supportedDocumentTypes` from this value is
+ * therefore honest by construction (adapter template rule P1).
+ */
+export const supportedDocumentTypes: readonly DocumentType[] = [
+  'TXT',
+  'HTML',
+  'PDF',
+  'DOCX',
+  'PPTX',
+  'XLSX',
+];
 
 export const fileExtension = (fileName: string): string => {
   const dot = fileName.lastIndexOf('.');
@@ -91,14 +140,90 @@ const failure = (status: ExtractionStatus, reason: string): ExtractedContent => 
   documentType: null,
 });
 
-export const extractContent = (
+/**
+ * Maps a binary extractor's own error to an extraction status and a reason.
+ *
+ * Every branch produces a reason an ADMINISTRATOR can act on, and none of them
+ * carries provider text or document content. `QUARANTINED` is used for a
+ * container that was refused on a safety limit rather than failing to parse:
+ * "we declined to inflate this" is a different fact from "this is corrupt",
+ * and the operator response differs.
+ */
+const binaryFailure = (error: unknown): ExtractedContent => {
+  if (error instanceof PdfError) {
+    if (error.code === 'ENCRYPTED') {
+      return failure(
+        'FAILED',
+        'The document is encrypted or password-protected, so its text cannot be read. ' +
+          'Supply an unprotected copy.',
+      );
+    }
+    return failure(
+      error.code === 'NOT_A_PDF' ? 'UNSUPPORTED' : 'FAILED',
+      error.code === 'NOT_A_PDF'
+        ? 'The file has a .pdf extension but is not a valid PDF document.'
+        : 'The PDF could not be parsed. It may be truncated or corrupt.',
+    );
+  }
+  if (error instanceof DocxError) {
+    if (error.code === 'ENCRYPTED') {
+      return failure(
+        'FAILED',
+        'The document is encrypted or password-protected, so its text cannot be read. ' +
+          'Supply an unprotected copy.',
+      );
+    }
+    if (error.code === 'LIMIT_EXCEEDED') {
+      return failure('QUARANTINED', `The document was refused: ${error.message}`);
+    }
+    return failure(
+      error.code === 'NOT_A_DOCX' ? 'UNSUPPORTED' : 'FAILED',
+      error.code === 'NOT_A_DOCX'
+        ? 'The file has a .docx extension but is not a DOCX container.'
+        : 'The DOCX could not be parsed. It may be truncated or corrupt.',
+    );
+  }
+  if (error instanceof PptxError || error instanceof XlsxError) {
+    const kind = error instanceof PptxError ? 'presentation' : 'workbook';
+    if (error.code === 'ENCRYPTED') {
+      return failure(
+        'FAILED',
+        `The ${kind} is encrypted or password-protected, so its text cannot be read. ` +
+          'Supply an unprotected copy.',
+      );
+    }
+    if (error.code === 'LIMIT_EXCEEDED') {
+      return failure('QUARANTINED', `The document was refused: ${error.message}`);
+    }
+    const unsupported = error.code === 'NOT_A_PPTX' || error.code === 'NOT_AN_XLSX';
+    return failure(
+      unsupported ? 'UNSUPPORTED' : 'FAILED',
+      unsupported
+        ? `The file has an Office extension but is not a valid ${kind} container.`
+        : `The ${kind} could not be parsed. It may be truncated or corrupt.`,
+    );
+  }
+  // Nothing else is expected. Reported as FAILED with no provider text.
+  return failure('FAILED', 'The document could not be extracted.');
+};
+
+/**
+ * Extracts a document.
+ *
+ * Asynchronous because a binary parser is. There is deliberately ONE entry
+ * point rather than a sync text path and an async binary one: two pipelines
+ * would be two places for normalization to drift, and X1/X2 hold only because
+ * the sectionizer is the single owner of the final text.
+ */
+export const extractContent = async (
   input: ExtractInput,
   options: ExtractOptions = {},
-): ExtractedContent => {
+): Promise<ExtractedContent> => {
   const extension = fileExtension(input.fileName);
-  const extractor = EXTRACTORS.get(extension);
+  const textExtractor = EXTRACTORS.get(extension);
+  const binaryExtractor = BINARY_EXTRACTORS.get(extension);
 
-  if (!extractor) {
+  if (!textExtractor && !binaryExtractor) {
     return failure(
       'UNSUPPORTED',
       extension.length === 0
@@ -107,7 +232,30 @@ export const extractContent = (
     );
   }
 
-  const sizeBytes = input.sizeBytes ?? Buffer.byteLength(input.content, 'utf8');
+  const isBytes = typeof input.content !== 'string';
+
+  // A mismatch is refused rather than coerced. Decoding a PDF's bytes as UTF-8
+  // would produce mojibake that extracts "successfully" into nonsense, and
+  // re-encoding a string as bytes would hand a parser something the caller
+  // never read from disk.
+  if (binaryExtractor && !isBytes) {
+    return failure(
+      'UNSUPPORTED',
+      `File type ".${extension}" requires binary content, but text was supplied.`,
+    );
+  }
+  if (textExtractor && !binaryExtractor && isBytes) {
+    return failure(
+      'UNSUPPORTED',
+      `File type ".${extension}" requires text content, but bytes were supplied.`,
+    );
+  }
+
+  const sizeBytes =
+    input.sizeBytes ??
+    (typeof input.content === 'string'
+      ? Buffer.byteLength(input.content, 'utf8')
+      : input.content.byteLength);
   if (options.maxBytes !== undefined && sizeBytes > options.maxBytes) {
     return failure(
       'TOO_LARGE',
@@ -115,7 +263,17 @@ export const extractContent = (
     );
   }
 
-  const structured = extractor(input.content);
+  let structured: StructuredDocument;
+  if (binaryExtractor) {
+    try {
+      structured = await binaryExtractor(input.content as Uint8Array);
+    } catch (error) {
+      return binaryFailure(error);
+    }
+  } else {
+    structured = (textExtractor as TextExtractorFn)(input.content as string);
+  }
+
   const result = sectionize(structured, options);
 
   if (result.normalizedText.length === 0) {

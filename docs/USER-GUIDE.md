@@ -1,7 +1,7 @@
 # Knowzy — User Guide
 
-**Applies to:** the local demonstration build at milestone UI-M3 (branding refinement, screen
-quality, and traceability depth)
+**Applies to:** the local demonstration build at milestone PILOT-T1 (real-document ingestion from a
+synchronized folder), including UI-M3
 **Last updated:** 2026-09-21
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -195,6 +195,26 @@ If a document is listed in the fixture but not in the count, that is deliberate:
 caller may not read is skipped per-item, and the sync still succeeds. It never appears in browse,
 search, or generation.
 
+#### Reading a synchronized SharePoint folder (transitional)
+
+While Graph access is unavailable, a source can read a **locally synchronized mirror** of an approved
+SharePoint folder — the folder you get from *Add shortcut to OneDrive* or *Sync*. Microsoft's own
+client does the authentication and the file transfer; Knowzy just reads the directory.
+
+What you see on such a source, and should read carefully:
+
+| | |
+| --- | --- |
+| **Every document links to SharePoint, not to a file on disk** | A published question's source link opens the real document in the library. No local path is ever stored |
+| **Access is enforced by Knowzy, not by SharePoint** | Test Connection says so explicitly. Per-user SharePoint trimming is **not** available, so who can see a document is decided by role, domain, team and business function inside Knowzy |
+| **The corpus is whatever one account can see** | The mirror contains exactly what the synchronizing person has access to. That account is recorded on the source |
+| **No version numbers** | A synchronized file has no SharePoint version, so "the source changed" is detected from content and reported without a version |
+| **Files must be downloaded, not cloud placeholders** | Mark the folder *Always keep on this device*. Test Connection fails with that instruction if any file is still a placeholder |
+
+Test Connection runs nine checks and names the useful one plainly: how many of the matched documents
+have a reader at all. A library of formats Knowzy cannot read is reported **before** you synchronize
+rather than after.
+
 ### 4.2 Document browser — "Browse documents"
 
 Act as the **author** (or stay as the administrator to look).
@@ -209,6 +229,21 @@ selectable will not be offered on the Generate page.
 the section is assessable and why not if it isn't, and whether a question already covers it. The
 offsets are the platform's claim about itself — the evidence a question quotes is exactly
 `text.slice(start, end)` of the extracted document.
+
+#### Which document formats can be read
+
+| Format | Read? | What to expect |
+| --- | --- | --- |
+| **Word** `.docx` | Yes | Headings become sections. Tables are read as text. **Tracked deletions are ignored and insertions are kept** — a question is never built from a sentence the author removed. Comments, headers, footers and hidden text are ignored |
+| **PDF** `.pdf` | Yes | Text per page, with the page number kept so a reviewer can find the quote. A **scanned** PDF has no text to read and is reported as empty — there is no OCR. A password-protected PDF is refused |
+| **PowerPoint** `.pptx` | Yes, in presentation order | Speaker notes are ignored. Bear in mind slide text is often a fragment rather than a sentence, so slides frequently produce no questions |
+| **Excel** `.xlsx` | Yes | Rows are read as text with the sheet name kept. A formula's **result** is read, not the formula. A sheet of data states no rule and will produce nothing; a policy table may |
+| **Text, Markdown, HTML** | Yes | As before |
+| `.doc`, `.xls`, `.ppt` (pre-2007) | **No** | A different file format entirely. Save as the modern equivalent |
+| Anything else | **No** | Reported as unsupported, with the extension named. Never silently skipped |
+
+A document Knowzy cannot read is always **reported with a reason**. It is never counted as read with
+no content, because that would look like a document with nothing in it.
 
 ### 4.3 Generate questions — `/generate`
 
@@ -563,7 +598,7 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | | |
 | --- | --- |
 | **Sign-in** | Identities are picked from a list. The local stub issuer refuses to run outside the `local` environment |
-| **SharePoint** | Documents come from files in `fixtures/knowledge/`. The real adapter is Phase 7 |
+| **SharePoint over Graph** | Not connected. Graph SharePoint calls return 403 until a tenant administrator consents, so the Graph adapter is still Phase 7. **A locally synchronized mirror of an approved SharePoint folder can be read today** through a file-repository source — real documents, but access is enforced by Knowzy rather than by SharePoint (§4.1) |
 | **The Question Bank** | A local JSON file behind the same port the SharePoint adapter will implement. Phase 8 |
 | **Claude** | Generation uses a deterministic local generator that quotes documents verbatim and passes through the same gates. Question *quality* has never been tested against a model |
 | **Dashboards and reporting** | Not built. They need the Phase 10 read models |
@@ -590,6 +625,7 @@ the log below.
 | Date | Commit | Change |
 | --- | --- | --- |
 | 2026-09-18 | `1762cc7` | First version. Covers M7: six authoring screens, four learner screens, the identity picker, and the refusals each screen can show |
+| 2026-09-21 | PILOT-T1 | **Real documents can now be read.** Word, PDF, PowerPoint and Excel files are read in addition to text, Markdown and HTML, and §4.2 says what to expect from each — including that a scanned PDF has no text to read and that tracked deletions are deliberately ignored. A knowledge source can now read a **locally synchronized mirror** of an approved SharePoint folder while Graph access is unavailable (§4.1): documents still link to SharePoint, never to a file on disk, and Test Connection states plainly that access is enforced by Knowzy rather than by SharePoint. Test Connection reports how many matched documents have no reader at all, before you synchronize |
 | 2026-09-21 | UI-M3 | **Traceability and preflight depth.** Question approval (§4.5) gains a five-stage strip above the tabs reading Knowledge → Evidence → Review → Approval → Publication, each stage ticked only where a record exists and showing that record; it does **not** name the reviewer or approver, because the platform does not expose who made a decision. Generate (§4.3) now shows each preflight check by name with the sentence and the facts behind its verdict instead of a badge in a table, and the result carries the rejection breakdown, scope, job reference and model usage. Learner home (§5.1) states "Your progress over time" as a capability this release does not include, rather than as small print. Also fixed: the sidebar tagline was clipped at 1440px |
 | 2026-09-21 | UI-M3 | The header is rebuilt to the approved mockup: a larger EssilorLuxottica mark, then the KNOWZY wordmark with its tagline, on a slightly taller bar (§2.4). The Start and Resume buttons are green, and anything marked **Planned** is now a soft blue pill. On the screens: **pipeline health** on the dashboard (§4.0) listing conditions that are true right now; connection health and staleness in one cell on Knowledge Sources (§4.1); the drafts a generation job created are now listed and linked (§4.3); every review queue tab carries its own count (§4.4); the provenance trail shows revisions (§4.6); and assessment cards show four figures with an explicit "Ready to start" (§5.1). Also fixed: a refusal on the learner portal was rendering as unstyled text, and six colour pairs were below the WCAG AA contrast minimum |
 | 2026-09-21 | UI-M2b | The implemented screens redesigned on real data. New: the authoring **dashboard** (§4.0) with the pipeline counts and a panel naming any read your identity may not see; the **approval gate rail** (§4.5); a **traceability** panel on each published question (§4.6); learner **assessment cards** and a resume bar (§5.1); and the result screen's **per-topic bars, gap table and band scale** (§5.4). Two real fields that had been dropped are now shown: whether a source is active, and a duplicate's recorded disposition. **Nothing was invented** — no deltas, no placeholder metrics, no recommendations, no badges |

@@ -1,0 +1,14 @@
+{
+  "sourceVersion": "2.0",
+  "sourceCreatedAt": "2025-02-01T09:00:00.000Z",
+  "sourceModifiedAt": "2025-06-01T09:00:00.000Z",
+  "mimeType": "text/markdown",
+  "metadata": {
+    "Classification": "Restricted",
+    "Owner": "Company Secretary"
+  },
+  "access": {
+    "default": "DENIED",
+    "summary": "Restricted to the remuneration committee by the source owner."
+  }
+}

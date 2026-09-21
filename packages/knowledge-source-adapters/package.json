@@ -22,9 +22,10 @@
     "test": "vitest run --dir src --passWithNoTests"
   },
   "dependencies": {
-    "@knowzy/shared-types": "*",
+    "@knowzy/content-extraction": "*",
     "@knowzy/observability": "*",
-    "@knowzy/content-extraction": "*"
+    "@knowzy/shared-types": "*",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@knowzy/eslint-config": "*",
