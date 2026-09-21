@@ -133,6 +133,10 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
 
   const view = result.data;
   const thresholds = Array.isArray(view.appliedThresholds) ? view.appliedThresholds : [];
+  // The band the score fell into, so its range can be shown beside its name.
+  const band = thresholds.find((threshold) => threshold.band === view.proficiencyBand);
+  const bandRange =
+    band === undefined ? undefined : `${band.minInclusive}–${Math.min(100, band.maxExclusive)}%`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -147,6 +151,7 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
             />
             <Badge tone="info" withIcon={false}>
               {bandLabel(view.proficiencyBand)}
+              {bandRange === undefined ? '' : ` · ${bandRange}`}
             </Badge>
             <Badge tone="neutral" withIcon={false}>
               {t('result.attempt')} {view.attemptNumber}
@@ -170,8 +175,13 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
                 total: view.totalQuestions,
               })}
               trailing={
-                <span className="text-base font-semibold text-ink-muted">
-                  {bandLabel(view.proficiencyBand)}
+                <span className="flex items-baseline gap-2">
+                  <span className="text-base font-semibold text-ink-muted">
+                    {bandLabel(view.proficiencyBand)}
+                  </span>
+                  {bandRange === undefined ? null : (
+                    <span className="font-mono text-sm text-ink-subtle">{bandRange}</span>
+                  )}
                 </span>
               }
               thresholds={thresholds.map((threshold) => ({

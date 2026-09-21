@@ -137,6 +137,8 @@ export interface ProvenanceStep {
   readonly detail?: ReactNode;
   readonly facts?: readonly { readonly label: ReactNode; readonly value: ReactNode }[];
   readonly tone?: 'ai' | 'info' | 'success' | 'warning' | 'neutral';
+  /** Decorative glyph for the step's dot. Falls back to a neutral marker. */
+  readonly icon?: ReactNode;
 }
 
 const DOT: Record<NonNullable<ProvenanceStep['tone']>, string> = {
@@ -170,7 +172,7 @@ export const ProvenanceTimeline = ({ steps }: { readonly steps: readonly Provena
                 DOT[step.tone ?? 'neutral']
               }`}
             >
-              <CircleDashed className="size-3.5" />
+              {step.icon ?? <CircleDashed className="size-3.5" />}
             </span>
             {last ? null : <span aria-hidden="true" className="w-px flex-1 bg-line" />}
           </span>

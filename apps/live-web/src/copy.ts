@@ -41,6 +41,9 @@ export const copy = {
   'list.timeLimit': 'Time limit',
   'list.noLimit': 'None',
   'list.open': 'Open',
+  'list.ready': 'Ready to start',
+  'list.historyNote':
+    'A result is shown at the end of the attempt that produced it. This release has no per-learner result history, so an earlier result is not linked from here.',
   'list.attemptsOf': '{used} of {limit} used',
   'list.attemptsUsedOnly': '{used} used · no limit',
   'list.blockedNoReason': 'The server did not permit this attempt.',

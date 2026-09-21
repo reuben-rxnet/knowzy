@@ -81,12 +81,24 @@ export default async function ReviewQueuePage({
   const queue: Queue = isQueue(query.queue) ? query.queue : 'author';
   const documentId = query.documentId;
 
-  const result = await api<{ queue: string; count: number; items: readonly QueueItem[] }>(
-    `/api/v1/authoring/questions/review?queue=${queue}` +
-      (documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`),
-  );
-
   const suffix = documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`;
+  const queueUrl = (name: string) =>
+    `/api/v1/authoring/questions/review?queue=${name}` +
+    (documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`);
+
+  // All five counts, so the tabs say where the work is instead of making an
+  // author click each one to find out. Same endpoint the page already uses; a
+  // refused count is omitted rather than shown as zero.
+  const [result, ...counts] = await Promise.all([
+    api<{ queue: string; count: number; items: readonly QueueItem[] }>(queueUrl(queue)),
+    ...QUEUES.map((name) => api<{ count: number }>(queueUrl(name))),
+  ]);
+
+  const countFor = (name: Queue): number | undefined => {
+    const index = QUEUES.indexOf(name);
+    const read = counts[index];
+    return read !== undefined && read.ok ? read.data.count : undefined;
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -105,11 +117,14 @@ export default async function ReviewQueuePage({
       <TabNav
         ariaLabel={t('review.queueLabel')}
         activeHref={`/review?queue=${queue}${suffix}`}
-        items={QUEUES.map((name) => ({
-          label: t(QUEUE_LABEL[name]),
-          href: `/review?queue=${name}${suffix}`,
-          ...(name === queue && result.ok ? { count: result.data.count } : {}),
-        }))}
+        items={QUEUES.map((name) => {
+          const count = countFor(name);
+          return {
+            label: t(QUEUE_LABEL[name]),
+            href: `/review?queue=${name}${suffix}`,
+            ...(count === undefined ? {} : { count }),
+          };
+        })}
       />
 
       {documentId === undefined ? null : (

@@ -40,6 +40,23 @@ const formatTested = (value: string | null): string =>
     : new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 
 /**
+ * How long ago, from the timestamp the payload already carries.
+ *
+ * An administrator's real question about a connection check is not "when" but
+ * "how stale", and the answer is derived from the field rather than stored.
+ */
+const relativeTo = (value: string | null): string | null => {
+  if (value === null) return null;
+  const minutes = Math.round((Date.now() - new Date(value).getTime()) / 60000);
+  if (!Number.isFinite(minutes) || minutes < 0) return null;
+  if (minutes < 1) return t('sources.justNow');
+  if (minutes < 60) return t('sources.minutesAgo', { minutes });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t('sources.hoursAgo', { hours });
+  return t('sources.daysAgo', { days: Math.floor(hours / 24) });
+};
+
+/**
  * Knowledge Sources.
  *
  * Read on the server, as the selected subject. A caller without `source.read`
@@ -96,16 +113,8 @@ export default async function SourcesPage() {
           <THead>
             <Tr>
               <Th scope="col">{t('sources.name')}</Th>
-              <Th scope="col">{t('sources.type')}</Th>
-              <Th scope="col">{t('sources.active')}</Th>
-              <Th scope="col">{t('sources.status')}</Th>
-              <Th scope="col">{t('sources.statusAt')}</Th>
-              <Th scope="col" align="end">
-                {t('sources.paths')}
-              </Th>
-              <Th scope="col" align="end">
-                {t('sources.documents')}
-              </Th>
+              <Th scope="col">{t('sources.health')}</Th>
+              <Th scope="col">{t('sources.scope')}</Th>
               <Th scope="col">{t('sources.usableForGeneration')}</Th>
               <Th scope="col">{t('sources.actions')}</Th>
             </Tr>
@@ -121,21 +130,36 @@ export default async function SourcesPage() {
                     </span>
                   )}
                 </Th>
-                <Td>{source.sourceType}</Td>
                 <Td>
-                  {/* Real field, previously dropped: an inactive source is
-                      still configured but is not read from. */}
-                  <StatusBadge
-                    status={source.isActive ? t('sources.activeYes') : t('sources.activeNo')}
-                    tone={source.isActive ? 'success' : 'neutral'}
-                  />
+                  {/* Health in one cell: what the connection is, whether the
+                      source is active at all, and how stale the check is. */}
+                  <span className="flex flex-col gap-1">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <StatusBadge status={source.connectionStatus} />
+                      <StatusBadge
+                        status={source.isActive ? t('sources.activeYes') : t('sources.activeNo')}
+                        tone={source.isActive ? 'success' : 'neutral'}
+                      />
+                    </span>
+                    <span className="text-sm text-ink-subtle">
+                      {t('sources.statusAt')}: {formatTested(source.connectionStatusAt)}
+                      {relativeTo(source.connectionStatusAt) === null
+                        ? ''
+                        : ` · ${relativeTo(source.connectionStatusAt)}`}
+                    </span>
+                  </span>
                 </Td>
                 <Td>
-                  <StatusBadge status={source.connectionStatus} />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="text-base">
+                      {t('sources.scopeSummary', {
+                        paths: source.pathCount,
+                        documents: source.documentCount,
+                      })}
+                    </span>
+                    <span className="text-sm text-ink-subtle">{source.sourceType}</span>
+                  </span>
                 </Td>
-                <Td>{formatTested(source.connectionStatusAt)}</Td>
-                <Td numeric>{source.pathCount}</Td>
-                <Td numeric>{source.documentCount}</Td>
                 <Td>
                   {/* The gate on generation, so it is stated rather than
                       implied: a source that cannot be generated from would

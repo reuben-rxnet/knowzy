@@ -162,7 +162,7 @@ export const SideNav = ({
               <span
                 aria-hidden="true"
                 className={`grid size-5 shrink-0 place-items-center ${
-                  active ? 'text-brand-green' : reachable ? 'text-ink-muted' : 'text-ink-subtle'
+                  active ? 'text-success' : reachable ? 'text-ink-muted' : 'text-ink-subtle'
                 }`}
               >
                 {item.icon}
@@ -221,7 +221,13 @@ export const SideNav = ({
                     ? // §9: light green background, green left indicator, dark
                       // navy text. The indicator is a border, so the selected
                       // item is distinguishable without colour perception.
-                      'border-l-4 border-brand-green bg-success-soft text-brand-navy-text'
+                      //
+                      // `border-success`, not `border-brand-green`: the bright
+                      // brand green is 2.69:1 on white, and a state indicator
+                      // needs 3:1 (WCAG 1.4.11). The success green is the same
+                      // family at 5.3:1. Brand green keeps the header rule and
+                      // the wordmark, where it sits on navy.
+                      'border-l-4 border-success bg-success-soft text-brand-navy-text'
                     : 'border-l-4 border-transparent text-ink hover:bg-surface-hover hover:text-brand-navy-text'
                 }`}
               >
@@ -248,7 +254,7 @@ export const BrandLockup = () => (
   <div className="flex flex-col gap-1 border-t border-line pt-5">
     <span className="text-md leading-tight text-ink-muted">People</span>
     <span className="text-md leading-tight text-ink-muted">Knowledge</span>
-    <span className="text-lg font-bold leading-tight text-brand-green">Better Vision</span>
+    <span className="text-lg font-bold leading-tight text-success">Better Vision</span>
     <span className="mt-2 text-2xs font-semibold uppercase tracking-widest text-ink-subtle">
       Together for a brighter tomorrow
     </span>

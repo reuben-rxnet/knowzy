@@ -15,8 +15,11 @@ import {
   VersionBadge,
 } from '@knowzy/shared-ui';
 import {
+  Activity,
+  AlertCircle,
   ArrowRight,
   BookCheck,
+  CheckCircle2,
   Database,
   FileText,
   Layers,
@@ -31,10 +34,13 @@ import { api } from '../lib/api';
 import { switchSubject } from './actions';
 import { currentSubject, DEMO_SUBJECTS } from '../lib/identity';
 
+const DASH = '—';
+
 interface SourceRow {
   readonly name: string;
   readonly isActive: boolean;
   readonly usableForGeneration: boolean;
+  readonly connectionStatus: string;
   readonly documentCount: number;
 }
 
@@ -117,6 +123,74 @@ export default async function Page() {
       [t('dash.readAssessments'), assessments],
     ] as const
   ).flatMap(([label, result]) => (result.ok ? [] : [{ label, problem: result.problem }]));
+
+  /**
+   * Pipeline health, as a list of real conditions.
+   *
+   * Deliberately NOT a composite score. Every line is one field or one count
+   * the platform already reports, with the action it implies; a single
+   * "health: 87%" would be a number nobody could trace back to anything.
+   *
+   * A condition appears only when it is true, so an empty list means every
+   * checked condition is fine — which is itself worth saying.
+   */
+  const health: readonly {
+    readonly label: string;
+    readonly tone: 'warning' | 'info';
+    readonly href?: string;
+  }[] = [
+    ...(sources.ok
+      ? sources.data.sources
+          .filter((source) => source.connectionStatus !== 'HEALTHY')
+          .map((source) => ({
+            label: t('dash.healthSourceUntested', {
+              source: source.name,
+              status: source.connectionStatus,
+            }),
+            tone: 'warning' as const,
+            href: '/sources',
+          }))
+      : []),
+    ...(sources.ok && sources.data.sources.some((source) => !source.usableForGeneration)
+      ? [
+          {
+            label: t('dash.healthNotUsable'),
+            tone: 'warning' as const,
+            href: '/sources',
+          },
+        ]
+      : []),
+    ...(authorQueue.ok && authorQueue.data.count > 0
+      ? [
+          {
+            label: t('dash.healthDraftsWaiting', { count: authorQueue.data.count }),
+            tone: 'info' as const,
+            href: '/review?queue=author',
+          },
+        ]
+      : []),
+    ...(approvalQueue.ok && approvalQueue.data.count > 0
+      ? [
+          {
+            label: t('dash.healthApprovalsWaiting', { count: approvalQueue.data.count }),
+            tone: 'info' as const,
+            href: '/review?queue=approval',
+          },
+        ]
+      : []),
+    ...(publishQueue.ok && publishQueue.data.count > 0
+      ? [
+          {
+            label: t('dash.healthPublishWaiting', { count: publishQueue.data.count }),
+            tone: 'info' as const,
+            href: '/review?queue=publish',
+          },
+        ]
+      : []),
+    ...(bank.ok && bank.data.count === 0
+      ? [{ label: t('dash.healthBankEmpty'), tone: 'warning' as const, href: '/publish' }]
+      : []),
+  ];
 
   // The ribbon's stages, with the count each one actually holds. A stage with
   // no countable backing is simply not listed here.
@@ -233,31 +307,78 @@ export default async function Page() {
       )}
 
       {/* ----------------------------------------------------------- pipeline */}
-      <Card>
-        <CardHeader title={t('dash.pipelineHeading')} description={t('dash.pipelineIntro')} />
-        <CardBody>
-          <ol className="flex flex-wrap items-stretch gap-2">
-            {pipeline.map((stage, index) => (
-              <li key={stage.label} className="flex items-center gap-2">
-                <TextLink href={stage.href}>
-                  <span className="flex min-w-32 flex-col rounded-md border border-line px-3 py-2 no-underline hover:border-brand-blue">
+      <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+        <Card>
+          <CardHeader title={t('dash.pipelineHeading')} description={t('dash.pipelineIntro')} />
+          <CardBody>
+            <ol className="flex flex-wrap items-stretch gap-2">
+              {pipeline.map((stage, index) => (
+                <li key={stage.label} className="flex flex-1 items-center gap-2">
+                  <a
+                    href={stage.href}
+                    className="group flex min-w-28 flex-1 flex-col gap-1 rounded-lg border border-line px-3 py-2.5 transition-colors duration-(--duration-fast) hover:border-brand-blue hover:bg-surface-hover"
+                  >
                     <span className="text-2xs font-semibold uppercase tracking-wide text-ink-subtle">
                       {stage.label}
                     </span>
-                    <span className="font-mono text-lg font-bold tabular-nums text-brand-navy-text">
+                    <span className="flex items-baseline gap-1.5">
                       {/* A dash, never a 0, when the count could not be read. */}
-                      {stage.count ?? '—'}
+                      <span className="font-mono text-2xl font-bold tabular-nums text-brand-navy-text">
+                        {stage.count ?? DASH}
+                      </span>
+                      {stage.count === null ? (
+                        <span className="text-2xs text-ink-subtle">{t('dash.unreadable')}</span>
+                      ) : null}
                     </span>
-                  </span>
-                </TextLink>
-                {index < pipeline.length - 1 ? (
-                  <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-ink-subtle" />
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        </CardBody>
-      </Card>
+                  </a>
+                  {index < pipeline.length - 1 ? (
+                    <ArrowRight aria-hidden="true" className="size-4 shrink-0 text-ink-subtle" />
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title={t('dash.healthHeading')}
+            description={t('dash.healthIntro')}
+            icon={<Activity aria-hidden="true" className="size-5" />}
+          />
+          <CardBody>
+            {health.length === 0 ? (
+              <p className="flex items-center gap-2 rounded-md bg-success-soft px-3 py-2 text-base font-semibold text-success">
+                <CheckCircle2 aria-hidden="true" className="size-4" />
+                {t('dash.healthAllClear')}
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {health.map((item) => (
+                  <li
+                    key={item.label}
+                    className={`flex items-start gap-2 rounded-md px-3 py-2 text-base ${
+                      item.tone === 'warning' ? 'bg-warning-soft text-ink' : 'bg-info-soft text-ink'
+                    }`}
+                  >
+                    <AlertCircle
+                      aria-hidden="true"
+                      className={`mt-0.5 size-4 shrink-0 ${
+                        item.tone === 'warning' ? 'text-warning' : 'text-info'
+                      }`}
+                    />
+                    {item.href === undefined ? (
+                      <span>{item.label}</span>
+                    ) : (
+                      <TextLink href={item.href}>{item.label}</TextLink>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
+      </div>
 
       {/* ------------------------------------------------- what needs a human */}
       <div className="grid gap-6 xl:grid-cols-2">

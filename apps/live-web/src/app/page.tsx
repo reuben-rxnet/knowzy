@@ -8,13 +8,12 @@ import {
   CardHeader,
   EmptyState,
   Fieldset,
-  KeyValue,
   Meter,
   PageHero,
   RadioRow,
   RefusalState,
 } from '@knowzy/shared-ui';
-import { ArrowRight, Clock, PlayCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, PlayCircle } from 'lucide-react';
 import { t } from '../copy';
 import { api } from '../lib/api';
 import { Problem } from '../components/Problem';
@@ -165,44 +164,65 @@ export default async function AssessmentListPage() {
               />
               <CardBody>
                 <div className="flex flex-col gap-4">
-                  <KeyValue
-                    items={[
-                      { label: t('list.questions'), value: assessment.questionCount ?? '—' },
-                      {
-                        label: t('list.pass'),
-                        value:
-                          assessment.passPercentage === null
-                            ? '—'
-                            : `${assessment.passPercentage}%`,
-                      },
-                      {
-                        label: t('list.timeLimit'),
-                        value:
-                          assessment.timeLimitMinutes === null ? (
-                            t('list.noLimit')
-                          ) : (
-                            <span className="flex items-center gap-1.5">
-                              <Clock aria-hidden="true" className="size-4 text-ink-subtle" />
-                              {assessment.timeLimitMinutes} {t('start.minutes')}
-                            </span>
-                          ),
-                      },
-                      {
-                        label: t('list.attempts'),
-                        value:
-                          assessment.attemptLimit === null
-                            ? t('list.attemptsUsedOnly', { used: assessment.attemptsUsed })
-                            : t('list.attemptsOf', {
-                                used: assessment.attemptsUsed,
-                                limit: assessment.attemptLimit,
-                              }),
-                      },
-                    ]}
-                  />
+                  {/* Four figures, all from the eligibility payload. A grid
+                      rather than a label/value list: on a card the numbers are
+                      what the learner is scanning for. */}
+                  <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="flex flex-col rounded-md bg-surface-sunken px-3 py-2">
+                      <dt className="text-2xs font-semibold uppercase tracking-wide text-ink-subtle">
+                        {t('list.questions')}
+                      </dt>
+                      <dd className="font-mono text-lg font-bold tabular-nums text-brand-navy-text">
+                        {assessment.questionCount ?? '—'}
+                      </dd>
+                    </div>
+                    <div className="flex flex-col rounded-md bg-surface-sunken px-3 py-2">
+                      <dt className="text-2xs font-semibold uppercase tracking-wide text-ink-subtle">
+                        {t('list.pass')}
+                      </dt>
+                      <dd className="font-mono text-lg font-bold tabular-nums text-brand-navy-text">
+                        {assessment.passPercentage === null ? '—' : `${assessment.passPercentage}%`}
+                      </dd>
+                    </div>
+                    <div className="flex flex-col rounded-md bg-surface-sunken px-3 py-2">
+                      <dt className="text-2xs font-semibold uppercase tracking-wide text-ink-subtle">
+                        {t('list.timeLimit')}
+                      </dt>
+                      <dd className="flex items-center gap-1.5 text-base font-semibold text-brand-navy-text">
+                        {assessment.timeLimitMinutes === null ? (
+                          t('list.noLimit')
+                        ) : (
+                          <>
+                            <Clock aria-hidden="true" className="size-4 text-ink-subtle" />
+                            {assessment.timeLimitMinutes} {t('start.minutes')}
+                          </>
+                        )}
+                      </dd>
+                    </div>
+                    <div className="flex flex-col rounded-md bg-surface-sunken px-3 py-2">
+                      <dt className="text-2xs font-semibold uppercase tracking-wide text-ink-subtle">
+                        {t('list.attempts')}
+                      </dt>
+                      <dd className="text-base font-semibold text-brand-navy-text">
+                        {assessment.attemptLimit === null
+                          ? t('list.attemptsUsedOnly', { used: assessment.attemptsUsed })
+                          : t('list.attemptsOf', {
+                              used: assessment.attemptsUsed,
+                              limit: assessment.attemptLimit,
+                            })}
+                      </dd>
+                    </div>
+                  </dl>
 
-                  {/* Eligibility is the server's decision. A blocked card shows
-                      its reason instead of a button that would be refused. */}
-                  {assessment.startable ? null : (
+                  {/* Eligibility is the server's decision, stated either way —
+                      a ready card says so rather than leaving the learner to
+                      infer it from a button. */}
+                  {assessment.startable ? (
+                    <p className="flex items-center gap-2 text-base font-semibold text-success">
+                      <CheckCircle2 aria-hidden="true" className="size-4" />
+                      {t('list.ready')}
+                    </p>
+                  ) : (
                     <RefusalState
                       title={t('list.blocked')}
                       reason={assessment.blockedReason ?? t('list.blockedNoReason')}
@@ -249,9 +269,15 @@ export default async function AssessmentListPage() {
         </form>
       </Card>
 
-      {/* Said plainly rather than implied by an empty panel: per-result
-          topic accuracy is the only progress this release records. */}
-      <p className="text-sm text-ink-subtle">{t('home.progressNote')}</p>
+      {/* Said plainly rather than implied by an empty panel. Both sentences
+          are statements about what the platform records, which is the honest
+          alternative to a "Your progress" card with nothing behind it: there
+          is no per-learner results endpoint, so past attempts cannot be
+          listed here without inventing one. */}
+      <div className="flex flex-col gap-1 text-sm text-ink-subtle">
+        <p>{t('home.progressNote')}</p>
+        {assessments.some((item) => item.attemptsUsed > 0) ? <p>{t('list.historyNote')}</p> : null}
+      </div>
     </div>
   );
 }

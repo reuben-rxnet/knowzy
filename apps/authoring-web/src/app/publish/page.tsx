@@ -19,7 +19,16 @@ import {
   Tr,
   VersionBadge,
 } from '@knowzy/shared-ui';
-import { Archive, BookCheck, GitBranch, Layers } from 'lucide-react';
+import {
+  Archive,
+  BookCheck,
+  GitBranch,
+  Layers,
+  PenLine,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+} from 'lucide-react';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -139,6 +148,7 @@ const buildTraceSteps = (
 
   steps.push({
     title: t('publish.traceGenerated'),
+    icon: <Sparkles className="size-3.5" />,
     ...(first === undefined ? {} : { when: formatWhen(first.changedAt) }),
     detail: t('publish.traceGeneratedDetail', {
       document:
@@ -164,6 +174,7 @@ const buildTraceSteps = (
   )) {
     steps.push({
       title: `${review.kind} · ${review.outcome}`,
+      icon: <PenLine className="size-3.5" />,
       when: formatWhen(review.createdAt),
       detail: t('publish.traceAgainstVersion', { version: review.questionVersion }),
       tone: 'info',
@@ -175,6 +186,7 @@ const buildTraceSteps = (
   )) {
     steps.push({
       title: t('publish.traceApproval', { decision: approval.decision }),
+      icon: <ShieldCheck className="size-3.5" />,
       when: formatWhen(approval.decidedAt),
       // Gate 13 means this was a different person from the author; who it was
       // is in the audit trail rather than in this payload, so it is not
@@ -188,17 +200,28 @@ const buildTraceSteps = (
   if (published !== undefined) {
     steps.push({
       title: t('publish.tracePublished'),
+      icon: <Upload className="size-3.5" />,
       ...(published.publishedAt === null ? {} : { when: formatWhen(published.publishedAt) }),
       tone: 'success',
       facts: [
         { label: t('publish.bankQuestionId'), value: published.bankQuestionId },
         { label: t('publish.version'), value: `v${published.publishedVersion}` },
+        // The draft's own version history, so "v1 published" is readable as
+        // either "never revised" or "revised twice before publication".
+        {
+          label: t('publish.traceRevisions'),
+          value: t('publish.traceRevisionCount', {
+            count: versions.length,
+            current: question.version,
+          }),
+        },
       ],
     });
 
     if (published.retiredAt !== null) {
       steps.push({
         title: t('publish.traceRetired'),
+        icon: <Archive className="size-3.5" />,
         when: formatWhen(published.retiredAt),
         detail: published.retireComment ?? undefined,
         tone: 'warning',

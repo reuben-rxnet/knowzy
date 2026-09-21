@@ -1,6 +1,6 @@
 # KNOWZY Design Tokens
 
-**Status:** Implemented in UI-M1.
+**Status:** Implemented in UI-M1; contrast corrected and made testable in UI-M3.
 **Source of truth:** `packages/shared-ui/src/tokens.css` — this document describes that file and
 does not duplicate its values as a second authority.
 **Specification:** [`KNOWZY_UI_SOURCE_OF_TRUTH.md`](KNOWZY_UI_SOURCE_OF_TRUTH.md) §5 (brand), §6
@@ -53,11 +53,11 @@ that drift.
 
 Derived from the navy so greys read as part of the brand rather than as a separate family.
 
-| Token | Use | Contrast on white |
+| Token | Use | Contrast (white · sunken) |
 | --- | --- | --- |
-| `--color-ink` | Body text | 16.1:1 |
-| `--color-ink-muted` | Secondary text | 7.4:1 |
-| `--color-ink-subtle` | Hints, chips, captions | 4.6:1 — AA for normal text, and nothing smaller uses it |
+| `--color-ink` | Body text | 17.0:1 on white · 15.3:1 on sunken |
+| `--color-ink-muted` | Secondary text | 7.4:1 · 6.7:1 |
+| `--color-ink-subtle` | Hints, chips, captions | 5.2:1 · 4.7:1 |
 | `--color-line` | Default border | — |
 | `--color-line-strong` | Emphasised border | — |
 | `--color-surface-sunken` | A panel inside a panel, table headers | — |
@@ -82,11 +82,29 @@ Each has a **text-safe** shade for words on white and a **soft** shade for fills
 > ones render an icon. A failed approval gate reads as failed in greyscale, in a screen reader, and
 > to a colour-blind approver.
 
-### 2.4 One known contrast limit
+### 2.4 Where each colour may be used, and why
 
-Brand green on brand navy is **not** an AA combination for normal text. It is used only for the
-wordmark's `ZY` and for non-text indicators, both of which AA permits. Green text always sits on
-white or on `--color-success-soft`.
+Every ratio in this document is **computed** by `packages/shared-ui/src/contrast.test.ts` against
+`tokens.css`. UI-M1 wrote these figures in by hand and got one wrong; the test exists because of
+that, and it fails the build rather than the review.
+
+Two rules fall out of the arithmetic:
+
+**Brand green `#00B388` never touches a light surface.** It is 2.69:1 on white — below AA for text
+at any size, below the 3:1 a state indicator needs (1.4.11), and it cannot carry white text either
+(also 2.69:1). On the navy header it is 5.7:1, which is why the green rule, the wordmark's `ZY`, and
+nothing else use it. Everywhere else green appears — the active navigation border, the active tab
+underline, a completed workflow stage, the sidebar lock-up, a hero's accent word — uses
+`--color-success` (5.3:1 on white). The approved brand colour is unchanged; only where it is applied
+changed.
+
+**Brand blue `#146EF5` is not used for small text.** It is 4.31:1 on the canvas, 4.11:1 on a sunken
+row and 3.97:1 inside an information notice, and links appear on all three. `TextLink` uses
+`--color-info` (5.3:1 at worst). Brand blue keeps the primary button — white on it is 4.59:1 — and
+the focus ring.
+
+Both are §5.2 approved values and neither was altered. What changed is the surface each is allowed
+to sit on, which is a design-system decision rather than a brand one.
 
 ---
 
@@ -179,9 +197,10 @@ so no component has to guess a number.
 
 ## 8. Adopting the tokens on an unconverted page
 
-UI-M1 changed the shell only. The pages still carry their pre-UI-M1 stylesheet, now in
-`apps/*/src/app/legacy.css`, whose palette variables are mapped onto these tokens — so an
-unconverted page already uses the brand colours inside the new shell.
+As of UI-M3 the authoring portal has **no** legacy stylesheet: every page is on the design system,
+so `apps/authoring-web/src/app/legacy.css` was deleted rather than left in the build. One learner
+page remains unconverted — the quiz — so `apps/live-web/src/app/legacy.css` still exists, with its
+palette variables mapped onto these tokens.
 
 That stylesheet is **nested under `#main`**, and it has to stay that way. Its rules are
 element-level (`button`, `a`, `select`, `h1`), which was safe while the page was the whole

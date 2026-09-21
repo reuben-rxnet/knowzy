@@ -15,5 +15,6 @@
 
 @source '../../../../packages/shared-ui/src/**/*.tsx';
 
-/* The unconverted pages, until each milestone replaces one. */
-@import './legacy.css';
+/* No `legacy.css` here any more: as of UI-M3 every authoring page is on the
+ * design system, so the stylesheet it needed was deleted rather than left in
+ * the build as dead weight. */

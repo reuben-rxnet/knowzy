@@ -298,7 +298,16 @@ export const GenerateWizard = ({
           <CardHeader
             title={t('generate.step2')}
             icon={<Step n={2} />}
-            actions={<Badge tone="info">{preflight.recommendation}</Badge>}
+            actions={
+              <span className="flex flex-wrap items-center gap-2">
+                <Badge tone="info">{preflight.recommendation}</Badge>
+                {decision === null ? null : (
+                  <Badge tone="success">
+                    {t('generate.decisionRecorded', { action: decision.chosenAction })}
+                  </Badge>
+                )}
+              </span>
+            }
           />
           <CardBody>
             <div className="flex flex-col gap-5">
@@ -585,6 +594,26 @@ export const GenerateWizard = ({
                   },
                 ]}
               />
+
+              {/* The drafts this job actually created. `questionIds` was in
+                  the response and was being dropped, which made the accepted
+                  count a number with nothing behind it. */}
+              {job.questionIds.length === 0 ? null : (
+                <div className="flex flex-col gap-2">
+                  <h4 className="text-base font-semibold text-brand-navy-text">
+                    {t('generate.createdHeading')}
+                  </h4>
+                  <ul className="flex flex-col gap-1">
+                    {job.questionIds.map((questionId, index) => (
+                      <li key={questionId} className="text-base">
+                        <TextLink href={`/review/${questionId}`}>
+                          {t('generate.createdItem', { n: index + 1 })}
+                        </TextLink>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Rejections are the interesting half of the result: a question
                   the platform refused to keep is evidence the controls ran.

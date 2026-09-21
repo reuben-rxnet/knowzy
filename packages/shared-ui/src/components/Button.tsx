@@ -108,7 +108,16 @@ export const ButtonLink = ({
   </a>
 );
 
-/** An ordinary inline link, in the brand's link colour. */
+/**
+ * An ordinary inline link.
+ *
+ * `text-info`, not `text-brand-blue`. The brand blue is an approved §5.2
+ * colour and is unchanged — but at 4.31:1 on the canvas, 4.11:1 on a sunken
+ * row and 3.97:1 inside an info notice it is below AA for normal text, and
+ * links appear on all three. The info blue is the text-grade blue of the same
+ * family and passes everywhere (5.3:1 at worst). Brand blue keeps the primary
+ * button, where white-on-blue is 4.59:1, and the focus ring.
+ */
 export const TextLink = ({
   children,
   href,
@@ -120,7 +129,7 @@ export const TextLink = ({
 }) => (
   <a
     href={href}
-    className={`rounded-xs font-medium text-brand-blue underline decoration-brand-blue/30 underline-offset-2 hover:decoration-brand-blue ${className}`}
+    className={`rounded-xs font-medium text-info underline decoration-info/30 underline-offset-2 hover:decoration-info ${className}`}
   >
     {children}
   </a>

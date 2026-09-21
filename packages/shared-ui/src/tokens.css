@@ -29,15 +29,23 @@
 
   /* --------------------------------------------------------------- neutrals
    * Derived from the navy so greys read as part of the brand rather than as a
-   * separate family. Contrast against `--color-brand-surface`:
-   *   ink        16.1:1   body text
-   *   ink-muted   7.4:1   secondary text, still AA for normal size
-   *   ink-subtle  4.6:1   AA for normal text, used for hints only
-   * Anything below 4.5:1 is a border or a background, never text.
+   * separate family. Every ratio below is COMPUTED and asserted by
+   * `tokens.test.ts` — the figures here were asserted by hand in UI-M1 and
+   * `ink-subtle` was wrong, which is why the test now exists.
+   *
+   *                on white   on sunken (#eef3f9)
+   *   ink            17.0:1        15.3:1   body text
+   *   ink-muted       7.4:1         6.7:1   secondary text
+   *   ink-subtle      5.2:1         4.7:1   captions and 2xs labels
+   *
+   * The sunken column matters: a caption inside a stat tile or a hovered row
+   * sits on it, and `ink-subtle` was 3.9:1 there — below AA for normal text.
+   * Anything below 4.5:1 on any surface it is used on is a border or a
+   * background, never text.
    */
   --color-ink: #0b1b3a;
   --color-ink-muted: #47566f;
-  --color-ink-subtle: #667a96;
+  --color-ink-subtle: #5a6e8b;
   --color-line: #d8e0ec;
   --color-line-strong: #b9c6d8;
   --color-surface-sunken: #eef3f9;
@@ -48,7 +56,9 @@
    * fills. §5.3 also requires that colour never carries meaning alone, which
    * is why every component pairs these with a label and an icon.
    */
-  --color-success: #00875f;
+  /* Darkened from #00875f, which was 4.07:1 on `success-soft` — a badge whose
+   * own label failed AA against its own background. Now 4.8:1 there. */
+  --color-success: #0a7a56;
   --color-success-soft: #e3f7f0;
   --color-info: #0f5ccd;
   --color-info-soft: #e6efff;

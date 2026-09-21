@@ -1,7 +1,8 @@
 # KNOWZY — UI Modernization Plan (Phase 8)
 
-**Status:** Planning artifact, except §19, §21 and §22 — UI-M1 (the shared shell), UI-M2 (the
-authoring workflow chain) and UI-M2b (real-data modernization) are implemented. No API contract, server action, route, or domain
+**Status:** Planning artifact, except §19, §21, §22 and §23 — UI-M1 (the shared shell), UI-M2
+(the authoring workflow chain), UI-M2b (real-data modernization) and UI-M3 (branding refinement and
+screen quality) are implemented. No API contract, server action, route, or domain
 behaviour changed.
 **Created:** 2026-09-21 · **Revised:** 2026-09-21 (learner portal, capability matrix, milestones)
 **Assessed commit:** `bbb9df6`
@@ -536,7 +537,7 @@ the milestone's own exit criteria.
 | **UI-M1** | Design tokens, typography, shared primitives, domain and learner components, authoring shell, learner shell, package wiring, icon library | Both portals render inside the new shells; all 11 routes behave identically; keyboard and landmark pass; token test green |
 | **UI-M2** | **Re-sequenced on request (2026-09-21): the authoring workflow chain** — Knowledge Sources, document selection, AI generation, Review Queue, Approval, Question Bank. Delivered; see §21 | Every page on the design system; every read, action, and refusal unchanged; browser-driven through the whole chain |
 | **UI-M2b** | Real-data modernization: the authoring dashboard, and the implemented authoring and learner screens rebuilt on the data that exists. Delivered; see §22 | Every figure traceable to an existing response; no delta, no placeholder metric, no fabricated recommendation; a refused read is absent rather than zero |
-| **UI-M3** | Delivered inside UI-M2 — Knowledge Sources and Document Browser | Test and sync unchanged; denied documents invisible; tabs from real status |
+| **UI-M3** | **Re-scoped on request: branding refinement and screen quality across the implemented screens.** Delivered; see §23. (The Knowledge Sources and Document Browser work originally listed here landed in UI-M2) | Approved assets used unmodified; header lock-up refined; WCAG 2.2 AA contrast computed and asserted by test; 14 routes browser-validated |
 | **UI-M4** | Delivered inside UI-M2 — AI Quiz Generation (§15 three zones) | Preflight, recorded decision, refusals, and rejection reporting unchanged; **no Publish button, no difficulty** |
 | **UI-M5** | Delivered inside UI-M2 — Review Queue and question detail | Six detail tabs; evidence verbatim with offsets; edit revalidates |
 | **UI-M6** | Delivered inside UI-M2 — Approvals | 13 server-evaluated gates; gate 13 still refuses the author; refusals specific |
@@ -901,3 +902,126 @@ every bar empty and proves nothing, so a second attempt was answered from the **
 answer key — the learner projection does not carry one, which is the control being relied on rather
 than worked around — giving a 50% `NEEDS_IMPROVEMENT` result. Both render correctly, including the
 band scale placing the score in the right band.
+
+---
+
+## 23. UI-M3 — branding refinement and screen quality (delivered)
+
+No new route, endpoint, domain model or business capability. Every figure on every screen still
+comes from a response this build already served before the milestone started.
+
+### 23.1 Branding integration summary
+
+The approved set is three files. What each one actually is matters, because it decided how each is
+used:
+
+| File | What it is | How it is used |
+| --- | --- | --- |
+| `essilorluxottica-logo.svg.svg` | Typeset Arial text, `fill="currentColor"` | The corporate endorsement, left of a hairline, white at 85% on the navy header. `currentColor` is honoured rather than overridden, so the mark takes the header's colour |
+| `knowzy-wordmark.svg.svg` | Typeset Arial text, `KNOW` in white, `ZY` in brand green, tagline in `#DCE8FF` | The product wordmark. Its fills are white and pale blue, so the mark is **drawn for a dark background** — which is why it appears on the navy header and on no light surface |
+| `favicon.ico.svg` | **Real drawn artwork** — a navy tile, a white K, three green bars | Promoted from favicon to product mark. It is now in the header beside the wordmark, so the product is recognisable at a glance and the header matches the browser tab |
+
+**The tile mark was the find of this milestone.** It was the only piece of genuine vector artwork in
+the approved set and it was being used for nothing but the browser tab. Bringing it into the header
+is what makes the lock-up read as a product rather than as a line of type.
+
+Rules kept:
+
+- **Nothing was modified, recoloured, stretched or cropped.** Each component reproduces its file's
+  viewBox, geometry, fills and letter-spacing exactly. The components take a `className` for size
+  only, and the SVG aspect ratio is preserved at any height.
+- **SVG throughout**, inline rather than `<img>`. That is necessary rather than preferred for the
+  corporate mark: `currentColor` cannot be inherited through an `<img>`, so it would render black on
+  the navy header, and hard-coding white instead would be recolouring the asset.
+- **Dark header support** is the default case, not an adaptation. Every foreground on the navy is
+  either white at a measured opacity or the brand green, and each ratio is asserted by test.
+
+Header refinements, in the order they matter:
+
+1. The tile mark plus the wordmark, with the corporate mark given its own zone behind a hairline —
+   §5.1's order, EssilorLuxottica first, KNOWZY second, neither competing with the other.
+2. A 2px brand-green rule under the navy: the accent used as structure, and the line that separates
+   header from workspace without a shadow.
+3. One spacing scale across the bar, the search field centred on the page rather than on the space
+   left over, and a fixed rhythm in the action cluster so the identity block lands in the same place
+   on every width.
+4. The search field and the Copilot button no longer appear at the same breakpoint. They did, and at
+   exactly 1280 they fought until the search collapsed to the word "Sear".
+
+### 23.2 Accessibility summary
+
+The structural audit passes on all **14** routes: skip link first, one `main`, one `h1`, no skipped
+heading level, every `nav` labelled, every link and button named, no `aria-hidden` on a focusable,
+no duplicate ids, no positive tabindex, and every disabled control explaining itself.
+
+**Contrast was not passing, and the documentation said it was.** UI-M1 wrote ratios into `tokens.css`
+and `design-tokens.md` by hand; computing them found six failures:
+
+| Pair | Was | Needed | Fix |
+| --- | --- | --- | --- |
+| `ink-subtle` on white / sunken | 4.38 / 3.93 | 4.5 | Token darkened to `#5a6e8b` → 5.2 / 4.7 |
+| `success` on `success-soft` | 4.07 | 4.5 | Token darkened to `#0a7a56` → 4.8. A badge's own label was failing against the badge |
+| `brand-blue` as link text on canvas / sunken / info-soft | 4.31 / 4.11 / 3.97 | 4.5 | `TextLink` uses `--color-info` (5.3 worst). Brand blue is unchanged and keeps the primary button (white on it is 4.59) and the focus ring |
+| `brand-green` as the active nav border on white | 2.69 | 3.0 (1.4.11) | The indicator uses `--color-success` (5.3) |
+| `brand-green` as the active tab underline | 2.69 | 3.0 | Same |
+| `brand-green` behind white on a completed stage, and as the lock-up and hero accent text | 2.69 | 4.5 / 3.0 | Same |
+
+**Neither approved brand colour was altered.** What changed is the surface each may sit on: brand
+green appears only on the navy header, where it is 5.7:1, and brand blue is not used for small text.
+That is a design-system decision, not a brand one, and `design-tokens.md` §2.4 now states it.
+
+`packages/shared-ui/src/contrast.test.ts` computes all of it from `tokens.css` — 12 tests over the
+page surfaces, the badge pairs, the link surfaces, the header opacities and the non-text indicators.
+Reverting either token makes it fail, which was verified. The ratios are now checked rather than
+claimed.
+
+### 23.3 Visual QA summary
+
+Nine screens at 1920, 1440 and 1280 — dashboard, sources, generation, review queue, approval,
+question bank, traceability, learner home, result. Findings, all fixed:
+
+- The search field collapsed at 1280 (see §23.1).
+- A lone assessment card sat at half width in a two-column grid; the grid is now conditional on
+  there being more than one.
+- The learner's refusal panel rendered as **loose unstyled text**. `Problem.tsx` in the learner
+  portal still depended on `legacy.css`, and UI-M2b moved those pages off it — so
+  `PORTAL_ACCESS_DENIED` appeared as three bare lines. It now uses the shared states, like the
+  authoring portal's has since UI-M2.
+
+Also cleaned up: **the authoring portal has no legacy stylesheet left.** Every one of its pages is
+on the design system, so the file was deleted rather than left in the build. One learner page — the
+quiz — is still unconverted, so `apps/live-web/src/app/legacy.css` remains, and the guard test
+keeps every article root in that app opted in.
+
+### 23.4 Browser validation summary
+
+Every route driven in Chrome over the DevTools Protocol: **14 routes, no console errors or
+warnings**, including the two flows that only exist after a click — the source connection drawer and
+the three-zone generation sequence.
+
+### 23.5 Screen improvements, and what each is built from
+
+| Screen | Improvement | Source of every value |
+| --- | --- | --- |
+| Dashboard | Pipeline figures enlarged and made links; **pipeline health** as a list of true conditions with the action each implies | `sources`, the four queue counts, `question-bank`, `assessments`. No composite score — a number nobody can trace is worse than a list |
+| Knowledge Sources | Health in one cell (connection, active, and **how stale** the check is), scope in one cell | The same list payload, plus a relative time derived from `connectionStatusAt` |
+| AI Generation | The drafts a job created are now listed and linked; the recorded decision shows as governance state | `questionIds`, which was in the response and was being dropped |
+| Review Queue | **Every** tab carries its own real count | Five reads of the endpoint the page already calls |
+| Approvals | Gate rail, failures first, advisory verbatim | `/questions/:id/gates` |
+| Question Bank | Per-step glyphs on the provenance trail; revision count beside the published version | The question's version history |
+| Learner Home | Four stat tiles per card, an explicit "Ready to start", and the resume card above everything | `GET /learning/assessments` |
+| Results | The proficiency band now shows **its own range**, so the band means something | `appliedThresholds` |
+
+### 23.6 What could not be built from existing data
+
+Two items on the brief have no backing field, and inventing one was not an option:
+
+- **Learner result visibility** and **proficiency visibility on the home page.** There is no
+  endpoint listing a learner's results or sessions — `GET /learning/results/:resultId` needs an id
+  the home page has no way to obtain. `attemptsUsed` is shown because it is real; a past result is
+  not, and the page says so in one sentence rather than showing an empty "Your progress" card.
+  This is the same gap the capability matrix records as a learner-scoped aggregate endpoint, and it
+  belongs to LIVE-UI-M2.
+- **Sync history.** The source payload carries `connectionStatusAt` but no last-sync timestamp or
+  outcome; a synchronization result exists only in the response to the action that ran it. Sync
+  visibility is therefore the drawer and the document count, not a history.

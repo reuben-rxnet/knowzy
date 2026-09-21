@@ -41,7 +41,7 @@ export const TabNav = ({
               className={`flex min-h-target items-center gap-2 whitespace-nowrap border-b-2 px-4 text-base font-medium transition-colors duration-(--duration-fast) ${
                 active
                   ? // A border as well as a colour: §7 forbids colour alone.
-                    'border-brand-green text-brand-navy-text'
+                    'border-success text-brand-navy-text'
                   : 'border-transparent text-ink-muted hover:border-line-strong hover:text-brand-navy-text'
               }`}
             >

@@ -18,6 +18,7 @@ export const PACKAGE_NAME = '@knowzy/shared-ui' as const;
 // ----------------------------------------------------------------- branding
 export {
   EssilorLuxotticaLogo,
+  KnowzyMark,
   KnowzyWordmark,
   KNOWZY_TAGLINE,
   type BrandMarkProps,

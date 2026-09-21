@@ -51,7 +51,7 @@ export const WorkflowRibbon = ({
               aria-hidden="true"
               className={`grid size-4 shrink-0 place-items-center rounded-pill text-2xs font-bold ${
                 done
-                  ? 'bg-brand-green text-white'
+                  ? 'bg-success text-white'
                   : active
                     ? 'bg-brand-navy text-white'
                     : 'bg-surface-sunken text-ink-subtle'
@@ -145,7 +145,7 @@ export const PageHero = ({
           {titleAccent === undefined ? null : (
             <>
               {' '}
-              <span className="text-brand-green">{titleAccent}</span>
+              <span className="text-success">{titleAccent}</span>
             </>
           )}
         </h1>
