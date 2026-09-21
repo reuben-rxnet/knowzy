@@ -195,11 +195,17 @@ Gotchas learned by execution (each of these cost real time):
   recommendation or the recommended action cannot be chosen.
 
 
-UI Source of Truth
+## UI Source of Truth
+2
+ 
+3
+Primary AI-readable UI specification:
+- `docs/ui/KNOWZY_UI_SOURCE_OF_TRUTH.md`
+6
 
-Authoritative UI specification:
+Stakeholder Word specification:
 
-docs/ui/KNOWZY_Master_UI_UX_Design_and_Development_Prompt.docx
+- `docs/ui/KNOWZY_Master_UI_UX_Design_and_Development_Prompt.docx`
 
 Approved design references:
 
@@ -216,3 +222,88 @@ design/administration.png
 UI modernization guidance:
 
 docs/ui/ui-modernization.md
+
+## Live Learning Portal UI
+
+Detailed learner UI specification:
+
+- `docs/ui/KNOWZY_LIVE_PORTAL_UI_SOURCE_OF_TRUTH.md`
+
+Approved learner visual references:
+
+- `design/approved/live-portal/learner-home-page.png`
+- `design/approved/live-portal/my-learnings.png`
+- `design/approved/live-portal/assessments.png`
+- `design/approved/live-portal/discover.png`
+- `design/approved/live-portal/badges.png`
+- `design/approved/live-portal/knowledge-library.png`
+- `design/approved/live-portal/my-progress.png`
+- `design/approved/live-portal/help-and-support.png`
+
+The existing Live Learning Portal code and APIs are the functional source of truth.
+
+The learner Markdown specification is the detailed AI-readable UI source of truth.
+
+The approved images are visual references only.
+
+Do not implement fake functionality merely to match a mockup.
+
+Before implementing a learner feature, classify it as:
+
+- IMPLEMENTED
+- PARTIALLY_IMPLEMENTED
+- PLANNED
+- REQUIRES_BACKEND_EXTENSION
+- DISABLED_IN_CURRENT_RELEASE
+
+Active quiz integrity, answer-key protection, deterministic scoring, server-side authorization, and learner-data privacy are non-negotiable.
+
+## Approved UI Source of Truth
+
+Authoring and Administration Portal:
+
+- docs/ui/KNOWZY_UI_SOURCE_OF_TRUTH.md
+
+Live Learning Portal:
+
+- docs/ui/KNOWZY_LIVE_PORTAL_UI_SOURCE_OF_TRUTH.md
+
+Approved Authoring Visual References:
+
+- design/approved/*.png
+
+Approved Learner Visual References:
+
+- design/approved/live-portal/*.png
+
+The existing repository remains the functional source of truth.
+
+These specifications define:
+- design language
+- component architecture
+- navigation
+- UX behaviour
+- accessibility
+- responsive behaviour
+
+The approved mockups are visual references.
+
+Do not implement fake functionality merely to match a mockup.
+
+Features must be classified as:
+- IMPLEMENTED
+- PARTIALLY_IMPLEMENTED
+- PLANNED
+- REQUIRES_BACKEND_EXTENSION
+- DISABLED_IN_CURRENT_RELEASE
+
+Preserve:
+- server-side authorization
+- evidence verification
+- approval gates
+- separation of duties
+- question traceability
+- deterministic scoring
+- answer-key protection
+- audit logging
+``
