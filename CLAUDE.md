@@ -1,6 +1,7 @@
 # Knowzy
 
 Architecture Source of Truth:
+
 - /docs
 - Where this file and /docs disagree, /docs wins.
 - docs/MVP-READINESS.md is a STATUS REPORT, not a specification. If it and the
@@ -18,16 +19,20 @@ Architecture Source of Truth:
   log.
 
 Question Repository:
+
 - SharePoint Question Bank
 
 Knowledge Source:
+
 - SharePoint via MCP
 
 Applications:
+
 - Authoring Portal
 - Live Learning Portal
 
 Rules:
+
 - Human approval required
 - No automatic publishing
 - Published questions are reusable assets
@@ -35,24 +40,27 @@ Rules:
 - Track source documents and versions
 
 Implementation Order:
+
 - Authoritative: docs/implementation-roadmap.md (11 phases, with exit criteria)
-1. Foundation                          DONE
-2. Identity and access                 DONE (local stub issuer; Entra deferred)
-3. Sources and documents (mock)        DONE
-4. Generation and governance           DONE (deterministic local generator)
-5. Review and approval                 DONE
-6. Assessment, quiz, and scoring       DONE
-7. SharePoint read integration         NOT STARTED
-8. Question Bank write integration     PORT + MOCK DONE; adapter NOT STARTED
-9. Refreshers and recognition          NOT STARTED
-10. Reporting and audit surfaces       NOT STARTED
-11. Hardening and release              NOT STARTED
+
+1. Foundation DONE
+2. Identity and access DONE (local stub issuer; Entra deferred)
+3. Sources and documents (mock) DONE
+4. Generation and governance DONE (deterministic local generator)
+5. Review and approval DONE
+6. Assessment, quiz, and scoring DONE
+7. SharePoint read integration NOT STARTED
+8. Question Bank write integration PORT + MOCK DONE; adapter NOT STARTED
+9. Refreshers and recognition NOT STARTED
+10. Reporting and audit surfaces NOT STARTED
+11. Hardening and release NOT STARTED
 
 Phase 2 is Identity and access, not Knowledge Sources. Sources come in Phase 3
 and depend on it: every route must have a declared policy, and the registry
 test fails the build on a handler without one.
 
 Current Status:
+
 - Phases 1-6 complete, plus M7 (the thin UI). All seven MVP objectives verified
   end to end IN A BROWSER on the mock adapters, with no tenant credentials.
   See docs/MVP-READINESS.md for the full assessment.
@@ -84,9 +92,11 @@ Current Status:
   GET /authoring/questions/:id.
 
 Environment:
+
 - Node.js, npm, Docker, Git all installed and working
 
 Still Open:
+
 - The UI is the MINIMUM that demonstrates the workflow. No dashboard, badges,
   certificates, reports, or assessment builder (assessment creation is one form
   on the Publish page). See MVP-READINESS.md 7.1 for the full exclusion list.
@@ -112,6 +122,7 @@ Still Open:
   MVP-Plan.md "Recorded deviations".
 
 Next Immediate Task:
+
 1. Configure the git remote and let CI run once. Everything else is harder to
    trust until something outside this machine has verified the tree.
 2. Wire the live Claude generator behind the existing QuestionGenerator port
@@ -119,17 +130,19 @@ Next Immediate Task:
 3. Automate the end-to-end acceptance script, now that there is a UI to drive.
 
 Working Commands:
+
 - Setup on a fresh clone requires three generate-once artifacts:
-    npm install
-    npm run db:generate
-    npm run -w @knowzy/database bootstrap:init-migration
-    npm run codegen
-    npm run db:migrate
-    npm run db:seed
+  npm install
+  npm run db:generate
+  npm run -w @knowzy/database bootstrap:init-migration
+  npm run codegen
+  npm run db:migrate
+  npm run db:seed
 - Then: npm run verify
 - Stack: docker compose -f infrastructure/compose/docker-compose.yml up -d
 
 Gotchas learned by execution (each of these cost real time):
+
 - A host `npm install` DESYNCS the container's node_modules volume. Symptoms:
   "Cannot find module tsx/dist/preflight.cjs" or "@prisma/client did not
   initialize yet". Fix: docker compose ... up migrate (it runs npm ci and
@@ -194,14 +207,15 @@ Gotchas learned by execution (each of these cost real time):
   recommends. Any UI listing the offered actions must union in the
   recommendation or the recommended action cannot be chosen.
 
-
 ## UI Source of Truth
+
 2
  
 3
 Primary AI-readable UI specification:
+
 - `docs/ui/KNOWZY_UI_SOURCE_OF_TRUTH.md`
-6
+  6
 
 Stakeholder Word specification:
 
@@ -246,6 +260,25 @@ The learner Markdown specification is the detailed AI-readable UI source of trut
 
 The approved images are visual references only.
 
+## UI Modernization (Phase 8) planning artifacts
+
+- `docs/ui/full-solution-capability-matrix.md` classifies every feature visible in all 17 approved
+  mockups: 41 IMPLEMENTED, 25 PARTIALLY_IMPLEMENTED, 7 PLANNED, 67 REQUIRES_BACKEND_EXTENSION,
+  7 DISABLED_IN_CURRENT_RELEASE. Read it before building any screen.
+- `docs/ui/ui-modernization-plan.md` holds the rollout plans (shared design system, authoring,
+  learner), accessibility, responsive, browser E2E, visual QA, API extension requirements,
+  production integration dependencies, and the milestones UI-M1..UI-M11, LIVE-UI-M2, and
+  LIVE-FULL-M1..M7.
+- `docs/ui/live-portal-capability-matrix.md` is superseded by the full matrix and kept only for
+  traceability.
+
+Three things a redesign will be tempted to do and must not:
+
+1. Reinterpret assessments as courses to populate My Learnings (learner spec 7.2 forbids it).
+2. Show "vs last month" deltas — no KPI history is stored anywhere, so none is computable.
+3. Publish from the generation screen because the mockup has the button (authoring spec 15
+   forbids it; it would defeat separation of duties).
+
 Do not implement fake functionality merely to match a mockup.
 
 Before implementing a learner feature, classify it as:
@@ -279,6 +312,7 @@ Approved Learner Visual References:
 The existing repository remains the functional source of truth.
 
 These specifications define:
+
 - design language
 - component architecture
 - navigation
@@ -291,6 +325,7 @@ The approved mockups are visual references.
 Do not implement fake functionality merely to match a mockup.
 
 Features must be classified as:
+
 - IMPLEMENTED
 - PARTIALLY_IMPLEMENTED
 - PLANNED
@@ -298,6 +333,7 @@ Features must be classified as:
 - DISABLED_IN_CURRENT_RELEASE
 
 Preserve:
+
 - server-side authorization
 - evidence verification
 - approval gates
@@ -306,4 +342,4 @@ Preserve:
 - deterministic scoring
 - answer-key protection
 - audit logging
-``
+  ``

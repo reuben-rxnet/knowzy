@@ -1,3 +1,14 @@
+# Live Portal Capability Matrix (superseded)
+
+> **Superseded by [`full-solution-capability-matrix.md`](full-solution-capability-matrix.md)**,
+> which classifies all 147 features across both portals' 17 mockups with route, domain model,
+> backend support, security and authorization impact, data dependency, required extension, and
+> milestone. The seven rows below are the original draft and are kept for traceability only.
+>
+> Two corrections the full matrix makes to this draft: badges are `PLANNED` with **10 badge
+> definitions already seeded** but no award engine, and certificates have **1 seeded rule** and a
+> placeholder package — neither is purely "design only".
+
 | Feature | Mockup | Current Route | Backend Support | Status | Required Extension | Milestone |
 |---|---|---|---|---|---|---|
 | Assessment list | assessments.png | Existing assessment route | Yes | IMPLEMENTED | None | LIVE-UI-M1 |

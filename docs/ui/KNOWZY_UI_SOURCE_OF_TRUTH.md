@@ -171,6 +171,16 @@ Do not combine both applications into one website using only hidden navigation.
 - Do not create an unnecessary CORS surface.
 - Use existing shared types rather than duplicating domain models in frontend applications.
 
+## Detailed Portal Specifications
+
+Authoring and shared UI requirements are defined in this document.
+
+The detailed Live Learning Portal UI specification is:
+
+- `docs/ui/KNOWZY_LIVE_PORTAL_UI_SOURCE_OF_TRUTH.md`
+
+Where a learner mockup conflicts with validated application behavior, the existing code, API contracts, security controls, and learner specification take precedence.
+
 ## 4.2 Security
 
 Do not move the following into browser code:
