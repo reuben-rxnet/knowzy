@@ -265,7 +265,7 @@ share a machine state.
 
 | | |
 | --- | --- |
-| **Commit** | this one · 2026-09-21 · plan §24 |
+| **Commit** | `bbacf9a` · 2026-09-21 · plan §24 |
 
 The approved 82-file asset pack integrated into both portals: 4 branding marks, 11 navigation
 icons, 5 illustrations and 3 backdrops in use; the other 59 files classified with a reason each in
