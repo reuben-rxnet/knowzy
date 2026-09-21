@@ -1,11 +1,22 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import {
+  Badge,
+  ButtonLink,
+  Card,
+  CardBody,
+  CardFooter,
+  CardHeader,
+  KeyValue,
+  PageHero,
+  RefusalState,
+} from '@knowzy/shared-ui';
+import { ArrowLeft, Clock } from 'lucide-react';
 import { t } from '../../../copy';
 import { api } from '../../../lib/api';
 import { Problem } from '../../../components/Problem';
 import { StartForm } from '../../../components/StartForm';
 
-interface AssessmentCard {
+interface AssessmentCardData {
   readonly assessmentId: string;
   readonly name: string;
   readonly description: string | null;
@@ -26,6 +37,10 @@ interface AssessmentCard {
  * Read from the same eligibility list as the home page rather than from a
  * per-assessment endpoint, so a learner cannot open the start page for an
  * assessment the list would not have offered them.
+ *
+ * UI-M2b redesigned it from that one payload. The expectations panel states
+ * only what the server will actually enforce; nothing about badges, points, or
+ * a due date, because no such field exists.
  */
 export default async function StartAssessmentPage({
   params,
@@ -33,16 +48,23 @@ export default async function StartAssessmentPage({
   params: Promise<{ assessmentId: string }>;
 }) {
   const { assessmentId } = await params;
-  const result = await api<{ assessments: readonly AssessmentCard[] }>(
+  const result = await api<{ assessments: readonly AssessmentCardData[] }>(
     '/api/v1/learning/assessments',
+  );
+
+  const back = (
+    <ButtonLink href="/" tone="secondary">
+      <ArrowLeft aria-hidden="true" className="size-4" />
+      {t('start.back')}
+    </ButtonLink>
   );
 
   if (!result.ok) {
     return (
-      <article className="legacy-page">
-        <h1>{t('start.heading')}</h1>
+      <div className="flex flex-col gap-6">
+        <PageHero title={t('start.heading')} actions={back} />
         <Problem problem={result.problem} />
-      </article>
+      </div>
     );
   }
 
@@ -52,43 +74,66 @@ export default async function StartAssessmentPage({
   if (assessment === undefined) notFound();
 
   return (
-    <article className="legacy-page">
-      <h1>{assessment.name}</h1>
-      <p>
-        <Link href="/">{t('start.back')}</Link>
-      </p>
-      {assessment.description === null ? null : <p className="lede">{assessment.description}</p>}
+    <div className="flex flex-col gap-6">
+      <PageHero
+        title={assessment.name}
+        purpose={assessment.description}
+        secondaryText={
+          <Badge tone="info" withIcon={false}>
+            {assessment.domain}
+          </Badge>
+        }
+        actions={back}
+      />
 
-      <h2>{t('start.details')}</h2>
-      <dl className="kv">
-        <dt>{t('start.questions')}</dt>
-        <dd>{assessment.questionCount ?? '—'}</dd>
-        <dt>{t('start.pass')}</dt>
-        <dd>{assessment.passPercentage === null ? '—' : `${assessment.passPercentage}%`}</dd>
-        <dt>{t('start.timeLimit')}</dt>
-        <dd>
-          {assessment.timeLimitMinutes === null
-            ? t('list.noLimit')
-            : `${assessment.timeLimitMinutes} ${t('start.minutes')}`}
-        </dd>
-        <dt>{t('start.attempts')}</dt>
-        <dd>{assessment.attemptsUsed}</dd>
-        <dt>{t('start.attemptLimit')}</dt>
-        <dd>{assessment.attemptLimit ?? t('list.noLimit')}</dd>
-      </dl>
+      <Card>
+        <CardHeader title={t('start.details')} description={t('start.rules')} />
+        <CardBody>
+          <KeyValue
+            items={[
+              { label: t('start.questions'), value: assessment.questionCount ?? '—' },
+              {
+                label: t('start.pass'),
+                value: assessment.passPercentage === null ? '—' : `${assessment.passPercentage}%`,
+              },
+              {
+                label: t('start.timeLimit'),
+                value:
+                  assessment.timeLimitMinutes === null ? (
+                    t('list.noLimit')
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <Clock aria-hidden="true" className="size-4 text-ink-subtle" />
+                      {assessment.timeLimitMinutes} {t('start.minutes')}
+                    </span>
+                  ),
+              },
+              { label: t('start.attempts'), value: assessment.attemptsUsed },
+              {
+                label: t('start.attemptLimit'),
+                value: assessment.attemptLimit ?? t('list.noLimit'),
+              },
+            ]}
+          />
+        </CardBody>
+        <CardFooter>
+          {assessment.startable ? (
+            <StartForm
+              assessmentId={assessment.assessmentId}
+              resume={assessment.inProgressSession !== null}
+            />
+          ) : null}
+        </CardFooter>
+      </Card>
 
-      <p className="lede">{t('start.rules')}</p>
-
-      {assessment.startable ? (
-        <StartForm
-          assessmentId={assessment.assessmentId}
-          resume={assessment.inProgressSession !== null}
+      {/* Eligibility is decided by the server. A refused attempt says why
+          instead of offering a button that would be refused. */}
+      {assessment.startable ? null : (
+        <RefusalState
+          title={t('start.blocked')}
+          reason={assessment.blockedReason ?? t('list.blockedNoReason')}
         />
-      ) : (
-        <p className="warn">
-          {t('start.blocked')} {assessment.blockedReason ?? ''}
-        </p>
       )}
-    </article>
+    </div>
   );
 }

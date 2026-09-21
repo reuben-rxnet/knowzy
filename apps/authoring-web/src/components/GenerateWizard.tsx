@@ -43,6 +43,7 @@ import {
   Tr,
   statusTone,
 } from '@knowzy/shared-ui';
+import { Check, ChevronRight } from 'lucide-react';
 import { t } from '../copy';
 import { recordDecision, runGeneration, runPreflight } from '../app/actions';
 import { Problem } from './Problem';
@@ -139,6 +140,65 @@ const REASON_CODES = [
  */
 const GENERATING_ACTIONS: readonly string[] = ['GENERATE_NEW', 'GENERATE_ADDITIONAL', 'REGENERATE'];
 
+/**
+ * The three §15 zones as a stepper.
+ *
+ * A step is "done" only because the record behind it exists — a preflight
+ * result, a recorded decision, a finished job. Nothing is inferred from
+ * position, so the stepper cannot claim progress the server has not made.
+ */
+const Stepper = ({
+  hasPreflight,
+  hasDecision,
+  hasJob,
+}: {
+  readonly hasPreflight: boolean;
+  readonly hasDecision: boolean;
+  readonly hasJob: boolean;
+}) => {
+  const steps = [
+    { label: t('generate.step1'), done: hasPreflight },
+    { label: t('generate.step2'), done: hasDecision },
+    { label: t('generate.step3'), done: hasJob },
+  ];
+  // The current step is the first that is not done.
+  const currentIndex = steps.findIndex((step) => !step.done);
+
+  return (
+    <ol className="flex flex-wrap items-center gap-2">
+      {steps.map((step, index) => {
+        const current = index === currentIndex;
+        return (
+          <li key={step.label} className="flex items-center gap-2">
+            <span
+              className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold ${
+                step.done
+                  ? 'bg-success-soft text-success'
+                  : current
+                    ? 'bg-brand-navy text-white'
+                    : 'bg-surface-sunken text-ink-subtle'
+              }`}
+              {...(current ? { 'aria-current': 'step' as const } : {})}
+            >
+              <span
+                aria-hidden="true"
+                className="grid size-5 place-items-center rounded-pill bg-white/20 text-2xs font-bold"
+              >
+                {step.done ? <Check className="size-3" /> : index + 1}
+              </span>
+              {step.label}
+              {step.done ? <span className="knowzy-sr-only">{t('generate.stepDone')}</span> : null}
+            </span>
+            {index < steps.length - 1 ? (
+              <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-subtle" />
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+};
+
 /** The step number badge every zone carries. */
 const Step = ({ n }: { readonly n: number }) => (
   <span
@@ -188,6 +248,12 @@ export const GenerateWizard = ({
 
   return (
     <div className="flex flex-col gap-6">
+      <Stepper
+        hasPreflight={preflight !== null}
+        hasDecision={decision !== null}
+        hasJob={job !== null}
+      />
+
       {/* ------------------------------------------------- zone 1: selection */}
       <Card>
         <CardHeader title={t('generate.step1')} icon={<Step n={1} />} />

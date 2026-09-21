@@ -22,6 +22,14 @@ export const copy = {
   'home.identitySubmit': 'Switch identity',
   'home.empty':
     'No assessment is available to you yet. Publish questions and an assessment in the Authoring Portal first.',
+  'home.countLabel': '{count} available to you',
+  'home.emptyBody':
+    'An assessment appears here once it has been published. Nothing is hidden from you — there is nothing yet.',
+  'home.identityIntro':
+    'Switch identity to see what a different person is allowed to do. Refusals are part of the demonstration.',
+  'home.progressLabel': 'Answered',
+  'home.progressNote':
+    'Per-topic accuracy is recorded on each result. This release keeps no badges, points, streaks or levels.',
   'home.resume': 'Resume where you left off',
   'home.answeredOf': '{progress} answered',
 
@@ -33,8 +41,12 @@ export const copy = {
   'list.timeLimit': 'Time limit',
   'list.noLimit': 'None',
   'list.open': 'Open',
+  'list.attemptsOf': '{used} of {limit} used',
+  'list.attemptsUsedOnly': '{used} used · no limit',
+  'list.blockedNoReason': 'The server did not permit this attempt.',
   'list.blocked': 'Not available',
 
+  'start.working': 'Working — the server is starting your attempt.',
   'start.heading': 'Start assessment',
   'start.back': 'Back to your assessments',
   'start.details': 'What to expect',
@@ -77,6 +89,14 @@ export const copy = {
   'result.timeTaken': 'Time taken',
   'result.attempt': 'Attempt',
   'result.state': 'Result state',
+  'result.intro': 'The score the platform recorded, and what it was judged against.',
+  'result.scoreSummary': '{correct} of {total} correct',
+  'result.unansweredNote': 'Counted as incorrect',
+  'result.topicSummary': '{correct} of {asked} correct',
+  'result.topicsIntro':
+    'Accuracy per topic, from the questions this attempt actually asked. Each bar prints its own numbers.',
+  'result.noGapsBody':
+    'A topic becomes a gap only when enough questions were asked to judge it. Nothing here was below the line.',
   'result.topicsHeading': 'How you did by topic',
   'result.topic': 'Topic',
   'result.asked': 'Asked',

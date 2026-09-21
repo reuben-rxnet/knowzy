@@ -1,7 +1,7 @@
 # KNOWZY — UI Modernization Plan (Phase 8)
 
-**Status:** Planning artifact, except §19 and §21 — UI-M1 (the shared shell) and UI-M2 (the
-authoring workflow chain) are implemented. No API contract, server action, route, or domain
+**Status:** Planning artifact, except §19, §21 and §22 — UI-M1 (the shared shell), UI-M2 (the
+authoring workflow chain) and UI-M2b (real-data modernization) are implemented. No API contract, server action, route, or domain
 behaviour changed.
 **Created:** 2026-09-21 · **Revised:** 2026-09-21 (learner portal, capability matrix, milestones)
 **Assessed commit:** `bbb9df6`
@@ -535,7 +535,7 @@ the milestone's own exit criteria.
 | --- | --- | --- |
 | **UI-M1** | Design tokens, typography, shared primitives, domain and learner components, authoring shell, learner shell, package wiring, icon library | Both portals render inside the new shells; all 11 routes behave identically; keyboard and landmark pass; token test green |
 | **UI-M2** | **Re-sequenced on request (2026-09-21): the authoring workflow chain** — Knowledge Sources, document selection, AI generation, Review Queue, Approval, Question Bank. Delivered; see §21 | Every page on the design system; every read, action, and refusal unchanged; browser-driven through the whole chain |
-| **UI-M2b** | Authoring dashboard (what UI-M2 originally was) | Four real KPIs; every unsupported panel labelled *Planned*; no delta claims. Still gated on §20 Q3 |
+| **UI-M2b** | Real-data modernization: the authoring dashboard, and the implemented authoring and learner screens rebuilt on the data that exists. Delivered; see §22 | Every figure traceable to an existing response; no delta, no placeholder metric, no fabricated recommendation; a refused read is absent rather than zero |
 | **UI-M3** | Delivered inside UI-M2 — Knowledge Sources and Document Browser | Test and sync unchanged; denied documents invisible; tabs from real status |
 | **UI-M4** | Delivered inside UI-M2 — AI Quiz Generation (§15 three zones) | Preflight, recorded decision, refusals, and rejection reporting unchanged; **no Publish button, no difficulty** |
 | **UI-M5** | Delivered inside UI-M2 — Review Queue and question detail | Six detail tabs; evidence verbatim with offsets; edit revalidates |
@@ -730,8 +730,11 @@ are used as supplied. If the official marks arrive later, they replace these fil
    needs a chart.
 2. ~~**Brand assets**~~ — **closed:** supplied in `assets/branding/` and in use in both portals.
    See §19.7 on what the files actually are.
-3. **Dashboard honesty** — the specified dashboard is mostly Phase 10 data. Ship with four real KPIs
-   and labelled placeholders, or defer it and land on Knowledge Sources?
+3. ~~**Dashboard honesty**~~ — **answered by UI-M2b:** shipped with the figures that are real
+   (sources, documents, the four queue counts, bank size, published assessments) and **no**
+   labelled placeholders. A dashboard of mostly-empty "Planned" cards would have been a worse
+   answer than a smaller dashboard that is entirely true. The specified KPIs that need an aggregate
+   read model remain in UI-M10.
 4. **Unreleased navigation** — hide the six unbuilt learner destinations (the §5.2 default), or show
    them as explicit previews for demonstration purposes?
 5. **Asset filenames** — rename `ai-quiz-qeneration.png` to `ai-quiz-generation.png` and
@@ -826,3 +829,75 @@ decision, generating, and reading the result.
 Two audit findings turned out to be the audit's own fault and are recorded so nobody chases them
 again: Tailwind's `disabled:` class variants read as a `disabled` attribute, and the "Planned"
 label inside the Copilot button sits past a 700-character window.
+
+---
+
+## 22. UI-M2b — real-data modernization (delivered)
+
+The implemented screens, redesigned against the data the platform already serves. No domain model
+was added, no endpoint was added, and nothing on these screens is computed from anything but an
+existing response.
+
+### 22.1 What was built
+
+| Screen | Route | Built from |
+| --- | --- | --- |
+| Authoring dashboard | `/` | `GET /authoring/sources`, the four review queues, `GET /authoring/question-bank`, `GET /authoring/assessments` |
+| Knowledge Sources | `/sources` | The same list, plus `isActive`, which the payload carried and the table had been dropping |
+| AI Generation | `/generate` | A three-zone stepper whose steps complete only because a preflight, a decision, or a job record exists |
+| Review Queue | `/review` | Plus `duplicate.disposition`, also carried and also dropped |
+| Approval gates | `/review/[id]` | `GET /authoring/questions/:id/gates` through the new `ApprovalGateChecklist` |
+| Question Bank traceability | `/publish?trace=<id>` | `GET /authoring/questions/:id` and `/versions`, plus the inventory row |
+| Learner home | `/` (3001) | `GET /learning/assessments`, and only that |
+| Assessment detail | `/assessments/[id]` (3001) | The same eligibility list |
+| Results, gap visualization | `/results/[id]` (3001) | `GET /learning/results/:id` |
+
+Three shared components carry it: `Meter` and `BandScale` (`Meter.tsx`), and
+`ApprovalGateChecklist` and `ProvenanceTimeline` (`Governance.tsx`).
+
+### 22.2 What each screen refuses to show
+
+This is the substance of the milestone, so it is listed rather than implied.
+
+- **No deltas anywhere.** No "vs last month", no trend arrow, no sparkline. The platform stores no
+  KPI history, so every comparison would be invented.
+- **The dashboard has no coverage percentage, no content-health score, and no activity feed.** Each
+  needs an aggregate or a redacted audit projection that does not exist. They are absent, not
+  mocked, and not labelled "Planned" either — this milestone was to use real data, and a dashboard
+  half-filled with placeholders is the outcome §20 Q3 was asking about.
+- **A figure the caller may not read is absent, not zero.** The dashboard lists the refused reads
+  by name with their codes, so "0 awaiting approval" always means zero. An Author, who has no
+  `assessment.read`, sees exactly that.
+- **The learner home has no streaks, points, levels, badges, due dates, recommendations, or
+  continue-learning rail**, and no course or learning-path hierarchy. None has a backing field, and
+  learner §7.2 forbids reinterpreting an assessment as a course to fill the space.
+- **The knowledge-gap visualization draws only what the server computed.** Every bar prints its own
+  percentage and its correct-of-asked denominator, so the picture says nothing the text does not
+  (§29 forbids a hidden denominator). There is no comparison to other learners and no "study this
+  next": neither exists.
+- **`gapState` keeps its third answer.** Too few questions asked to judge is not a pass, and §5.3
+  excludes it from gap reporting rather than reporting it green.
+- **Traceability does not name people.** Who approved what is in the audit trail, not in this
+  payload, so the panel says so instead of guessing from the decision record.
+- **The gate checklist stays advisory,** and repeats the server's own sentence saying so. The rail
+  is `aria-hidden`: every segment's meaning is in the list below it, and thirteen unlabelled cells
+  read out one by one would be worse than useless.
+
+### 22.3 A defect this found
+
+`appliedThresholds` is an **array** of `{band, minInclusive, maxExclusive}`. The results page had
+it typed `unknown` and read it with `Object.entries`, so the "Bands applied to this attempt" list
+rendered `{"band":"EXPERT","maxExclusive":100.01,…}` as literal JSON. It is now typed and drives
+`BandScale`, which places the score in the band it actually fell into.
+
+### 22.4 How it was verified
+
+Every screen was driven in a real browser: no console errors, and the structural audit over all 13
+routes — landmarks, skip link, heading order, accessible names, unique ids, and whether each
+disabled control explains itself — reported no findings.
+
+The gap visualization was checked at more than one value. The seeded result was 0%, which draws
+every bar empty and proves nothing, so a second attempt was answered from the **authoring** side's
+answer key — the learner projection does not carry one, which is the control being relied on rather
+than worked around — giving a 50% `NEEDS_IMPROVEMENT` result. Both render correctly, including the
+band scale placing the score in the right band.

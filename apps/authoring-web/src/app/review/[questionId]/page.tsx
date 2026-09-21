@@ -1,4 +1,5 @@
 import {
+  ApprovalGateChecklist,
   Badge,
   BlockedBadge,
   ButtonLink,
@@ -126,6 +127,15 @@ const TAB_LABEL: Record<Tab, CopyKey> = {
 
 const DASH = '—';
 
+/** The checklist is shared, so its words come from this app's copy (C1). */
+const gateLabels = {
+  pass: t('question.gatePass'),
+  fail: t('question.gateFail'),
+  gate: t('question.gate'),
+  summary: ({ passed, total }: { passed: number; total: number }) =>
+    t('question.gatesSummary', { passed, total }),
+};
+
 const formatWhen = (value: string): string =>
   new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -184,7 +194,6 @@ export default async function QuestionPage({
   }
 
   const detail = question.data;
-  const failedGates = gates.ok ? gates.data.gates.filter((gate) => !gate.passed) : [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -217,42 +226,23 @@ export default async function QuestionPage({
         </div>
       ) : null}
 
-      {/* The verdict, never behind a tab. Advisory, and it says so. */}
+      {/* The verdict, never behind a tab. Advisory, and it says so.
+          Failures first here, because an approver reading this card is
+          triaging; the Governance tab keeps gate order for auditing. */}
       {!gates.ok ? (
         <Problem problem={gates.problem} />
       ) : (
         <Card>
-          <CardHeader
-            title={t('question.gatesHeading')}
-            description={gates.data.advisory}
-            actions={
-              <StatusBadge
-                status={
-                  gates.data.passed
-                    ? t('question.gatePass')
-                    : t('question.gatesFailedCount', { count: failedGates.length })
-                }
-                tone={gates.data.passed ? 'success' : 'danger'}
-              />
-            }
-          />
-          {failedGates.length === 0 ? null : (
-            <CardBody>
-              <ul className="flex flex-col gap-1.5">
-                {failedGates.map((gate) => (
-                  <li
-                    key={gate.code}
-                    className="rounded-md bg-danger-soft px-3 py-2 text-sm text-ink"
-                  >
-                    <span className="font-semibold">
-                      {gate.gate}. {gate.code}
-                    </span>
-                    <span className="mt-0.5 block text-ink-muted">{gate.detail}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardBody>
-          )}
+          <CardHeader title={t('question.gatesHeading')} />
+          <CardBody>
+            <ApprovalGateChecklist
+              gates={gates.data.gates}
+              passed={gates.data.passed}
+              advisory={gates.data.advisory}
+              failedFirst
+              labels={gateLabels}
+            />
+          </CardBody>
         </Card>
       )}
 
@@ -400,42 +390,15 @@ export default async function QuestionPage({
             <Card>
               <CardHeader
                 title={t('question.gatesCaption')}
-                description={gates.data.advisory}
-                actions={
-                  <StatusBadge
-                    status={gates.data.passed ? t('question.gatePass') : t('question.gateFail')}
-                    tone={gates.data.passed ? 'success' : 'danger'}
-                  />
-                }
+                description={t('question.gatesOrderNote')}
               />
               <CardBody>
-                <DataTable caption={t('question.gatesCaption')} captionHidden>
-                  <THead>
-                    <Tr>
-                      <Th scope="col" align="end">
-                        {t('question.gate')}
-                      </Th>
-                      <Th scope="col">{t('question.gateCode')}</Th>
-                      <Th scope="col">{t('question.gateResult')}</Th>
-                      <Th scope="col">{t('question.gateDetail')}</Th>
-                    </Tr>
-                  </THead>
-                  <TBody>
-                    {gates.data.gates.map((gate) => (
-                      <Tr key={gate.code}>
-                        <Td numeric>{gate.gate}</Td>
-                        <Th scope="row">{gate.code}</Th>
-                        <Td>
-                          <StatusBadge
-                            status={gate.passed ? t('question.gatePass') : t('question.gateFail')}
-                            tone={gate.passed ? 'success' : 'danger'}
-                          />
-                        </Td>
-                        <Td>{gate.detail}</Td>
-                      </Tr>
-                    ))}
-                  </TBody>
-                </DataTable>
+                <ApprovalGateChecklist
+                  gates={gates.data.gates}
+                  passed={gates.data.passed}
+                  advisory={gates.data.advisory}
+                  labels={gateLabels}
+                />
               </CardBody>
             </Card>
           )}

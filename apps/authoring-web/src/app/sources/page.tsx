@@ -97,6 +97,7 @@ export default async function SourcesPage() {
             <Tr>
               <Th scope="col">{t('sources.name')}</Th>
               <Th scope="col">{t('sources.type')}</Th>
+              <Th scope="col">{t('sources.active')}</Th>
               <Th scope="col">{t('sources.status')}</Th>
               <Th scope="col">{t('sources.statusAt')}</Th>
               <Th scope="col" align="end">
@@ -121,6 +122,14 @@ export default async function SourcesPage() {
                   )}
                 </Th>
                 <Td>{source.sourceType}</Td>
+                <Td>
+                  {/* Real field, previously dropped: an inactive source is
+                      still configured but is not read from. */}
+                  <StatusBadge
+                    status={source.isActive ? t('sources.activeYes') : t('sources.activeNo')}
+                    tone={source.isActive ? 'success' : 'neutral'}
+                  />
+                </Td>
                 <Td>
                   <StatusBadge status={source.connectionStatus} />
                 </Td>

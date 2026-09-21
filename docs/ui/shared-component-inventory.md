@@ -1,6 +1,6 @@
 # KNOWZY Shared Component Inventory
 
-**Status:** UI-M1 and UI-M2 delivered. `packages/shared-ui`.
+**Status:** UI-M1, UI-M2 and UI-M2b delivered. `packages/shared-ui`.
 **Boundary:** rule **B6** — this package may import `@knowzy/shared-types` and nothing else from
 the workspace. No component can reach the database, an adapter, or a domain service.
 **Tokens:** [`design-tokens.md`](design-tokens.md).
@@ -131,6 +131,20 @@ Two fixes in UI-M1 components came out of using them:
 
 ---
 
+## 4c. Added in UI-M2b
+
+| Component | Purpose | The rule it carries |
+| --- | --- | --- |
+| `Meter` | A proportion as a horizontal bar (§29) | The numbers are **always** rendered as text beside the bar: no hidden denominator, and the bar adds nothing the text does not say. One `aria-label` carries the whole claim, so a screen reader hears a value rather than "graphic" |
+| `BandScale` | The proficiency bands a score was judged against | Driven by the result's own `appliedThresholds`, which were copied into it at scoring time — not by current configuration, which may since have changed |
+| `ApprovalGateChecklist` | §28's approval gate checklist | The rail is `aria-hidden`, because each segment's meaning is in the list below it; thirteen unlabelled cells read out individually would be worse than useless. Renders the server's advisory sentence verbatim |
+| `ProvenanceTimeline` | §28's provenance timeline | A step exists **only** because a record exists. Nothing is drawn as pending or expected: the absence of an approval row is not evidence that one is coming. A step with no recorded time says nothing about when |
+
+Neither file computes anything. The gates are re-evaluated server-side at every transition, the
+bands come from the result, and a provenance step is a row that exists.
+
+---
+
 ## 5. Primitives
 
 | Component | Purpose |
@@ -182,6 +196,8 @@ see §4b.
 
 - **Pagination** — not yet needed: every list in this build fits one page. It belongs with the
   first list that does not
+- `ChartCard` and any donut, line or area chart — nothing in this build has a time series or a
+  category breakdown to put in one. `Meter` covers the proportions that do exist
 - `Toast` — a later milestone. Every transition currently reports its outcome inline, next to the
   control that caused it, which is more reliable than a message that disappears
 - `ApprovalGateChecklist`, `EvidenceExcerpt`, `SourceCitation`, `ConfidenceBreakdown`,
@@ -189,7 +205,6 @@ see §4b.
 - `ProvenanceTimeline`, `CoverageIndicator` — UI-M7
 - `AssessmentCard`, `QuizProgress`, `AnswerOptionCard`, `ResultSummary`, `ProgressRing`,
   `StaleSessionNotice`, `EligibilityRefusal` — UI-M9
-- `ChartCard` and any chart — UI-M2 at the earliest, and only once a real series exists
 
 The earlier UI-M1 scope listed the domain and learner components. They moved out for one reason: a
 component built against an imagined payload gets rebuilt when it meets the real one. Each now lands

@@ -97,6 +97,13 @@ export {
   type BadgeProps,
   type BadgeTone,
 } from './components/Badge.js';
+export {
+  ApprovalGateChecklist,
+  ProvenanceTimeline,
+  type GateResultLike,
+  type ProvenanceStep,
+} from './components/Governance.js';
+export { BandScale, Meter, type MeterProps, type MeterTone } from './components/Meter.js';
 export { Drawer, Modal, type DrawerProps, type ModalProps } from './components/Overlay.js';
 
 // -------------------------------------------------------------- page states

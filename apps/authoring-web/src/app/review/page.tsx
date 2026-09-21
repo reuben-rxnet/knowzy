@@ -178,6 +178,13 @@ export default async function ReviewQueuePage({
                       <BlockedBadge>{t('review.blocksApproval')}</BlockedBadge>
                     </span>
                   ) : null}
+                  {/* A recorded disposition is why a similar question is no
+                      longer blocking: real field, previously dropped. */}
+                  {item.duplicate.disposition === null ? null : (
+                    <span className="mt-1 block">
+                      <StatusBadge status={item.duplicate.disposition} tone="success" />
+                    </span>
+                  )}
                 </Td>
                 <Td>
                   <ButtonLink href={`/review/${item.questionId}`} size="sm">

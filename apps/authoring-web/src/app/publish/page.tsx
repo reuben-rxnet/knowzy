@@ -1,5 +1,6 @@
 import {
   Badge,
+  ButtonLink,
   Card,
   CardBody,
   CardHeader,
@@ -7,6 +8,8 @@ import {
   EmptyState,
   KpiCard,
   PageHero,
+  ProvenanceTimeline,
+  type ProvenanceStep,
   StatusBadge,
   TBody,
   THead,
@@ -16,7 +19,7 @@ import {
   Tr,
   VersionBadge,
 } from '@knowzy/shared-ui';
-import { Archive, BookCheck, Layers } from 'lucide-react';
+import { Archive, BookCheck, GitBranch, Layers } from 'lucide-react';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -56,12 +59,155 @@ interface AssessmentRow {
   readonly sessionCount: number;
 }
 
+interface TracedQuestion {
+  readonly questionId: string;
+  readonly status: string;
+  readonly version: number;
+  readonly questionText: string;
+  readonly domain: { readonly code: string; readonly name: string };
+  readonly topic: string;
+  readonly source: {
+    readonly documentName: string;
+    readonly folderPath: string | null;
+    readonly sectionKey: string;
+    readonly versionAtGeneration: string;
+  };
+  readonly evidence: {
+    readonly span: string;
+    readonly startOffset: number;
+    readonly endOffset: number;
+    readonly mode: string;
+  };
+  readonly generatedBy: { readonly jobId: string | null; readonly modelId: string | null };
+  readonly reviews: readonly {
+    readonly reviewId: string;
+    readonly kind: string;
+    readonly outcome: string;
+    readonly questionVersion: number;
+    readonly createdAt: string;
+  }[];
+  readonly approvals: readonly {
+    readonly approvalId: string;
+    readonly decision: string;
+    readonly comment: string | null;
+    readonly questionVersion: number;
+    readonly decidedAt: string;
+  }[];
+}
+
+interface TracedVersion {
+  readonly version: number;
+  readonly changeKind: string;
+  readonly changedAt: string;
+  readonly changedFields: readonly string[];
+  readonly evidenceReverified: boolean;
+}
+
 const DASH = '—';
 
 const formatWhen = (value: string | null): string =>
   value === null
     ? DASH
     : new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+
+/**
+ * The provenance of one published question, as steps.
+ *
+ * Assembled from records that already exist — the question detail, its version
+ * history, and the inventory row. A step is emitted ONLY when its record is
+ * present: there is no "pending approval" step, because the absence of an
+ * approval row is not evidence that one is coming.
+ *
+ * `traceVersions` supplies the creation time, which the question detail does
+ * not carry: version 1's `changedAt` is when the draft came into existence.
+ */
+const buildTraceSteps = (
+  question: TracedQuestion,
+  versions: readonly TracedVersion[],
+  published:
+    | {
+        readonly bankQuestionId: string;
+        readonly publishedVersion: number;
+        readonly publishedAt: string | null;
+        readonly retiredAt: string | null;
+        readonly retireComment: string | null;
+      }
+    | undefined,
+): readonly ProvenanceStep[] => {
+  const steps: ProvenanceStep[] = [];
+  const first = [...versions].sort((a, b) => a.version - b.version)[0];
+
+  steps.push({
+    title: t('publish.traceGenerated'),
+    ...(first === undefined ? {} : { when: formatWhen(first.changedAt) }),
+    detail: t('publish.traceGeneratedDetail', {
+      document:
+        question.source.folderPath === null || question.source.folderPath === ''
+          ? question.source.documentName
+          : `${question.source.folderPath}/${question.source.documentName}`,
+    }),
+    tone: 'ai',
+    facts: [
+      { label: t('question.generatedBy'), value: question.generatedBy.modelId ?? DASH },
+      { label: t('question.jobId'), value: question.generatedBy.jobId ?? DASH },
+      { label: t('question.sourceSection'), value: question.source.sectionKey },
+      { label: t('question.sourceVersion'), value: question.source.versionAtGeneration },
+      {
+        label: t('question.evidenceOffsets'),
+        value: `${question.evidence.startOffset}–${question.evidence.endOffset} (${question.evidence.mode})`,
+      },
+    ],
+  });
+
+  for (const review of [...question.reviews].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  )) {
+    steps.push({
+      title: `${review.kind} · ${review.outcome}`,
+      when: formatWhen(review.createdAt),
+      detail: t('publish.traceAgainstVersion', { version: review.questionVersion }),
+      tone: 'info',
+    });
+  }
+
+  for (const approval of [...question.approvals].sort((a, b) =>
+    a.decidedAt.localeCompare(b.decidedAt),
+  )) {
+    steps.push({
+      title: t('publish.traceApproval', { decision: approval.decision }),
+      when: formatWhen(approval.decidedAt),
+      // Gate 13 means this was a different person from the author; who it was
+      // is in the audit trail rather than in this payload, so it is not
+      // claimed here.
+      detail:
+        approval.comment ?? t('publish.traceAgainstVersion', { version: approval.questionVersion }),
+      tone: 'success',
+    });
+  }
+
+  if (published !== undefined) {
+    steps.push({
+      title: t('publish.tracePublished'),
+      ...(published.publishedAt === null ? {} : { when: formatWhen(published.publishedAt) }),
+      tone: 'success',
+      facts: [
+        { label: t('publish.bankQuestionId'), value: published.bankQuestionId },
+        { label: t('publish.version'), value: `v${published.publishedVersion}` },
+      ],
+    });
+
+    if (published.retiredAt !== null) {
+      steps.push({
+        title: t('publish.traceRetired'),
+        when: formatWhen(published.retiredAt),
+        detail: published.retireComment ?? undefined,
+        tone: 'warning',
+      });
+    }
+  }
+
+  return steps;
+};
 
 /**
  * Publish, and the Question Bank.
@@ -80,7 +226,13 @@ const formatWhen = (value: string | null): string =>
  * approver used — and a question leaves the bank by RETIREMENT, which takes a
  * reason, never by deletion.
  */
-export default async function PublishPage() {
+export default async function PublishPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ trace?: string }>;
+}) {
+  const traceId = (await searchParams).trace;
+
   const [approved, inventory, assessments, taxonomy] = await Promise.all([
     api<{ items: readonly QueueItem[] }>('/api/v1/authoring/questions/review?queue=publish'),
     api<{ count: number; source: string; items: readonly InventoryItem[] }>(
@@ -102,9 +254,64 @@ export default async function PublishPage() {
   const items = inventory.ok ? inventory.data.items : [];
   const active = items.filter((item) => item.isActive).length;
 
+  // Traceability reads the SAME endpoints the approval screen uses. No new
+  // route, no new projection: the provenance of a published question is
+  // already recorded, it was just never assembled in one place.
+  const traced = items.find((item) => item.questionId === traceId);
+  const [traceDetail, traceVersions] = await Promise.all([
+    traceId === undefined
+      ? Promise.resolve(null)
+      : api<TracedQuestion>(`/api/v1/authoring/questions/${traceId}`),
+    traceId === undefined
+      ? Promise.resolve(null)
+      : api<{ versions: readonly TracedVersion[] }>(
+          `/api/v1/authoring/questions/${traceId}/versions`,
+        ),
+  ]);
+
   return (
     <div className="flex flex-col gap-6">
       <PageHero title={t('publish.heading')} purpose={t('publish.intro')} />
+
+      {/* ------------------------------------------------ traceability panel */}
+      {traceId === undefined ? null : (
+        <Card elevation="raised">
+          <CardHeader
+            title={t('publish.traceHeading')}
+            description={t('publish.traceIntro')}
+            icon={<GitBranch aria-hidden="true" className="size-5" />}
+            actions={
+              <ButtonLink href="/publish" tone="secondary" size="sm">
+                {t('publish.traceClose')}
+              </ButtonLink>
+            }
+          />
+          <CardBody>
+            {traceDetail === null || !traceDetail.ok ? (
+              traceDetail === null ? null : (
+                <Problem problem={traceDetail.problem} />
+              )
+            ) : (
+              <div className="flex flex-col gap-5">
+                <p className="text-md font-semibold text-brand-navy-text">
+                  {traceDetail.data.questionText}
+                </p>
+                <ProvenanceTimeline
+                  steps={buildTraceSteps(
+                    traceDetail.data,
+                    traceVersions !== null && traceVersions.ok ? traceVersions.data.versions : [],
+                    traced,
+                  )}
+                />
+                <p className="text-sm text-ink-subtle">{t('publish.traceLimits')}</p>
+                <TextLink href={`/review/${traceDetail.data.questionId}`}>
+                  {t('publish.traceOpenDetail')}
+                </TextLink>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       {inventory.ok ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -189,13 +396,25 @@ export default async function PublishPage() {
                     </Td>
                     <Td>{formatWhen(item.publishedAt)}</Td>
                     <Td>
-                      {item.retiredAt === null ? (
-                        <RetireForm questionId={item.questionId} questionText={item.questionText} />
-                      ) : (
-                        <span className="text-sm text-ink-subtle">
-                          {item.retireComment ?? DASH}
-                        </span>
-                      )}
+                      <span className="flex flex-wrap items-center gap-2">
+                        <ButtonLink
+                          href={`/publish?trace=${item.questionId}`}
+                          tone="secondary"
+                          size="sm"
+                        >
+                          {t('publish.trace')}
+                        </ButtonLink>
+                        {item.retiredAt === null ? (
+                          <RetireForm
+                            questionId={item.questionId}
+                            questionText={item.questionText}
+                          />
+                        ) : (
+                          <span className="text-sm text-ink-subtle">
+                            {item.retireComment ?? DASH}
+                          </span>
+                        )}
+                      </span>
                     </Td>
                   </Tr>
                 ))}

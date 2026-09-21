@@ -1,7 +1,7 @@
 # Knowzy — User Guide
 
-**Applies to:** the local demonstration build at milestone UI-M2 (the shared KNOWZY shell, with the
-authoring workflow screens on the design system)
+**Applies to:** the local demonstration build at milestone UI-M2b (the implemented screens
+redesigned on real data)
 **Last updated:** 2026-09-21
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -151,6 +151,22 @@ An empty table means "nothing here"; a refusal panel means "not for you".
 
 ## 4. Authoring: from a document to a published question
 
+### 4.0 The dashboard — `/`
+
+Every number on it is counted from the same reads the screens use: configured sources, documents
+indexed, questions in the bank, published assessments, and the count at each stage of the pipeline.
+Nothing is estimated and nothing is compared to a previous period — no history is stored, so a
+"vs last month" could only be made up.
+
+Two panels list what needs a person: **drafts awaiting an author** (lowest confidence first) and
+**submitted for approval**, which is somebody else's work by design.
+
+If a figure is missing rather than zero, the panel headed **Not visible to this identity** says
+which read was refused and why. As the Author, for instance, the assessment figures are absent
+because the Author has no `assessment.read` — so a zero on this page always means zero.
+
+The identity picker is at the bottom.
+
 ### 4.1 Knowledge sources — `/sources`
 
 Act as the **source administrator**.
@@ -252,8 +268,9 @@ duplicate was flagged and nobody has decided about it yet.
 
 Everything needed to judge one question, on one page, arranged in six tabs.
 
-**Above the tabs, and never inside one: the gate verdict.** It says how many of the thirteen gates
-failed and spells each failure out. **It is advisory.** The server re-evaluates every gate at the
+**Above the tabs, and never inside one: the gate verdict.** It reads "12 of 13 gates pass", draws a
+numbered rail with a tick or a cross on each gate, and lists the failures first with the reason for
+each. **It is advisory.** The server re-evaluates every gate at the
 moment of the transition, so a green verdict is a preview, not permission. It sits outside the tabs
 on purpose — it is the only thing on the page that says whether this question can proceed, and that
 should not be one click away.
@@ -328,6 +345,13 @@ the dialog without retiring anything.
 A published question's text in the inventory is a link to the same read-only detail page an approver
 used. A published version is never edited in place.
 
+**Trace** opens a traceability panel for that question: where it was generated from (document,
+section, the document version at the time, the model and job), then every review, every approval,
+the publication with its bank id, and the retirement if there was one. A step appears **only**
+because a record exists — there is no "pending approval" step, because not having approved something
+is not evidence that someone is about to. Who took each decision is in the audit trail rather than
+in this payload, and the panel says so instead of guessing.
+
 ### 4.7 Assessment — the bottom of `/publish`
 
 Act as the **assessment manager**.
@@ -357,12 +381,17 @@ Open **http://localhost:3001** and act as **Local Learner**.
 
 ### 5.1 Your assessments — `/`
 
-Only published assessments appear, and only those you are eligible for. Each card gives the subject,
-questions per attempt, pass mark, time limit, and attempts used.
+Only published assessments appear, and only those you are eligible for. Each **card** gives the
+subject, questions per attempt, pass mark, time limit, and attempts used — every one of them a field
+the server sent.
 
 An assessment that is visible but cannot be started **says why** — closed, not yet open, or all
-attempts used — instead of showing a dead button. If you have an attempt in progress, a **Resume
-where you left off** link appears first.
+attempts used — instead of showing a dead button. If you have an attempt in progress, a **Resume**
+card appears above everything else, with a bar showing how many questions you have answered.
+
+What you will not find here: badges, points, levels, streaks, due dates, a recommended-for-you rail,
+or courses. This release records none of them, and a card invented to fill the space would be
+telling you something untrue.
 
 ### 5.2 Start — `/assessments/<id>`
 
@@ -394,13 +423,22 @@ selected, and the home page card reads "3 of 3 answered".
 The score as the platform stored it, the pass decision, and the proficiency band. Nothing is
 recalculated in your browser — a second rounding could disagree with the decision on record.
 
-Below that: **per topic** — asked, correct, accuracy, band, and gap state. Three answers are
-possible, not two: no gap, a gap, or too few questions asked about that topic to say. The third is
-excluded from gap reporting rather than guessed at.
+Four figures follow it: correct of total, incorrect, unanswered (counted as incorrect), and time
+taken.
 
-**Where to focus** lists the topics identified as gaps. **Bands applied to this attempt** shows the
-thresholds that were copied onto the result when it was scored, so a later configuration change
-cannot restate what you were told.
+**How you did by topic** draws one bar per topic. Every bar prints its own percentage and its
+correct-of-asked numbers, so the picture tells you nothing the text does not — the bar is there to
+be scanned, not to be the only way to read the number. Beside each bar is its band and its **gap
+state**, and three answers are possible rather than two: no gap, a gap, or too few questions asked
+about that topic to say. The third is excluded from gap reporting rather than guessed at.
+
+**Where to focus** lists the topics identified as gaps, each with the numbers behind it. **Bands
+applied to this attempt** shows the five thresholds that were copied onto the result when it was
+scored — with your score marked in the band it fell into — so a later configuration change cannot
+restate what you were told.
+
+There is no comparison with other learners, no trend against your past attempts, and no suggested
+next step. None of the three is recorded anywhere, so none is shown.
 
 **Correct answers and explanations are not shown, ever.** The answer key does not leave the server
 for a learner, in the quiz or in the result.
@@ -519,6 +557,7 @@ the log below.
 | Date | Commit | Change |
 | --- | --- | --- |
 | 2026-09-18 | `1762cc7` | First version. Covers M7: six authoring screens, four learner screens, the identity picker, and the refusals each screen can show |
+| 2026-09-21 | UI-M2b | The implemented screens redesigned on real data. New: the authoring **dashboard** (§4.0) with the pipeline counts and a panel naming any read your identity may not see; the **approval gate rail** (§4.5); a **traceability** panel on each published question (§4.6); learner **assessment cards** and a resume bar (§5.1); and the result screen's **per-topic bars, gap table and band scale** (§5.4). Two real fields that had been dropped are now shown: whether a source is active, and a duplicate's recorded disposition. **Nothing was invented** — no deltas, no placeholder metrics, no recommendations, no badges |
 | 2026-09-21 | UI-M2 | The six authoring screens are on the design system: Knowledge Sources (§4.1 — results now open in a side panel, and three counted figures sit above the table), the document browser (§4.2 — libraries are tabs, with a breadcrumb), Generate (§4.3 — three numbered cards), the review queue (§4.4 — five queues as tabs with counts), Question approval (§4.5 — **six tabs, with the gate verdict kept outside them**), and Publish (§4.6 — Retire is now a confirmation dialog). **No control, action, or refusal changed.** Also fixed: clicking Finish and score, Test connection, Claim, Submit, or the assessment steps returned a 400 "Validation failed" — every one of them now works |
 | 2026-09-21 | UI-M1 | Both portals now render inside one shared KNOWZY shell: brand header, left-hand destinations carrying their real status, the authoring workflow ribbon, a skip link, and visible focus. The search field, KNOWZY Copilot, and notifications are shown disabled and labelled "Planned" — see §2.4. **No page body, control, action, or refusal changed**; the screens themselves are modernized one at a time from UI-M2 |
 | 2026-09-21 | `abb1c45`+ | Resume of a fully answered attempt now works (it returned a 404 before, and the home page card printed "NaN / "). Two new review views, `Published` and `All questions`, with a per-document filter; preflight counts and published inventory rows link into them. Recording `VIEW_EXISTING` or `REUSE_EXISTING` no longer offers the generate form |
