@@ -127,7 +127,7 @@ and every caller changes with it.
 | Change | Note |
 | --- | --- |
 | `ExtractInput.content` accepts bytes as well as text | Keep the text path intact; existing extractors and their invariant tests must not change behaviour |
-| Register `pdf`, `docx`, `pptx`, `xlsx` extractors | Each must satisfy **X2** — offsets round-trip into the extracted text, or evidence spans cannot re-locate |
+| Register `pdf`, `docx`, `pptx`, `xlsx` extractors | Each emits `Block[]` — headings and paragraphs, with page/slide/sheet where the format has one. **X2 is the sectionizer's, not the extractor's** |
 | Preserve X5 / X6 / X7 / X8 | No text on failure; truncation reported; SHA-256 of normalized text; deterministic |
 | Leave `SHAREPOINT_PAGE` unregistered | It is a Graph canvas-layout concern and is out of scope here. `UNSUPPORTED` with a reason is the correct behaviour |
 
@@ -135,9 +135,11 @@ and every caller changes with it.
 and XLSX from the measured distribution (discovery checklist B1), and question whether slide and
 spreadsheet content states testable rules at all before building for it.
 
-**X2 is the hard part, not the parsing.** Extracting text from a PDF is a library call; producing
-offsets that let a stored evidence span be found again years later is the requirement, and it is what
-makes evidence verification meaningful.
+**Correction: X2 is *not* the hard part.** This section originally said producing round-trip offsets
+was the requirement. Extractors never compute an offset and never see the final text — they emit
+headings and paragraphs, and the sectionizer owns the string, which makes X2 true by construction. A
+binary extractor is `bytes -> Block[]` and nothing more, so this work is materially smaller and safer
+than stated here. See [TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md](TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md) §1.1.
 
 ### 2.2 A real `FILE_REPOSITORY` adapter — and it must not be the mock
 
@@ -265,16 +267,17 @@ mirror; permissions enforced by Knowzy"* rather than leaving a reader to infer i
 | `supportsLiveSearch` | `false` | Indexed only, and the UI already labels that |
 | `supportsFullTextSearch` | `true` | Over extracted text |
 | `supportsIncrementalSync` | `true` for a local mount; `false` where the mount is slow | Template §7.6 |
-| `supportsPermissionCheck` | **`false`** | **The important one.** A filesystem carries no per-user SharePoint decision. Forces `getEffectiveAccess` to return `UNKNOWN` — never `ALLOWED` |
+| `supportsPermissionCheck` | **`true`**, with `enforcement: 'PLATFORM'` | **Corrected.** This row said `false`. Read against the code that is unworkable: `false` forces `UNKNOWN`, and extraction is refused on any non-`ALLOWED` decision **including `UNKNOWN`**, so the adapter could never serve a document. The capability means "can I answer"; `enforcement` says "on whose authority". See [TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md](TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md) §1.2 |
 | `supportsDelegatedAccess` | **`false`** | `DELEGATED_OBO` is rejected at configuration time (P6) |
 | `supportsVersionLabels` | **`false`** | `mtime` is unreliable — touch, copy, restore all move it. Change detection relies on `contentHash` alone, and preflight reports `CONTENT_CHANGED_UNVERSIONED` honestly rather than implying a version signal exists |
 | `supportedDocumentTypes` | Exactly what has a registered extractor | Declaring PDF before the extractor exists is the P1 violation to avoid |
 | `writeCapable` | `false` | The literal type. Not expressible otherwise |
 
-`AccessDecision` therefore returns `decision: 'UNKNOWN'`, `enforcement: 'PLATFORM'`, and a summary
-saying so. That single value is what propagates the truth up to the interface, and the contract was
-built for exactly this case: `UNKNOWN` is "a first-class outcome, not an error: a source that cannot
-answer the question must say so rather than have the platform assume either answer."
+`AccessDecision` therefore returns a decision with `enforcement: 'PLATFORM'` and a summary naming the
+basis, and `supportsDelegatedAccess: false` is the flag that actually carries the loss. Those two fields are what propagate the truth up to the interface. (`UNKNOWN` remains the right answer
+where an adapter genuinely cannot decide — it is "a first-class outcome, not an error" — but a source
+that returns it cannot serve content, which is the correct safety posture and the reason it is not
+used here.)
 
 ### 3.3 Keep the mock
 
@@ -445,6 +448,10 @@ because they keep the loss visible on screen instead of letting it fade into nor
 ## 7. Recommended implementation milestone
 
 ### PILOT-T1 — Real documents through real extractors
+
+> Superseded in detail by
+> [TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md](TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md) §8,
+> which adds the partial-sync guard and the local-path assertion as explicit steps.
 
 **Deliver in this order.** Each step is independently useful, and the first two need no decisions from
 anyone outside the team.

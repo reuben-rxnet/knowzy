@@ -509,3 +509,72 @@ comparison on real content. Steps 1 to 4 are gated on nobody.
 The tenant request document is written to be sent as-is, including a section on what is **not** being
 asked for — no `Sites.Read.All`, no `FullControl`, no directory read, no privileged roles for the
 team — offered so an administrator can check the scope rather than take it on trust.
+
+---
+
+## Transitional knowledge source — implementation design
+
+**Delivered 2026-09-21.** Planning artifact only; no application code changed.
+[TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md](../integrations/TRANSITIONAL_KNOWLEDGE_SOURCE_IMPLEMENTATION.md).
+
+The review this required found **two errors in the strategy document written hours earlier**, both now
+corrected in place. Recording them because one of them would have produced an adapter that could not
+work at all, and because they point in opposite directions.
+
+**The design-breaking one.** The strategy specified `supportsPermissionCheck: false` on honesty
+grounds — a filesystem carries no per-user SharePoint decision. Read against the code, that is
+unworkable: the contract says `false` forces `getEffectiveAccess` to return `UNKNOWN`, and both
+`extractContent` and `synchronize` refuse on any non-`ALLOWED` decision **including `UNKNOWN`**, with
+the comment *"content is the thing worth protecting, so the cautious direction is the default."* So the
+adapter would have extracted nothing and synchronized zero documents. That safety posture is correct
+and should not be weakened; the resolution is `supportsPermissionCheck: true` (the capability means
+"can I answer") with `enforcement: 'PLATFORM'` on every decision (which says "on whose authority"),
+and `supportsDelegatedAccess: false` as the flag that actually carries the loss. The alternative —
+permitting `UNKNOWN` through the refusal when enforcement is platform-level — changes a shared safety
+default and was rejected as something to escalate rather than do locally.
+
+**The one that made the work smaller.** The strategy said *"X2 is the hard part, not the parsing"* —
+that producing round-trip offsets was the real requirement for a binary extractor. Wrong.
+`structure.ts` splits the work so an extractor **never computes an offset and never sees the final
+text**: it emits headings and paragraphs, and the sectionizer owns the string, which is what makes X2
+true by construction. A PDF extractor is `bytes -> Block[]` and nothing more. Materially less work
+and less risk than stated.
+
+**Two further findings from the same review:**
+
+- **Search reads files as UTF-8 too**, not only extraction — `readFixtureContent(...).toLowerCase()`
+  for matching and again for the snippet. So binary support is three call sites, and the
+  file-repository adapter must search extracted text rather than raw bytes, or a PDF yields nonsense
+  matches and a snippet of binary garbage on screen.
+- **Section keys survive the migration by construction.** `sectionKey` is
+  `sha256(heading path + ordinal)` and explicitly stable across re-extraction — derived from content,
+  not from the source. Since the adapter only supplies bytes and the extraction pipeline is
+  source-agnostic, the same document yields identical keys whether the bytes came from a local mirror
+  or from Graph. Every evidence span and every published `sourceSectionKey` re-locates after migration
+  with no data fix. SharePoint Pages are the one clean exception: they have no file in a synced
+  library, so they first extract under Phase 7 and have no keys to preserve.
+
+**Three operational traps the implementation design has to close**, none of which are visible from the
+strategy level: OneDrive **Files On-Demand** placeholders, where a file lists at its real size with no
+local bytes, so folders must be pinned and Test Connection must detect it; **partial-sync mass
+deletion**, where a paused or throttled client presents a half-populated directory that a naive scan
+reads as mass deletion — guarded by aborting a run whose document count falls below a fraction of the
+previous one and emitting no delete events; and **sync-client artifacts**, including `desktop.ini`,
+which would extract successfully as a text document and produce a nonsense section, which is worse
+than failing.
+
+The nine Test Connection checks — flagged as unenumerated in the Phase 7 plan — are proposed
+canonically here with this adapter's outcome for each. Check 5 earns its place: it reports "140 of 200
+matched documents have no registered extractor" at configuration time rather than after a sync.
+
+**Milestone PILOT-T1** is sequenced with steps 1–5 gated on nobody: binary-capable extraction with PDF
+and DOCX added to the *parameterized* invariant suite so they inherit X1–X6; the tree reader extracted
+from the mock; the adapter, distinct from the mock because `MOCK_ISOLATION` fails startup outside
+`local` when a mock adapter is registered; `webUrlBase` mapping plus a build-failing assertion that no
+emitted `sourceUrl` matches a local-path shape; then sidecars, the partial-sync guard and the
+release-scope widening. Then one library end to end, then the blind Claude comparison on real content.
+
+Two decisions are needed before step 1, and both get settled by accident if nobody names them: **whose
+account defines the corpus**, and **which library** — where the binding criterion is content that
+states testable rules, because the most likely way this pilot disappoints is a well-integrated source
+whose content states nothing worth testing.
