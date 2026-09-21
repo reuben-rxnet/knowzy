@@ -16,12 +16,16 @@
 
 import type { MouseEventHandler, ReactNode } from 'react';
 
-export type ButtonTone = 'primary' | 'secondary' | 'danger' | 'ghost';
+export type ButtonTone = 'primary' | 'success' | 'secondary' | 'danger' | 'ghost';
 export type ButtonSize = 'md' | 'sm';
 
 const TONE: Record<ButtonTone, string> = {
   primary:
     'bg-brand-blue text-white ring-1 ring-inset ring-brand-blue hover:bg-brand-navy hover:ring-brand-navy',
+  // The approved icon sheet's green action button. `success`, not brand green:
+  // white on brand green is 2.69:1, white on this is 5.3:1.
+  success:
+    'bg-success text-white ring-1 ring-inset ring-success hover:bg-brand-navy hover:ring-brand-navy',
   secondary:
     'bg-brand-surface text-brand-navy-text ring-1 ring-inset ring-line-strong hover:bg-surface-hover hover:ring-brand-blue',
   danger:

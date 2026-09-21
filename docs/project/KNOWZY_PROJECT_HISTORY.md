@@ -236,3 +236,25 @@ portal's `legacy.css` was deleted: every one of its pages is now on the design s
 Two brief items could not be built from existing data and were not faked: learner result and
 proficiency visibility on the home page need an endpoint that lists a learner's results, and none
 exists. See plan §23.6.
+
+**Follow-up in the same milestone.** The header was rebuilt a second time against the approved
+header mockup, supplied after the first attempt: bigger marks, an 80px bar, and no tile — the
+mockup is `EssilorLuxottica | KNOWZY` and nothing else. That also fixed a disclosure bug the first
+version had: the role strings are full sentences, so "· Local Development Identity" was truncated
+away at every width. It now comes first on that line, so truncation eats the role instead of the
+§34 disclosure.
+
+An approved icon reference sheet arrived at the same time. It is a composite image — none of the
+individual files it names exist — so it was used as a reference and gave four changes: a green
+action button for Start and Resume, a soft blue "Planned" pill, and two learner nav icons. Its
+course thumbnails, level badges, streak and points stats, and Copilot recommendation callout were
+all left alone, being exactly what this milestone excludes.
+
+**Two self-inflicted outages during this work**, both from running `npm run build` on the host while
+the containers were up — the trap this repository already documents twice. The first overwrote the
+dev servers' `.next` and produced `Could not find the module .../global-error.js in the React Client
+Manifest`; the second desynced the shared `node_modules` volume and took the API down, which the
+portals correctly reported as **API unreachable** rather than as an empty page. Recovery is
+`rm -rf apps/*/.next` and a web restart for the first, `docker compose … up migrate` and an
+api/mcp restart for the second. Worth knowing that the build deliverable and a running demo cannot
+share a machine state.

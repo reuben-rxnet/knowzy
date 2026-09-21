@@ -936,6 +936,25 @@ Rules kept:
 - **Dark header support** is the default case, not an adaptation. Every foreground on the navy is
   either white at a measured opacity or the brand green, and each ratio is asserted by test.
 
+**The lock-up was then rebuilt to the approved header mockup** (`design/approved/` header image,
+supplied mid-milestone), which settled three things the first attempt had guessed:
+
+- **Size.** EssilorLuxottica reads as a corporate mark rather than a watermark, and the wordmark
+  carries its tagline at a size where the tagline is legible. That needs an 80px bar, so
+  `--spacing-header` is 5rem. §8.1 says "~72px"; the mockup is the visual source of truth and wins.
+- **No tile.** The mockup is `EssilorLuxottica | KNOWZY` and nothing else on the left. `KnowzyMark`
+  stays exported and stays the browser tab, but it left the header: a mockup beats a decision made
+  without one.
+- **The identity disclosure survives truncation.** The role strings here are full sentences, so
+  "· Local Development Identity" was being truncated away at every width. It now comes *first* on
+  that line, so truncation eats the role description instead of the §34 disclosure.
+
+Four deviations from the mockup, each because it shows something that does not exist: the search
+chip says "Planned" rather than "Ctrl + K" (advertising a shortcut for a disabled field is a promise
+the build cannot keep); "KNOWZY Copilot" rather than "Copilot" (§8.1) with "Planned" as its second
+line; no red "3" on the bell, because there is no notification producer; and initials rather than a
+photograph.
+
 Header refinements, in the order they matter:
 
 1. The tile mark plus the wordmark, with the corporate mark given its own zone behind a hairline —
@@ -947,6 +966,30 @@ Header refinements, in the order they matter:
    on every width.
 4. The search field and the Copilot button no longer appear at the same breakpoint. They did, and at
    exactly 1280 they fought until the search collapsed to the word "Sear".
+
+### 23.1b The approved icon sheet
+
+`design/approved/icons designs.png` arrived mid-milestone. It is a **composite reference image**:
+the individual files it names (`icon_home.png`, `pill_planned.png`, `illustration_*.png` and the
+rest) do not exist in the repository, so nothing could be imported from it. Used as a visual
+reference, it settled four things:
+
+| Sheet element | Applied |
+| --- | --- |
+| Green "Start Learning" action button | `Button` gained a `success` tone, used for the learner's Start and Resume. `--color-success`, not brand green: white on brand green is 2.69:1 |
+| `pill_planned` as a soft **blue** pill | `PlannedBadge` and the `planned` badge tone changed from grey to info-toned |
+| Discover as a magnifier, Progress as a bar chart | Both learner nav icons changed to match |
+| Status badges: green check, blue clock, amber warning | Already how `statusTone` maps `PUBLISHED`, `IN_PROGRESS` and `PENDING` — the sheet confirmed it |
+
+Deliberately **not** taken from the sheet: course thumbnails, level badges (beginner → expert),
+trophy/streak/points stats icons, and the "Let KNOWZY Copilot suggest a personalised learning path"
+callout. Every one is a course, a badge, a gamification metric or a recommendation, and all four are
+excluded from this milestone. The level-badge *visual style* is reused for the proficiency band,
+which is real data.
+
+The sheet's filled/active navigation icons were not adopted: Lucide draws strokes, and filling one
+produces a blob rather than the sheet's glyphs. The active item is already marked by a border, a
+background, weight and `aria-current`.
 
 ### 23.2 Accessibility summary
 

@@ -111,8 +111,9 @@ describe('the navy header', () => {
 
   it('carries white text and the translucent variants the header uses', () => {
     expect(ratio(WHITE, navy)).toBeGreaterThanOrEqual(4.5);
-    // The opacities in AppHeader: role line, placeholder, Copilot label.
-    for (const alpha of [0.7, 0.55, 0.5]) {
+    // Every text opacity AppHeader uses: Copilot label 85, identity role 70,
+    // bell and Copilot second line 60, search icon and placeholder 55.
+    for (const alpha of [0.85, 0.7, 0.6, 0.55]) {
       const value = ratio(over(WHITE, navy, alpha), navy);
       expect(value, `white/${alpha * 100} on navy is ${value.toFixed(2)}:1`).toBeGreaterThanOrEqual(
         4.5,

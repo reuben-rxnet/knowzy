@@ -11,19 +11,19 @@
 import type { ReactNode } from 'react';
 import {
   BadgeCheck,
+  BarChart3,
   BookOpen,
   Building2,
   ClipboardCheck,
-  Compass,
   FileCheck2,
   FileStack,
   GaugeCircle,
-  GraduationCap,
   HelpCircle,
   Home,
   Layers,
   LibraryBig,
   ListChecks,
+  Search,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -133,7 +133,7 @@ export const LEARNER_NAV: readonly NavItem[] = [
     status: 'PARTIALLY_IMPLEMENTED',
     note: 'On Home in this release',
   },
-  { label: 'Discover', icon: <Compass className="size-5" />, status: 'REQUIRES_BACKEND_EXTENSION' },
+  { label: 'Discover', icon: <Search className="size-5" />, status: 'REQUIRES_BACKEND_EXTENSION' },
   { label: 'Badges', icon: <BadgeCheck className="size-5" />, status: 'PLANNED' },
   {
     label: 'Knowledge Library',
@@ -146,7 +146,7 @@ export const LEARNER_NAV: readonly NavItem[] = [
     // a learner can see it today, but an unreachable item must not be styled
     // as a link.
     label: 'My Progress',
-    icon: <GraduationCap className="size-5" />,
+    icon: <BarChart3 className="size-5" />,
     status: 'PLANNED',
     note: 'Per result, on your results page',
   },

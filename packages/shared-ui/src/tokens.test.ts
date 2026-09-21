@@ -44,7 +44,7 @@ describe('brand tokens', () => {
     // §7 requires a 44px minimum target and §8.1 a ~72px header. Both are
     // tokens so a component cannot quietly shrink them.
     expect(tokens).toContain('--spacing-target: 2.75rem');
-    expect(tokens).toContain('--spacing-header: 4.5rem');
+    expect(tokens).toContain('--spacing-header: 5rem');
   });
 
   it('honours prefers-reduced-motion', () => {

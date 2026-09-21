@@ -117,7 +117,10 @@
    * The shell's fixed dimensions. §8.1 puts the header at ~72px; the sidebar
    * widths are the three responsive states in the modernization plan §11.
    */
-  --spacing-header: 4.5rem; /* 72px */
+  /* 80px. §8.1 says "~72px"; the approved header mockup sets the KNOWZY
+   * wordmark and its tagline at a size that needs the extra 8px, and the
+   * mockup is the visual source of truth. */
+  --spacing-header: 5rem;
   --spacing-sidebar: 15rem; /* 240px */
   --spacing-sidebar-rail: 4.5rem; /* icon-only, 1024–1280 */
   --spacing-drawer: 30rem;

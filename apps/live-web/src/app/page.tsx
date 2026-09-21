@@ -135,7 +135,7 @@ export default async function AssessmentListPage() {
             <CardFooter>
               <ButtonLink
                 href={`/sessions/${assessment.inProgressSession.sessionId}`}
-                tone="primary"
+                tone="success"
               >
                 {t('home.resume')}
                 <ArrowRight aria-hidden="true" className="size-4" />

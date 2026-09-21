@@ -29,7 +29,11 @@ export const StartForm = ({ assessmentId, resume }: { assessmentId: string; resu
     <div className="flex flex-col gap-3">
       <form action={submit}>
         <input type="hidden" name="assessmentId" value={assessmentId} />
-        <Button disabled={pending} {...(pending ? { disabledReason: t('start.working') } : {})}>
+        <Button
+          tone="success"
+          disabled={pending}
+          {...(pending ? { disabledReason: t('start.working') } : {})}
+        >
           {resume ? t('start.resume') : t('start.begin')}
           <ArrowRight aria-hidden="true" className="size-4" />
         </Button>

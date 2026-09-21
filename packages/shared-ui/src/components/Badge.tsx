@@ -32,7 +32,8 @@ const TONE: Record<BadgeTone, string> = {
   warning: 'bg-warning-soft text-warning ring-warning/25',
   danger: 'bg-danger-soft text-danger ring-danger/20',
   ai: 'bg-ai-soft text-ai ring-ai/20',
-  planned: 'bg-surface-sunken text-ink-subtle ring-line',
+  // The approved icon sheet's `pill_planned`: a soft blue pill, not grey.
+  planned: 'bg-info-soft text-info ring-info/20',
 };
 
 const TONE_ICON: Record<BadgeTone, typeof CheckCircle2> = {

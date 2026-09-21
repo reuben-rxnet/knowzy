@@ -157,7 +157,7 @@ that check.
 
 | Token | Value | Meaning |
 | --- | --- | --- |
-| `--spacing-header` | 72px | §8.1's header height |
+| `--spacing-header` | 80px | The approved header mockup's bar. §8.1 says "~72px"; the mockup sets the wordmark and its tagline at a size that needs the extra 8px |
 | `--spacing-sidebar` | 240px | Persistent sidebar |
 | `--spacing-sidebar-rail` | 72px | Icon-only rail, 1024–1280 (arrives with UI-M2) |
 | `--spacing-drawer` | 480px | Detail drawer |
