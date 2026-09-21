@@ -957,3 +957,87 @@ Two lessons, both recorded because both cost something:
 Steps 1–4 of the sequence — the coverage fix, the prompt-version fix, the blind-stem baseline and a
 control run — are **not blocked on T-29** and are worth doing regardless of what the approval
 decides.
+
+---
+
+## Source-document authoring guide, and a section-key collision found measuring for it
+
+**2026-09-22.** Artifact:
+[`SOURCE_DOCUMENT_AUTHORING_GUIDE.md`](../integrations/SOURCE_DOCUMENT_AUTHORING_GUIDE.md).
+
+A practical guide for SOP owners, built entirely from measurements of the real corpus rather than
+from advice. Every number is recomputable from `document_section`, `generation_job_rejection` and
+`draft_question`.
+
+### What the measurement showed
+
+| | |
+| --- | ---: |
+| Documents with **no headings at all** | **15 of 28** |
+| Sections with no heading | **81 of 234** |
+| Documents reduced to a **single section** | **11** |
+| Sections below the 300-character assessable floor | **118 of 234** |
+| Documents with **zero** assessable sections | **0** |
+
+The decisive finding is that **heading placement, not content quality, predicts yield**, and three
+documents make the case on their own — all long, headed, professionally written:
+
+| Document | Sections | Assessable | Share |
+| --- | ---: | ---: | ---: |
+| `RxNet_L2_SSL_Certificate_Renewal_SOP.docx` — headings per **topic** | 29 | 26 | **90%** |
+| `TRACELAB_Support_SOP.docx` — headings per **step** | 32 | 6 | 19% |
+| `Rxnet Eolp Database Connection Pool Exhaustion Sop.docx` — headings per **step** | 49 | 7 | 14% |
+
+And the refusal reasons, grouped: **187 of 194 refusals** say the section states nothing a person
+could be wrong about — 124 (58 sections) *"states no procedure, threshold, or decision rule"*, 63 (26
+sections) *"no set of four distinct, plausible options could be formed without inventing content"*.
+Support SOPs describe actions, not knowledge.
+
+The guide is deliberately hedged on one point: §3–§4 (headings, section size) help any generator, but
+§5 (rewriting imperatives as rule sentences) is partly a workaround for a sentence-matching
+generator that is about to be replaced. **Advising a business to rewrite 28 working runbooks to suit
+a template engine would have been bad advice**, so the guide says so and ranks the formatting actions
+first.
+
+### A defect: `section_key` collides across documents
+
+Found while checking why a query attributed one draft question to two documents.
+
+`section_key` is `sha256(heading path + ordinal)`. For a section with **no heading** the heading path
+is empty, so the key reduces to a hash of the ordinal alone — **identical in every heading-less
+document**. Measured: one key is shared by **21 documents**, another by **10**, and five more by
+three each.
+
+Both places that resolve a section key use `Array.find()`, which returns the *first* match:
+
+- `evidence.ts` — `args.sections.find((c) => c.sectionKey === args.sectionKey)`
+- `generation-service.ts` — `scope.sections.find((s) => s.sectionKey === candidate.sectionKey)`
+
+So when two colliding sections are in one pinned scope, the span is verified against whichever
+section is ordered first, and the question's lineage — `sourceDocumentId`, `sourceUrl`,
+`sourceDocumentName` — is taken from that section's document.
+
+**Checked rather than assumed on the published questions.** `KNZ-SUPPORT_OPS-2026-000003` cites a key
+shared by `Tickets SOP's.docx` and `EOLP Support SOP.pdf`, and is attributed to the former. Its span
+was located in `Tickets SOP's.docx` at offset 12,984 and is **absent** from the PDF, so the
+attribution is **correct** — but correct by ordering, not by construction. Two consequences remain:
+
+1. **A false refusal** whenever the first-ordered colliding section does not contain the span, which
+   is the common case and looks exactly like a generator failure.
+2. **A false attribution** whenever both colliding sections *do* contain the span — repeated
+   boilerplate, a shared preamble, a paragraph copied between SOPs. With 21 documents on one key that
+   is a live risk, not a theoretical one, and it would publish a governed asset citing the wrong
+   document.
+
+Currently costing one recorded suppression (*"a question testing this section already exists"* fired
+on a colliding key), so it is a small bill today and a growing one: the collision rate rises with
+every heading-less document added.
+
+The fix is to include the document in the key's derivation, or to resolve sections by id rather than
+by key inside a scope. Recorded rather than fixed, because this commit is a documentation
+deliverable — but it belongs ahead of the live-Claude work, since a model will cite section keys far
+more often than a sentence matcher does.
+
+**Third defect in two days whose common shape is the same:** a value that is correct for the case it
+was designed for (a headed section, a curated flag, a coverage status) being reused for a case it
+cannot represent. Worth watching for.
