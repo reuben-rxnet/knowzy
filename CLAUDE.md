@@ -364,4 +364,32 @@ Do not activate an unimplemented feature merely because a visual asset exists fo
 Runtime assets must be installed using the strategy documented during implementation.
 
 Interactive controls must remain semantic HTML or React controls.
+
+### SharePoint Sync Manager
+
+UI Specification:
+
+- docs/ui/SHAREPOINT_SYNC_MANAGER_UI_SOURCE_OF_TRUTH.md
+
+Approved Design:
+
+- design/approved/sharepoint-sync-manager/sharepoint-sync-manager-dashboard.png
+
+This module is separate from:
+
+- KNOWZY Authoring Portal
+- KNOWZY Live Learning Portal
+
+It is responsible only for:
+
+- Workflow administration
+- Scheduling
+- Monitoring
+- Synchronization governance
+
+Do not use it for learning, assessments, question generation, badges, or reporting.
+
+The image is the visual source of truth.
+
+The Markdown specification is the AI-readable source of truth.
 ``
