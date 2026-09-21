@@ -152,6 +152,11 @@ export const copy = {
   'review.queueLabel': 'Queue',
   'review.queueAuthor': 'Author queue',
   'review.queueApproval': 'Approval queue',
+  'review.queuePublished': 'Published',
+  'review.queueAll': 'All questions',
+  'review.documentFilter': 'Filtered to the questions generated from one document.',
+  'review.clearFilter': 'Show all',
+  'review.existing': 'View existing questions',
   'review.show': 'Show',
   'review.blocksApproval': 'Blocks approval',
 
@@ -268,6 +273,9 @@ export const copy = {
   'generate.step1': 'Step 1 — select documents',
   'generate.step2': 'Step 2 — read the checks and choose an action',
   'generate.step3': 'Step 3 — generate',
+  'generate.notAuthorizedHeading': 'This decision does not authorize generation',
+  'generate.notAuthorized':
+    'You recorded {action}, which is a decision not to generate. Nothing was refused and nothing was lost — record a different action if you want to generate, or look at what already exists.',
   'publish.assessmentDomainLabel': 'Domain',
   'publish.assessmentTopicLabel': 'Topic',
 

@@ -1,7 +1,8 @@
 # Knowzy — User Guide
 
-**Applies to:** the local demonstration build at commit `1762cc7` (milestone M7, the minimum UI)
-**Last updated:** 2026-09-18
+**Applies to:** the local demonstration build at commit `abb1c45` and later (milestone M7, the
+minimum UI)
+**Last updated:** 2026-09-21
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -169,6 +170,10 @@ A preflight authorizes nothing. Choose an action — the recommended one is sele
 | `VIEW_EXISTING` | Look at what is already there first |
 | `REGENERATE` | Replace what exists — needs the Publisher role and a justification |
 
+`VIEW_EXISTING` and `REUSE_EXISTING` are decisions **not** to generate, and the server refuses a
+generation job recorded against either. So recording one of them does not offer Step 3; it offers a
+link to the questions that already exist for each selected document.
+
 **Step 3 — generate.** Pick the domain, topic, scope, reason code, and how many questions you want,
 then **Generate questions**.
 
@@ -179,11 +184,20 @@ platform would rather refuse a question than invent one the document does not su
 
 ### 4.4 Draft review queue — `/review`
 
-Three views of the same list, at three points in the question's life:
+Five views of the same list, at five points in the question's life:
 
 - **Author queue** — drafts and anything sent back for changes. Yours to work on.
 - **Approval queue** — submitted, waiting for someone else.
 - **Approved and awaiting publication** — approved, waiting for a publisher.
+- **Published** — live in the Question Bank.
+- **All questions** — every state, including the ones the queues above hide: rejected, retired, and
+  archived.
+
+**To see what already exists from a document**, use `All questions` with a document filter. Preflight
+links straight to it: where the checks report that approved, published, or draft questions already
+cite a document, the count is a link. The published inventory on the Publish page links each row to
+the same question page, so a published question's evidence, gates, and version history stay
+readable after it has gone live.
 
 Ordered with the lowest confidence first, so the questions most likely to need work are at the top,
 not buried. The Duplicate column shows the highest similarity found; **Blocks approval** means a
@@ -309,6 +323,10 @@ that figure is never blank.
 
 **Finish and score** ends the attempt. Scoring happens on the server, and unanswered questions count
 as incorrect, so finish when you are ready.
+
+Answering the last question does not end the attempt — the session stays open until you press
+Finish. Coming back to a fully answered attempt puts you on the last question with your answer still
+selected, and the home page card reads "3 of 3 answered".
 
 ### 5.4 Your result — `/results/<id>`
 
@@ -440,3 +458,4 @@ the log below.
 | Date | Commit | Change |
 | --- | --- | --- |
 | 2026-09-18 | `1762cc7` | First version. Covers M7: six authoring screens, four learner screens, the identity picker, and the refusals each screen can show |
+| 2026-09-21 | `abb1c45`+ | Resume of a fully answered attempt now works (it returned a 404 before, and the home page card printed "NaN / "). Two new review views, `Published` and `All questions`, with a per-document filter; preflight counts and published inventory rows link into them. Recording `VIEW_EXISTING` or `REUSE_EXISTING` no longer offers the generate form |

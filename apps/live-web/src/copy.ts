@@ -23,6 +23,7 @@ export const copy = {
   'home.empty':
     'No assessment is available to you yet. Publish questions and an assessment in the Authoring Portal first.',
   'home.resume': 'Resume where you left off',
+  'home.answeredOf': '{progress} answered',
 
   'list.name': 'Assessment',
   'list.domain': 'Subject',

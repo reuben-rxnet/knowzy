@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -101,7 +102,12 @@ export default async function PublishPage() {
                 <th scope="row" className="mono">
                   {item.bankQuestionId}
                 </th>
-                <td>{item.questionText}</td>
+                <td>
+                  {/* A published question is still a question someone needs to
+                      read: its evidence, its gates, and its version history are
+                      on the same page an approver used. */}
+                  <Link href={`/review/${item.questionId}`}>{item.questionText}</Link>
+                </td>
                 <td>{item.publishedVersion}</td>
                 <td>{item.status}</td>
                 <td className={item.isActive ? 'pass' : 'warn'}>

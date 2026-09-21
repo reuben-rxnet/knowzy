@@ -17,10 +17,18 @@ interface AssessmentCard {
   readonly attemptLimit: number | null;
   readonly startable: boolean;
   readonly blockedReason: string | null;
+  /**
+   * The API's own shape, not a guess at it.
+   *
+   * `answeredOf` arrives as a rendered string ("3 of 4"). This interface used
+   * to declare `currentIndex` and `totalQuestions`, which the API never sent —
+   * so the card printed "NaN / " from arithmetic on two undefined fields, and
+   * TypeScript could not catch it because a hand-written interface is an
+   * assertion, not a contract.
+   */
   readonly inProgressSession: {
     readonly sessionId: string;
-    readonly currentIndex: number;
-    readonly totalQuestions: number;
+    readonly answeredOf: string;
   } | null;
 }
 
@@ -103,8 +111,7 @@ export default async function AssessmentListPage() {
                     {t('home.resume')}
                   </Link>{' '}
                   <span className="muted">
-                    ({assessment.inProgressSession.currentIndex + 1} /{' '}
-                    {assessment.inProgressSession.totalQuestions})
+                    ({t('home.answeredOf', { progress: assessment.inProgressSession.answeredOf })})
                   </span>
                 </p>
               )}

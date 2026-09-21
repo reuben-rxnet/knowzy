@@ -357,9 +357,14 @@ export const generationRoutes = [
     handler: async (ctx, request, reply, deps) => {
       const query = z
         .object({
-          queue: z.enum(['author', 'approval', 'publish']).default('author'),
+          queue: z.enum(['author', 'approval', 'publish', 'published', 'all']).default('author'),
           domainId: z.string().uuid().optional(),
           jobId: z.string().uuid().optional(),
+          // Every question generated from one document, whatever its state.
+          // This is what "show me what already exists" needs: preflight
+          // reports that approved or published questions already cite a
+          // document, and the next question an author asks is WHICH.
+          documentId: z.string().uuid().optional(),
           limit: z.coerce.number().int().min(1).max(100).default(25),
         })
         .safeParse(request.query ?? {});
@@ -372,14 +377,46 @@ export const generationRoutes = [
           ? (['DRAFT', 'AUTHOR_REVIEW', 'CHANGES_REQUESTED'] as const)
           : query.data.queue === 'approval'
             ? (['SUBMITTED_FOR_APPROVAL'] as const)
-            : // The publisher's queue: approved, and therefore publishable.
-              // Approval is what makes a question eligible, so this is a filter
-              // on the same list rather than a separate surface.
-              (['APPROVED'] as const);
+            : query.data.queue === 'publish'
+              ? // The publisher's queue: approved, and therefore publishable.
+                // Approval is what makes a question eligible, so this is a
+                // filter on the same list rather than a separate surface.
+                (['APPROVED'] as const)
+              : query.data.queue === 'published'
+                ? (['PUBLISHED'] as const)
+                : // 'all': no status filter. Every state a question can be in,
+                  // including the ones the workflow queues deliberately hide —
+                  // REJECTED, RETIRED, ARCHIVED — because "what already exists
+                  // from this document" has to mean all of it.
+                  null;
+
+      // A question's lineage records the SOURCE system's document id — a
+      // content hash — not the platform's row id, because the lineage has to
+      // stay meaningful if the platform row is ever rebuilt. The UI holds the
+      // platform id, so resolve one to the other rather than making every
+      // caller know the difference.
+      let sourceDocumentId: string | undefined;
+      if (query.data.documentId !== undefined) {
+        const document = await deps.prisma.knowledgeDocument.findUnique({
+          where: { id: query.data.documentId },
+          select: { sourceDocumentId: true },
+        });
+        if (document === null) {
+          return problemReply(
+            reply,
+            ctx,
+            request.url,
+            'NOT_FOUND',
+            'No document with that id is visible to you.',
+          );
+        }
+        sourceDocumentId = document.sourceDocumentId;
+      }
 
       const questions = await deps.prisma.draftQuestion.findMany({
         where: {
-          status: { in: [...statuses] },
+          ...(statuses === null ? {} : { status: { in: [...statuses] } }),
+          ...(sourceDocumentId === undefined ? {} : { sourceDocumentId }),
           // P3: the caller's own scope, threaded in rather than re-derived.
           // Empty means unrestricted on the dimension (access-control.md §5).
           ...(ctx.scope.domainIds.length > 0 ? { domainId: { in: [...ctx.scope.domainIds] } } : {}),

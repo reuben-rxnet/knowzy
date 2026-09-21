@@ -97,6 +97,18 @@ const REASON_CODES = [
   'PUBLISHER_REQUESTED',
 ] as const;
 
+/**
+ * The recorded actions that authorize a generation job.
+ *
+ * VIEW_EXISTING and REUSE_EXISTING are decisions NOT to generate, and job
+ * creation refuses them outright ("the recorded decision was VIEW_EXISTING,
+ * which does not authorize generation"). Offering the generate form after one
+ * of those was recorded invited an author to fill it in and be refused, so the
+ * form is not offered — the existing questions are, which is what those two
+ * decisions are actually about.
+ */
+const GENERATING_ACTIONS: readonly string[] = ['GENERATE_NEW', 'GENERATE_ADDITIONAL', 'REGENERATE'];
+
 export const GenerateWizard = ({
   sourceId,
   documents,
@@ -124,7 +136,10 @@ export const GenerateWizard = ({
   const topics = domains.find((domain) => domain.domainId === domainId)?.topics ?? [];
 
   const preflight = preflightState?.ok === true ? (preflightState.data as PreflightResponse) : null;
-  const decided = decisionState?.ok === true;
+  const decision =
+    decisionState?.ok === true ? (decisionState.data as { chosenAction: string }) : null;
+  const authorizesGeneration =
+    decision !== null && GENERATING_ACTIONS.includes(decision.chosenAction);
   const job = jobState?.ok === true ? (jobState.data as GenerationResponse) : null;
 
   if (documents.length === 0) {
@@ -198,6 +213,18 @@ export const GenerateWizard = ({
                   <td title={document.check2.check}>
                     {document.check2.status ?? '—'} ({document.check2.approvedCount}/
                     {document.check2.publishedCount}/{document.check2.draftCount})
+                    {/* A count is only useful if you can see what it counts. */}
+                    {document.check2.approvedCount +
+                      document.check2.publishedCount +
+                      document.check2.draftCount >
+                    0 ? (
+                      <>
+                        <br />
+                        <Link href={`/review?queue=all&documentId=${document.documentId}`}>
+                          {t('review.existing')}
+                        </Link>
+                      </>
+                    ) : null}
                   </td>
                   <td title={document.check3.detail ?? document.check3.check}>
                     {document.check3.status ?? '—'}
@@ -247,7 +274,23 @@ export const GenerateWizard = ({
         </>
       )}
 
-      {preflight === null || !decided ? null : (
+      {decision === null || authorizesGeneration ? null : (
+        <div className="panel warn" role="status">
+          <h3>{t('generate.notAuthorizedHeading')}</h3>
+          <p>{t('generate.notAuthorized', { action: decision.chosenAction })}</p>
+          <ul>
+            {(preflight?.documents ?? []).map((document) => (
+              <li key={document.documentId}>
+                <Link href={`/review?queue=all&documentId=${document.documentId}`}>
+                  {t('review.existing')}: {document.documentName}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {preflight === null || !authorizesGeneration ? null : (
         <>
           <h2>{t('generate.step3')}</h2>
           <form action={submitJob}>

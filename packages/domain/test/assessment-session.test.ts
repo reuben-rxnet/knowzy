@@ -1195,6 +1195,97 @@ describeDb('quiz session lifecycle', () => {
       expect(answers).toHaveLength(1);
     });
 
+    it('resumes a session where every question is answered but Finish was never pressed', async () => {
+      // The state a learner reaches by answering the last question and closing
+      // the tab: §4.5 advances the cursor past each answer, so it sits at
+      // totalQuestions, and the session stays IN_PROGRESS until completion.
+      //
+      // Reading that cursor literally threw NOT_FOUND — "no snapshot question
+      // at index 3" — so the one attempt a learner is most likely to return to
+      // was the one that could not be reopened. Found in the browser, on a
+      // session with four of four answered.
+      await publishQuestions(4);
+      await publishAssessment(3);
+      const started = await startSession({ deps: deps(), learner: learner(), assessmentId });
+
+      for (const index of [0, 1, 2]) {
+        await submitAnswer({
+          deps: deps(),
+          learner: learner(),
+          sessionId: started.sessionId,
+          presentationIndex: index,
+          selectedOption: 'A',
+          idempotencyKey: `all-answered-${index}`,
+        });
+      }
+
+      const session = await prisma.quizSession.findUniqueOrThrow({
+        where: { id: started.sessionId },
+      });
+      expect(session.currentIndex).toBe(3);
+      expect(session.totalQuestions).toBe(3);
+      expect(session.status).toBe('IN_PROGRESS');
+
+      // Both entry points have to work: the quiz page reads the current
+      // question, and the Resume button goes through session start.
+      const current = await currentQuestion({
+        deps: deps(),
+        learner: learner(),
+        sessionId: started.sessionId,
+      });
+      expect(current.answeredCount).toBe(3);
+      expect(current.totalQuestions).toBe(3);
+      // The LAST question, with the answer already saved against it, so the
+      // learner can change it before finishing.
+      expect(current.currentIndex).toBe(2);
+      expect(current.question.presentationIndex).toBe(2);
+      expect(current.question.selectedOption).toBe('A');
+      // And never "Question 4 of 3".
+      expect(current.currentIndex).toBeLessThan(current.totalQuestions);
+
+      const resumed = await startSession({ deps: deps(), learner: learner(), assessmentId });
+      expect(resumed.resumed).toBe(true);
+      expect(resumed.sessionId).toBe(started.sessionId);
+      expect(resumed.currentIndex).toBe(2);
+      expect(resumed.firstQuestion.presentationIndex).toBe(2);
+
+      // Resuming must not have completed, scored, or otherwise touched it.
+      expect(await prisma.assessmentResult.count()).toBe(0);
+      const after = await prisma.quizSession.findUniqueOrThrow({
+        where: { id: started.sessionId },
+      });
+      expect(after.status).toBe('IN_PROGRESS');
+      expect(after.currentIndex).toBe(3);
+    });
+
+    it('still completes normally from the fully answered state', async () => {
+      // The clamp must not turn "all answered" into a state the learner cannot
+      // leave: Finish has to score exactly as it would have before.
+      await publishQuestions(3);
+      await publishAssessment(2);
+      const started = await startSession({ deps: deps(), learner: learner(), assessmentId });
+
+      for (const index of [0, 1]) {
+        await submitAnswer({
+          deps: deps(),
+          learner: learner(),
+          sessionId: started.sessionId,
+          presentationIndex: index,
+          selectedOption: 'A',
+          idempotencyKey: `finish-after-all-${index}`,
+        });
+      }
+
+      const completion = await completeSession({
+        deps: deps(),
+        learner: learner(),
+        sessionId: started.sessionId,
+      });
+      expect(completion.unansweredCount).toBe(0);
+      expect(completion.totalQuestions).toBe(2);
+      expect(completion.resultState).toBe('SCORED');
+    });
+
     it('starting again returns the SAME in-progress session, not a second one', async () => {
       await publishQuestions(4);
       await publishAssessment(3);

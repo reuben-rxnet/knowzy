@@ -19,7 +19,7 @@ interface QueueItem {
   };
 }
 
-const QUEUES = ['author', 'approval', 'publish'] as const;
+const QUEUES = ['author', 'approval', 'publish', 'published', 'all'] as const;
 type Queue = (typeof QUEUES)[number];
 
 const isQueue = (value: string | undefined): value is Queue =>
@@ -28,11 +28,17 @@ const isQueue = (value: string | undefined): value is Queue =>
 /**
  * Draft review queue.
  *
- * Three views of one list, chosen by the URL: the author's own drafts, the
- * drafts submitted for approval, and the approved ones waiting to be
- * published. They are the same table because they are the same rows at
- * different points in §3.1's state machine — a separate screen each would
- * imply three lists.
+ * Five views of one list, chosen by the URL: the author's own drafts, the ones
+ * submitted for approval, the approved ones waiting to be published, the
+ * published ones, and everything. They are the same table because they are the
+ * same rows at different points in §3.1's state machine — a separate screen
+ * each would imply five lists.
+ *
+ * `all` exists so "what already exists from this document" can be answered in
+ * full, including the states the workflow queues hide: rejected, retired, and
+ * archived. With `?documentId=` it is the view preflight sends an author to
+ * when it reports that approved or published questions already cite a
+ * document.
  *
  * Ordered by confidence ascending, as the API returns it: the drafts most
  * likely to need work come first rather than last.
@@ -40,13 +46,15 @@ const isQueue = (value: string | undefined): value is Queue =>
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ queue?: string }>;
+  searchParams: Promise<{ queue?: string; documentId?: string }>;
 }) {
   const query = await searchParams;
   const queue: Queue = isQueue(query.queue) ? query.queue : 'author';
+  const documentId = query.documentId;
 
   const result = await api<{ queue: string; count: number; items: readonly QueueItem[] }>(
-    `/api/v1/authoring/questions/review?queue=${queue}`,
+    `/api/v1/authoring/questions/review?queue=${queue}` +
+      (documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`),
   );
 
   return (
@@ -65,8 +73,21 @@ export default async function ReviewQueuePage({
           <li>
             <Link href="/review?queue=publish">{t('publish.approvedHeading')}</Link>
           </li>
+          <li>
+            <Link href="/review?queue=published">{t('review.queuePublished')}</Link>
+          </li>
+          <li>
+            <Link href="/review?queue=all">{t('review.queueAll')}</Link>
+          </li>
         </ul>
       </nav>
+
+      {documentId === undefined ? null : (
+        <p className="panel">
+          {t('review.documentFilter')}{' '}
+          <Link href={`/review?queue=${queue}`}>{t('review.clearFilter')}</Link>
+        </p>
+      )}
 
       {!result.ok ? <Problem problem={result.problem} /> : null}
 

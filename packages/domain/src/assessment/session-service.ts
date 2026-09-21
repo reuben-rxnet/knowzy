@@ -498,17 +498,33 @@ export const currentQuestion = async (args: {
 }): Promise<CurrentQuestionResult> => {
   const session = await loadSession(args.deps.prisma, args.learner.userId, args.sessionId);
 
+  // A session legitimately sits at currentIndex === totalQuestions: §4.5
+  // advances the cursor past each saved answer, so answering the last question
+  // leaves the cursor one past the end, and the session stays IN_PROGRESS
+  // until the learner presses Finish. §4.4 requires the resume to work — and
+  // that is the state a learner is MOST likely to come back to, because it is
+  // what closing the tab after the last question produces.
+  //
+  // So "one past the end" presents the LAST question, with the answer already
+  // saved against it. The caller sees answeredCount === totalQuestions and
+  // offers completion. Reading the raw cursor threw NOT_FOUND here, which made
+  // a fully answered attempt the one attempt that could not be reopened.
+  const presentationIndex =
+    session.totalQuestions > 0
+      ? Math.min(session.currentIndex, session.totalQuestions - 1)
+      : session.currentIndex;
+
   const snapshot = await args.deps.prisma.quizSessionQuestion.findFirst({
-    where: { sessionId: session.id, presentationIndex: session.currentIndex },
+    where: { sessionId: session.id, presentationIndex },
   });
   if (!snapshot) {
     throw new SessionNotFoundError(
-      `${args.sessionId} (no snapshot question at index ${session.currentIndex})`,
+      `${args.sessionId} (no snapshot question at index ${presentationIndex})`,
     );
   }
 
   const latest = await args.deps.prisma.quizResponse.findFirst({
-    where: { sessionId: session.id, presentationIndex: session.currentIndex, isLatest: true },
+    where: { sessionId: session.id, presentationIndex, isLatest: true },
   });
   const answeredCount = await args.deps.prisma.quizResponse.count({
     where: { sessionId: session.id, isLatest: true },
@@ -529,7 +545,9 @@ export const currentQuestion = async (args: {
   return {
     sessionId: session.id,
     status: session.status,
-    currentIndex: session.currentIndex,
+    // The index of the question actually being presented, which is the clamped
+    // one. Reporting the raw cursor here would render as "Question 5 of 4".
+    currentIndex: presentationIndex,
     totalQuestions: session.totalQuestions,
     answeredCount,
     // §4.7: the SERVER holds the deadline; the client renders a countdown from
@@ -557,7 +575,9 @@ export const resumeSession = async (args: {
   return {
     sessionId: session.id,
     totalQuestions: session.totalQuestions,
-    currentIndex: session.currentIndex,
+    // From the presented question, not the raw cursor: the two differ once
+    // every question has been answered.
+    currentIndex: current.currentIndex,
     expiresAt: session.expiresAt,
     attemptNumber: session.attemptNumber,
     firstQuestion: current.question,
