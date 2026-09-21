@@ -272,7 +272,12 @@ export const PlannedState = ({
 }: {
   readonly title: ReactNode;
   readonly description?: ReactNode;
-  /** What has to exist first, in one plain sentence. */
+  /**
+   * What has to exist first, in one plain sentence — INCLUDING its own lead-in
+   * wording. This component used to prefix it with a hardcoded "Needs: ",
+   * which is a user-visible string literal inside a component and therefore a
+   * C1 violation: untranslatable, and invisible to the copy review.
+   */
   readonly requirement?: ReactNode;
 }) => (
   <Frame
@@ -282,7 +287,7 @@ export const PlannedState = ({
   >
     {description === undefined ? null : <p>{description}</p>}
     {requirement === undefined ? null : (
-      <p className="mt-2 text-xs text-ink-subtle">Needs: {requirement}</p>
+      <p className="mt-2 text-sm text-ink-subtle">{requirement}</p>
     )}
   </Frame>
 );

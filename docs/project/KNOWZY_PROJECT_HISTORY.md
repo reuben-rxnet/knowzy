@@ -298,3 +298,58 @@ no accessibility findings.
 the test suite in the background while validating in a browser. The integration suites truncate the
 development database, so screens come back empty mid-screenshot and it reads as a data-loading
 defect. Browser validation first, then `verify`, then re-seed.
+
+---
+
+## UI-M3 — depth on the implemented screens
+
+**Delivered 2026-09-21.** Full record: [`ui-modernization-plan.md` §25](../ui/ui-modernization-plan.md).
+
+The brief was to raise the quality of the implemented screens using only real backend data, to a
+standard fit for CIO, CTO, enterprise-architecture and application-support review. No new route,
+endpoint, domain model or capability was added.
+
+The pass did not start from the mockups. It started by diffing every hand-written response
+interface in both applications against the fields the components actually referenced, which found
+real payload the screens were discarding. That is where the work went.
+
+**What the screens now say that they could not before:**
+
+- **AI Quiz Generation.** The six preflight checks were a seven-column table with room for one
+  status badge each. They are now a per-document checklist shaped like the approval gate checklist,
+  carrying each check's own sentence and the counts behind its verdict — so "similarity risk: HIGH"
+  is accompanied by the three questions over three assessable sections that caused it. The
+  generation result gained the rejection breakdown, which names which control refused how many
+  candidates; before, the screen could say "7 rejections" without saying what refused them.
+- **Question detail.** A new `TraceabilityChain` draws Knowledge → Evidence → Review → Approval →
+  Publication above the gate card, with the source document, its version at generation, the section,
+  the evidence offsets, the model, the drafting identity, each decision's version and time, and the
+  bank id. Every stage is lit by a row existing, never by a parsed status string — and the approval
+  stage is filtered to an `APPROVED` decision, because `approvals` also holds rejections and
+  counting them would say the opposite of the truth on exactly the question where it matters.
+
+**Two things were refused rather than filled in:**
+
+- **Reviewer and approver identity.** Requested, and not in the payload: reviews and approvals carry
+  an outcome, a version and a timestamp, and no user id. The decision is shown; the person is not.
+- **Learner progress, proficiency history and knowledge gaps on the learner home.** There is no
+  per-learner results list among the 48 routes — `results/:resultId` serves one result by id — so
+  the page states the absence through `PlannedState` instead of estimating it.
+
+**Honesty became a build gate.** `no-fabricated-metrics.test.ts` scans both `copy.ts` files, which
+content rule C1 makes sufficient. It forbids comparison phrasing outright, and forbids a
+fabrication-prone concept only when the string also interpolates a value — so "this release keeps no
+badges, points, streaks or levels" passes and `{count} badges earned` fails. That distinction is the
+whole point: naming an absent capability is the required empty state, giving it a number is the
+fabrication. Both fault classes were planted and confirmed to fail before the test was trusted.
+
+`npm run verify` exit 0: 501 tests across 23 files, 19/19 typecheck, lint and build, boundaries 0
+errors. 13 routes driven in Chrome with no console errors; the accessibility audit reports 0
+findings with all 15 checks holding on every route.
+
+**A defect found by looking at a screenshot rather than at source:** the sidebar tagline is
+uppercase at `tracking-widest`, which is wider than the sidebar's content box, so the nav clipped it
+horizontally. Fixed by wrapping at normal tracking. Half of what looked wrong turned out to be
+Next's dev-mode indicator sitting on top of the sidebar footer — dev-only, absent in production. The
+first diagnosis was wrong, and both halves are recorded so the next person does not chase the wrong
+one.

@@ -18,9 +18,11 @@ import {
   Td,
   Th,
   Tr,
+  TraceabilityChain,
   VersionBadge,
 } from '@knowzy/shared-ui';
-import { ArrowLeft, Check } from 'lucide-react';
+import type { TraceStage } from '@knowzy/shared-ui';
+import { ArrowLeft, Check, Route } from 'lucide-react';
 import { t, type CopyKey } from '../../../copy';
 import { api } from '../../../lib/api';
 import { Problem } from '../../../components/Problem';
@@ -136,6 +138,13 @@ const gateLabels = {
     t('question.gatesSummary', { passed, total }),
 };
 
+/** Shared component, this app's words (C1). */
+const traceLabels = {
+  reached: t('question.traceReached'),
+  pending: t('question.tracePending'),
+  stage: t('question.traceStage'),
+};
+
 const formatWhen = (value: string): string =>
   new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -195,6 +204,110 @@ export default async function QuestionPage({
 
   const detail = question.data;
 
+  /**
+   * The five stages, derived only from records this payload carries.
+   *
+   * The approval stage is the one to be careful with: `approvals` holds every
+   * decision including rejections and change requests, so it is filtered to an
+   * APPROVED decision. A rejected question has an approval ROW and has not
+   * been approved, and lighting the stage off `approvals.length` would say the
+   * opposite of the truth on exactly the question where it matters most.
+   */
+  const lastApproval = [...detail.approvals]
+    .filter((record) => record.decision === 'APPROVED')
+    .sort((a, b) => Date.parse(b.decidedAt) - Date.parse(a.decidedAt))[0];
+  const lastReview = [...detail.reviews].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  )[0];
+
+  const trace: readonly TraceStage[] = [
+    {
+      label: t('question.traceKnowledge'),
+      reached: true,
+      tone: 'info',
+      summary: detail.source.documentName,
+      facts: [
+        { label: t('question.sourceVersion'), value: detail.source.versionAtGeneration },
+        { label: t('question.sourceSection'), value: detail.source.sectionKey },
+      ],
+    },
+    {
+      label: t('question.traceEvidence'),
+      reached: detail.evidence.span !== '',
+      tone: 'ai',
+      summary: t('question.traceEvidenceSummary', { mode: detail.evidence.mode }),
+      facts: [
+        {
+          label: t('question.offsets'),
+          value: `${detail.evidence.startOffset}–${detail.evidence.endOffset}`,
+        },
+        ...(detail.generatedBy.modelId === null
+          ? []
+          : [{ label: t('question.model'), value: detail.generatedBy.modelId }]),
+        // Real, and previously unread by this screen. Reviewer and approver
+        // identity are NOT in this payload — `reviews` and `approvals` carry
+        // an outcome, a version and a time, and no user id — so they are not
+        // shown. The brief asks to emphasise reviewer and approver; the
+        // honest half of that is the decision and its version, which is what
+        // the two stages below carry.
+        ...(detail.createdByUserId === null
+          ? []
+          : [{ label: t('question.draftedBy'), value: detail.createdByUserId }]),
+      ],
+    },
+    {
+      label: t('question.traceReview'),
+      reached: lastReview !== undefined,
+      tone: 'info',
+      summary:
+        lastReview === undefined
+          ? undefined
+          : t('question.traceReviewSummary', {
+              kind: lastReview.kind,
+              outcome: lastReview.outcome,
+            }),
+      facts:
+        lastReview === undefined
+          ? []
+          : [
+              { label: t('question.when'), value: formatWhen(lastReview.createdAt) },
+              {
+                label: t('question.atVersion'),
+                value: `v${lastReview.questionVersion}`,
+              },
+            ],
+    },
+    {
+      label: t('question.traceApproval'),
+      reached: lastApproval !== undefined,
+      tone: 'success',
+      summary: lastApproval === undefined ? undefined : t('question.traceApprovalSummary'),
+      facts:
+        lastApproval === undefined
+          ? []
+          : [
+              { label: t('question.when'), value: formatWhen(lastApproval.decidedAt) },
+              { label: t('question.atVersion'), value: `v${lastApproval.questionVersion}` },
+            ],
+    },
+    {
+      label: t('question.tracePublication'),
+      reached: detail.published !== null,
+      tone: 'success',
+      summary: detail.published === null ? undefined : detail.published.status,
+      facts:
+        detail.published === null
+          ? []
+          : [
+              { label: t('question.bankId'), value: detail.published.bankQuestionId },
+              {
+                label: t('question.publishedVersion'),
+                value: `v${detail.published.publishedVersion}`,
+              },
+            ],
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <PageHero
@@ -225,6 +338,28 @@ export default async function QuestionPage({
           {detail.revalidationReason ?? t('question.needsRevalidation')}
         </div>
       ) : null}
+
+      {/* Knowledge -> Evidence -> Review -> Approval -> Publication.
+          The five stages, each either backed by a record on this payload or
+          explicitly not reached yet. Above the gate card because it answers
+          the coarser question first: how far has this question got, and on
+          whose authority — which is what a reviewer, an auditor and an
+          architecture reviewer are each looking for before any gate detail.
+
+          Every `reached` below is a ROW EXISTING, never a status string that
+          was pattern-matched: `source.documentName`, `evidence.span`,
+          `reviews.length`, `approvals` filtered to APPROVED, and `published`.
+          An approval that was a rejection does not light the approval stage. */}
+      <Card>
+        <CardHeader
+          title={t('question.traceHeading')}
+          description={t('question.traceIntro')}
+          icon={<Route aria-hidden="true" className="size-5" />}
+        />
+        <CardBody>
+          <TraceabilityChain stages={trace} labels={traceLabels} />
+        </CardBody>
+      </Card>
 
       {/* The verdict, never behind a tab. Advisory, and it says so.
           Failures first here, because an approver reading this card is

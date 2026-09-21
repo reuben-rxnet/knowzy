@@ -17,6 +17,7 @@
 // no difficulty control, because §15 forbids both here.
 
 import { useActionState, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   AiBadge,
   Badge,
@@ -26,22 +27,18 @@ import {
   CardFooter,
   CardHeader,
   CheckboxRow,
-  DataTable,
   EmptyState,
   Field,
   Fieldset,
   KeyValue,
+  Meter,
   RefusalState,
   Select,
   StatusBadge,
-  TBody,
-  THead,
-  Td,
-  Th,
   TextInput,
   TextLink,
-  Tr,
   statusTone,
+  type BadgeTone,
 } from '@knowzy/shared-ui';
 import { Check, ChevronRight } from 'lucide-react';
 import { t } from '../copy';
@@ -67,6 +64,7 @@ export interface WizardDomain {
 }
 
 interface PreflightCheck {
+  /** The check's own name, e.g. `SOURCE_CONTENT_CHANGED`. */
   readonly check: string;
   readonly status?: string;
   readonly detail?: string;
@@ -77,14 +75,23 @@ interface DocumentPreflight {
   readonly documentName: string;
   readonly coveragePercent: number;
   readonly uncoveredSectionCount: number;
-  readonly check1: PreflightCheck & { readonly jobIds: readonly string[] };
+  readonly check1: PreflightCheck & {
+    readonly jobIds: readonly string[];
+    readonly lastGeneratedAt?: string | null;
+  };
   readonly check2: PreflightCheck & {
     readonly approvedCount: number;
     readonly publishedCount: number;
     readonly draftCount: number;
   };
-  readonly check3: PreflightCheck;
-  readonly check4: PreflightCheck & { readonly existingStemCount: number };
+  readonly check3: PreflightCheck & {
+    readonly versionChanged?: boolean;
+    readonly hashChanged?: boolean;
+  };
+  readonly check4: PreflightCheck & {
+    readonly existingStemCount: number;
+    readonly assessableSectionCount?: number;
+  };
 }
 
 interface PreflightResponse {
@@ -93,8 +100,17 @@ interface PreflightResponse {
   readonly recommendationReason: string;
   readonly offeredActions: readonly string[];
   readonly documents: readonly DocumentPreflight[];
-  readonly check5: { readonly matches: readonly unknown[]; readonly detail: string };
-  readonly check6: { readonly status: string; readonly detail: string };
+  readonly check5: {
+    readonly check?: string;
+    readonly matches: readonly unknown[];
+    readonly detail: string;
+  };
+  readonly check6: {
+    readonly check?: string;
+    readonly status: string;
+    readonly detail: string;
+    readonly conflicts?: readonly unknown[];
+  };
   readonly decisionRequired: string;
 }
 
@@ -198,6 +214,9 @@ const Stepper = ({
     </ol>
   );
 };
+
+const formatWhen = (value: string): string =>
+  new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 
 /** The step number badge every zone carries. */
 const Step = ({ n }: { readonly n: number }) => (
@@ -323,103 +342,185 @@ export const GenerateWizard = ({
                 {preflight.decisionRequired}
               </p>
 
-              <DataTable caption={t('generate.checksCaption')}>
-                <THead>
-                  <Tr>
-                    <Th scope="col">{t('generate.document')}</Th>
-                    <Th scope="col" align="end">
-                      {t('generate.coverage')}
-                    </Th>
-                    <Th scope="col" align="end">
-                      {t('generate.uncovered')}
-                    </Th>
-                    <Th scope="col">{t('generate.check1')}</Th>
-                    <Th scope="col">{t('generate.check2')}</Th>
-                    <Th scope="col">{t('generate.check3')}</Th>
-                    <Th scope="col">{t('generate.check4')}</Th>
-                  </Tr>
-                </THead>
-                <TBody>
-                  {preflight.documents.map((document) => {
-                    const existing =
-                      document.check2.approvedCount +
-                      document.check2.publishedCount +
-                      document.check2.draftCount;
-                    return (
-                      <Tr key={document.documentId}>
-                        <Th scope="row">{document.documentName}</Th>
-                        <Td numeric>{document.coveragePercent}%</Td>
-                        <Td numeric>{document.uncoveredSectionCount}</Td>
-                        <Td>
-                          <StatusBadge
-                            status={document.check1.status ?? '—'}
-                            tone={statusTone(document.check1.status ?? '')}
-                          />
-                        </Td>
-                        <Td>
-                          <StatusBadge
-                            status={document.check2.status ?? '—'}
-                            tone={statusTone(document.check2.status ?? '')}
-                          />
-                          {/* A count is only useful if you can see what it
-                              counts. */}
-                          <span className="mt-1 block text-sm text-ink-subtle">
-                            {t('generate.existingCounts', {
-                              approved: document.check2.approvedCount,
-                              published: document.check2.publishedCount,
-                              draft: document.check2.draftCount,
-                            })}
-                          </span>
-                          {existing > 0 ? (
-                            <span className="mt-1 block">
-                              <TextLink
-                                href={`/review?queue=all&documentId=${document.documentId}`}
-                              >
-                                {t('review.existing')}
-                              </TextLink>
-                            </span>
-                          ) : null}
-                        </Td>
-                        <Td>
-                          <StatusBadge
-                            status={document.check3.status ?? '—'}
-                            tone={statusTone(document.check3.status ?? '')}
-                          />
-                          {document.check3.detail === undefined ? null : (
-                            <span className="mt-1 block text-sm text-ink-subtle">
-                              {document.check3.detail}
-                            </span>
-                          )}
-                        </Td>
-                        <Td>
-                          <StatusBadge
-                            status={document.check4.status ?? '—'}
-                            tone={statusTone(document.check4.status ?? '')}
-                          />
-                          {document.check4.detail === undefined ? null : (
-                            <span className="mt-1 block text-sm text-ink-subtle">
-                              {document.check4.detail}
-                            </span>
-                          )}
-                        </Td>
-                      </Tr>
-                    );
-                  })}
-                </TBody>
-              </DataTable>
+              {/* The six §4.2 checks, per document, as a checklist rather
+                  than a seven-column table.
 
-              <KeyValue
-                items={[
+                  The table had one cell per check and could show only a
+                  status badge in each. Every check also carries its own NAME
+                  and its own SENTENCE, and four of them carry the counts and
+                  job ids behind the verdict — all of which the API was
+                  sending and the table had nowhere to put. A reader could see
+                  that check 4 said HIGH but not that it said so because three
+                  questions already cover three assessable sections.
+
+                  It deliberately reads like the approval gate checklist: the
+                  two governance surfaces in this product should look like the
+                  same kind of thing. */}
+              {preflight.documents.map((document) => {
+                const existing =
+                  document.check2.approvedCount +
+                  document.check2.publishedCount +
+                  document.check2.draftCount;
+
+                const checks: readonly {
+                  readonly check: PreflightCheck;
+                  readonly facts?: readonly { readonly label: string; readonly value: ReactNode }[];
+                  readonly link?: string;
+                }[] = [
                   {
-                    label: t('generate.crossDomain'),
-                    value: `${preflight.check5.matches.length} — ${preflight.check5.detail}`,
+                    check: document.check1,
+                    facts: [
+                      ...(document.check1.lastGeneratedAt === undefined ||
+                      document.check1.lastGeneratedAt === null
+                        ? []
+                        : [
+                            {
+                              label: t('generate.lastGenerated'),
+                              value: formatWhen(document.check1.lastGeneratedAt),
+                            },
+                          ]),
+                      ...(document.check1.jobIds.length === 0
+                        ? []
+                        : [
+                            {
+                              label: t('generate.priorJobs'),
+                              value: (
+                                <span className="font-mono text-2xs">
+                                  {document.check1.jobIds.join(', ')}
+                                </span>
+                              ),
+                            },
+                          ]),
+                    ],
                   },
                   {
-                    label: t('generate.poolConflicts'),
-                    value: `${preflight.check6.status} — ${preflight.check6.detail}`,
+                    check: document.check2,
+                    facts: [
+                      {
+                        label: t('generate.existingTotal'),
+                        value: t('generate.existingCounts', {
+                          approved: document.check2.approvedCount,
+                          published: document.check2.publishedCount,
+                          draft: document.check2.draftCount,
+                        }),
+                      },
+                    ],
+                    ...(existing > 0
+                      ? { link: `/review?queue=all&documentId=${document.documentId}` }
+                      : {}),
                   },
-                ]}
-              />
+                  { check: document.check3 },
+                  {
+                    check: document.check4,
+                    facts: [
+                      {
+                        label: t('generate.similarStems'),
+                        value: t('generate.stemsOverSections', {
+                          stems: document.check4.existingStemCount,
+                          sections: document.check4.assessableSectionCount ?? 0,
+                        }),
+                      },
+                    ],
+                  },
+                ];
+
+                return (
+                  <section
+                    key={document.documentId}
+                    className="flex flex-col gap-4 rounded-lg border border-line p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <h4 className="text-md font-semibold text-brand-navy-text">
+                        {document.documentName}
+                      </h4>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Badge tone="neutral" withIcon={false}>
+                          {t('generate.uncoveredCount', {
+                            count: document.uncoveredSectionCount,
+                          })}
+                        </Badge>
+                      </span>
+                    </div>
+
+                    {/* Coverage, drawn. Its own number and its denominator are
+                        printed beside it, so the bar adds nothing the text
+                        does not already say. */}
+                    <Meter
+                      label={t('generate.coverage')}
+                      percent={Number(document.coveragePercent)}
+                      tone={document.coveragePercent >= 75 ? 'success' : 'warning'}
+                      summary={t('generate.coverageSummary', {
+                        uncovered: document.uncoveredSectionCount,
+                      })}
+                    />
+
+                    <ol className="flex flex-col divide-y divide-line rounded-md border border-line">
+                      {checks.map((entry) => (
+                        <li key={entry.check.check} className="flex flex-col gap-1 px-3 py-2.5">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <StatusBadge
+                              status={entry.check.status ?? '—'}
+                              tone={statusTone(entry.check.status ?? '')}
+                            />
+                            <span className="font-mono text-2xs font-bold text-ink-subtle">
+                              {entry.check.check}
+                            </span>
+                          </span>
+                          {entry.check.detail === undefined ? null : (
+                            <span className="text-sm text-ink-muted">{entry.check.detail}</span>
+                          )}
+                          {entry.facts === undefined || entry.facts.length === 0 ? null : (
+                            <dl className="mt-0.5 grid gap-x-4 gap-y-0.5 sm:grid-cols-[minmax(8rem,auto)_1fr]">
+                              {entry.facts.map((fact) => (
+                                <div key={fact.label} className="contents">
+                                  <dt className="text-sm text-ink-subtle">{fact.label}</dt>
+                                  <dd className="text-sm text-ink">{fact.value}</dd>
+                                </div>
+                              ))}
+                            </dl>
+                          )}
+                          {entry.link === undefined ? null : (
+                            <span>
+                              <TextLink href={entry.link}>{t('review.existing')}</TextLink>
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </section>
+                );
+              })}
+
+              {/* The two checks that are about the whole selection rather than
+                  one document. */}
+              <ol className="flex flex-col divide-y divide-line rounded-md border border-line">
+                {[
+                  {
+                    name: preflight.check5.check ?? 'CROSS_DOMAIN_DUPLICATES',
+                    status: t('generate.matchCount', {
+                      count: preflight.check5.matches.length,
+                    }),
+                    tone: preflight.check5.matches.length === 0 ? 'success' : 'warning',
+                    detail: preflight.check5.detail,
+                  },
+                  {
+                    name: preflight.check6.check ?? 'POOL_CONFLICTS',
+                    status: preflight.check6.status,
+                    tone: statusTone(preflight.check6.status),
+                    detail: preflight.check6.detail,
+                  },
+                ].map((entry) => (
+                  <li key={entry.name} className="flex flex-col gap-1 px-3 py-2.5">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={entry.status} tone={entry.tone as BadgeTone} />
+                      <span className="font-mono text-2xs font-bold text-ink-subtle">
+                        {entry.name}
+                      </span>
+                    </span>
+                    <span className="text-sm text-ink-muted">{entry.detail}</span>
+                  </li>
+                ))}
+              </ol>
 
               <form action={submitDecision} className="flex flex-col gap-3">
                 <input type="hidden" name="preflightId" value={preflight.preflightId} />
@@ -587,13 +688,46 @@ export const GenerateWizard = ({
                     value: `${job.acceptedQuestionCount} / ${job.requestedQuestionCount}`,
                   },
                   { label: t('generate.sections'), value: job.sectionCount },
+                  { label: t('generate.scope'), value: job.scope },
                   { label: t('generate.rejections'), value: job.rejections.length },
                   {
                     label: t('generate.insufficient'),
                     value: job.insufficientEvidenceSections.length,
                   },
+                  { label: t('generate.jobRef'), value: job.jobId, mono: true },
+                  {
+                    label: t('generate.tokens'),
+                    value: t('generate.tokenUsage', {
+                      input: job.tokens.input.toLocaleString('en-GB'),
+                      output: job.tokens.output.toLocaleString('en-GB'),
+                    }),
+                  },
                 ]}
               />
+
+              {/* Which control refused how many candidates. `rejectionCounts`
+                  was in the response and unread, so the screen could say
+                  "7 rejections" without saying what refused them — and the
+                  breakdown IS the evidence that generation is governed. */}
+              {Object.keys(job.rejectionCounts).length === 0 ? null : (
+                <div className="flex flex-col gap-2">
+                  <h4 className="text-base font-semibold text-brand-navy-text">
+                    {t('generate.rejectionBreakdown')}
+                  </h4>
+                  <ul className="flex flex-wrap gap-2">
+                    {Object.entries(job.rejectionCounts)
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([reason, count]) => (
+                        <li key={reason}>
+                          <Badge tone="warning" withIcon={false}>
+                            <span className="font-mono text-2xs">{reason}</span>
+                            <span className="font-bold">{count}</span>
+                          </Badge>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
 
               {/* The drafts this job actually created. `questionIds` was in
                   the response and was being dropped, which made the accepted

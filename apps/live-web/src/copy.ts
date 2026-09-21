@@ -28,6 +28,7 @@ export const copy = {
   'home.identityIntro':
     'Switch identity to see what a different person is allowed to do. Refusals are part of the demonstration.',
   'home.progressLabel': 'Answered',
+  'home.progressHeading': 'Your progress over time',
   'home.progressNote':
     'Per-topic accuracy is recorded on each result. This release keeps no badges, points, streaks or levels.',
   'home.resume': 'Resume where you left off',
@@ -43,7 +44,7 @@ export const copy = {
   'list.open': 'Open',
   'list.ready': 'Ready to start',
   'list.historyNote':
-    'A result is shown at the end of the attempt that produced it. This release has no per-learner result history, so an earlier result is not linked from here.',
+    'Needs a per-learner result history read. A result is shown at the end of the attempt that produced it, and this release stores no way to list an earlier one, so nothing is shown here rather than an estimate.',
   'list.attemptsOf': '{used} of {limit} used',
   'list.attemptsUsedOnly': '{used} used · no limit',
   'list.blockedNoReason': 'The server did not permit this attempt.',

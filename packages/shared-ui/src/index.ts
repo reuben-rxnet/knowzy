@@ -119,6 +119,8 @@ export {
   type GateResultLike,
   type ProvenanceStep,
 } from './components/Governance.js';
+export { TraceabilityChain, TraceabilityBar } from './components/Traceability.js';
+export type { TraceStage } from './components/Traceability.js';
 export { BandScale, Meter, type MeterProps, type MeterTone } from './components/Meter.js';
 export { Drawer, Modal, type DrawerProps, type ModalProps } from './components/Overlay.js';
 

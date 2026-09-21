@@ -1176,3 +1176,132 @@ findings. All four asset kinds confirmed served with a 200 from both application
 Accessibility: navigation icons are `aria-hidden` (each sits beside its own label), illustrations
 and backdrops have empty accessible names, and the backdrop sits at 25% opacity in a region with no
 text on it, so contrast is untouched.
+
+---
+
+## 25. UI-M3 — depth on the implemented screens (delivered)
+
+No new route, endpoint, domain model or capability. Every addition below is a field the API was
+**already sending and no screen was reading**, or an honesty control that fails the build.
+
+The pass started by diffing each hand-written response interface in both apps against the fields
+actually referenced in the component, rather than by looking at the mockups again. That is why the
+generation wizard was the largest change: it was discarding the most.
+
+### 25.1 Preflight, as a governance checklist
+
+`GenerateWizard` rendered the six §4.2 checks as a seven-column table, which has room for one status
+badge per check and nothing else. The API sends, per document and per check, the check's own name,
+its own sentence, and the counts behind its verdict. A reader could see that `SIMILARITY_RISK` said
+HIGH but not that it said so because three questions already cover three assessable sections.
+
+It is now a per-document checklist deliberately shaped like `ApprovalGateChecklist` — the two
+governance surfaces in this product should look like the same kind of thing — carrying each check's
+`detail`, plus `lastGeneratedAt`, the prior `jobIds`, the approved/published/draft split, and
+`existingStemCount` over `assessableSectionCount`. A coverage `Meter` sits above each document's
+list, and checks 5 and 6 follow in their own list because they are about the selection, not a
+document.
+
+The generation **result** gained the same treatment: `rejectionCounts` (which control refused how
+many candidates — the breakdown is the evidence that generation is governed, and the screen used to
+say "7 rejections" without saying what refused them), `scope`, `jobId` and `tokens`.
+
+### 25.2 Knowledge → Evidence → Review → Approval → Publication
+
+`TraceabilityChain` (new, `packages/shared-ui`) draws the five stages on the question detail page,
+above the gate card, because it answers the coarser question first: how far has this question got,
+and on whose authority.
+
+It is a **different component from `ProvenanceTimeline`**, and the two must not be collapsed:
+
+| | `ProvenanceTimeline` | `TraceabilityChain` |
+| --- | --- | --- |
+| Draws | History | A defined sequence |
+| A step exists because | A row exists | The domain defines the stage |
+| Pending steps | Never — absence of a record is not evidence of a future event | Legitimately, because "not reached yet" is a fact about the workflow |
+
+Every `reached` is a row existing, never a parsed status string. The approval stage is the one that
+needed care: `approvals` holds **every** decision including rejections, so it is filtered to an
+`APPROVED` decision. Lighting the stage off `approvals.length` would say the opposite of the truth
+on exactly the question where it matters most.
+
+Facts per stage, all previously unread by this screen: `versionAtGeneration`, `sectionKey`, the
+evidence offsets, `modelId`, `createdByUserId`, each decision's version and time, `bankQuestionId`
+and `publishedVersion`.
+
+**What is deliberately not shown: reviewer and approver identity.** The brief asks for both. The
+payload carries an outcome, a version and a timestamp per review and per approval, and **no user
+id** — so the decision and its version are shown and the person is not. That is a
+`REQUIRES_BACKEND_EXTENSION`, not an omission to be filled with the current viewer's name.
+
+For the same reason the approval stage reads "Approved. Gate 13 required an identity other than the
+author." rather than "approved by a second identity": the first states the control that guarantees
+it, the second asserts a fact about a person the payload does not name.
+
+### 25.3 Honesty, as a build gate
+
+`packages/testing/contracts/no-fabricated-metrics.test.ts` (6 tests) scans both apps' `copy.ts` —
+sufficient because content rule C1 puts every user-visible string there, so a component cannot
+smuggle a label past it without failing the C1 gate instead.
+
+Two rules, and the second is the interesting one:
+
+1. A **comparison phrase** is forbidden outright — `vs last`, `month over month`, a signed
+   percentage change, `trending up`. No honest sentence phrases itself that way, and no KPI history
+   is stored anywhere, so any occurrence is a fabricated trend.
+2. A **forbidden concept** — streak, badge, certificate, points, course, learning path,
+   recommendation, enrolment, health score, activity feed — fails only when the string **also
+   carries a placeholder**. That is the precise discriminator a word blacklist cannot express:
+   - "This release keeps no badges, points, streaks or levels." — allowed, and is exactly the
+     required empty state.
+   - "{count} badges earned" — fails.
+
+   Naming a concept in order to say the platform does not record it is the honest state the brief
+   asks for. Interpolating a value for it is the fabrication.
+
+Both fault classes were planted and confirmed to fail with the file, line and offending string
+before the test was trusted.
+
+### 25.4 The learner home's declared absence
+
+The brief permits assessment, result, proficiency and knowledge-gap data here. Only the first is
+reachable: `GET /learning/results/:resultId` serves **one result by id** and there is no per-learner
+results **list** among the 48 routes, so a progress panel, a proficiency trend or a knowledge-gap
+summary could only be assembled by inventing the read behind it — and the brief forbids new routes.
+
+So it is stated through `PlannedState`, the same component every other unbuilt capability uses,
+rather than as grey small print under the cards. Small print reads as an apology for a missing
+feature; a labelled panel reads as a recorded decision. `attemptsUsed` stays on the cards — it is
+the only history the payload carries.
+
+`PlannedState` itself had a hardcoded `Needs: ` prefix, a user-visible string literal inside a
+component and therefore a C1 violation. The lead-in now comes from the caller's copy.
+
+### 25.5 A real visual defect, found by looking
+
+`BrandLockup`'s tagline is `uppercase` with `tracking-widest`, which on a 31-character line is wider
+than the sidebar's content box; the nav clips horizontally and the line rendered as
+"THER FOR A BRIGHTER TOMO" at 1440px. It now wraps at normal tracking, because the words matter more
+than the letter-spacing.
+
+The first diagnosis was wrong and is recorded so the next person does not repeat it: part of what
+looked like clipping is **Next's dev-mode indicator**, a fixed circle at the bottom-left that sits
+on top of the sidebar footer and hides its first few characters. That is dev-only and absent from a
+production build. Two causes, one appearance; only one of them was ours.
+
+### 25.6 Verification
+
+`npm run verify` exit 0 — **501 tests, 23 files** (the 6 new honesty tests), 19/19 typecheck, lint
+and build, boundaries 0 errors, codegen clean, format clean.
+
+13 routes driven in Chrome with no console errors or warnings, including the new chain on a published
+question (all five stages reached, six facts rendering) and the rebuilt preflight driven end to end
+with a real document selection — all six checks present by their real names
+(`PREVIOUSLY_PROCESSED`, `APPROVED_QUESTIONS_EXIST`, `SOURCE_CONTENT_CHANGED`, `SIMILARITY_RISK`,
+`CROSS_DOMAIN_DUPLICATES`, `POOL_CONFLICTS`) with their facts.
+
+The structural accessibility audit reports **0 findings on 13 routes**, all 15 checks holding
+everywhere. New accessibility work: each chain stage states its state in text ("Recorded." / "Not
+reached yet.") and differs by glyph, border style and wording as well as colour, so it does not
+depend on colour (§7); the compact `TraceabilityBar` is one `role="img"` with the whole chain in its
+accessible name rather than five unlabelled cells; every new fact list is a real `dl`.

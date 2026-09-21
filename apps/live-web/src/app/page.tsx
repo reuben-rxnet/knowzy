@@ -10,6 +10,7 @@ import {
   Fieldset,
   Meter,
   PageHero,
+  PlannedState,
   RadioRow,
   RefusalState,
 } from '@knowzy/shared-ui';
@@ -274,15 +275,25 @@ export default async function AssessmentListPage() {
         </form>
       </Card>
 
-      {/* Said plainly rather than implied by an empty panel. Both sentences
-          are statements about what the platform records, which is the honest
-          alternative to a "Your progress" card with nothing behind it: there
-          is no per-learner results endpoint, so past attempts cannot be
-          listed here without inventing one. */}
-      <div className="flex flex-col gap-1 text-sm text-ink-subtle">
-        <p>{t('home.progressNote')}</p>
-        {assessments.some((item) => item.attemptsUsed > 0) ? <p>{t('list.historyNote')}</p> : null}
-      </div>
+      {/* A declared absence, not a footnote.
+          
+          The learner brief permits assessment, result, proficiency and
+          knowledge-gap data on this page. Only the first is reachable:
+          `GET /learning/results/:resultId` serves ONE result BY ID and there
+          is no per-learner results LIST anywhere in the 48 routes, so a
+          progress panel, a proficiency trend or a knowledge-gap summary could
+          only be assembled by inventing the read behind it.
+
+          So it is stated as a capability this release does not include, in the
+          same component every other unbuilt capability uses, rather than as
+          grey small print under the cards — which reads as an apology for a
+          missing feature instead of a recorded decision. `attemptsUsed` on the
+          cards is real and stays; it is the only history the payload carries. */}
+      <PlannedState
+        title={t('home.progressHeading')}
+        description={t('home.progressNote')}
+        requirement={t('list.historyNote')}
+      />
     </div>
   );
 }

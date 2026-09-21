@@ -1,7 +1,7 @@
 # Knowzy — User Guide
 
-**Applies to:** the local demonstration build at milestone UI-M3 (branding refinement and screen
-quality)
+**Applies to:** the local demonstration build at milestone UI-M3 (branding refinement, screen
+quality, and traceability depth)
 **Last updated:** 2026-09-21
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -217,10 +217,23 @@ Act as the **author**. Three steps, in order, and they cannot be collapsed.
 **Step 1 — select documents.** Tick one to ten documents. There is no "all documents" option; an
 unticked run is refused with a reason. Then **Run preflight**.
 
-**Step 2 — read the checks and choose an action.** Preflight runs six checks and reports, per
-document: coverage, uncovered sections, whether it has been processed before, what already exists
-from it (approved / published / draft), whether the source has changed since, and the similarity
-risk. It gives a **recommendation** and a reason.
+**Step 2 — read the checks and choose an action.** Preflight runs six checks and shows, for each
+selected document, a coverage bar and then every check by name with its verdict, the sentence
+explaining that verdict, and the facts behind it:
+
+| Check | What it shows you |
+| --- | --- |
+| `PREVIOUSLY_PROCESSED` | Whether this document has been generated from before, when, and the job ids |
+| `APPROVED_QUESTIONS_EXIST` | How many questions already exist from it, split into approved, published and draft, with a link to them |
+| `SOURCE_CONTENT_CHANGED` | Whether the version or the content hash has moved since |
+| `SIMILARITY_RISK` | The saturation behind the verdict — existing questions over assessable sections |
+
+Two further checks are about the whole selection rather than one document:
+`CROSS_DOMAIN_DUPLICATES` (how many near-matches exist in other domains) and `POOL_CONFLICTS`.
+
+It gives a **recommendation** and a reason. Read the facts, not just the badge: a check reading HIGH
+tells you its verdict, and the line under it tells you why, which is what you need in order to
+choose between generating more and reusing what is there.
 
 A preflight authorizes nothing. Choose an action — the recommended one is selected for you — and
 **Record decision**. The choices mean:
@@ -240,7 +253,8 @@ link to the questions that already exist for each selected document.
 **Step 3 — generate.** Pick the domain, topic, scope, reason code, and how many questions you want,
 then **Generate questions**.
 
-The result is a count *and* the refusals. A section that produced nothing is reported with its
+The result is a count *and* the refusals, with the **rejection breakdown** — which control refused
+how many candidates — plus the scope, the job reference and the model usage. A section that produced nothing is reported with its
 reason — most often that no set of four distinct plausible options could be built from it, or that a
 question already tests it. Asking for six and getting five is normal and is not an error: the
 platform would rather refuse a question than invent one the document does not support.
@@ -270,7 +284,18 @@ duplicate was flagged and nobody has decided about it yet.
 
 Everything needed to judge one question, on one page, arranged in six tabs.
 
-**Above the tabs, and never inside one: the gate verdict.** It reads "12 of 13 gates pass", draws a
+**Above the tabs: how far this question has got.** A five-stage strip reads Knowledge → Evidence
+→ Review → Approval → Publication. A stage is ticked only where the platform holds the record for
+it, and shows that record — the source document and its version, the evidence offsets and the model,
+each decision's version and time, the bank id. A stage with no record yet says "Not reached yet"
+rather than being drawn as though it had happened.
+
+Two things it does **not** say, deliberately. It does not name the reviewer or the approver: the
+platform records the decision, its version and its time, and does not expose who made it. And the
+approval stage reads "Gate 13 required an identity other than the author" rather than naming a
+second person — that is the control which guarantees separation of duties, stated as a control.
+
+**Below that, and never inside a tab: the gate verdict.** It reads "12 of 13 gates pass", draws a
 numbered rail with a tick or a cross on each gate, and lists the failures first with the reason for
 each. **It is advisory.** The server re-evaluates every gate at the
 moment of the transition, so a green verdict is a preview, not permission. It sits outside the tabs
@@ -394,6 +419,12 @@ card appears above everything else, with a bar showing how many questions you ha
 What you will not find here: badges, points, levels, streaks, due dates, a recommended-for-you rail,
 or courses. This release records none of them, and a card invented to fill the space would be
 telling you something untrue.
+
+Below the cards, **Your progress over time** is labelled as a capability this release does not
+include, with the reason: a result is shown at the end of the attempt that produced it, and nothing
+stores a way to list an earlier one. Attempts used, on each card, is the only history there is. The
+absence is stated in the same panel style every unbuilt capability uses, so you can tell a decision
+from a fault.
 
 ### 5.2 Start — `/assessments/<id>`
 
@@ -559,6 +590,7 @@ the log below.
 | Date | Commit | Change |
 | --- | --- | --- |
 | 2026-09-18 | `1762cc7` | First version. Covers M7: six authoring screens, four learner screens, the identity picker, and the refusals each screen can show |
+| 2026-09-21 | UI-M3 | **Traceability and preflight depth.** Question approval (§4.5) gains a five-stage strip above the tabs reading Knowledge → Evidence → Review → Approval → Publication, each stage ticked only where a record exists and showing that record; it does **not** name the reviewer or approver, because the platform does not expose who made a decision. Generate (§4.3) now shows each preflight check by name with the sentence and the facts behind its verdict instead of a badge in a table, and the result carries the rejection breakdown, scope, job reference and model usage. Learner home (§5.1) states "Your progress over time" as a capability this release does not include, rather than as small print. Also fixed: the sidebar tagline was clipped at 1440px |
 | 2026-09-21 | UI-M3 | The header is rebuilt to the approved mockup: a larger EssilorLuxottica mark, then the KNOWZY wordmark with its tagline, on a slightly taller bar (§2.4). The Start and Resume buttons are green, and anything marked **Planned** is now a soft blue pill. On the screens: **pipeline health** on the dashboard (§4.0) listing conditions that are true right now; connection health and staleness in one cell on Knowledge Sources (§4.1); the drafts a generation job created are now listed and linked (§4.3); every review queue tab carries its own count (§4.4); the provenance trail shows revisions (§4.6); and assessment cards show four figures with an explicit "Ready to start" (§5.1). Also fixed: a refusal on the learner portal was rendering as unstyled text, and six colour pairs were below the WCAG AA contrast minimum |
 | 2026-09-21 | UI-M2b | The implemented screens redesigned on real data. New: the authoring **dashboard** (§4.0) with the pipeline counts and a panel naming any read your identity may not see; the **approval gate rail** (§4.5); a **traceability** panel on each published question (§4.6); learner **assessment cards** and a resume bar (§5.1); and the result screen's **per-topic bars, gap table and band scale** (§5.4). Two real fields that had been dropped are now shown: whether a source is active, and a duplicate's recorded disposition. **Nothing was invented** — no deltas, no placeholder metrics, no recommendations, no badges |
 | 2026-09-21 | UI-M2 | The six authoring screens are on the design system: Knowledge Sources (§4.1 — results now open in a side panel, and three counted figures sit above the table), the document browser (§4.2 — libraries are tabs, with a breadcrumb), Generate (§4.3 — three numbered cards), the review queue (§4.4 — five queues as tabs with counts), Question approval (§4.5 — **six tabs, with the gate verdict kept outside them**), and Publish (§4.6 — Retire is now a confirmation dialog). **No control, action, or refusal changed.** Also fixed: clicking Finish and score, Test connection, Claim, Submit, or the assessment steps returned a 400 "Validation failed" — every one of them now works |

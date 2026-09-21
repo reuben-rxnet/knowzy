@@ -255,7 +255,11 @@ export const BrandLockup = () => (
     <span className="text-md leading-tight text-ink-muted">People</span>
     <span className="text-md leading-tight text-ink-muted">Knowledge</span>
     <span className="text-lg font-bold leading-tight text-success">Better Vision</span>
-    <span className="mt-2 text-2xs font-semibold uppercase tracking-widest text-ink-subtle">
+    {/* `tracking-widest` on an uppercased 31-character line is wider than the
+        sidebar's content box, and the nav clips horizontally — the line read
+        "THER FOR A BRIGHTER RROW" in a 1440px browser. Wrapped, and at normal
+        tracking, because the words matter more than the letter-spacing. */}
+    <span className="mt-2 text-balance text-2xs font-semibold uppercase tracking-wide text-ink-subtle">
       Together for a brighter tomorrow
     </span>
   </div>
