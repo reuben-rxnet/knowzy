@@ -214,7 +214,7 @@ and read with `Object.entries` — so "Bands applied to this attempt" was render
 
 | | |
 | --- | --- |
-| **Commit** | this one · 2026-09-21 · plan §23 |
+| **Commit** | `3149141` · 2026-09-21 · plan §23 |
 
 The header lock-up rebuilt around the approved assets, and the implemented screens improved on
 existing data. The `favicon.ico.svg` tile turned out to be the only real drawn artwork in the
