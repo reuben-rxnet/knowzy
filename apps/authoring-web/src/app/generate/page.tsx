@@ -1,3 +1,4 @@
+import { EmptyState, KeyValue, PageHero } from '@knowzy/shared-ui';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -34,25 +35,29 @@ interface Item {
  * steps. Only EXTRACTED documents are offered: a document with no sections has
  * nothing to ground a question in, and offering it would only produce a
  * refusal at preflight.
+ *
+ * UI-M2 converted the screen. The three §15 zones, the preflight, the recorded
+ * decision, and the refusals are unchanged — and still no Publish button and
+ * no difficulty control, both of which §15 forbids here.
  */
 export default async function GeneratePage() {
   const sources = await api<{ sources: readonly SourceRow[] }>('/api/v1/authoring/sources');
   if (!sources.ok) {
     return (
-      <article>
-        <h1>{t('generate.heading')}</h1>
+      <div className="flex flex-col gap-6">
+        <PageHero title={t('generate.heading')} purpose={t('generate.intro')} />
         <Problem problem={sources.problem} />
-      </article>
+      </div>
     );
   }
 
   const source = sources.data.sources.find((candidate) => candidate.usableForGeneration);
   if (source === undefined) {
     return (
-      <article>
-        <h1>{t('generate.heading')}</h1>
-        <p>{t('sources.empty')}</p>
-      </article>
+      <div className="flex flex-col gap-6">
+        <PageHero title={t('generate.heading')} purpose={t('generate.intro')} />
+        <EmptyState title={t('sources.empty')} description={t('generate.noUsableSource')} />
+      </div>
     );
   }
 
@@ -91,13 +96,14 @@ export default async function GeneratePage() {
   }
 
   return (
-    <article>
-      <h1>{t('generate.heading')}</h1>
-      <p className="lede">{t('generate.intro')}</p>
-      <dl className="kv">
-        <dt>{t('generate.sourceLabel')}</dt>
-        <dd>{source.name}</dd>
-      </dl>
+    <div className="flex flex-col gap-6">
+      <PageHero
+        title={t('generate.heading')}
+        purpose={t('generate.intro')}
+        secondaryText={
+          <KeyValue items={[{ label: t('generate.sourceLabel'), value: source.name }]} />
+        }
+      />
 
       {!containers.ok ? <Problem problem={containers.problem} /> : null}
       {!taxonomy.ok ? <Problem problem={taxonomy.problem} /> : null}
@@ -109,6 +115,6 @@ export default async function GeneratePage() {
           domains={taxonomy.data.domains}
         />
       ) : null}
-    </article>
+    </div>
   );
 }

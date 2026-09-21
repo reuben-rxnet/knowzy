@@ -205,6 +205,13 @@ describe('exactly one navigation item is ever active', () => {
     expect(activeNavLabel(AUTHORING_NAV, '/review/01a0-abc')).toBe('Review Queue');
   });
 
+  it('gives a route to the destination that is the page, not to an alias on it', () => {
+    // Question Bank and Assessments both point at /publish in this release,
+    // and both are earlier in the sidebar than Publish itself. The page is
+    // Publish, so Publish is what is highlighted.
+    expect(activeNavLabel(AUTHORING_NAV, '/publish')).toBe('Publish');
+  });
+
   it('gives the learner root to Home, not to the alias on it', () => {
     // Assessments points at `/` in this release because that is where the list
     // lives; Home is still the destination the learner is on.

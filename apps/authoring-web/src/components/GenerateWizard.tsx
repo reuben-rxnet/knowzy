@@ -10,9 +10,39 @@
 //
 // Every call is still a server action. The browser never sees the API address
 // or the identity header.
+//
+// UI-M2 converted the markup and nothing else. §15's three zones are now three
+// numbered cards, which is what the zones were always meant to be; the
+// preflight checks are a real table; and there is still no Publish button and
+// no difficulty control, because §15 forbids both here.
 
 import { useActionState, useState } from 'react';
-import Link from 'next/link';
+import {
+  AiBadge,
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardFooter,
+  CardHeader,
+  CheckboxRow,
+  DataTable,
+  EmptyState,
+  Field,
+  Fieldset,
+  KeyValue,
+  RefusalState,
+  Select,
+  StatusBadge,
+  TBody,
+  THead,
+  Td,
+  Th,
+  TextInput,
+  TextLink,
+  Tr,
+  statusTone,
+} from '@knowzy/shared-ui';
 import { t } from '../copy';
 import { recordDecision, runGeneration, runPreflight } from '../app/actions';
 import { Problem } from './Problem';
@@ -109,6 +139,16 @@ const REASON_CODES = [
  */
 const GENERATING_ACTIONS: readonly string[] = ['GENERATE_NEW', 'GENERATE_ADDITIONAL', 'REGENERATE'];
 
+/** The step number badge every zone carries. */
+const Step = ({ n }: { readonly n: number }) => (
+  <span
+    aria-hidden="true"
+    className="grid size-6 shrink-0 place-items-center rounded-pill bg-brand-navy text-sm font-bold text-white"
+  >
+    {n}
+  </span>
+);
+
 export const GenerateWizard = ({
   sourceId,
   documents,
@@ -143,270 +183,389 @@ export const GenerateWizard = ({
   const job = jobState?.ok === true ? (jobState.data as GenerationResponse) : null;
 
   if (documents.length === 0) {
-    return <p>{t('generate.noDocuments')}</p>;
+    return <EmptyState title={t('generate.noDocuments')} description={t('generate.noDocsBody')} />;
   }
 
   return (
-    <>
-      <h2>{t('generate.step1')}</h2>
-      <form action={submitPreflight}>
-        <input type="hidden" name="sourceId" value={sourceId} />
-        <fieldset>
-          <legend>{t('generate.documentsLabel')}</legend>
-          <p className="hint">{t('generate.documentsHint')}</p>
-          {documents.map((document) => (
-            <label key={document.documentId} style={{ fontWeight: 400 }}>
-              <input type="checkbox" name="documentIds" value={document.documentId} />{' '}
-              {document.containerName} / <strong>{document.name}</strong>{' '}
-              <span className="muted">
-                {document.sectionCount} {t('generate.sections').toLowerCase()}
-              </span>
-            </label>
-          ))}
-          <button type="submit" disabled={preflightPending}>
-            {t('generate.runPreflight')}
-          </button>
-        </fieldset>
-      </form>
+    <div className="flex flex-col gap-6">
+      {/* ------------------------------------------------- zone 1: selection */}
+      <Card>
+        <CardHeader title={t('generate.step1')} icon={<Step n={1} />} />
+        <form action={submitPreflight}>
+          <CardBody>
+            <input type="hidden" name="sourceId" value={sourceId} />
+            <Fieldset legend={t('generate.documentsLabel')} hint={t('generate.documentsHint')}>
+              <div className="divide-y divide-line rounded-md border border-line">
+                {documents.map((document) => (
+                  <CheckboxRow
+                    key={document.documentId}
+                    name="documentIds"
+                    value={document.documentId}
+                    description={`${document.containerName} · ${document.sectionCount} ${t(
+                      'generate.sections',
+                    ).toLowerCase()}`}
+                  >
+                    {document.name}
+                  </CheckboxRow>
+                ))}
+              </div>
+            </Fieldset>
+          </CardBody>
+          <CardFooter>
+            <Button
+              disabled={preflightPending}
+              {...(preflightPending ? { disabledReason: t('sources.working') } : {})}
+            >
+              {t('generate.runPreflight')}
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
 
       {preflightState?.ok === false && preflightState.problem !== undefined ? (
         <Problem problem={preflightState.problem} />
       ) : null}
 
+      {/* -------------------------------------------------- zone 2: decision */}
       {preflight === null ? null : (
-        <>
-          <h2>{t('generate.step2')}</h2>
-          <div className="panel">
-            <dl className="kv">
-              <dt>{t('generate.recommendation')}</dt>
-              <dd>
-                <strong>{preflight.recommendation}</strong>
-              </dd>
-              <dt>{t('generate.reason')}</dt>
-              <dd>{preflight.recommendationReason}</dd>
-            </dl>
-            {/* Stated by the API, repeated here on purpose: a recommendation is
-                not permission. */}
-            <p className="muted">{preflight.decisionRequired}</p>
-          </div>
+        <Card>
+          <CardHeader
+            title={t('generate.step2')}
+            icon={<Step n={2} />}
+            actions={<Badge tone="info">{preflight.recommendation}</Badge>}
+          />
+          <CardBody>
+            <div className="flex flex-col gap-5">
+              <KeyValue
+                items={[
+                  { label: t('generate.recommendation'), value: preflight.recommendation },
+                  { label: t('generate.reason'), value: preflight.recommendationReason },
+                ]}
+              />
+              {/* Stated by the API, repeated here on purpose: a recommendation
+                  is not permission. */}
+              <p className="rounded-md bg-warning-soft px-3 py-2 text-base text-ink">
+                {preflight.decisionRequired}
+              </p>
 
-          <table>
-            <caption>{t('generate.checksCaption')}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t('generate.document')}</th>
-                <th scope="col">{t('generate.coverage')}</th>
-                <th scope="col">{t('generate.uncovered')}</th>
-                <th scope="col">1</th>
-                <th scope="col">2</th>
-                <th scope="col">3</th>
-                <th scope="col">4</th>
-              </tr>
-            </thead>
-            <tbody>
-              {preflight.documents.map((document) => (
-                <tr key={document.documentId}>
-                  <th scope="row">{document.documentName}</th>
-                  <td>{document.coveragePercent}%</td>
-                  <td>{document.uncoveredSectionCount}</td>
-                  <td title={document.check1.check}>{document.check1.status ?? '—'}</td>
-                  <td title={document.check2.check}>
-                    {document.check2.status ?? '—'} ({document.check2.approvedCount}/
-                    {document.check2.publishedCount}/{document.check2.draftCount})
-                    {/* A count is only useful if you can see what it counts. */}
-                    {document.check2.approvedCount +
+              <DataTable caption={t('generate.checksCaption')}>
+                <THead>
+                  <Tr>
+                    <Th scope="col">{t('generate.document')}</Th>
+                    <Th scope="col" align="end">
+                      {t('generate.coverage')}
+                    </Th>
+                    <Th scope="col" align="end">
+                      {t('generate.uncovered')}
+                    </Th>
+                    <Th scope="col">{t('generate.check1')}</Th>
+                    <Th scope="col">{t('generate.check2')}</Th>
+                    <Th scope="col">{t('generate.check3')}</Th>
+                    <Th scope="col">{t('generate.check4')}</Th>
+                  </Tr>
+                </THead>
+                <TBody>
+                  {preflight.documents.map((document) => {
+                    const existing =
+                      document.check2.approvedCount +
                       document.check2.publishedCount +
-                      document.check2.draftCount >
-                    0 ? (
-                      <>
-                        <br />
-                        <Link href={`/review?queue=all&documentId=${document.documentId}`}>
-                          {t('review.existing')}
-                        </Link>
-                      </>
-                    ) : null}
-                  </td>
-                  <td title={document.check3.detail ?? document.check3.check}>
-                    {document.check3.status ?? '—'}
-                  </td>
-                  <td title={document.check4.detail ?? document.check4.check}>
-                    {document.check4.status ?? '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="muted">
-            {t('generate.crossDomain')}: {preflight.check5.matches.length} —{' '}
-            {preflight.check5.detail}
-          </p>
-          <p className="muted">
-            {t('generate.poolConflicts')}: {preflight.check6.status} — {preflight.check6.detail}
-          </p>
+                      document.check2.draftCount;
+                    return (
+                      <Tr key={document.documentId}>
+                        <Th scope="row">{document.documentName}</Th>
+                        <Td numeric>{document.coveragePercent}%</Td>
+                        <Td numeric>{document.uncoveredSectionCount}</Td>
+                        <Td>
+                          <StatusBadge
+                            status={document.check1.status ?? '—'}
+                            tone={statusTone(document.check1.status ?? '')}
+                          />
+                        </Td>
+                        <Td>
+                          <StatusBadge
+                            status={document.check2.status ?? '—'}
+                            tone={statusTone(document.check2.status ?? '')}
+                          />
+                          {/* A count is only useful if you can see what it
+                              counts. */}
+                          <span className="mt-1 block text-sm text-ink-subtle">
+                            {t('generate.existingCounts', {
+                              approved: document.check2.approvedCount,
+                              published: document.check2.publishedCount,
+                              draft: document.check2.draftCount,
+                            })}
+                          </span>
+                          {existing > 0 ? (
+                            <span className="mt-1 block">
+                              <TextLink
+                                href={`/review?queue=all&documentId=${document.documentId}`}
+                              >
+                                {t('review.existing')}
+                              </TextLink>
+                            </span>
+                          ) : null}
+                        </Td>
+                        <Td>
+                          <StatusBadge
+                            status={document.check3.status ?? '—'}
+                            tone={statusTone(document.check3.status ?? '')}
+                          />
+                          {document.check3.detail === undefined ? null : (
+                            <span className="mt-1 block text-sm text-ink-subtle">
+                              {document.check3.detail}
+                            </span>
+                          )}
+                        </Td>
+                        <Td>
+                          <StatusBadge
+                            status={document.check4.status ?? '—'}
+                            tone={statusTone(document.check4.status ?? '')}
+                          />
+                          {document.check4.detail === undefined ? null : (
+                            <span className="mt-1 block text-sm text-ink-subtle">
+                              {document.check4.detail}
+                            </span>
+                          )}
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </TBody>
+              </DataTable>
 
-          <h3>{t('generate.decideHeading')}</h3>
-          <p className="lede">{t('generate.decideIntro')}</p>
-          <form action={submitDecision}>
-            <input type="hidden" name="preflightId" value={preflight.preflightId} />
-            <label htmlFor="chosenAction">{t('generate.actionLabel')}</label>
-            <select id="chosenAction" name="chosenAction" defaultValue={preflight.recommendation}>
-              {/* The recommendation is not always one of the four §4.2 actions:
-                  a document nothing has been generated from recommends
-                  GENERATE_NEW, which is not an alternative to anything. Union,
-                  recommendation first, so the recommended action is always
-                  selectable. */}
-              {[
-                preflight.recommendation,
-                ...preflight.offeredActions.filter((action) => action !== preflight.recommendation),
-              ].map((action) => (
-                <option key={action} value={action}>
-                  {action}
-                </option>
-              ))}
-            </select>
-            <button type="submit" disabled={decisionPending}>
-              {t('generate.decide')}
-            </button>
-          </form>
-          {decisionState?.ok === false && decisionState.problem !== undefined ? (
-            <Problem problem={decisionState.problem} />
-          ) : null}
-        </>
-      )}
+              <KeyValue
+                items={[
+                  {
+                    label: t('generate.crossDomain'),
+                    value: `${preflight.check5.matches.length} — ${preflight.check5.detail}`,
+                  },
+                  {
+                    label: t('generate.poolConflicts'),
+                    value: `${preflight.check6.status} — ${preflight.check6.detail}`,
+                  },
+                ]}
+              />
 
-      {decision === null || authorizesGeneration ? null : (
-        <div className="panel warn" role="status">
-          <h3>{t('generate.notAuthorizedHeading')}</h3>
-          <p>{t('generate.notAuthorized', { action: decision.chosenAction })}</p>
-          <ul>
-            {(preflight?.documents ?? []).map((document) => (
-              <li key={document.documentId}>
-                <Link href={`/review?queue=all&documentId=${document.documentId}`}>
-                  {t('review.existing')}: {document.documentName}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {preflight === null || !authorizesGeneration ? null : (
-        <>
-          <h2>{t('generate.step3')}</h2>
-          <form action={submitJob}>
-            <input type="hidden" name="preflightId" value={preflight.preflightId} />
-            <div className="row">
-              <div>
-                <label htmlFor="domainId">{t('generate.domainLabel')}</label>
-                <select
-                  id="domainId"
-                  name="domainId"
-                  value={domainId}
-                  onChange={(event) => setDomainId(event.target.value)}
+              <form action={submitDecision} className="flex flex-col gap-3">
+                <input type="hidden" name="preflightId" value={preflight.preflightId} />
+                <Field
+                  id="chosenAction"
+                  label={t('generate.actionLabel')}
+                  hint={t('generate.decideIntro')}
+                  className="max-w-md"
                 >
-                  {domains.map((domain) => (
-                    <option key={domain.domainId} value={domain.domainId}>
-                      {domain.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="topicId">{t('generate.topicLabel')}</label>
-                <select id="topicId" name="topicId">
-                  {topics.map((topic) => (
-                    <option key={topic.topicId} value={topic.topicId}>
-                      {topic.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <Select
+                    id="chosenAction"
+                    name="chosenAction"
+                    defaultValue={preflight.recommendation}
+                  >
+                    {/* The recommendation is not always one of the four §4.2
+                        actions: a document nothing has been generated from
+                        recommends GENERATE_NEW, which is not an alternative to
+                        anything. Union, recommendation first, so the
+                        recommended action is always selectable. */}
+                    {[
+                      preflight.recommendation,
+                      ...preflight.offeredActions.filter(
+                        (action) => action !== preflight.recommendation,
+                      ),
+                    ].map((action) => (
+                      <option key={action} value={action}>
+                        {action}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <div>
+                  <Button
+                    disabled={decisionPending}
+                    {...(decisionPending ? { disabledReason: t('sources.working') } : {})}
+                  >
+                    {t('generate.decide')}
+                  </Button>
+                </div>
+              </form>
+
+              {decisionState?.ok === false && decisionState.problem !== undefined ? (
+                <Problem problem={decisionState.problem} />
+              ) : null}
             </div>
-            <div className="row">
-              <div>
-                <label htmlFor="scope">{t('generate.scopeLabel')}</label>
-                <select id="scope" name="scope" defaultValue="ENTIRE_DOCUMENT">
-                  {SCOPES.map((scope) => (
-                    <option key={scope} value={scope}>
-                      {scope}
-                    </option>
-                  ))}
-                </select>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* A decision not to generate is an outcome, not a dead end: what those
+          two decisions are about is the questions that already exist. */}
+      {decision === null || authorizesGeneration ? null : (
+        <RefusalState
+          title={t('generate.notAuthorizedHeading')}
+          reason={t('generate.notAuthorized', { action: decision.chosenAction })}
+          details={
+            <ul className="flex flex-col gap-1">
+              {(preflight?.documents ?? []).map((document) => (
+                <li key={document.documentId}>
+                  <TextLink href={`/review?queue=all&documentId=${document.documentId}`}>
+                    {t('review.existing')}: {document.documentName}
+                  </TextLink>
+                </li>
+              ))}
+            </ul>
+          }
+        />
+      )}
+
+      {/* ------------------------------------------------ zone 3: generation */}
+      {preflight === null || !authorizesGeneration ? null : (
+        <Card>
+          <CardHeader
+            title={t('generate.step3')}
+            icon={<Step n={3} />}
+            actions={<AiBadge>{t('generate.aiBadge')}</AiBadge>}
+          />
+          <form action={submitJob}>
+            <CardBody>
+              <input type="hidden" name="preflightId" value={preflight.preflightId} />
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Field id="domainId" label={t('generate.domainLabel')}>
+                  <Select
+                    id="domainId"
+                    name="domainId"
+                    value={domainId}
+                    onChange={(event) => setDomainId(event.target.value)}
+                  >
+                    {domains.map((domain) => (
+                      <option key={domain.domainId} value={domain.domainId}>
+                        {domain.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="topicId" label={t('generate.topicLabel')}>
+                  <Select id="topicId" name="topicId">
+                    {topics.map((topic) => (
+                      <option key={topic.topicId} value={topic.topicId}>
+                        {topic.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="scope" label={t('generate.scopeLabel')}>
+                  <Select id="scope" name="scope" defaultValue="ENTIRE_DOCUMENT">
+                    {SCOPES.map((scope) => (
+                      <option key={scope} value={scope}>
+                        {scope}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="reasonCode" label={t('generate.reasonCodeLabel')}>
+                  <Select id="reasonCode" name="reasonCode" defaultValue="NEW_KNOWLEDGE">
+                    {REASON_CODES.map((code) => (
+                      <option key={code} value={code}>
+                        {code}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="requestedQuestionCount" label={t('generate.countLabel')}>
+                  <TextInput
+                    id="requestedQuestionCount"
+                    name="requestedQuestionCount"
+                    type="number"
+                    min={1}
+                    max={50}
+                    defaultValue={5}
+                  />
+                </Field>
               </div>
-              <div>
-                <label htmlFor="reasonCode">{t('generate.reasonCodeLabel')}</label>
-                <select id="reasonCode" name="reasonCode" defaultValue="NEW_KNOWLEDGE">
-                  {REASON_CODES.map((code) => (
-                    <option key={code} value={code}>
-                      {code}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="requestedQuestionCount">{t('generate.countLabel')}</label>
-                <input
-                  id="requestedQuestionCount"
-                  name="requestedQuestionCount"
-                  type="number"
-                  min={1}
-                  max={50}
-                  defaultValue={5}
-                />
-              </div>
-            </div>
-            <button type="submit" disabled={jobPending}>
-              {t('generate.run')}
-            </button>
+            </CardBody>
+            <CardFooter>
+              <Button
+                disabled={jobPending}
+                {...(jobPending ? { disabledReason: t('sources.working') } : {})}
+              >
+                {t('generate.run')}
+              </Button>
+            </CardFooter>
           </form>
           {jobState?.ok === false && jobState.problem !== undefined ? (
-            <Problem problem={jobState.problem} />
+            <CardBody>
+              <Problem problem={jobState.problem} />
+            </CardBody>
           ) : null}
-        </>
+        </Card>
       )}
 
+      {/* ------------------------------------------------------ the outcome */}
       {job === null ? null : (
-        <div className="panel okpanel">
-          <h3>{t('generate.resultHeading')}</h3>
-          <dl className="kv">
-            <dt>{t('review.status')}</dt>
-            <dd className={job.status === 'SUCCEEDED' ? 'pass' : 'warn'}>{job.status}</dd>
-            <dt>{t('generate.accepted')}</dt>
-            <dd>
-              {job.acceptedQuestionCount} / {job.requestedQuestionCount}
-            </dd>
-            <dt>{t('generate.sections')}</dt>
-            <dd>{job.sectionCount}</dd>
-            <dt>{t('generate.rejections')}</dt>
-            <dd>{job.rejections.length}</dd>
-            <dt>{t('generate.insufficient')}</dt>
-            <dd>{job.insufficientEvidenceSections.length}</dd>
-          </dl>
-          {/* Rejections are the interesting half of the result: a question the
-              platform refused to keep is evidence the controls ran. §5.3 */}
-          {job.rejections.length === 0 ? null : (
-            <ul>
-              {job.rejections.map((rejection, index) => (
-                <li key={`${rejection.reason}-${index}`}>
-                  <strong>{rejection.reason}</strong> — {rejection.detail}
-                </li>
-              ))}
-            </ul>
-          )}
-          {job.insufficientEvidenceSections.length === 0 ? null : (
-            <ul>
-              {job.insufficientEvidenceSections.map((section) => (
-                <li key={section.sectionKey}>
-                  <code>{section.sectionKey.slice(0, 12)}</code> — {section.reason}
-                </li>
-              ))}
-            </ul>
-          )}
-          <p>
-            <Link href="/review">{t('generate.toReview')}</Link>
-          </p>
-        </div>
+        <Card>
+          <CardHeader
+            title={t('generate.resultHeading')}
+            actions={<StatusBadge status={job.status} />}
+          />
+          <CardBody>
+            <div className="flex flex-col gap-5">
+              <KeyValue
+                items={[
+                  {
+                    label: t('generate.accepted'),
+                    value: `${job.acceptedQuestionCount} / ${job.requestedQuestionCount}`,
+                  },
+                  { label: t('generate.sections'), value: job.sectionCount },
+                  { label: t('generate.rejections'), value: job.rejections.length },
+                  {
+                    label: t('generate.insufficient'),
+                    value: job.insufficientEvidenceSections.length,
+                  },
+                ]}
+              />
+
+              {/* Rejections are the interesting half of the result: a question
+                  the platform refused to keep is evidence the controls ran.
+                  §5.3 */}
+              {job.rejections.length === 0 ? null : (
+                <div className="flex flex-col gap-2">
+                  <h4 className="text-base font-semibold text-brand-navy-text">
+                    {t('generate.rejections')}
+                  </h4>
+                  <ul className="flex flex-col gap-1.5">
+                    {job.rejections.map((rejection, index) => (
+                      <li
+                        key={`${rejection.reason}-${index}`}
+                        className="rounded-md bg-warning-soft px-3 py-2 text-sm text-ink"
+                      >
+                        <span className="font-semibold">{rejection.reason}</span>
+                        <span className="mt-0.5 block text-ink-muted">{rejection.detail}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {job.insufficientEvidenceSections.length === 0 ? null : (
+                <div className="flex flex-col gap-2">
+                  <h4 className="text-base font-semibold text-brand-navy-text">
+                    {t('generate.insufficient')}
+                  </h4>
+                  <ul className="flex flex-col gap-1.5">
+                    {job.insufficientEvidenceSections.map((section) => (
+                      <li key={section.sectionKey} className="text-sm text-ink">
+                        <code className="font-mono text-ink-muted">
+                          {section.sectionKey.slice(0, 12)}
+                        </code>{' '}
+                        — {section.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </CardBody>
+          <CardFooter>
+            <TextLink href="/review">{t('generate.toReview')}</TextLink>
+          </CardFooter>
+        </Card>
       )}
-    </>
+    </div>
   );
 };

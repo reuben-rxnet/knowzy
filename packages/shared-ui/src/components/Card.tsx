@@ -72,8 +72,9 @@ export const CardHeader = ({
         )}
         {title}
       </h2>
+      {/* div: a ReactNode slot must not be a <p>. See PageHero. */}
       {description === undefined ? null : (
-        <p className="mt-1 text-sm text-ink-muted">{description}</p>
+        <div className="mt-1 text-sm text-ink-muted">{description}</div>
       )}
     </div>
     {actions === undefined ? null : <div className="flex shrink-0 gap-2">{actions}</div>}

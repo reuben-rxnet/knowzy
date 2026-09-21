@@ -23,7 +23,7 @@ export default async function Page() {
   const subject = await currentSubject();
 
   return (
-    <article>
+    <article className="legacy-page">
       <h1>{t('home.heading')}</h1>
       <p className="lede">{t('home.intro')}</p>
 

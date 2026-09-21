@@ -101,8 +101,16 @@ export const isActivePath = (currentLocation: string, href: string): boolean => 
  * still lives there — the learner's Home and Assessments are both `/`, and
  * Approvals is a queue of `/review`. Highlighting all of them would put two
  * `aria-current="page"` items in one list and tell the user they are in two
- * places at once, so the most specific match wins: a matching query beats
- * none, and a longer path beats a shorter one. Ties go to nav order.
+ * places at once, so the most specific match wins:
+ *
+ *   1. a longer path beats a shorter one,
+ *   2. then a matching query beats none — Approvals owns
+ *      `/review?queue=approval`, Review Queue owns plain `/review`,
+ *   3. then the destination that IS the page beats an alias pointing at it —
+ *      `/publish` is Publish, even though Question Bank and Assessments also
+ *      live there in this release.
+ *
+ * Remaining ties go to nav order.
  */
 export const activeNavLabel = (
   items: readonly NavItem[],
@@ -116,7 +124,8 @@ export const activeNavLabel = (
     if (!isActivePath(currentLocation, item.href)) continue;
 
     const [path = item.href, query = ''] = item.href.split('?');
-    const score = path.length * 2 + (query === '' ? 0 : 1);
+    const score =
+      path.length * 4 + (query === '' ? 0 : 2) + (item.status === 'IMPLEMENTED' ? 1 : 0);
     if (score > bestScore) {
       bestScore = score;
       bestLabel = item.label;

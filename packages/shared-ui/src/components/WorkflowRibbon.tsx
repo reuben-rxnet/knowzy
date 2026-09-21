@@ -149,9 +149,15 @@ export const PageHero = ({
             </>
           )}
         </h1>
-        {purpose === undefined ? null : <p className="mt-1.5 text-md text-ink-muted">{purpose}</p>}
+        {/* div, not p: these slots take a ReactNode, and a caller passing a
+            list or a definition list into a <p> is invalid HTML — which React
+            reports as a hydration failure and then re-renders the whole tree
+            on the client. */}
+        {purpose === undefined ? null : (
+          <div className="mt-1.5 text-md text-ink-muted">{purpose}</div>
+        )}
         {secondaryText === undefined ? null : (
-          <p className="mt-1 text-base text-ink-subtle">{secondaryText}</p>
+          <div className="mt-1 text-base text-ink-subtle">{secondaryText}</div>
         )}
       </div>
       {actions === undefined ? null : (

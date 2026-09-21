@@ -1,7 +1,7 @@
 # Knowzy — User Guide
 
-**Applies to:** the local demonstration build at milestone UI-M1 (the shared KNOWZY shell over the
-M7 screens)
+**Applies to:** the local demonstration build at milestone UI-M2 (the shared KNOWZY shell, with the
+authoring workflow screens on the design system)
 **Last updated:** 2026-09-21
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -165,6 +165,14 @@ many documents it has indexed.
 2. **Synchronize** indexes the documents and extracts their text. The result gives you scanned,
    added, modified, unchanged, failed, and the character count extracted.
 
+Both results open in a **panel on the right**. Close it with the × or the Escape key; the page
+behind it does not move while you read. The three figures above the table — configured sources,
+usable for generation, documents indexed — are counted from the same list you are looking at, and
+carry no comparison to any earlier period, because none is stored.
+
+The specification's **Owner** and **Scope** columns are not there. A source has no owner field in
+this build, and a made-up name attached to a real person's job is worse than a missing column.
+
 If a document is listed in the fixture but not in the count, that is deliberate: a document the
 caller may not read is skipped per-item, and the sync still succeeds. It never appears in browse,
 search, or generation.
@@ -173,9 +181,10 @@ search, or generation.
 
 Act as the **author** (or stay as the administrator to look).
 
-Pick a library from the container list, then walk into folders by clicking their names. Each
-document row shows its type, extraction state, section count, extracted characters, and — the column
-that matters — **Selectable**. Only an extracted document can be a generation input; one that is not
+Pick a library from the **tabs** across the top — each carries the number of items in it — then
+walk into folders by clicking their names. A breadcrumb above the table shows where you are and
+takes you back up. Each document row shows its type, extraction state, section count, extracted
+characters, and — the column that matters — **Selectable**. Only an extracted document can be a generation input; one that is not
 selectable will not be offered on the Generate page.
 
 **View sections** shows how the document was split: the heading path, the character offsets, whether
@@ -241,18 +250,27 @@ duplicate was flagged and nobody has decided about it yet.
 
 ### 4.5 Question approval — `/review/<id>`
 
-Everything needed to judge one question, on one page.
+Everything needed to judge one question, on one page, arranged in six tabs.
 
-- **The question and its options**, with the proposed correct answer marked.
-- **Source evidence** — the quoted span, verbatim, with its verification mode, offsets, similarity,
-  document, section, and the document version at the time of generation. Read the question against
-  this text: the only thing being asked is whether the question is answerable from it.
-- **Confidence** — the score and each component that produced it, not just the number.
-- **Approval gates** — all 13, passing and failing, each with the detail that says how to fix it.
-  **This panel is advisory.** The server re-evaluates every gate at the moment of the transition, so
-  a green checklist is a preview, not permission.
-- **Version history** and the **review trail**, including which version each decision was made
-  against.
+**Above the tabs, and never inside one: the gate verdict.** It says how many of the thirteen gates
+failed and spells each failure out. **It is advisory.** The server re-evaluates every gate at the
+moment of the transition, so a green verdict is a preview, not permission. It sits outside the tabs
+on purpose — it is the only thing on the page that says whether this question can proceed, and that
+should not be one click away.
+
+| Tab | What is in it |
+| --- | --- |
+| **Question** | The question, its four options with the proposed answer marked by a tick *and* a word, the explanation, and the form to edit the explanation |
+| **Evidence** | The quoted span, verbatim, with its verification mode, character offsets, and similarity. Read the question against this text: the only thing being asked is whether the question is answerable from it |
+| **Source** | The document, the section key, the document version at the time of generation, and which model generated it |
+| **Governance** | All 13 gates, passing and failing, each with the detail that says how to fix it; the confidence score with every component that produced it; and the duplicate disposition |
+| **Review history** | Every review and every approval, with the version each decision was made against |
+| **Version history** | Each version, what changed, and whether the evidence was re-verified |
+
+Each tab is its own address, so you can link someone straight to the Governance tab of a specific
+question.
+
+The **decision panel** is always at the bottom, whichever tab you are on.
 
 The actions, and who can use them:
 
@@ -300,8 +318,15 @@ Publishing is idempotent: submitting the same batch twice does not publish twice
 when. It is labelled `local-projection` because that is what it is:
 the platform's own record, which a later reconciliation pass compares against the bank itself.
 
-**Retire** removes a question from use with a written reason of at least ten characters. Nothing is
-ever deleted — the bank adapter has no delete operation at all, by design.
+Three figures above it count what is in the bank, how much of it is active, and how much is retired.
+
+**Retire** opens a confirmation dialog and takes a written reason of at least ten characters.
+Nothing is ever deleted — the bank adapter has no delete operation at all, by design. A retired
+question stays readable, with its evidence and its history, and stops being served. Escape closes
+the dialog without retiring anything.
+
+A published question's text in the inventory is a link to the same read-only detail page an approver
+used. A published version is never edited in place.
 
 ### 4.7 Assessment — the bottom of `/publish`
 
@@ -317,8 +342,8 @@ that moment are captured in an eligibility snapshot, and every attempt draws fro
 Publishing a new question afterwards does not change an assessment that is already live; the
 assessment has to be published again.
 
-The table shows each assessment's status, its published version, questions per attempt, and the
-pinned pool size. A pool smaller than the questions per attempt is why a learner might see "not
+The table shows each assessment's status, its published version and that version's own status,
+questions per attempt, the pinned pool size, and how many attempts have been started. A pool smaller than the questions per attempt is why a learner might see "not
 available".
 
 > This form is the whole assessment builder today. The one specified in `authoring-portal.md` §6 —
@@ -494,5 +519,6 @@ the log below.
 | Date | Commit | Change |
 | --- | --- | --- |
 | 2026-09-18 | `1762cc7` | First version. Covers M7: six authoring screens, four learner screens, the identity picker, and the refusals each screen can show |
+| 2026-09-21 | UI-M2 | The six authoring screens are on the design system: Knowledge Sources (§4.1 — results now open in a side panel, and three counted figures sit above the table), the document browser (§4.2 — libraries are tabs, with a breadcrumb), Generate (§4.3 — three numbered cards), the review queue (§4.4 — five queues as tabs with counts), Question approval (§4.5 — **six tabs, with the gate verdict kept outside them**), and Publish (§4.6 — Retire is now a confirmation dialog). **No control, action, or refusal changed.** Also fixed: clicking Finish and score, Test connection, Claim, Submit, or the assessment steps returned a 400 "Validation failed" — every one of them now works |
 | 2026-09-21 | UI-M1 | Both portals now render inside one shared KNOWZY shell: brand header, left-hand destinations carrying their real status, the authoring workflow ribbon, a skip link, and visible focus. The search field, KNOWZY Copilot, and notifications are shown disabled and labelled "Planned" — see §2.4. **No page body, control, action, or refusal changed**; the screens themselves are modernized one at a time from UI-M2 |
 | 2026-09-21 | `abb1c45`+ | Resume of a fully answered attempt now works (it returned a 404 before, and the home page card printed "NaN / "). Two new review views, `Published` and `All questions`, with a per-document filter; preflight counts and published inventory rows link into them. Recording `VIEW_EXISTING` or `REUSE_EXISTING` no longer offers the generate form |

@@ -53,7 +53,7 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
 
   if (!result.ok) {
     return (
-      <article>
+      <article className="legacy-page">
         <h1>{t('result.heading')}</h1>
         <Problem problem={result.problem} />
         <p>
@@ -70,7 +70,7 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
       : [];
 
   return (
-    <article>
+    <article className="legacy-page">
       <h1>{t('result.heading')}</h1>
 
       <div className="panel">

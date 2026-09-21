@@ -42,7 +42,9 @@ const Frame = ({
     <span aria-hidden="true" className={`grid size-12 place-items-center rounded-pill ${tone}`}>
       {icon}
     </span>
-    <h3 className="text-lg font-semibold text-brand-navy-text">{title}</h3>
+    {/* h2, not h3: on a page whose only content is this state, an h3
+        directly under the page h1 skips a level. */}
+    <h2 className="text-lg font-semibold text-brand-navy-text">{title}</h2>
     {children === undefined ? null : (
       <div className="max-w-prose text-sm text-ink-muted">{children}</div>
     )}
@@ -101,11 +103,14 @@ export const RefusalState = ({
   reason,
   code,
   actions,
+  details,
 }: {
   readonly title: ReactNode;
   readonly reason: ReactNode;
   readonly code?: string;
   readonly actions?: ReactNode;
+  /** Extra structure under the reason — a failed-gate list, say. */
+  readonly details?: ReactNode;
 }) => (
   <Frame
     icon={<ShieldAlert className="size-6" />}
@@ -115,6 +120,7 @@ export const RefusalState = ({
     {...(actions === undefined ? {} : { actions })}
   >
     <p>{reason}</p>
+    {details === undefined ? null : <div className="mt-3">{details}</div>}
     {code === undefined ? null : (
       <p className="mt-2 text-xs text-ink-subtle">
         Code <code className="font-mono">{code}</code>
@@ -129,11 +135,14 @@ export const ErrorState = ({
   reason,
   code,
   actions,
+  details,
 }: {
   readonly title?: ReactNode;
   readonly reason: ReactNode;
   readonly code?: string;
   readonly actions?: ReactNode;
+  /** Extra structure under the reason — a failed-gate list, say. */
+  readonly details?: ReactNode;
 }) => (
   <Frame
     icon={<XOctagon className="size-6" />}
@@ -143,6 +152,7 @@ export const ErrorState = ({
     {...(actions === undefined ? {} : { actions })}
   >
     <p>{reason}</p>
+    {details === undefined ? null : <div className="mt-3">{details}</div>}
     {code === undefined ? null : (
       <p className="mt-2 text-xs text-ink-subtle">
         Code <code className="font-mono">{code}</code>
@@ -156,10 +166,13 @@ export const ServiceUnavailableState = ({
   title = 'Service unavailable',
   reason,
   actions,
+  details,
 }: {
   readonly title?: ReactNode;
   readonly reason: ReactNode;
   readonly actions?: ReactNode;
+  /** Extra structure under the reason — a failed-gate list, say. */
+  readonly details?: ReactNode;
 }) => (
   <Frame
     icon={<CloudOff className="size-6" />}
@@ -169,6 +182,7 @@ export const ServiceUnavailableState = ({
     {...(actions === undefined ? {} : { actions })}
   >
     {reason}
+    {details === undefined ? null : <div className="mt-3">{details}</div>}
   </Frame>
 );
 

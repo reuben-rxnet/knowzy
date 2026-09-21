@@ -1,6 +1,6 @@
 # KNOWZY Shared Component Inventory
 
-**Status:** UI-M1 delivered. `packages/shared-ui`.
+**Status:** UI-M1 and UI-M2 delivered. `packages/shared-ui`.
 **Boundary:** rule **B6** — this package may import `@knowzy/shared-types` and nothing else from
 the workspace. No component can reach the database, an adapter, or a domain service.
 **Tokens:** [`design-tokens.md`](design-tokens.md).
@@ -102,6 +102,35 @@ A route no destination owns highlights nothing, which is correct rather than a g
 
 ---
 
+## 4b. Added in UI-M2
+
+The authoring workflow needed five things UI-M1 deliberately left out. Each is here because a
+converted page needed it, not in anticipation of one.
+
+| Component | Purpose | The rule it carries |
+| --- | --- | --- |
+| `Button`, `ButtonLink`, `TextLink`, `buttonClass` | §28's primary, secondary and danger buttons, plus a ghost for card headers | Minimum 44px target; never wraps; `disabled` requires `disabledReason`, so a grey control always says why |
+| `DataTable`, `THead`, `TBody`, `Tr`, `Th`, `Td`, `CellNote` | The data table, as composable parts | A caption is required — it is the table's accessible name; the scroll container is focusable and labelled (§30) |
+| `TabNav` | §28's tabs, for the five review queues and the six question-detail panels | **Links, not ARIA tabs.** Each view is a URL, so it must middle-click, bookmark, and work before hydration. Announcing links as tabs is the worse outcome |
+| `KeyValue` | The label-and-value lists these screens are full of | A real `<dl>`, so the pairing is in the markup |
+| `Field`, `FieldLabel`, `Fieldset`, `Select`, `TextInput`, `Textarea`, `CheckboxRow`, `RadioRow` | Form controls | Native elements, styled. Every control takes an `id` and every label points at it. A checkbox row is a 44px target, not a 13px box |
+
+They are parts rather than one configured `<DataTable columns rows>` on purpose: the tables in this
+product differ too much for a `columns` prop — a queue row has a two-line source cell, a gate row an
+icon and a reason, a section row a monospace offset pair — and a page keeps the same semantics it
+already had, including `<th scope="row">`.
+
+Two fixes in UI-M1 components came out of using them:
+
+- `PageHero`'s `purpose` and `secondaryText`, and `CardHeader`'s `description`, render in a `div`
+  rather than a `<p>`. They accept a `ReactNode`, and a caller passing a list into a `<p>` is
+  invalid HTML — which React reports as a **hydration failure** and then re-renders the whole tree
+  on the client. Found by clicking through the generation flow in a real browser, not by reading.
+- The state `Frame` heading is an `h2`. As an `h3` directly under the page `h1` it skipped a level
+  on any page whose only content was an empty state.
+
+---
+
 ## 5. Primitives
 
 | Component | Purpose |
@@ -145,13 +174,16 @@ notification button.
 
 ---
 
-## 7. Not in UI-M1
+## 7. Still not built
 
-Listed so a later milestone does not re-invent them, and so nobody looks for them now:
+Listed so a later milestone does not re-invent them, and so nobody looks for them now.
+`DataTable`, `Tabs` (as `TabNav`), buttons, `KeyValue`, and the form controls arrived in UI-M2 —
+see §4b.
 
-- `DataTable` and pagination — UI-M3, with the table the Knowledge Sources screen needs
-- `Tabs` — UI-M3
-- `Toast` — UI-M5, when transitions report outcomes inline
+- **Pagination** — not yet needed: every list in this build fits one page. It belongs with the
+  first list that does not
+- `Toast` — a later milestone. Every transition currently reports its outcome inline, next to the
+  control that caused it, which is more reliable than a message that disappears
 - `ApprovalGateChecklist`, `EvidenceExcerpt`, `SourceCitation`, `ConfidenceBreakdown`,
   `DuplicateRisk` — UI-M5/M6, built against the real payloads
 - `ProvenanceTimeline`, `CoverageIndicator` — UI-M7

@@ -8,8 +8,12 @@
 // (§5.7), so the refusal arrives as a problem+json body with `gateFailures`
 // attached — and this component's only job is to keep that on screen instead of
 // swallowing it in a redirect.
+//
+// UI-M2 converted the markup. Same action, same refusal, same comment rules.
 
 import { useActionState } from 'react';
+import { Button, Field, Textarea, type ButtonTone } from '@knowzy/shared-ui';
+import { CheckCircle2 } from 'lucide-react';
 import { t, type CopyKey } from '../copy';
 import type { ActionState } from '../app/actions';
 import { Problem } from './Problem';
@@ -22,7 +26,7 @@ export const DecisionForm = ({
   labelKey,
   commentKey,
   commentRequired = false,
-  variant,
+  tone = 'primary',
 }: {
   questionId: string;
   action: Action;
@@ -30,38 +34,44 @@ export const DecisionForm = ({
   /** Omitted when the transition takes no comment (claim, submit). */
   commentKey?: CopyKey;
   commentRequired?: boolean;
-  variant?: 'secondary' | 'danger';
+  tone?: ButtonTone;
 }) => {
   const [state, submit, pending] = useActionState(action, null, `/review/${questionId}`);
 
   const fieldId = `comment-${labelKey.replace(/\./g, '-')}`;
 
   return (
-    <div>
-      <form action={submit}>
+    <div className="flex flex-col gap-3 rounded-md border border-line p-4">
+      <form action={submit} className="flex flex-col gap-3">
         <input type="hidden" name="questionId" value={questionId} />
         {commentKey === undefined ? null : (
-          <>
-            <label htmlFor={fieldId}>
-              {t(commentKey)}{' '}
-              {commentRequired ? null : <span className="hint">({t('form.optional')})</span>}
-            </label>
-            <textarea id={fieldId} name="comment" required={commentRequired} />
-          </>
+          <Field
+            id={fieldId}
+            label={t(commentKey)}
+            {...(commentRequired ? {} : { hint: t('form.optional') })}
+          >
+            <Textarea id={fieldId} name="comment" required={commentRequired} rows={3} />
+          </Field>
         )}
-        <button
-          type="submit"
-          disabled={pending}
-          {...(variant === undefined ? {} : { className: variant })}
-        >
-          {t(labelKey)}
-        </button>
+        <div>
+          <Button
+            tone={tone}
+            disabled={pending}
+            {...(pending ? { disabledReason: t('sources.working') } : {})}
+          >
+            {t(labelKey)}
+          </Button>
+        </div>
       </form>
       {state?.ok === false && state.problem !== undefined ? (
         <Problem problem={state.problem} />
       ) : null}
       {state?.ok === true ? (
-        <p className="pass" role="status">
+        <p
+          className="flex items-center gap-2 rounded-md bg-success-soft px-3 py-2 text-base font-semibold text-success"
+          role="status"
+        >
+          <CheckCircle2 aria-hidden="true" className="size-4" />
           {t('ok.heading')}
         </p>
       ) : null}

@@ -1,4 +1,22 @@
-import Link from 'next/link';
+import {
+  Badge,
+  Card,
+  CardBody,
+  CardHeader,
+  DataTable,
+  EmptyState,
+  KpiCard,
+  PageHero,
+  StatusBadge,
+  TBody,
+  THead,
+  Td,
+  Th,
+  TextLink,
+  Tr,
+  VersionBadge,
+} from '@knowzy/shared-ui';
+import { Archive, BookCheck, Layers } from 'lucide-react';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -38,8 +56,15 @@ interface AssessmentRow {
   readonly sessionCount: number;
 }
 
+const DASH = '—';
+
+const formatWhen = (value: string | null): string =>
+  value === null
+    ? DASH
+    : new Date(value).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+
 /**
- * Publish.
+ * Publish, and the Question Bank.
  *
  * Three things, in the order the workflow needs them: publish the approved
  * questions, see the inventory that resulted, and make an assessment out of it
@@ -47,7 +72,13 @@ interface AssessmentRow {
  *
  * The inventory is the LOCAL PROJECTION and the API labels it as such. §8
  * reconciles it against the bank; until then a reader has to know which of the
- * two they are looking at.
+ * two they are looking at, so the source is printed next to the count rather
+ * than left implicit.
+ *
+ * UI-M2 converted the screen. Two §16 rules it keeps: a published version is
+ * never edited in place — the row links to the same read-only detail an
+ * approver used — and a question leaves the bank by RETIREMENT, which takes a
+ * reason, never by deletion.
  */
 export default async function PublishPage() {
   const [approved, inventory, assessments, taxonomy] = await Promise.all([
@@ -68,108 +99,174 @@ export default async function PublishPage() {
       }))
     : [];
 
-  return (
-    <article>
-      <h1>{t('publish.heading')}</h1>
-      <p className="lede">{t('publish.intro')}</p>
+  const items = inventory.ok ? inventory.data.items : [];
+  const active = items.filter((item) => item.isActive).length;
 
-      <h2>{t('publish.approvedHeading')}</h2>
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHero title={t('publish.heading')} purpose={t('publish.intro')} />
+
+      {inventory.ok ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <KpiCard
+            label={t('publish.kpiPublished')}
+            value={inventory.data.count}
+            icon={<BookCheck aria-hidden="true" className="size-5" />}
+            caption={t('publish.kpiSource', { source: inventory.data.source })}
+          />
+          <KpiCard
+            label={t('publish.kpiActive')}
+            value={active}
+            icon={<Layers aria-hidden="true" className="size-5" />}
+            tone="success"
+          />
+          <KpiCard
+            label={t('publish.kpiRetired')}
+            value={items.length - active}
+            icon={<Archive aria-hidden="true" className="size-5" />}
+            tone="neutral"
+          />
+        </div>
+      ) : null}
+
       {!approved.ok ? <Problem problem={approved.problem} /> : null}
       <PublishPanel approved={approvedQuestions} />
 
-      <h2>{t('publish.inventoryHeading')}</h2>
-      {!inventory.ok ? <Problem problem={inventory.problem} /> : null}
-      {inventory.ok && inventory.data.items.length === 0 ? <p>{t('publish.noInventory')}</p> : null}
-      {inventory.ok && inventory.data.items.length > 0 ? (
-        <table>
-          <caption>
-            {t('publish.inventoryCaption')} — {inventory.data.source}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">{t('publish.bankQuestionId')}</th>
-              <th scope="col">{t('publish.question')}</th>
-              <th scope="col">{t('publish.version')}</th>
-              <th scope="col">{t('publish.status')}</th>
-              <th scope="col">{t('publish.active')}</th>
-              <th scope="col">{t('publish.publishedAt')}</th>
-              <th scope="col">{t('sources.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {inventory.data.items.map((item) => (
-              <tr key={item.bankQuestionId}>
-                <th scope="row" className="mono">
-                  {item.bankQuestionId}
-                </th>
-                <td>
-                  {/* A published question is still a question someone needs to
-                      read: its evidence, its gates, and its version history are
-                      on the same page an approver used. */}
-                  <Link href={`/review/${item.questionId}`}>{item.questionText}</Link>
-                </td>
-                <td>{item.publishedVersion}</td>
-                <td>{item.status}</td>
-                <td className={item.isActive ? 'pass' : 'warn'}>
-                  {item.isActive ? t('browser.yes') : t('browser.no')}
-                </td>
-                <td>
-                  {item.publishedAt === null ? '—' : new Date(item.publishedAt).toISOString()}
-                </td>
-                <td>
-                  {/* Retirement, never deletion: G7 gives the bank adapter no
-                      delete method at all. */}
-                  {item.retiredAt === null ? (
-                    <RetireForm questionId={item.questionId} />
-                  ) : (
-                    <span className="muted">{item.retireComment ?? '—'}</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
+      <Card>
+        <CardHeader
+          title={t('publish.inventoryHeading')}
+          description={t('publish.inventoryIntro')}
+          actions={
+            inventory.ok ? (
+              <Badge tone="info" withIcon={false}>
+                {inventory.data.source}
+              </Badge>
+            ) : undefined
+          }
+        />
+        <CardBody>
+          {!inventory.ok ? <Problem problem={inventory.problem} /> : null}
+          {inventory.ok && items.length === 0 ? (
+            <EmptyState
+              title={t('publish.noInventory')}
+              description={t('publish.noInventoryBody')}
+            />
+          ) : null}
+          {inventory.ok && items.length > 0 ? (
+            <DataTable caption={t('publish.inventoryCaption')} captionHidden>
+              <THead>
+                <Tr>
+                  <Th scope="col">{t('publish.bankQuestionId')}</Th>
+                  <Th scope="col">{t('publish.question')}</Th>
+                  <Th scope="col">{t('publish.version')}</Th>
+                  <Th scope="col">{t('publish.status')}</Th>
+                  <Th scope="col">{t('publish.publishedAt')}</Th>
+                  <Th scope="col">{t('sources.actions')}</Th>
+                </Tr>
+              </THead>
+              <TBody>
+                {items.map((item) => (
+                  <Tr key={item.bankQuestionId}>
+                    <Th scope="row">
+                      <span className="font-mono text-sm">{item.bankQuestionId}</span>
+                    </Th>
+                    <Td className="max-w-md">
+                      {/* A published question is still a question someone needs
+                          to read: its evidence, its gates, and its version
+                          history are on the same page an approver used. */}
+                      <TextLink href={`/review/${item.questionId}`}>{item.questionText}</TextLink>
+                    </Td>
+                    <Td>
+                      <VersionBadge version={item.publishedVersion} />
+                    </Td>
+                    <Td>
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <StatusBadge status={item.status} />
+                        {item.isActive ? null : (
+                          <StatusBadge status={t('publish.retired')} tone="neutral" />
+                        )}
+                      </span>
+                    </Td>
+                    <Td>{formatWhen(item.publishedAt)}</Td>
+                    <Td>
+                      {item.retiredAt === null ? (
+                        <RetireForm questionId={item.questionId} questionText={item.questionText} />
+                      ) : (
+                        <span className="text-sm text-ink-subtle">
+                          {item.retireComment ?? DASH}
+                        </span>
+                      )}
+                    </Td>
+                  </Tr>
+                ))}
+              </TBody>
+            </DataTable>
+          ) : null}
+        </CardBody>
+      </Card>
 
-      <h2>{t('publish.assessmentHeading')}</h2>
       {!taxonomy.ok ? <Problem problem={taxonomy.problem} /> : null}
       {taxonomy.ok ? <AssessmentForm domains={taxonomy.data.domains} /> : null}
 
-      {!assessments.ok ? <Problem problem={assessments.problem} /> : null}
-      {assessments.ok && assessments.data.assessments.length === 0 ? (
-        <p>{t('publish.noAssessments')}</p>
-      ) : null}
-      {assessments.ok && assessments.data.assessments.length > 0 ? (
-        <table>
-          <caption>{t('publish.assessmentsCaption')}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{t('publish.assessmentName')}</th>
-              <th scope="col">{t('publish.assessmentStatus')}</th>
-              <th scope="col">{t('publish.assessmentQuestions')}</th>
-              <th scope="col">{t('publish.assessmentPool')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assessments.data.assessments.map((assessment) => (
-              <tr key={assessment.assessmentId}>
-                <th scope="row">{assessment.name}</th>
-                <td>
-                  {assessment.status}
-                  {assessment.versionStatus === null ? null : (
-                    <span className="muted">
-                      {' '}
-                      · v{assessment.versionNumber} {assessment.versionStatus}
-                    </span>
-                  )}
-                </td>
-                <td>{assessment.questionCount ?? '—'}</td>
-                <td>{assessment.pinnedPoolSize ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
-    </article>
+      <Card>
+        <CardHeader
+          title={t('publish.assessmentsCaption')}
+          description={t('publish.assessmentsIntro')}
+        />
+        <CardBody>
+          {!assessments.ok ? <Problem problem={assessments.problem} /> : null}
+          {assessments.ok && assessments.data.assessments.length === 0 ? (
+            <EmptyState
+              title={t('publish.noAssessments')}
+              description={t('publish.noAssessmentsBody')}
+            />
+          ) : null}
+          {assessments.ok && assessments.data.assessments.length > 0 ? (
+            <DataTable caption={t('publish.assessmentsCaption')} captionHidden>
+              <THead>
+                <Tr>
+                  <Th scope="col">{t('publish.assessmentName')}</Th>
+                  <Th scope="col">{t('publish.assessmentStatus')}</Th>
+                  <Th scope="col" align="end">
+                    {t('publish.assessmentQuestions')}
+                  </Th>
+                  <Th scope="col" align="end">
+                    {t('publish.assessmentPool')}
+                  </Th>
+                  <Th scope="col" align="end">
+                    {t('publish.assessmentSessions')}
+                  </Th>
+                </Tr>
+              </THead>
+              <TBody>
+                {assessments.data.assessments.map((assessment) => (
+                  <Tr key={assessment.assessmentId}>
+                    <Th scope="row">{assessment.name}</Th>
+                    <Td>
+                      {/* §16: a published release must look different from a
+                          mutable draft, so both statuses are shown rather than
+                          collapsed into one word. */}
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <StatusBadge status={assessment.status} />
+                        {assessment.versionStatus === null ? null : (
+                          <>
+                            <VersionBadge version={assessment.versionNumber ?? DASH} />
+                            <StatusBadge status={assessment.versionStatus} />
+                          </>
+                        )}
+                      </span>
+                    </Td>
+                    <Td numeric>{assessment.questionCount ?? DASH}</Td>
+                    {/* The pinned pool is what makes an attempt reproducible. */}
+                    <Td numeric>{assessment.pinnedPoolSize ?? DASH}</Td>
+                    <Td numeric>{assessment.sessionCount}</Td>
+                  </Tr>
+                ))}
+              </TBody>
+            </DataTable>
+          ) : null}
+        </CardBody>
+      </Card>
+    </div>
   );
 }

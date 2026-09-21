@@ -52,7 +52,7 @@ export default async function QuizPage({ params }: { params: Promise<{ sessionId
 
   if (!result.ok) {
     return (
-      <article>
+      <article className="legacy-page">
         <h1>{t('app.portal')}</h1>
         <Problem problem={result.problem} />
         <p>
@@ -65,7 +65,7 @@ export default async function QuizPage({ params }: { params: Promise<{ sessionId
   const current = result.data;
 
   return (
-    <article>
+    <article className="legacy-page">
       <h1>
         {t('quiz.heading', {
           index: current.currentIndex + 1,

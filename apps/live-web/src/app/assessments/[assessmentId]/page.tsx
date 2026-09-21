@@ -39,7 +39,7 @@ export default async function StartAssessmentPage({
 
   if (!result.ok) {
     return (
-      <article>
+      <article className="legacy-page">
         <h1>{t('start.heading')}</h1>
         <Problem problem={result.problem} />
       </article>
@@ -52,7 +52,7 @@ export default async function StartAssessmentPage({
   if (assessment === undefined) notFound();
 
   return (
-    <article>
+    <article className="legacy-page">
       <h1>{assessment.name}</h1>
       <p>
         <Link href="/">{t('start.back')}</Link>

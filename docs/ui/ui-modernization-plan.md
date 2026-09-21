@@ -1,7 +1,8 @@
 # KNOWZY — UI Modernization Plan (Phase 8)
 
-**Status:** Planning artifact, except §19 — UI-M1 is implemented (shell, tokens, shared
-components). No API contract, server action, route, or domain behaviour changed.
+**Status:** Planning artifact, except §19 and §21 — UI-M1 (the shared shell) and UI-M2 (the
+authoring workflow chain) are implemented. No API contract, server action, route, or domain
+behaviour changed.
 **Created:** 2026-09-21 · **Revised:** 2026-09-21 (learner portal, capability matrix, milestones)
 **Assessed commit:** `bbb9df6`
 **Sources of truth, in precedence order:**
@@ -533,12 +534,13 @@ the milestone's own exit criteria.
 | ID | Scope | Exit criteria |
 | --- | --- | --- |
 | **UI-M1** | Design tokens, typography, shared primitives, domain and learner components, authoring shell, learner shell, package wiring, icon library | Both portals render inside the new shells; all 11 routes behave identically; keyboard and landmark pass; token test green |
-| **UI-M2** | Authoring dashboard | Four real KPIs; every unsupported panel labelled *Planned*; no delta claims |
-| **UI-M3** | Knowledge Sources and Document Browser | Test and sync unchanged; denied documents invisible; tabs from real status |
-| **UI-M4** | AI Quiz Generation (§15 three zones) | Preflight, recorded decision, refusals, and rejection reporting unchanged; **no Publish button, no difficulty** |
-| **UI-M5** | Review Queue and question detail | Six detail tabs; evidence verbatim with offsets; edit revalidates |
-| **UI-M6** | Approvals | 13 server-evaluated gates; gate 13 still refuses the author; refusals specific |
-| **UI-M7** | Question Bank | Provenance timeline; retire not delete; no in-place edit of a published version |
+| **UI-M2** | **Re-sequenced on request (2026-09-21): the authoring workflow chain** — Knowledge Sources, document selection, AI generation, Review Queue, Approval, Question Bank. Delivered; see §21 | Every page on the design system; every read, action, and refusal unchanged; browser-driven through the whole chain |
+| **UI-M2b** | Authoring dashboard (what UI-M2 originally was) | Four real KPIs; every unsupported panel labelled *Planned*; no delta claims. Still gated on §20 Q3 |
+| **UI-M3** | Delivered inside UI-M2 — Knowledge Sources and Document Browser | Test and sync unchanged; denied documents invisible; tabs from real status |
+| **UI-M4** | Delivered inside UI-M2 — AI Quiz Generation (§15 three zones) | Preflight, recorded decision, refusals, and rejection reporting unchanged; **no Publish button, no difficulty** |
+| **UI-M5** | Delivered inside UI-M2 — Review Queue and question detail | Six detail tabs; evidence verbatim with offsets; edit revalidates |
+| **UI-M6** | Delivered inside UI-M2 — Approvals | 13 server-evaluated gates; gate 13 still refuses the author; refusals specific |
+| **UI-M7** | Delivered inside UI-M2 — Question Bank | Provenance timeline; retire not delete; no in-place edit of a published version |
 | **UI-M8** | Assessments (authoring) | Pinned pool and versions visible; published visually distinct from draft |
 | **UI-M9** | Learner MVP routes: home, assessments, detail, quiz, results | No answer key anywhere; resume correct; no `NaN`; quiz usable on tablet |
 | **UI-M10** | Reports, Governance, and Administration shells | Honest *Planned* states; read-only permission matrix reflects the real policy table |
@@ -603,7 +605,7 @@ in 16.3 should start before UI-M11 is green.
 
 ---
 
-## 19. UI-M1 scope (approved, in progress)
+## 19. UI-M1 — the shared shell (delivered)
 
 **Goal:** one design system, two shells, eleven routes that look enterprise-grade and behave
 exactly as they do today.
@@ -741,3 +743,86 @@ are used as supplied. If the official marks arrive later, they replace these fil
    approved**. Approve the scheme, or drop them from the design?
 8. **Review policy for explanations** — should a learner see the approved explanation after
    completing an assessment? §11 says follow the configured policy; no such policy exists yet.
+
+---
+
+## 21. UI-M2 — the authoring workflow chain (delivered)
+
+Re-sequenced on request: M2 is the workflow chain, not the dashboard. Knowledge Sources → document
+selection → AI question generation → Review Queue → Approval → Question Bank, which absorbs what
+§16.1 listed as UI-M3 through UI-M7. The dashboard moved to UI-M2b, where it still waits on the
+§20 Q3 honesty question.
+
+### 21.1 What changed
+
+Six pages and seven components moved onto the design system:
+
+| Screen | Route | What it is now |
+| --- | --- | --- |
+| Knowledge Sources | `/sources` | Three derived figures, the §14 source table, and the two operations. Test and Synchronize results open in a **drawer** (§30) instead of pushing the table down the page |
+| Document Browser | `/sources/[sourceId]` | Containers as a link-based tab set, a folder breadcrumb, the item table with extraction status and selectability, and the section table with its offsets |
+| AI Quiz Generation | `/generate` | §15's three zones as three numbered cards: select, decide, generate. The preflight checks are a real table; the rejection list is kept |
+| Review Queue | `/review` | Five queues as a link-based tab set with a live count, status and version badges, confidence right-aligned |
+| Approval | `/review/[questionId]` | §5.2's six detail tabs — Question, Evidence, Source, Governance, Review history, Version history |
+| Question Bank | `/publish` | Bank figures, the publish batch with per-item outcomes, the inventory labelled with its source, and the assessment form |
+
+**Nothing about behaviour changed.** Same reads, same server actions, same authorization, same
+refusals, same URL contracts. The eleven §2 controls are untouched.
+
+### 21.2 Decisions worth recording
+
+- **The gate verdict is not inside a tab.** The six detail tabs are what §5.2 asks for, but burying
+  "1 of 13 gates failed" one click away would hide the only thing on the page that says whether the
+  question may proceed. The verdict card, with the failed gates spelled out, sits above the tabs;
+  the full thirteen-row table lives in Governance.
+- **Retirement is a modal.** In a table cell the comment box made every row three lines tall. It is
+  the shared `Modal`, so Escape and focus restoration come with it — which matters most for the one
+  action on the page that looks destructive. It is still retirement, never deletion (G7).
+- **`legacy.css` is now opt-in.** It was nested under `#main` in UI-M1; a converted page still
+  renders inside `#main`, and `#main button` (0,1,1) outranks the utility classes on a shared
+  `Button` (0,1,0), so a converted control kept its legacy paint. The rules now sit under
+  `.legacy-page`, which each unconverted page names on its root element. Six of eleven pages have
+  dropped it. When the last one goes, the file goes.
+- **Owner and Scope are still absent** from the source table, as the capability matrix says
+  (`REQUIRES_BACKEND_EXTENSION`, UI-M10): `KnowledgeSource` has no owner field, and an invented
+  name would be a person presented as fact.
+- **No Publish button and no difficulty control on the generation screen**, which §15 forbids there.
+- **The derived figures carry no comparison.** No "vs last month" anywhere, because no history is
+  stored to compare against.
+
+### 21.3 Not delivered, from the absorbed milestones
+
+Stated rather than quietly dropped:
+
+- **Provenance timeline** (UI-M7's exit criterion). Not built. The provenance that exists — version
+  history, change kind, changed fields, whether evidence was re-verified — is on the question's
+  Version history tab. A timeline component belongs with the reconciliation work in §8.
+- **Status tabs on the source list** (UI-M3's "tabs from real status"). Not built: with one
+  configured source, a tab set filtering one row would be furniture. The status is a column.
+- **Pagination.** Every list in this build fits on one page.
+
+### 21.4 How it was verified
+
+A browser actually drove it, which this repository could not do before. Node 24 ships a global
+WebSocket, so a small Chrome DevTools Protocol script clicks through the flows and reports console
+errors; it lives in the session scratchpad as a verification aid, not as the Playwright suite (still
+UI-M11).
+
+That found two defects that reading the source had not:
+
+1. **A hydration failure on the generation screen.** `PageHero`'s `secondaryText` rendered inside a
+   `<p>`, and the page passed a `<dl>` into it. Invalid nesting, which React reports as a hydration
+   mismatch and then re-renders the whole tree on the client. Fixed in the component: every
+   `ReactNode` slot is a `div`.
+2. **Two highlighted destinations on `/publish`.** Question Bank and Assessments both point there
+   in this release and both sit earlier in the sidebar than Publish itself, so an alias won the
+   tie. `activeNavLabel` now prefers the destination that *is* the page.
+
+Also checked: the structural audit over all 13 routes — landmarks, skip link, heading order,
+accessible names, unique ids, and whether each disabled control explains itself — **no findings**;
+and the full flow end to end in the browser, selecting a document, running preflight, recording a
+decision, generating, and reading the result.
+
+Two audit findings turned out to be the audit's own fault and are recorded so nobody chases them
+again: Tailwind's `disabled:` class variants read as a `disabled` attribute, and the "Planned"
+label inside the Copilot button sits past a 700-character window.

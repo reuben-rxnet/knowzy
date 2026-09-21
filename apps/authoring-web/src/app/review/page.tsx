@@ -1,5 +1,22 @@
-import Link from 'next/link';
-import { t } from '../../copy';
+import {
+  Badge,
+  BlockedBadge,
+  ButtonLink,
+  CellNote,
+  DataTable,
+  EmptyState,
+  PageHero,
+  StatusBadge,
+  TBody,
+  THead,
+  TabNav,
+  Td,
+  Th,
+  TextLink,
+  Tr,
+  VersionBadge,
+} from '@knowzy/shared-ui';
+import { t, type CopyKey } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
 
@@ -25,6 +42,14 @@ type Queue = (typeof QUEUES)[number];
 const isQueue = (value: string | undefined): value is Queue =>
   value !== undefined && (QUEUES as readonly string[]).includes(value);
 
+const QUEUE_LABEL: Record<Queue, CopyKey> = {
+  author: 'review.queueAuthor',
+  approval: 'review.queueApproval',
+  publish: 'publish.approvedHeading',
+  published: 'review.queuePublished',
+  all: 'review.queueAll',
+};
+
 /**
  * Draft review queue.
  *
@@ -42,6 +67,10 @@ const isQueue = (value: string | undefined): value is Queue =>
  *
  * Ordered by confidence ascending, as the API returns it: the drafts most
  * likely to need work come first rather than last.
+ *
+ * UI-M2 converted the screen. The five queues, the document filter, and the
+ * ordering are unchanged; the queue switch is a link-based TabNav so each view
+ * stays bookmarkable.
  */
 export default async function ReviewQueuePage({
   searchParams,
@@ -57,89 +86,109 @@ export default async function ReviewQueuePage({
       (documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`),
   );
 
-  return (
-    <article>
-      <h1>{t('review.heading')}</h1>
-      <p className="lede">{t('review.intro')}</p>
+  const suffix = documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`;
 
-      <nav aria-label={t('review.queueLabel')}>
-        <ul>
-          <li>
-            <Link href="/review?queue=author">{t('review.queueAuthor')}</Link>
-          </li>
-          <li>
-            <Link href="/review?queue=approval">{t('review.queueApproval')}</Link>
-          </li>
-          <li>
-            <Link href="/review?queue=publish">{t('publish.approvedHeading')}</Link>
-          </li>
-          <li>
-            <Link href="/review?queue=published">{t('review.queuePublished')}</Link>
-          </li>
-          <li>
-            <Link href="/review?queue=all">{t('review.queueAll')}</Link>
-          </li>
-        </ul>
-      </nav>
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHero
+        title={t('review.heading')}
+        purpose={t('review.intro')}
+        actions={
+          result.ok ? (
+            <Badge tone="neutral" withIcon={false}>
+              {t('review.countLabel', { count: result.data.count })}
+            </Badge>
+          ) : undefined
+        }
+      />
+
+      <TabNav
+        ariaLabel={t('review.queueLabel')}
+        activeHref={`/review?queue=${queue}${suffix}`}
+        items={QUEUES.map((name) => ({
+          label: t(QUEUE_LABEL[name]),
+          href: `/review?queue=${name}${suffix}`,
+          ...(name === queue && result.ok ? { count: result.data.count } : {}),
+        }))}
+      />
 
       {documentId === undefined ? null : (
-        <p className="panel">
-          {t('review.documentFilter')}{' '}
-          <Link href={`/review?queue=${queue}`}>{t('review.clearFilter')}</Link>
-        </p>
+        <div
+          className="flex flex-wrap items-center gap-3 rounded-md bg-info-soft px-4 py-3 text-base text-ink"
+          role="status"
+        >
+          <span>{t('review.documentFilter')}</span>
+          <TextLink href={`/review?queue=${queue}`}>{t('review.clearFilter')}</TextLink>
+        </div>
       )}
 
       {!result.ok ? <Problem problem={result.problem} /> : null}
 
-      {result.ok && result.data.items.length === 0 ? <p>{t('review.empty')}</p> : null}
+      {result.ok && result.data.items.length === 0 ? (
+        <EmptyState title={t('review.empty')} description={t('review.emptyBody')} />
+      ) : null}
 
       {result.ok && result.data.items.length > 0 ? (
-        <table>
-          <caption>
-            {t('review.tableCaption')} — {queue} ({result.data.count})
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">{t('review.question')}</th>
-              <th scope="col">{t('review.status')}</th>
-              <th scope="col">{t('review.confidence')}</th>
-              <th scope="col">{t('review.source')}</th>
-              <th scope="col">{t('review.duplicate')}</th>
-              <th scope="col">{t('sources.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
+        <DataTable caption={`${t('review.tableCaption')} — ${queue} (${result.data.count})`}>
+          <THead>
+            <Tr>
+              <Th scope="col">{t('review.question')}</Th>
+              <Th scope="col">{t('review.status')}</Th>
+              <Th scope="col" align="end">
+                {t('review.confidence')}
+              </Th>
+              <Th scope="col">{t('review.source')}</Th>
+              <Th scope="col">{t('review.duplicate')}</Th>
+              <Th scope="col">{t('sources.actions')}</Th>
+            </Tr>
+          </THead>
+          <TBody>
             {result.data.items.map((item) => (
-              <tr key={item.questionId}>
-                <th scope="row">{item.questionText}</th>
-                <td>
-                  {item.status} <span className="muted">v{item.version}</span>
-                </td>
-                <td>{Number(item.confidence.score).toFixed(3)}</td>
-                <td>
+              <Tr key={item.questionId}>
+                <Th scope="row" className="max-w-xl">
+                  <span className="block font-semibold">{item.questionText}</span>
+                  <CellNote>
+                    {item.domain.name} · {item.topic}
+                  </CellNote>
+                </Th>
+                <Td>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <StatusBadge status={item.status} />
+                    <VersionBadge version={item.version} />
+                  </span>
+                </Td>
+                {/* Computed by the platform, and it authorizes nothing — the
+                    gates do. Sorted ascending by it, so the weakest drafts are
+                    read first. */}
+                <Td numeric>{Number(item.confidence.score).toFixed(3)}</Td>
+                <Td>
                   {item.source.documentName}
-                  <br />
-                  <span className="muted">{item.topic}</span>
-                </td>
-                <td>
-                  {item.duplicate.maxSimilarityScore === null
-                    ? '—'
-                    : Number(item.duplicate.maxSimilarityScore).toFixed(3)}
+                  <CellNote>{item.source.sectionKey.slice(0, 12)}</CellNote>
+                </Td>
+                <Td>
+                  {item.duplicate.maxSimilarityScore === null ? (
+                    <span className="text-ink-subtle">—</span>
+                  ) : (
+                    <span className="font-mono tabular-nums">
+                      {Number(item.duplicate.maxSimilarityScore).toFixed(3)}
+                    </span>
+                  )}
                   {item.duplicate.blocksApproval ? (
-                    <>
-                      <br />
-                      <span className="fail">{t('review.blocksApproval')}</span>
-                    </>
+                    <span className="mt-1 block">
+                      <BlockedBadge>{t('review.blocksApproval')}</BlockedBadge>
+                    </span>
                   ) : null}
-                </td>
-                <td>
-                  <Link href={`/review/${item.questionId}`}>{t('review.open')}</Link>
-                </td>
-              </tr>
+                </Td>
+                <Td>
+                  <ButtonLink href={`/review/${item.questionId}`} size="sm">
+                    {t('review.open')}
+                  </ButtonLink>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </DataTable>
       ) : null}
-    </article>
+    </div>
   );
 }

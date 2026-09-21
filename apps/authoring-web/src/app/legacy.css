@@ -28,17 +28,20 @@
   --focus: var(--color-brand-blue);
 }
 
-/* Scoped to `#main`, the page region the shell wraps.
+/* Scoped to `.legacy-page`, which an UNCONVERTED page names on its root element.
  *
  * These rules are element-level by design (`button`, `a`, `select`), which was
- * safe while the page WAS the document. It is not safe now: without a scope
- * they also paint the shared header, sidebar, and footer. The shell renders
- * outside `#main`, so this one nesting level keeps the legacy pages looking
- * exactly as they did and keeps them off the shell.
+ * safe while the page WAS the document. It is not safe now. Two things would
+ * go wrong without a scope: they would paint the shared header, sidebar and
+ * footer, and — since a converted page still renders inside the shell's
+ * `#main` — an ancestor scope like `#main button` (0,1,1) would outrank the
+ * utility classes on a shared Button (0,1,0) and keep the legacy paint.
  *
- * As each page is converted (UI-M2 onward), its rules leave this block. */
+ * An opt-in class has neither problem. A page that has been converted does not
+ * carry it, so nothing here can reach it. Each conversion (UI-M2 onward)
+ * deletes one more `legacy-page`; when the last one goes, so does this file. */
 
-#main {
+.legacy-page {
   a {
     color: var(--accent);
   }

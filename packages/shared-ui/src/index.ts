@@ -45,6 +45,36 @@ export { AUTHORING_NAV, AuthoringShell, LEARNER_NAV, LearnerShell } from './comp
 
 // --------------------------------------------------------------- primitives
 export {
+  Button,
+  ButtonLink,
+  TextLink,
+  buttonClass,
+  type ButtonProps,
+  type ButtonSize,
+  type ButtonTone,
+} from './components/Button.js';
+export {
+  CellNote,
+  DataTable,
+  TBody,
+  THead,
+  Td,
+  Th,
+  Tr,
+  type DataTableProps,
+} from './components/DataTable.js';
+export {
+  CheckboxRow,
+  Field,
+  FieldLabel,
+  Fieldset,
+  RadioRow,
+  Select,
+  TextInput,
+  Textarea,
+} from './components/Field.js';
+export { KeyValue, TabNav, type KeyValueItem, type TabItem } from './components/TabNav.js';
+export {
   Card,
   CardBody,
   CardFooter,
