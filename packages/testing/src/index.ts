@@ -14,5 +14,21 @@
 
 export const PACKAGE_NAME = '@knowzy/testing' as const;
 
+// The dependency-audit gate: the rules that decide whether a high or critical
+// advisory blocks the build, and the register of documented exceptions it
+// reads. Exported from here rather than left as a loose module so the file is
+// part of this package's surface and dependency-cruiser does not report it as
+// an orphan. The I/O half lives in scripts/audit-gate.ts.
+export {
+  advisoriesFromNpmAudit,
+  evaluateAudit,
+  parseExceptionRegister,
+  type AuditAdvisory,
+  type ExceptionRegister,
+  type GateVerdict,
+  type SecurityException,
+  type Severity,
+} from './audit-exceptions.js';
+
 /** The delivery phase that implements this package. */
 export const IMPLEMENTED_IN = 'Phases 1-11' as const;

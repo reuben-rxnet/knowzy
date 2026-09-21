@@ -5,6 +5,11 @@ Architecture Source of Truth:
 - Where this file and /docs disagree, /docs wins.
 - docs/MVP-READINESS.md is a STATUS REPORT, not a specification. If it and the
   code disagree, the code is right and the report is stale.
+- docs/SECURITY-EXCEPTIONS.md is a LIVE CONTROL DOCUMENT, not prose: the JSON
+  block in its section 4 is parsed by `npm run audit:gate` in CI. A new high or
+  critical advisory fails the build until it is classified and declared there,
+  an expired entry fails, and an entry matching nothing fails. Never widen the
+  gate in the workflow; add or re-assess an entry instead.
 - docs/USER-GUIDE.md describes the SOFTWARE for the person driving it. It is
   updated in the SAME COMMIT as any change to what a user sees or does: a new
   screen, a moved control, a changed label, a new refusal, or anything promoted
@@ -84,9 +89,15 @@ Still Open:
 - No live Claude call. Generation uses a deterministic local generator and
   records modelId = knowzy-deterministic-local-1. Question QUALITY has never
   been tested against Claude, which is the product's actual purpose.
-- CI has never executed (the workflow encodes gates that pass locally).
-- No git remote configured. main is current; phase-1-validation is an old
-  branch and can be deleted.
+- CI ran for the first time on 2026-09-21 and failed on `format:check`. Fixed
+  by formatting the tree (31 files prettier had never been run over), plus a
+  schema-drift fix and the audit gate below. The `images` job (5 Dockerfile
+  builds and a trivy HIGH/CRITICAL scan) has still never been exercised and is
+  the most likely next red.
+- Deferred with reasons in docs/SECURITY-EXCEPTIONS.md: Next.js 15 -> 16 and
+  Vitest 2 -> 5. Major upgrades whose advisories are not reachable here; both
+  entries expire 2026-12-31.
+- phase-1-validation is an old branch and can be deleted.
 - No automated end-to-end test. docs/initial-end-to-end-proof.md section 3
   defines a 36-step acceptance script; the equivalent has only ever been run
   by hand.
@@ -148,6 +159,16 @@ Gotchas learned by execution (each of these cost real time):
   published_question_reference, a republish reports ALREADY_PUBLISHED for ids
   the bank still holds. That is the adapter being right about its own state;
   delete the file if a clean publish demo is wanted.
+- `prisma migrate diff` (the CI drift gate) compares the MIGRATIONS against
+  schema.prisma, and Prisma cannot express a raw GIN/trigram index by default.
+  Migration 0003 creates four; the two on plain columns are now declared with
+  `@@index([col(ops: raw("gin_trgm_ops"))], type: Gin)`, and the two on
+  expressions (coalesce/to_tsvector) Prisma ignores. Add a raw index to a
+  migration and you must declare it, or the drift gate fails.
+- npm reports TWO severities per finding: the advisory's own and the package
+  rollup. They often disagree (GHSA-qx2v-qp2m-jg93 is moderate while npm rolls
+  postcss up to high). `--audit-level=high` blocks on the rollup, so the audit
+  gate does too.
 - preflight.offeredActions is ALWAYS the four workflows.md 4.2 actions and
   never includes GENERATE_NEW, which is what a never-processed document
   recommends. Any UI listing the offered actions must union in the

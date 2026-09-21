@@ -1083,6 +1083,10 @@ model KnowledgeDocument {
   @@unique([sourceId, sourceDocumentId])
   @@index([sourceId, status, extractionStatus])
   @@index([pathId])
+  /// Fuzzy name search (knowledge-source-administration.md §7.4). Declared here
+  /// as well as in migration 0003 so the datamodel and the migrations agree —
+  /// CI diffs one against the other and an index in only one of them is drift.
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "knowledge_document_name_trgm_idx")
   @@map("knowledge_document")
 }
 
@@ -1474,6 +1478,10 @@ model DraftQuestion {
   @@index([generationJobId])
   @@index([domainId, topicId, status])
   @@index([similarityClusterId])
+  /// Stage-2 duplicate candidate blocking (generation-governance.md §4.4), the
+  /// trigram index migration 0003 creates. Same reason as above: the drift gate
+  /// compares the migrations against this file.
+  @@index([questionText(ops: raw("gin_trgm_ops"))], type: Gin, map: "draft_question_text_trgm_idx")
   @@map("draft_question")
 }
 

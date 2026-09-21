@@ -22,12 +22,13 @@ No application code, scaffolding, or placeholder source files are produced at th
 | M365 / SharePoint integration architect | [knowledge-source-administration.md](knowledge-source-administration.md), [sharepoint-question-bank.md](sharepoint-question-bank.md), [sharepoint-field-mapping.md](sharepoint-field-mapping.md) |
 | Full-stack engineer | [repository-structure.md](repository-structure.md), [data-model.md](data-model.md), [workflows.md](workflows.md), [error-handling.md](error-handling.md) |
 | MCP / AI engineer | [mcp-tools.md](mcp-tools.md), [knowledge-source-adapters.md](knowledge-source-adapters.md), [workflows.md](workflows.md) |
-| Security architect | [security.md](security.md), [access-control.md](access-control.md), [audit-model.md](audit-model.md) |
+| Security architect | [security.md](security.md), [access-control.md](access-control.md), [audit-model.md](audit-model.md), [SECURITY-EXCEPTIONS.md](SECURITY-EXCEPTIONS.md) |
 | Data / reporting architect | [data-model.md](data-model.md), [reporting.md](reporting.md) |
 | UX designer | [ux-design.md](ux-design.md), [authoring-portal.md](authoring-portal.md), [live-learning-portal.md](live-learning-portal.md) |
 | Platform / release engineer | [environment-and-configuration.md](environment-and-configuration.md), [architecture.md](architecture.md#12-deployment-architecture) |
 | Delivery lead planning sprint 1 | [initial-end-to-end-proof.md](initial-end-to-end-proof.md) |
-| Using or demonstrating the running software | [USER-GUIDE.md](USER-GUIDE.md) |
+| Using or demonstrating the running software | [SECURITY-EXCEPTIONS.md](SECURITY-EXCEPTIONS.md) | **Live control document — CI reads it.** Deferred dependency advisories, each classified (breaking / non-breaking, reachable / non-reachable), reasoned, and dated. The register in §4 is parsed by `npm run audit:gate` |
+| [USER-GUIDE.md](USER-GUIDE.md) |
 
 ---
 

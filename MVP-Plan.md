@@ -35,33 +35,34 @@ implementation-roadmap.md Phase 2).
 Each is asserted by a test, so turning it on is a visible change rather than a
 forgotten one.
 
-| Rule | Deviation | Containment |
-| --- | --- | --- |
-| mcp-tools.md E1 | The authorization envelope is **not signed**. Signing needs a Key Vault key, rotation, and a local development key, none of which exist yet. | Expiry, structure, and E3's fresh re-resolution of roles and scope ARE enforced. MCP publishes no port, so the trust boundary is the container network. `ENVELOPE_SIGNING_ENFORCED = false` is asserted by `apps/mcp-server/test/tool-registry.test.ts`. |
-| mcp-tools.md T7 vs audit-model.md §8 | The documents disagree: T7 says every tool invocation is audited, §8 lists "individual read requests (page loads, list queries)" as deliberately not audited. **Resolved in favour of the audit model**, which owns what the store contains and gives the reason. | `auditAction` is still a REQUIRED field; a read tool must name the rule that exempts it in `auditExemptionReason`, and a tool that WRITES cannot be exempt at all. Enforced at registration. |
-| knowledge-source-adapters.md §2.3 | PDF, DOCX, PPTX, XLSX, and SharePoint pages have no extractor. | A document of an unregistered type returns `UNSUPPORTED` with a reason and **no text**, never a silent skip. Adding one is a map entry plus a conformance fixture. |
-| §8 conformance groups | Section lineage, bank assertions, resilience (429/circuit), and end-to-end are not yet asserted. | Declared as `todo` in the suite rather than omitted, so the suite reports what it does not cover (6 todos). |
-| workflows.md §2.2 | Generation runs **in-process** on the job-creation request instead of returning 202 and enqueuing on the job runner. | `runGenerationJob` is a domain function with no process affinity, so moving it behind the existing pg-boss queue is wiring, not redesign. Until then a large job holds the request open. |
-| workflows.md §2.3 retrieval | The run reads pinned sections from the index rather than re-calling `extract_document_content` through MCP. | The purpose of retrieval-time verification is kept: the run compares each document's current `contentHash` against what the scope captured and aborts with `DOCUMENT_CONTENT_DRIFT` rather than grounding questions in text that has since changed. |
-| generation-governance.md §4.4 | Duplicate scoring computes trigram similarity in process instead of via `pg_trgm`. | Verification and scoring must both run BEFORE anything is persisted, so there is nothing in the database to compare against yet. The implementation mirrors `pg_trgm.similarity()` so a score here and a score from the database agree. |
-| sharepoint-question-bank.md G4 | The mock bank is writable in `local` even though `sharepoint.write.enabled` is off and its ceiling forbids it outside test and prod. | G4 gates writes to **SharePoint**; the mock bank is a different implementation of the same port writing to a local JSON file, and knowledge-source-adapters.md §6 requires the whole pipeline — publish included — to be exercisable with no tenant credentials. The gate is therefore "may THIS bank be written in THIS environment": MOCK in `local` only (the registry refuses to construct it elsewhere), SHAREPOINT only when the flag is on, otherwise dry-run. Every publish response states `dryRun` and the bank type, so nothing is ambiguous. |
-| §2.8 / live Claude | Generation uses a deterministic local generator, not a Claude call. | A documented time-boxing lever, and the zero-credential local path requires it. The generator quotes the document verbatim and goes through the SAME gate chain as a model response, so the gates are exercised for real. `modelId` records `knowzy-deterministic-local-1`, so no job row can suggest a Claude model produced these. |
+| Rule                                 | Deviation                                                                                                                                                                                                                                                         | Containment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| mcp-tools.md E1                      | The authorization envelope is **not signed**. Signing needs a Key Vault key, rotation, and a local development key, none of which exist yet.                                                                                                                      | Expiry, structure, and E3's fresh re-resolution of roles and scope ARE enforced. MCP publishes no port, so the trust boundary is the container network. `ENVELOPE_SIGNING_ENFORCED = false` is asserted by `apps/mcp-server/test/tool-registry.test.ts`.                                                                                                                                                                                                                                                                                                                                                   |
+| mcp-tools.md T7 vs audit-model.md §8 | The documents disagree: T7 says every tool invocation is audited, §8 lists "individual read requests (page loads, list queries)" as deliberately not audited. **Resolved in favour of the audit model**, which owns what the store contains and gives the reason. | `auditAction` is still a REQUIRED field; a read tool must name the rule that exempts it in `auditExemptionReason`, and a tool that WRITES cannot be exempt at all. Enforced at registration.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| knowledge-source-adapters.md §2.3    | PDF, DOCX, PPTX, XLSX, and SharePoint pages have no extractor.                                                                                                                                                                                                    | A document of an unregistered type returns `UNSUPPORTED` with a reason and **no text**, never a silent skip. Adding one is a map entry plus a conformance fixture.                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| §8 conformance groups                | Section lineage, bank assertions, resilience (429/circuit), and end-to-end are not yet asserted.                                                                                                                                                                  | Declared as `todo` in the suite rather than omitted, so the suite reports what it does not cover (6 todos).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| workflows.md §2.2                    | Generation runs **in-process** on the job-creation request instead of returning 202 and enqueuing on the job runner.                                                                                                                                              | `runGenerationJob` is a domain function with no process affinity, so moving it behind the existing pg-boss queue is wiring, not redesign. Until then a large job holds the request open.                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| workflows.md §2.3 retrieval          | The run reads pinned sections from the index rather than re-calling `extract_document_content` through MCP.                                                                                                                                                       | The purpose of retrieval-time verification is kept: the run compares each document's current `contentHash` against what the scope captured and aborts with `DOCUMENT_CONTENT_DRIFT` rather than grounding questions in text that has since changed.                                                                                                                                                                                                                                                                                                                                                        |
+| generation-governance.md §4.4        | Duplicate scoring computes trigram similarity in process instead of via `pg_trgm`.                                                                                                                                                                                | Verification and scoring must both run BEFORE anything is persisted, so there is nothing in the database to compare against yet. The implementation mirrors `pg_trgm.similarity()` so a score here and a score from the database agree.                                                                                                                                                                                                                                                                                                                                                                    |
+| sharepoint-question-bank.md G4       | The mock bank is writable in `local` even though `sharepoint.write.enabled` is off and its ceiling forbids it outside test and prod.                                                                                                                              | G4 gates writes to **SharePoint**; the mock bank is a different implementation of the same port writing to a local JSON file, and knowledge-source-adapters.md §6 requires the whole pipeline — publish included — to be exercisable with no tenant credentials. The gate is therefore "may THIS bank be written in THIS environment": MOCK in `local` only (the registry refuses to construct it elsewhere), SHAREPOINT only when the flag is on, otherwise dry-run. Every publish response states `dryRun` and the bank type, so nothing is ambiguous.                                                   |
+| §2.8 / live Claude                   | Generation uses a deterministic local generator, not a Claude call.                                                                                                                                                                                               | A documented time-boxing lever, and the zero-credential local path requires it. The generator quotes the document verbatim and goes through the SAME gate chain as a model response, so the gates are exercised for real. `modelId` records `knowzy-deterministic-local-1`, so no job row can suggest a Claude model produced these.                                                                                                                                                                                                                                                                       |
+| security.md §14 / §15 G-DEP          | The dependency audit no longer fails on EVERY high or critical advisory: one named in `docs/SECURITY-EXCEPTIONS.md` by a dated, reasoned, non-reachable entry is deferred instead.                                                                                | The gate is narrower than it looks. An advisory nobody declared, an entry past its expiry, an entry the register itself calls reachable, and an entry matching nothing in the tree ALL still fail the build, and the decision is made on npm's package rollup severity so the gate is never quieter than `npm audit --audit-level=high`. Asserted by `packages/testing/src/audit-exceptions.test.ts` (11 tests); both failure modes were reproduced by mutation before the gate was trusted. Three entries today, all expiring 2026-12-31: postcss via Next, vitest/vite, deepmerge-ts via the Prisma CLI. |
 
 ## M4 and M5, as built
 
-| Piece | Where |
-| --- | --- |
-| The 13 approval gates | `packages/domain/src/review/gates.ts` — all failures returned at once, each naming the field that fixes it |
-| Separation of duties + break-glass | `src/review/separation-of-duties.ts` — the four §3.4 policies |
-| The transition table | `src/review/transitions.ts` — the state machine as data, with permission, comment requirement, and gating per edge |
-| Review, approval, comments, dispositions | `src/review/review-service.ts` — one transactional path for every transition |
-| Versioning | `src/review/versioning.ts` — snapshot, field diff, evidence re-verified on every edit |
-| Publishing and retirement | `src/review/publishing.ts` — operation keys, pre-write existence check, conditional update, G9 ordering |
-| `QuestionBankAdapter` port | `packages/shared-types/src/question-bank-port.ts` — no delete method exists |
-| `MockQuestionBankAdapter` | `packages/knowledge-source-adapters/src/mock` — real operation-key uniqueness, real ETag semantics, real 412 |
-| 5 MCP bank tools | `apps/mcp-server/src/tools/question-bank.ts` |
-| 13 API routes | `apps/api/src/routes/review.ts` |
-| 65 integration tests | `packages/domain/test/review-pipeline.test.ts` |
+| Piece                                    | Where                                                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| The 13 approval gates                    | `packages/domain/src/review/gates.ts` — all failures returned at once, each naming the field that fixes it         |
+| Separation of duties + break-glass       | `src/review/separation-of-duties.ts` — the four §3.4 policies                                                      |
+| The transition table                     | `src/review/transitions.ts` — the state machine as data, with permission, comment requirement, and gating per edge |
+| Review, approval, comments, dispositions | `src/review/review-service.ts` — one transactional path for every transition                                       |
+| Versioning                               | `src/review/versioning.ts` — snapshot, field diff, evidence re-verified on every edit                              |
+| Publishing and retirement                | `src/review/publishing.ts` — operation keys, pre-write existence check, conditional update, G9 ordering            |
+| `QuestionBankAdapter` port               | `packages/shared-types/src/question-bank-port.ts` — no delete method exists                                        |
+| `MockQuestionBankAdapter`                | `packages/knowledge-source-adapters/src/mock` — real operation-key uniqueness, real ETag semantics, real 412       |
+| 5 MCP bank tools                         | `apps/mcp-server/src/tools/question-bank.ts`                                                                       |
+| 13 API routes                            | `apps/api/src/routes/review.ts`                                                                                    |
+| 65 integration tests                     | `packages/domain/test/review-pipeline.test.ts`                                                                     |
 
 **Verified live:** generate → claim → edit (version 2, evidence re-verified) →
 SME endorsement → submit (13 gates) → the author holding both roles refused
@@ -75,7 +76,7 @@ audit chain carries the bank item id and ETag G6 requires.
 
 1. **A boundary violation I introduced.** Putting the bank port in the adapters
    package made `@knowzy/domain` reach it, which B3 forbids transitively. The
-   port is semantic-key vocabulary — explicitly *not* SharePoint names — so it
+   port is semantic-key vocabulary — explicitly _not_ SharePoint names — so it
    moved to `@knowzy/shared-types`, where the domain can speak the interface
    while only the adapters implement it.
 2. **Published identifiers were not monotonic.** The `KNZ-{DOMAIN}-{YYYY}-{SEQ}`
@@ -98,14 +99,14 @@ audit chain carries the bank item id and ETag G6 requires.
 
 ## M6, as built
 
-| Piece | Where |
-| --- | --- |
-| Deterministic scoring | `packages/domain/src/assessment/scoring.ts` — half-away-from-zero to two decimals, decisions on the stored value, all four §5.2 worked examples asserted |
-| Seeded selection | `src/assessment/selection.ts` — mulberry32 + Fisher-Yates, so a selection replays identically years later |
-| Assessment creation and the eligibility snapshot | `src/assessment/assessment-service.ts` — pool validated before submit, snapshot pinned in the same transaction as publication |
-| Session lifecycle | `src/assessment/session-service.ts` — immutable snapshot, one question at a time, per-answer revisions, resume, expiry, recovery, scoring |
-| 12 API routes | `apps/api/src/routes/learning.ts` — 5 authoring, 7 learner |
-| 57 integration tests | `packages/domain/test/assessment-session.test.ts` |
+| Piece                                            | Where                                                                                                                                                    |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deterministic scoring                            | `packages/domain/src/assessment/scoring.ts` — half-away-from-zero to two decimals, decisions on the stored value, all four §5.2 worked examples asserted |
+| Seeded selection                                 | `src/assessment/selection.ts` — mulberry32 + Fisher-Yates, so a selection replays identically years later                                                |
+| Assessment creation and the eligibility snapshot | `src/assessment/assessment-service.ts` — pool validated before submit, snapshot pinned in the same transaction as publication                            |
+| Session lifecycle                                | `src/assessment/session-service.ts` — immutable snapshot, one question at a time, per-answer revisions, resume, expiry, recovery, scoring                |
+| 12 API routes                                    | `apps/api/src/routes/learning.ts` — 5 authoring, 7 learner                                                                                               |
+| 57 integration tests                             | `packages/domain/test/assessment-session.test.ts`                                                                                                        |
 
 **Verified live, the whole MVP in one pass:** 5 questions generated from two
 documents → reviewed and approved → published as
@@ -169,16 +170,16 @@ Pull these before touching an invariant:
 
 ### M2, as built
 
-| Piece | Where |
-| --- | --- |
-| Normalization, sectioning, offsets, hashing | `packages/content-extraction/src` — X1-X8 asserted by 37 named tests |
-| Extractors: plain text, Markdown, HTML | `src/extractors` — HTML via a real parser, script/style subtrees discarded |
-| `KnowledgeSourceAdapter` port | `packages/knowledge-source-adapters/src/contract.ts` |
-| `MockKnowledgeSourceAdapter` | `src/mock` over a deterministic fixture tree; `sourceDocumentId = sha256(relativePath)`; timestamps from a sidecar or a fixed base date, never the filesystem |
-| Fixture documents | `fixtures/knowledge/support-operations` — 5 documents including one DENIED and one with no headings |
-| Conformance suite | `packages/testing/contracts/adapter-conformance.ts`, run against the mock; Phase 7 hands the SharePoint adapter the same function |
-| 12 MCP tools | `apps/mcp-server/src/tools` — source administration, navigation, and the two extraction tools |
-| 12 API routes | `apps/api/src/routes/sources.ts`, each with a declared policy |
+| Piece                                       | Where                                                                                                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Normalization, sectioning, offsets, hashing | `packages/content-extraction/src` — X1-X8 asserted by 37 named tests                                                                                          |
+| Extractors: plain text, Markdown, HTML      | `src/extractors` — HTML via a real parser, script/style subtrees discarded                                                                                    |
+| `KnowledgeSourceAdapter` port               | `packages/knowledge-source-adapters/src/contract.ts`                                                                                                          |
+| `MockKnowledgeSourceAdapter`                | `src/mock` over a deterministic fixture tree; `sourceDocumentId = sha256(relativePath)`; timestamps from a sidecar or a fixed base date, never the filesystem |
+| Fixture documents                           | `fixtures/knowledge/support-operations` — 5 documents including one DENIED and one with no headings                                                           |
+| Conformance suite                           | `packages/testing/contracts/adapter-conformance.ts`, run against the mock; Phase 7 hands the SharePoint adapter the same function                             |
+| 12 MCP tools                                | `apps/mcp-server/src/tools` — source administration, navigation, and the two extraction tools                                                                 |
+| 12 API routes                               | `apps/api/src/routes/sources.ts`, each with a declared policy                                                                                                 |
 
 **Verified live:** `list_knowledge_sources` → `test_knowledge_source` (5 checks,
 2 honest SKIPs) → `synchronize_knowledge_source` (4 documents, 17 sections, the
@@ -206,20 +207,20 @@ matched its stored `sectionContentHash`. A second sync reported 4 unchanged.
 
 ### M3, as built
 
-| Piece | Where |
-| --- | --- |
-| Evidence verification (STRICT / STANDARD) | `packages/claude-services/src/evidence.ts` — the §2.5 rules, span bounds, section attribution, and offsets that re-locate |
-| Output schema, integrity, confidence | `src/output-schema.ts`, `src/integrity.ts`, `src/confidence.ts` — the six weighted confidence components, model self-report capped at 0.10 |
-| Untrusted-content framing | `src/framing.ts` — per-call random nonce delimiters, and generation grants NO tools |
-| Generator port + deterministic local generator | `src/generator.ts` — quotes the document verbatim, goes through the same gate chain as a model response |
-| Six preflight checks | `packages/domain/src/generation/preflight.ts` |
-| `ResolvedGenerationScope` | `src/generation/scope.ts` — a branded type; a forged object literal does not typecheck |
-| Job creation and the 11 preconditions | `src/generation/job-creation.ts` |
-| The gate chain and persistence | `src/generation/generation-service.ts` |
-| Duplicate scoring | `src/generation/similarity.ts` — the five documented weights, detection across ALL domains |
-| 2 MCP tools | `preflight_generation`, `record_preflight_decision` |
-| 5 API routes | preflight · decide · create-and-run · job read · author review queue |
-| 28 integration tests | `packages/domain/test/generation-workflow.test.ts` |
+| Piece                                          | Where                                                                                                                                      |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Evidence verification (STRICT / STANDARD)      | `packages/claude-services/src/evidence.ts` — the §2.5 rules, span bounds, section attribution, and offsets that re-locate                  |
+| Output schema, integrity, confidence           | `src/output-schema.ts`, `src/integrity.ts`, `src/confidence.ts` — the six weighted confidence components, model self-report capped at 0.10 |
+| Untrusted-content framing                      | `src/framing.ts` — per-call random nonce delimiters, and generation grants NO tools                                                        |
+| Generator port + deterministic local generator | `src/generator.ts` — quotes the document verbatim, goes through the same gate chain as a model response                                    |
+| Six preflight checks                           | `packages/domain/src/generation/preflight.ts`                                                                                              |
+| `ResolvedGenerationScope`                      | `src/generation/scope.ts` — a branded type; a forged object literal does not typecheck                                                     |
+| Job creation and the 11 preconditions          | `src/generation/job-creation.ts`                                                                                                           |
+| The gate chain and persistence                 | `src/generation/generation-service.ts`                                                                                                     |
+| Duplicate scoring                              | `src/generation/similarity.ts` — the five documented weights, detection across ALL domains                                                 |
+| 2 MCP tools                                    | `preflight_generation`, `record_preflight_decision`                                                                                        |
+| 5 API routes                                   | preflight · decide · create-and-run · job read · author review queue                                                                       |
+| 28 integration tests                           | `packages/domain/test/generation-workflow.test.ts`                                                                                         |
 
 **Verified live:** preflight over two documents → job refused with
 `PREFLIGHT_REQUIRED` until a decision is recorded → decision → 5 grounded
@@ -266,6 +267,7 @@ implementation and everything calls it" was therefore unsatisfiable; the
 alternative was a second copy, which is the specific failure that rule exists
 to prevent. The pipeline moved to `@knowzy/shared-types`, the only package every
 consumer may import, and content-extraction re-exports it.
+
 - [x] M4 Review and approval — verified live end to end
 - [x] M5 Publish — verified live end to end (folded into M4)
 - [x] M6 Quiz and scoring — verified live end to end

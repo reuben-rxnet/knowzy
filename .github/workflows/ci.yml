@@ -225,8 +225,14 @@ jobs:
       - name: install
         run: npm ci --no-audit --no-fund
 
+      # security.md §14 fails the build on a high or critical finding. The gate
+      # below keeps that rule and adds one narrow escape: an advisory named in
+      # docs/SECURITY-EXCEPTIONS.md by a dated, reasoned, non-reachable entry.
+      # An undeclared advisory, an expired entry, a reachable one, or an entry
+      # that matches nothing all still fail. Asserted by
+      # packages/testing/src/audit-exceptions.test.ts.
       - name: dependency audit
-        run: npm audit --audit-level=high
+        run: npm run audit:gate
 
       - name: sbom
         run: npx @cyclonedx/cyclonedx-npm --output-file sbom.json --omit dev
