@@ -1,0 +1,209 @@
+/* KNOWZY design tokens.
+ *
+ * The single definition of the brand for both portals. Every value here comes
+ * from KNOWZY_UI_SOURCE_OF_TRUTH.md §5.2 (palette), §5.3 (semantics), and §6
+ * (visual style); nothing is invented here, and nothing else in the repository
+ * may declare a colour.
+ *
+ * Tailwind v4 reads this: `@theme` both declares the CSS custom properties AND
+ * generates the matching utilities, so `--color-brand-navy` becomes
+ * `bg-brand-navy`, `text-brand-navy`, `border-brand-navy`. That is why the
+ * tokens are written as Tailwind theme variables rather than plain `:root`
+ * declarations — one definition, available as a variable and as a utility.
+ *
+ * Documented in docs/ui/design-tokens.md.
+ */
+
+@theme {
+  /* ---------------------------------------------------------------- brand
+   * §5.2, exactly. These seven are the EssilorLuxottica and KNOWZY identity
+   * and are not open to interpretation.
+   */
+  --color-brand-navy: #001e62; /* top header, product identity, headings */
+  --color-brand-green: #00b388; /* primary actions, approval, healthy, progress */
+  --color-brand-navy-text: #08245c; /* headings, body emphasis, primary text */
+  --color-brand-blue: #146ef5; /* links, information, knowledge */
+  --color-brand-ai: #6b4eff; /* AI-generated content, Copilot, AI insight */
+  --color-brand-canvas: #f5f8fc; /* application canvas, secondary surfaces */
+  --color-brand-surface: #ffffff; /* cards, tables, panels, dialogs */
+
+  /* --------------------------------------------------------------- neutrals
+   * Derived from the navy so greys read as part of the brand rather than as a
+   * separate family. Contrast against `--color-brand-surface`:
+   *   ink        16.1:1   body text
+   *   ink-muted   7.4:1   secondary text, still AA for normal size
+   *   ink-subtle  4.6:1   AA for normal text, used for hints only
+   * Anything below 4.5:1 is a border or a background, never text.
+   */
+  --color-ink: #0b1b3a;
+  --color-ink-muted: #47566f;
+  --color-ink-subtle: #667a96;
+  --color-line: #d8e0ec;
+  --color-line-strong: #b9c6d8;
+  --color-surface-sunken: #eef3f9;
+  --color-surface-hover: #f7fafd;
+
+  /* -------------------------------------------------------------- semantic
+   * §5.3. Each has a text-safe shade for words on white, and a soft shade for
+   * fills. §5.3 also requires that colour never carries meaning alone, which
+   * is why every component pairs these with a label and an icon.
+   */
+  --color-success: #00875f;
+  --color-success-soft: #e3f7f0;
+  --color-info: #0f5ccd;
+  --color-info-soft: #e6efff;
+  --color-ai: #5a3fe0;
+  --color-ai-soft: #efeaff;
+  --color-warning: #8a5300;
+  --color-warning-soft: #fff3da;
+  --color-danger: #a4212f;
+  --color-danger-soft: #fdeaec;
+  --color-neutral: #47566f;
+  --color-neutral-soft: #eef3f9;
+
+  /* ------------------------------------------------------------ typography
+   * §6.1 asks for modern typography and §6.2 forbids oversized type. One
+   * family, a restrained scale, and a dedicated mono for the things that must
+   * be read exactly: offsets, hashes, identifiers, codes.
+   */
+  --font-sans:
+    'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-2xs: 0.6875rem; /* 11px — table micro-labels only */
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem; /* 12px — badges, captions */
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.8125rem; /* 13px — dense table text */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem; /* 14px — the enterprise body size */
+  --text-base--line-height: 1.375rem;
+  --text-md: 1rem; /* 16px — learner body, longer reading */
+  --text-md--line-height: 1.5rem;
+  --text-lg: 1.125rem; /* 18px — card titles */
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem; /* 22px — section headings */
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.75rem; /* 28px — page titles */
+  --text-2xl--line-height: 2.125rem;
+  --text-3xl: 2.25rem; /* 36px — hero titles, sparingly */
+  --text-3xl--line-height: 2.625rem;
+
+  /* ----------------------------------------------------------------- shape
+   * §6.1: rounded cards, soft shadows, no heavy borders.
+   */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgb(11 27 58 / 0.06), 0 1px 3px rgb(11 27 58 / 0.04);
+  --shadow-raised: 0 2px 4px rgb(11 27 58 / 0.06), 0 4px 12px rgb(11 27 58 / 0.08);
+  --shadow-overlay: 0 8px 24px rgb(11 27 58 / 0.16), 0 2px 6px rgb(11 27 58 / 0.08);
+
+  /* ---------------------------------------------------------------- layout
+   * The shell's fixed dimensions. §8.1 puts the header at ~72px; the sidebar
+   * widths are the three responsive states in the modernization plan §11.
+   */
+  --spacing-header: 4.5rem; /* 72px */
+  --spacing-sidebar: 15rem; /* 240px */
+  --spacing-sidebar-rail: 4.5rem; /* icon-only, 1024–1280 */
+  --spacing-drawer: 30rem;
+  --spacing-target: 2.75rem; /* 44px — the §7 minimum interaction target */
+
+  /* ---------------------------------------------------------------- motion
+   * Overridden to `0s` under prefers-reduced-motion in the base layer below.
+   */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 260ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* Z-index is not a Tailwind theme namespace, so these stay plain properties.
+ * One ordered list, so no component has to guess a number. */
+:root {
+  --z-sticky: 10;
+  --z-sidebar: 20;
+  --z-header: 30;
+  --z-drawer: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+}
+
+@layer base {
+  /* §7: a visible focus indicator on every interactive element, always. The
+   * ring is the information-blue rather than the brand green so it never reads
+   * as a success state. */
+  :focus-visible {
+    outline: 3px solid var(--color-brand-blue);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-brand-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    margin: 0;
+  }
+
+  /* §7: reduced motion is honoured globally, not per component. */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --duration-fast: 0s;
+      --duration-base: 0s;
+      --duration-slow: 0s;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Visually hidden but available to screen readers — used for table captions,
+   * icon labels, and the live regions that announce action results. */
+  .knowzy-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* The skip link: first focusable element on every page (§7, S2). */
+  .knowzy-skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: var(--z-modal);
+  }
+  .knowzy-skip-link:focus {
+    left: 0.75rem;
+    top: 0.75rem;
+    background-color: var(--color-brand-surface);
+    color: var(--color-brand-navy-text);
+    padding: 0.625rem 1rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-overlay);
+  }
+}

@@ -1,18 +1,83 @@
-// @knowzy/shared-ui
+// @knowzy/shared-ui — the KNOWZY design system.
 //
-// Design system: Radix primitives, Tailwind tokens, one component per concern.
+// One visual language for two independently deployable portals. Boundary rule
+// B6 restricts this package to importing `@knowzy/shared-types` only, so no
+// component here can reach the database, an adapter, or a domain service:
+// every one of them renders what the server already decided.
 //
-// Boundary: B6: may import nothing but @knowzy/shared-types. No business logic, no data fetching, no API client.
+// The tokens live in `./tokens.css`, which each app imports; Tailwind v4 reads
+// the `@theme` block there and generates the matching utilities, so there is
+// one definition of the brand rather than a variable set and a class set that
+// can drift apart.
 //
-// NOT IMPLEMENTED IN PHASE 1. This package exists in the Foundation phase so
-// the boundary rules in repository-structure.md §5 are enforceable from the
-// first commit — a rule that only starts applying once the code arrives is a
-// rule the code will already have broken. Implementation lands in Phase 5 (review workspace) and Phase 6 (quiz runner).
-//
-// The placeholder exports below keep the module resolvable without asserting
-// any behaviour. They are removed by the phase that implements this package.
+// Inventory and usage: docs/ui/shared-component-inventory.md
+// Token reference:     docs/ui/design-tokens.md
 
 export const PACKAGE_NAME = '@knowzy/shared-ui' as const;
 
-/** The delivery phase that implements this package. */
-export const IMPLEMENTED_IN = 'Phase 5 (review workspace) and Phase 6 (quiz runner)' as const;
+// ----------------------------------------------------------------- branding
+export {
+  EssilorLuxotticaLogo,
+  KnowzyWordmark,
+  KNOWZY_TAGLINE,
+  type BrandMarkProps,
+} from './components/Brand.js';
+
+// -------------------------------------------------------------------- shell
+export { AppHeader, type AppHeaderProps } from './components/AppHeader.js';
+export {
+  BrandLockup,
+  SideNav,
+  activeNavLabel,
+  isActivePath,
+  type CapabilityStatus,
+  type NavItem,
+  type SideNavProps,
+} from './components/SideNav.js';
+export {
+  KNOWZY_WORKFLOW_STAGES,
+  PageHero,
+  WorkflowRibbon,
+  type WorkflowRibbonProps,
+  type WorkflowStage,
+} from './components/WorkflowRibbon.js';
+export { AUTHORING_NAV, AuthoringShell, LEARNER_NAV, LearnerShell } from './components/Shells.js';
+
+// --------------------------------------------------------------- primitives
+export {
+  Card,
+  CardBody,
+  CardFooter,
+  CardHeader,
+  KpiCard,
+  type CardProps,
+} from './components/Card.js';
+export {
+  AiBadge,
+  Badge,
+  BlockedBadge,
+  BusyBadge,
+  LockedBadge,
+  PlannedBadge,
+  RoleBadge,
+  StatusBadge,
+  StatusIndicator,
+  VersionBadge,
+  statusTone,
+  type BadgeProps,
+  type BadgeTone,
+} from './components/Badge.js';
+export { Drawer, Modal, type DrawerProps, type ModalProps } from './components/Overlay.js';
+
+// -------------------------------------------------------------- page states
+export {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  NoResultsState,
+  PlannedState,
+  RefusalState,
+  ServiceUnavailableState,
+  SkeletonText,
+  StaleDataNotice,
+} from './components/States.js';

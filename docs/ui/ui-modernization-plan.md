@@ -1,6 +1,7 @@
 # KNOWZY — UI Modernization Plan (Phase 8)
 
-**Status:** Planning artifact. No application behaviour, route, or contract changed.
+**Status:** Planning artifact, except §19 — UI-M1 is implemented (shell, tokens, shared
+components). No API contract, server action, route, or domain behaviour changed.
 **Created:** 2026-09-21 · **Revised:** 2026-09-21 (learner portal, capability matrix, milestones)
 **Assessed commit:** `bbb9df6`
 **Sources of truth, in precedence order:**
@@ -32,10 +33,11 @@ controls listed in the UI specification §2 (evidence verification, the thirteen
 duties, idempotent publishing, snapshots, answer-key protection, audit) are untouched by this phase.
 Every screen below keeps calling the same server actions against the same 48 routes.
 
-**This commit contains planning artifacts only:** this plan and
-[`full-solution-capability-matrix.md`](full-solution-capability-matrix.md). No component, page,
-route, contract, or test behaviour changes. The design system itself is UI-M1, scoped in §19 and
-gated on the two decisions in §20.
+**Sections 1–18 and 20 are planning artifacts** — this plan and
+[`full-solution-capability-matrix.md`](full-solution-capability-matrix.md) changed no component,
+page, route, contract, or test behaviour. **§19 is different:** it is the record of UI-M1, which is
+implemented. The shell, tokens, and shared components exist; the pages inside them are untouched
+and are modernized one milestone at a time from UI-M2.
 
 ---
 
@@ -601,50 +603,131 @@ in 16.3 should start before UI-M11 is green.
 
 ---
 
-## 19. Recommended scope for UI-M1
+## 19. UI-M1 scope (approved, in progress)
 
-**Goal:** one design system, two shells, eleven routes that look enterprise-grade and behave exactly
-as they do today.
+**Goal:** one design system, two shells, eleven routes that look enterprise-grade and behave
+exactly as they do today.
 
-**In scope**
+**Decisions taken:** Tailwind CSS v4 with CSS-variable tokens, and Lucide icons — the §32 stack.
+Tailwind v4 is CSS-first, so `@theme` in `packages/shared-ui/src/tokens.css` declares the custom
+properties *and* generates the matching utilities: one definition, available as a variable and as a
+class.
 
-1. `packages/shared-ui`: tokens (colour, typography, spacing, radius, shadow, motion, z-index);
-   primitives (Button, Badge, Card, Tabs, Table, Drawer, Modal, Toast, Skeleton, and Empty, Error,
-   and Refusal states); domain components (ApprovalGateChecklist, EvidenceExcerpt, SourceCitation,
-   ProvenanceTimeline, ConfidenceBreakdown, DuplicateRisk, CoverageIndicator, KpiCard,
-   WorkflowRibbon); learner components (AssessmentCard, QuizProgress, AnswerOptionCard,
-   ResultSummary, ProgressRing, StaleSessionNotice, EligibilityRefusal).
-2. `AppHeader`, `AuthoringSidebar` (10 items, unreleased hidden), `WorkflowRibbon`, `PageHero`.
-3. `LearnerNav` (8 items, unreleased hidden) and the learner header.
-4. Both apps re-shelled: every one of the 11 routes renders inside the new shell with its existing
-   content, actions, and refusals **unchanged**.
-5. An icon library (Lucide) adopted with its reason recorded here.
-6. Package wiring: `transpilePackages`, Turbo build order, and a verified client-component
-   round-trip.
-7. Token integrity test; keyboard and landmark pass on all 11 routes.
+### 19.1 Scope
 
-**Out of scope for UI-M1:** every KPI, chart, new route, new endpoint, Tailwind, Playwright, and
-anything in §14 or §16.3.
+1. **Tokens** — colour (§5.2/§5.3 exactly), typography scale, spacing, radius, shadow, motion,
+   z-index, and the shell's layout dimensions. Documented in
+   [`design-tokens.md`](design-tokens.md).
+2. **Branding assets** — the approved files in `assets/branding/` replace placeholder text
+   branding: `essilorluxottica-logo.svg.svg`, `knowzy-wordmark.svg.svg`, and `favicon.ico.svg`.
+   The logo and wordmark ship as inline-SVG components in `shared-ui` so they inherit
+   `currentColor` and add no extra requests; the favicon is copied into each app's `public/` and
+   registered through Next's `metadata.icons`. `assets/branding/` stays the master copy — the
+   components mirror it and must change with it.
+3. **Global header** with all five §8.1 regions: brand, search, KNOWZY Copilot entry point,
+   notification area, and the user avatar with display name and role indicator. Search, Copilot,
+   and notifications render **disabled and labelled**, because no search endpoint, Copilot service,
+   or notification producer exists (capability matrix A1/B1) and §23 forbids faking them.
+4. **Authoring navigation** — §9's ten destinations.
+5. **Learner navigation** — learner §5.2's eight destinations: Home, My Learnings, Assessments,
+   Discover, Badges, Knowledge Library, My Progress, Help & Support.
+6. **Workflow ribbon** (§11), **page hero** (§12), **card system**, **badge system**, **status
+   indicators**, **drawer**, **modal**, and the **empty / loading / error / refusal / planned**
+   states.
+7. **Both shells applied to all 11 existing routes**, with page content untouched.
+8. Package wiring: `transpilePackages`, Tailwind source detection across the workspace, Turbo build
+   order, and a verified client-component round-trip.
+9. Token integrity test; keyboard and landmark pass on all 11 routes.
 
-**Exit criteria**
+### 19.2 How navigation states are rendered
+
+Every destination carries its **capability-matrix status**, and the status decides the treatment.
+Nothing is hidden, because the information architecture is itself informative; nothing unreleased is
+a link, because learner §5.2 forbids dead links.
+
+| Matrix status | Treatment | Chip |
+| --- | --- | --- |
+| `IMPLEMENTED` | Link | — |
+| `PARTIALLY_IMPLEMENTED` | Link, plus a note saying where the capability currently lives | e.g. "On Publish" |
+| `PLANNED` | Not a link. `aria-disabled` | "Planned" |
+| `REQUIRES_BACKEND_EXTENSION` | Not a link. `aria-disabled` | "Needs backend" |
+| `DISABLED_IN_CURRENT_RELEASE` | Not a link. `aria-disabled` | "Unavailable" |
+
+Authoring: Dashboard, Knowledge Sources, AI Quiz Generation, and Review Queue are `IMPLEMENTED`;
+Approvals, Question Bank, and Assessments are `PARTIALLY_IMPLEMENTED` and point at the route that
+holds them today; Reports, Governance, and Administration need a backend.
+
+Learner: Home is `IMPLEMENTED`; Assessments is `PARTIALLY_IMPLEMENTED` (the list is on Home until
+UI-M9 moves it); My Learnings, Discover, Badges, Knowledge Library, and My Progress need a backend;
+Help & Support needs approved integrations.
+
+**Visual hiding is never the authorization control** (§9). The server refuses regardless of what
+the sidebar renders.
+
+### 19.3 Placeholder states
+
+Permitted **only** where the capability matrix records the absence, and always labelled. UI-M1 ships
+three: the disabled search box, the disabled Copilot button, and the disabled notification button —
+each with an accessible name that states it is unavailable in this release. No placeholder KPI, no
+placeholder chart, no placeholder list. `PlannedState` and `PlannedBadge` exist in the component set
+for the milestones that need them; UI-M1 does not populate any page with them.
+
+### 19.4 Out of scope for UI-M1
+
+Every KPI, every chart, new routes, new endpoints, Playwright, and anything in §14 or §16.3. No page
+is visually redesigned: pages keep their current markup and their existing stylesheet, which each
+later milestone replaces one screen at a time.
+
+### 19.5 Exit criteria
 
 - All 11 routes render in the new shells; no payload, action, or refusal changed.
 - `npm run verify` green; CI green; boundaries 0 errors and `shared-ui` no longer an orphan.
 - A deliberate component change is proven to appear in both apps (no stale build output).
 - Keyboard-only traversal of all 11 routes; visible focus everywhere; no colour-only status.
+- Approved branding visible in both portals, including the favicon.
 - Screenshots at 1920, 1440, and 1280 recorded for both portals.
 
-**Decisions needed before starting:** §3 (styling technology) and the brand assets in §15. Both are
-listed in §20.
+### 19.6 What verification found, and what it changed
+
+Every route was rendered against the running system and audited structurally — landmarks, skip
+link, heading order, accessible names, unique ids, and whether each disabled control explains
+itself — then photographed at all three widths. Four defects surfaced that review of the source had
+not, and all four are fixed:
+
+| Defect | Cause | Fix |
+| --- | --- | --- |
+| The header's disabled Copilot control and notification bell rendered as solid blue and looked enabled | `legacy.css` styles `button` at element level, so it painted the shell too | `legacy.css` nested under `#main`; the shell renders outside it |
+| The KNOWZY wordmark overlapped the search field | The flexible search field compressed the brand box to nothing, and its `shrink-0` marks overflowed | The brand box is `shrink-0`; the search field is `min-w-0` |
+| `Administration`, `Governance`, `My Learnings`, `Help & Support` truncated to `Admini…` | The status chip and the label competed for one 15rem row | The chip moved under the label, which now owns the full row |
+| Two destinations highlighted at once — Review Queue **and** Approvals, Home **and** Assessments | Each item matched the location independently, and these pairs share a route | `activeNavLabel()` picks the most specific single match; the middleware now passes the query so a queue is distinguishable from its route |
+
+Two findings were **not** defects and nothing was changed for them: the `h1 → h3` heading skip
+appears only when a page renders `Problem.tsx`, which is pre-existing page markup that UI-M2
+rewrites; and `title`-only explanation on the Copilot control was an artefact of the audit's search
+window — the visible "Planned" label is inside the button.
+
+One environment note for anyone repeating this: the integration suites truncate the development
+database, so `npm run verify` empties the demonstration data. Re-seed through the API before
+judging a screen.
+
+### 19.7 Note on the supplied assets
+
+The three files in `assets/branding/` are typeset SVG text rather than official logo artwork, and
+two carry doubled extensions (`.svg.svg`, and `favicon.ico.svg` is an SVG rather than an ICO). They
+are used as supplied. If the official marks arrive later, they replace these files and the two
+`shared-ui` brand components, with no other change.
 
 ---
 
 ## 20. Open questions for the stakeholders
 
-1. **§3 technology decision** — plain-CSS tokens now with libraries at the point of need, or Tailwind
-   up front? UI-M1 cannot start without this.
-2. **Brand assets** — approved EssilorLuxottica logo and wordmark files are not in the repository.
-   Text placeholder for UI-M1, or supply assets first?
+1. ~~**§3 technology decision**~~ — **decided:** Tailwind CSS with CSS-variable tokens and Lucide
+   icons, adopted at UI-M1. §3's option A is superseded; what shipped is the §3 recommendation's
+   icon half plus Tailwind up front, so the token file doubles as the Tailwind theme and there is
+   one definition of the brand rather than two. Recharts is still deferred to the milestone that
+   needs a chart.
+2. ~~**Brand assets**~~ — **closed:** supplied in `assets/branding/` and in use in both portals.
+   See §19.7 on what the files actually are.
 3. **Dashboard honesty** — the specified dashboard is mostly Phase 10 data. Ship with four real KPIs
    and labelled placeholders, or defer it and land on Knowledge Sources?
 4. **Unreleased navigation** — hide the six unbuilt learner destinations (the §5.2 default), or show

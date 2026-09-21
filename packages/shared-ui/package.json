@@ -8,7 +8,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
-    }
+    },
+    "./tokens.css": "./src/tokens.css"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,6 +24,7 @@
   },
   "dependencies": {
     "@knowzy/shared-types": "*",
+    "lucide-react": "^1.47.0",
     "react": "^19.0.0"
   },
   "devDependencies": {

@@ -1,0 +1,254 @@
+/* Legacy page styles — learner portal.
+ *
+ * These are the hand-written rules the pages carried before UI-M1. UI-M1
+ * replaces the SHELL only: specification §35 and the modernization plan are
+ * explicit that pages are modernized one milestone at a time, so the page
+ * markup and these rules stay exactly as they were and the screens look as
+ * they did.
+ *
+ * The one change: the palette below now resolves to the shared tokens, so the
+ * old pages sit inside the new shell without clashing with it.
+ *
+ * Each later milestone (UI-M2 onward) converts one page to Tailwind and
+ * deletes the rules it no longer needs. When this file is empty, it goes.
+ */
+
+:root {
+  /* Mapped onto the shared design tokens rather than redeclared, so the
+   * unconverted pages already speak the brand palette. */
+  --ink: var(--color-ink);
+  --muted: var(--color-ink-muted);
+  --line: var(--color-line);
+  --bg: var(--color-brand-surface);
+  --panel: var(--color-surface-sunken);
+  --accent: var(--color-brand-blue);
+  --pass: var(--color-success);
+  --fail: var(--color-danger);
+  --warn: var(--color-warning);
+  --focus: var(--color-brand-blue);
+}
+
+/* Scoped to `#main`, the page region the shell wraps.
+ *
+ * These rules are element-level by design (`button`, `a`, `select`), which was
+ * safe while the page WAS the document. It is not safe now: without a scope
+ * they also paint the shared header, sidebar, and footer. The shell renders
+ * outside `#main`, so this one nesting level keeps the legacy pages looking
+ * exactly as they did and keeps them off the shell.
+ *
+ * As each page is converted (UI-M2 onward), its rules leave this block. */
+
+#main {
+  a {
+    color: var(--accent);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 0.5rem;
+  }
+  h2 {
+    font-size: 1.15rem;
+    margin: 1.75rem 0 0.5rem;
+  }
+  h3 {
+    font-size: 1rem;
+    margin: 1.25rem 0 0.35rem;
+  }
+
+  p,
+  ul,
+  ol {
+    margin: 0.5rem 0;
+  }
+
+  .lede {
+    color: var(--muted);
+    max-width: 54rem;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.75rem 0;
+    font-size: 0.9375rem;
+  }
+  caption {
+    text-align: left;
+    color: var(--muted);
+    font-size: 0.875rem;
+    padding-bottom: 0.35rem;
+  }
+  th,
+  td {
+    border: 1px solid var(--line);
+    padding: 0.4rem 0.55rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--panel);
+    font-weight: 600;
+  }
+
+  fieldset {
+    border: 1px solid var(--line);
+    margin: 0.75rem 0;
+    padding: 0.75rem 1rem;
+  }
+  legend {
+    font-weight: 600;
+    padding: 0 0.35rem;
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    margin: 0.6rem 0 0.2rem;
+  }
+  .hint {
+    font-weight: 400;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+  input[type='text'],
+  input[type='number'],
+  textarea,
+  select {
+    font: inherit;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--bg);
+    color: var(--ink);
+    max-width: 34rem;
+    width: 100%;
+  }
+  select[multiple] {
+    min-height: 8rem;
+  }
+  textarea {
+    min-height: 4.5rem;
+  }
+
+  button {
+    font: inherit;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    margin: 0.5rem 0.4rem 0 0;
+  }
+  button.secondary {
+    background: var(--bg);
+    color: var(--accent);
+  }
+  button.danger {
+    background: var(--bg);
+    color: var(--fail);
+    border-color: var(--fail);
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+  }
+  .problem {
+    border-left: 4px solid var(--fail);
+  }
+  .okpanel {
+    border-left: 4px solid var(--pass);
+  }
+
+  .pass {
+    color: var(--pass);
+    font-weight: 600;
+  }
+  .fail {
+    color: var(--fail);
+    font-weight: 600;
+  }
+  .warn {
+    color: var(--warn);
+    font-weight: 600;
+  }
+
+  blockquote {
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.9rem;
+    border-left: 4px solid var(--line);
+    background: var(--panel);
+    font-style: normal;
+  }
+
+  code,
+  .mono {
+    font-family: ui-monospace, 'Cascadia Mono', Menlo, Consolas, monospace;
+    font-size: 0.875em;
+  }
+
+  dl.kv {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.2rem 1rem;
+    margin: 0.5rem 0;
+  }
+  dl.kv dt {
+    color: var(--muted);
+  }
+  dl.kv dd {
+    margin: 0;
+  }
+
+  .muted {
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  ul.plain {
+    list-style: none;
+    padding: 0;
+  }
+
+  .evidence {
+    background: #fff8d8;
+    padding: 0 0.1rem;
+  }
+
+  .inline {
+    display: inline;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: flex-end;
+  }
+
+  /* The quiz is the only screen a learner spends time on, so its answer options
+     get a real hit target rather than a bare radio button. */
+  .option {
+    display: block;
+    border: 1px solid var(--line);
+    padding: 0.6rem 0.8rem;
+    margin: 0.4rem 0;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .option:hover {
+    background: var(--panel);
+  }
+  .option:has(input:checked) {
+    border-color: var(--accent);
+    background: #eef3fb;
+  }
+
+  .big {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+  }
+}

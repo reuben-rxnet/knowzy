@@ -1,7 +1,7 @@
 # Knowzy — User Guide
 
-**Applies to:** the local demonstration build at commit `abb1c45` and later (milestone M7, the
-minimum UI)
+**Applies to:** the local demonstration build at milestone UI-M1 (the shared KNOWZY shell over the
+M7 screens)
 **Last updated:** 2026-09-21
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -87,11 +87,47 @@ file watching does not cross the bind mount on Windows. Restart the app you chan
 docker compose -f infrastructure/compose/docker-compose.yml restart authoring-web live-web
 ```
 
+### 2.4 What surrounds every page
+
+Both portals now share one frame. The pages inside it are the same pages, with the same controls and
+the same refusals; only the furniture around them is new.
+
+**Along the top**, on a navy band: the EssilorLuxottica mark and the KNOWZY wordmark, a search
+field, a KNOWZY Copilot button, a notification bell, and on the right who you are acting as.
+
+The search field, the Copilot button, and the bell are **deliberately disabled and labelled
+"Planned"**. There is no search service, no Copilot service, and no notification service behind
+them. They are shown rather than hidden so the shape of the product is visible, and disabled rather
+than faked so nothing pretends to work. Anything marked Planned in this product does nothing.
+
+**Down the left**, the destinations. Each carries its real status:
+
+| What you see | What it means |
+| --- | --- |
+| A plain link | Built. It goes where it says |
+| A link with grey text under it | Built, but living somewhere else in this release — the text says where, e.g. Question Bank → "On Publish" |
+| "Planned" | Not built. Not a link |
+| "Needs backend" | Cannot be built yet: the server capability does not exist |
+| "Unavailable" | Turned off in this release |
+
+Nothing unavailable is a link, so you cannot land on a dead page, and nothing is hidden either — the
+list is an honest statement of what exists. Exactly one destination is highlighted at a time, with a
+green bar down its left edge as well as a colour change, so it reads without relying on colour.
+
+**On the authoring workflow pages**, a thin ribbon under the header shows the seven stages —
+Knowledge Sources → AI Generation → Review → Approval → Question Bank → Assessments → Insights — and
+which one you are on. A stage is only ticked when the software knows it is complete, so an unticked
+stage means "not known", not "not done". Insights has no page yet and is not a link.
+
+**Keyboard:** the first Tab on any page offers "Skip to content", which jumps past the header and
+navigation to the page itself. Everything focusable shows a visible blue outline.
+
 ---
 
 ## 3. Identities, and why you keep switching
 
-The banner at the top of every page says who you are acting as. Change it from the Authoring
+The header of every page says who you are acting as, with your initials, your role, and — because
+this is a demonstration build — the words "Local Development Identity". Change it from the Authoring
 Portal's home page, or from the learner portal's home page for the learner side.
 
 | Identity | What it can do |
@@ -458,4 +494,5 @@ the log below.
 | Date | Commit | Change |
 | --- | --- | --- |
 | 2026-09-18 | `1762cc7` | First version. Covers M7: six authoring screens, four learner screens, the identity picker, and the refusals each screen can show |
+| 2026-09-21 | UI-M1 | Both portals now render inside one shared KNOWZY shell: brand header, left-hand destinations carrying their real status, the authoring workflow ribbon, a skip link, and visible focus. The search field, KNOWZY Copilot, and notifications are shown disabled and labelled "Planned" — see §2.4. **No page body, control, action, or refusal changed**; the screens themselves are modernized one at a time from UI-M2 |
 | 2026-09-21 | `abb1c45`+ | Resume of a fully answered attempt now works (it returned a 404 before, and the home page card printed "NaN / "). Two new review views, `Published` and `All questions`, with a per-document filter; preflight counts and published inventory rows link into them. Recording `VIEW_EXISTING` or `REUSE_EXISTING` no longer offers the generate form |
