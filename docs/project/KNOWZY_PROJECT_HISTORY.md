@@ -353,3 +353,77 @@ horizontally. Fixed by wrapping at normal tracking. Half of what looked wrong tu
 Next's dev-mode indicator sitting on top of the sidebar footer — dev-only, absent in production. The
 first diagnosis was wrong, and both halves are recorded so the next person does not chase the wrong
 one.
+
+---
+
+## Enterprise Pilot readiness assessment (Phase 9.1 as commissioned)
+
+**Delivered 2026-09-21.** Planning artifacts only; no application code changed.
+
+Primary artifact: [`ENTERPRISE_PILOT_READINESS.md`](ENTERPRISE_PILOT_READINESS.md), with four
+integration plans beside it — [SharePoint](integration-plan-sharepoint.md),
+[Microsoft Graph](integration-plan-microsoft-graph.md), [Entra ID](integration-plan-entra-id.md) and
+[Claude](integration-plan-claude.md).
+
+**The brief's phase number was wrong and the correction changes the plan.** The work was commissioned
+as "Phase 9.1". By the authoritative roadmap, SharePoint read is **Phase 7**, Question Bank write is
+**Phase 8**, Entra is the deferred half of **Phase 2**, and the live Claude generator is the deferred
+half of **Phase 4** — while roadmap **Phase 9 is refreshers, badges and certificates**, which the
+brief explicitly excludes. So "Phase 9.1" named the one phase this work is not. The roadmap's numbers
+were kept and the grouping is called the **Pilot Workstream**; renumbering the roadmap to match a
+passing instruction would have edited the source of truth.
+
+**The central finding: the platform is architecturally ready and operationally unready.** Every
+external dependency already sits behind a port written for the real implementation rather than for
+the mock — delta checkpoints as opaque state, `ifMatch` as a required parameter, both Graph permission
+modes threaded through every adapter call, `writeCapable: false` as a literal type, a fail-closed
+identity resolver, and a `QuestionGenerator` port whose `'anthropic'` variant is declared and
+unimplemented. That is the expensive half and it is done. What is missing is every line of code that
+speaks to a Microsoft or Anthropic endpoint, plus the tenant grants to speak to them with. **Nothing
+in the repository has ever contacted SharePoint, Graph, Entra or Anthropic.**
+
+A reusable conformance suite already exists and its own header says the SharePoint adapter "will be
+handed this same function, and the groups it cannot yet satisfy are the work it has left". Three of
+its six `it.todo` assertions are precisely the Graph behaviours Phase 7 must prove — 429 with
+`Retry-After`, circuit opening, and a metadata-only change yielding a new `sourceVersion` with an
+unchanged hash. The work to be done was already written down as pending tests rather than as prose.
+
+**Two recommendations that depart from the brief:**
+
+1. **Entra goes first, not SharePoint.** `createEntraResolver()` throws, so every non-local
+   deployment fails every request today. There is no environment for a pilot to happen in until it
+   lands, and no parallel path around it.
+2. **Claude goes last, with a parallel quality spike.** It is the only integration gated on an
+   unconfirmed approval (A-05/T-29, owned by privacy and legal), and its quality can only be judged
+   against real documents. But question quality is the product's central unknown, so the answer is a
+   time-boxed blind comparison against the deterministic generator run alongside Entra — not a
+   reordering that makes the dependency chain hostage to a legal review.
+
+**Thirteen gaps registered, and two of them are approvals rather than code.** T-29 (permission to
+send drafts and source excerpts to Anthropic) and T-22 (`Sites.Selected` **Write** on the governance
+site) have external owners, sit on the critical path, and are blocked by nothing. Requesting both is
+a week-0 action.
+
+**Four decisions the plans surface that were not written down anywhere**, each recorded with a
+recommendation rather than decided unilaterally: delegated-token cache keying (keyed on scope alone,
+one principal's token would serve another — it fails silently and its blast radius is cross-user
+exposure); the session mechanism between browser and BFF; whether the profile's configured `modelId`
+actually governs the model (it is currently stored and ignored, and the obvious fix hardcodes a
+constant while appearing to honour configuration); and how the permitted single repair attempt avoids
+becoming a re-injection surface.
+
+**Two things the assessment refused to claim.** Reporting is genuinely unbuilt — `@knowzy/reporting`
+is an 18-line placeholder that exports its own `IMPLEMENTED_IN = 'Phase 10'` — so a pilot described
+to stakeholders as including dashboards has an unmet expectation that no integration work in this
+workstream changes. And the container image vulnerability scan has still never executed, making a
+base-image CVE an unknown rather than an absence.
+
+**Two new tenant values are proposed, not written.** T-39 (a dev-site document restricted from a
+named test principal, without which the delegated-trimming exit criterion is unfalsifiable) and T-40
+(permission to capture and scrub recorded Graph fixtures, without which conformance cannot run in CI).
+Both belong to `assumptions-and-tenant-configuration.md`'s register, so they are proposed here for
+its owner rather than appended by a plan.
+
+The single recommendation these documents would most defend: **automate the 36-step acceptance script
+before swapping any adapter.** Four integrations are about to be replaced underneath a platform whose
+only end-to-end verification is a person clicking through it. Build the net before the trapeze.
