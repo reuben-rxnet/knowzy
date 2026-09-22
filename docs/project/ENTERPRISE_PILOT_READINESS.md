@@ -393,3 +393,36 @@ discussed.
 
 **What it does not change.** T-29 is still unrequested and still the critical path, and the
 comparison still requires a clean database for its duplicate metric to be meaningful.
+
+### 12.2 Multi-provider generation, designed not built (2026-09-22)
+
+[`MULTI_PROVIDER_GENERATION_ARCHITECTURE.md`](../integrations/MULTI_PROVIDER_GENERATION_ARCHITECTURE.md)
+designs a provider registry covering the deterministic generator, Claude, Microsoft Copilot and
+future providers, in platform-managed and user-managed execution modes. **No provider integration is
+implemented.**
+
+Three findings change this readiness assessment:
+
+| Finding | Effect on readiness |
+| --- | --- |
+| **"User managed" is not uniform.** Copilot and Azure OpenAI have delegated per-user execution; **Anthropic has no on-behalf-of flow and a claude.ai seat is not an API credential** | The user-managed story belongs to the Microsoft providers. Anthropic is platform-managed only, and a UI offering otherwise would promise what cannot be built |
+| **A provider that performs its own retrieval cannot be used for grounded generation.** Copilot grounds in Microsoft Graph by design | **Copilot's eligibility is an open question, not a work item.** It must be answered before any Copilot work is scheduled |
+| **`architecture.md` is explicitly single-provider** — §9, the technology table, the C4 diagram and boundary rule B4 all name Claude or Anthropic | The specification must be amended first. Multi-provider is currently a **proposal**, not an approved architecture |
+
+**New blockers, in addition to T-29:**
+
+| # | Blocker | Owner |
+| --- | --- | --- |
+| **P-1** | Amend `architecture.md` §9 and the technology table to describe a provider registry | Architecture |
+| **P-2** | Document whether Microsoft 365 Copilot can be invoked retrieval-free | Platform + Microsoft |
+| **P-3** | Data-processing assessment **per provider**. T-29 covers Anthropic only; Copilot and Azure OpenAI need their own | Privacy + legal |
+| **P-4** | Rename `BankItemWrite.claudeModel` before the SharePoint bank adapter ships | Engineering, **time-boxed** |
+
+**P-4 has a deadline the others do not.** The Question Bank is still a mock, so nothing has been
+written to a tenant list. A Copilot-generated question published today would land in a field called
+`claudeModel`, in the customer's Question Bank, mapped to a real SharePoint column. Renaming now is
+a port change and five call sites; renaming after Phase 8 is tenant data migration.
+
+**Recommendation carried from the architecture:** register two providers, declare the rest. Six
+integrations before one measurement produces five untested providers and no answer to the question
+the pilot exists to answer.

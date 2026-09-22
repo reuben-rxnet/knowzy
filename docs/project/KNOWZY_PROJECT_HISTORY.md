@@ -1344,3 +1344,78 @@ The corpus source therefore points one level above its documents, which makes th
 browsable at the cost of `CorpusManifest.md` falling outside every configured path — one reported
 failure and a `PARTIAL` outcome. **A precise, explained PARTIAL beats a clean-looking source nobody
 can use**, and the seed records the trade-off so the next person does not "fix" it back.
+
+---
+
+## Multi-provider generation architecture, designed
+
+**2026-09-22.** Artifact:
+[`MULTI_PROVIDER_GENERATION_ARCHITECTURE.md`](../integrations/MULTI_PROVIDER_GENERATION_ARCHITECTURE.md).
+Evaluation plan extended to N arms (§11). **No code, no provider integration.**
+
+A design for a provider registry covering the deterministic generator, Claude, Microsoft Copilot,
+and declared-but-unregistered Azure OpenAI and Gemini, in platform-managed and user-managed modes.
+Grounding it in the repository produced three findings that mattered more than the abstraction.
+
+### The brief's central assumption is backwards
+
+*"User managed"* was requested uniformly, with *"Reuben's Claude account"* and *"Reuben's Microsoft
+Copilot entitlement"* as parallel examples. They are not parallel.
+
+Microsoft 365 Copilot is licensed per user and reached with **delegated Entra tokens**, so a platform
+genuinely can act on behalf of an author against that author's own entitlement. **Anthropic has no
+on-behalf-of flow, and a claude.ai subscription is not an API credential.** The only Anthropic
+"user-managed" form is an author supplying a personal API key — a separate entitlement they must
+obtain, which the platform would then have to store per person.
+
+So the user-managed story belongs to the Microsoft providers, and Anthropic is platform-managed only.
+The design says so rather than shipping a toggle that cannot work, and §4.4 refuses per-user API keys
+in v1 with four reasons rather than deferring them silently.
+
+### A provider that retrieves its own context cannot be used at all
+
+The platform's grounding guarantee is that a question is answerable from **one supplied section** and
+cites a span verified character-by-character against that section. Microsoft 365 Copilot grounds its
+answers in the user's Microsoft Graph content, which is the opposite property.
+
+Either it quotes something Graph supplied and evidence verification refuses it — safe, and the batch
+yields nothing — **or** it writes a question shaped by Graph content while quoting the section, in
+which case the span verifies, scope enforcement passes, and the question tests knowledge the author
+never selected, possibly from a document the learner may not see. **Nothing in the gate chain detects
+the second.**
+
+`retrievalFree` therefore becomes a declared and asserted provider capability, and a provider that
+cannot guarantee it is **ineligible** — the same honesty adapter rule P1 already demands of knowledge
+sources. Whether Copilot can be invoked that way is now the **first** item in the implementation
+order, ahead of all code, because a "no" removes a required provider and reshapes the rest.
+
+### The design contradicts the architecture specification, so it is a proposal
+
+`docs/architecture.md` is explicitly single-provider: §9 is titled "Claude integration
+architecture", the technology table names Claude as **the** LLM, the C4 diagram has an `Anthropic`
+subgraph, and boundary rule B4 names `@knowzy/claude-services`. CLAUDE.md is unambiguous that
+`/docs` wins.
+
+So step 0 of the implementation order is **amend the specification**, and no provider code precedes
+it. Writing the code first would leave the authoritative document describing a system that no longer
+exists — the same class of error as `PromptVersion.body` holding a paraphrase of the prompt, which
+PILOT-T2 had just finished fixing.
+
+### One rename with a deadline
+
+`BankItemWrite.claudeModel` is a **provider-specific field name in a provider-agnostic port**, and
+`publishing.ts` writes the model id into it. A Copilot-generated question would be published into a
+field called `claudeModel` — in the customer's Question Bank, mapped to a real SharePoint column,
+which is the most permanent thing this platform writes.
+
+The Question Bank is still a mock, so the window is open: a port change and five call sites today,
+tenant data migration after Phase 8. It is the only item in the design with a deadline, and it is
+recorded as blocker **P-4** in the readiness assessment.
+
+### A recommendation against the brief
+
+Six providers were requested or foreshadowed. Registering six before measuring one produces five
+untested integrations and no answer to the question the pilot exists to answer. **Register two,
+declare the rest, and let the comparison decide what is worth building** — and note that steps 0–5
+of the order, which is most of the architecture, need no approval, no credential and no tenant
+access at all.

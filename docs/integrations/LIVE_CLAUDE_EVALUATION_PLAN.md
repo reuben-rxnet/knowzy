@@ -516,7 +516,78 @@ number from the database.
 
 ---
 
-## 11. Traceability
+---
+
+## 11. Extension: comparing more than two generators
+
+**Added 2026-09-22**, alongside
+[`MULTI_PROVIDER_GENERATION_ARCHITECTURE.md`](MULTI_PROVIDER_GENERATION_ARCHITECTURE.md). Sections
+1–10 describe a two-arm comparison and remain correct; this section says what changes when there are
+three or more, and what must not change.
+
+### 11.1 The arms
+
+| Arm | Provider | Execution mode | Status |
+| --- | --- | --- | --- |
+| **A — control** | `deterministic-local` | n/a | **Measured. §2.4** |
+| **B** | `anthropic` | Platform managed | Blocked on **T-29** |
+| **C** | `microsoft-copilot` | User managed | Blocked on **R1**: whether Copilot can be made retrieval-free at all |
+| D, E | Azure OpenAI, Gemini | Either | Declared, not registered |
+
+**Arm C may never exist, and that is a finding rather than a delay.** The architecture's §0.2 shows
+that a provider grounding its answers in Microsoft Graph either yields nothing (evidence
+verification refuses spans it did not take from the section) or produces questions shaped by content
+the author never selected — which is a confidentiality problem, not a quality one. Until Copilot can
+be invoked retrieval-free, it is not eligible, and the comparison has two arms.
+
+### 11.2 What must not change with more arms
+
+1. **One control, measured once, on a clean database.** Arm A is re-run per §4.2 and every other arm
+   is compared against it. Arms are **not** compared against each other as a primary result.
+2. **The identical unmodified gate chain for every arm.** A provider needing a relaxed threshold has
+   failed the comparison; the threshold has not failed the provider.
+3. **The same pinned scope**, from `resolvedSectionKeys`.
+4. **Blinding.** The review screen shows the provider, so the blind sheet must be an export with
+   `providerId`, `modelId` and confidence withheld — confidence partly derives from option
+   distinctness and would leak the arm.
+5. **The pre-registered decision rule in §7 is unchanged and applies per arm.**
+
+### 11.3 The one methodological addition: pairwise, pre-registered
+
+Three arms invite choosing the winner after the results are in. The rule, fixed now:
+
+> **Each provider is evaluated against the deterministic control on the §7 criteria, independently.
+> There is no "best of three".** A provider either clears the bar or it does not, and two providers
+> clearing it is a procurement question rather than an experimental result.
+
+Reporting a provider as best-of-N over seven metrics with no correction is how a null result becomes
+a recommendation. If a genuine head-to-head is wanted later, it needs its own pre-registration,
+its own sample-size argument and a second rater — none of which exist today.
+
+### 11.4 Metrics, extended
+
+Every metric in §5 applies per arm. Four need provider-specific handling:
+
+| Metric | Extension |
+| --- | --- |
+| **Token usage** | Reported per arm with the `usage.reported` flag. The deterministic arm ESTIMATES from prompt length, so "tokens per accepted question" is not comparable across a reported and an estimated arm without saying which is which |
+| **Cost** | **"Not observable" is a legitimate value.** Licence-based (Copilot) and user-managed runs have no per-call cost the platform can see. Architecture §6.2. A zero would be a fabrication |
+| **Refusal rate** | Split by cause: insufficiency (the generator found nothing), evidence refusal (a span did not verify), schema invalid, duplicate blocked. A model failing differently from a sentence matcher is the interesting part |
+| **Duplicate rate** | Within-batch **and** against the corpus. A model asked for 50 questions from 76 sections can duplicate itself in one response; the deterministic generator structurally cannot, emitting at most one question per section |
+
+### 11.5 Two things the control arm has already settled
+
+Recorded so no provider evaluation re-litigates them:
+
+- **Structure dominates yield for the deterministic generator.** Same rule, same request: 0 accepted
+  from 93 assessable sections of the original corpus, 16 from 76 of the restructured corpus. Any
+  provider must be measured on **both** corpora or the result confounds provider with document
+  structure.
+- **Grounding holds.** All 20 accepted questions across both corpora verified as exact quotations
+  under `STRICT`. A provider whose evidence refusal rate is high is failing at citation, not being
+  held to an unusual standard.
+
+## 12. Traceability
 
 | This document | Source |
 | --- | --- |

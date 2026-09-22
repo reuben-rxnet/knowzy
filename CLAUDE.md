@@ -255,6 +255,29 @@ PILOT_DEMO_AS_ADMIN=1 npx tsx scripts/pilot-demo.ts
 Every existing role is unchanged. Do not grant one role both `question.approve`
 and `question.publish` -- a contract test refuses it, and /docs backs it.
 
+## Generation providers
+
+Multi-provider generation is DESIGNED, NOT BUILT:
+docs/integrations/MULTI_PROVIDER_GENERATION_ARCHITECTURE.md
+
+Four things to know before touching it:
+
+- It CONTRADICTS docs/architecture.md, which is explicitly single-provider
+  (section 9, the technology table, the C4 diagram, boundary rule B4). /docs
+  wins, so amending the specification is step 0 and no provider code precedes
+  it.
+- "User managed" is NOT uniform. Copilot and Azure OpenAI have delegated
+  per-user execution; Anthropic has no on-behalf-of flow and a claude.ai seat
+  is not an API credential. Anthropic is platform-managed only.
+- A provider that performs its OWN retrieval cannot be used for grounded
+  generation. Copilot grounds in Microsoft Graph, which either yields nothing
+  or produces questions shaped by content the author never selected -- and the
+  gate chain does not detect the second. `retrievalFree` is a declared,
+  asserted capability.
+- BankItemWrite.claudeModel is a provider-specific name in a provider-agnostic
+  port, written into the PUBLISHED record. Rename it before the SharePoint bank
+  adapter ships or it becomes tenant data migration.
+
 ## UI Source of Truth
 
 2
