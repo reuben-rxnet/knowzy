@@ -10,6 +10,12 @@
 // swallowing it in a redirect.
 //
 // UI-M2 converted the markup. Same action, same refusal, same comment rules.
+//
+// It also takes a `blockedReason`. A decision the state machine cannot reach
+// from here is disabled and SAYS WHY, because offering all five decisions on
+// every question taught people to read a 409 as a missing permission. The
+// server still re-evaluates every transition; this only stops the screen from
+// inviting a press it already knows the answer to.
 
 import { useActionState } from 'react';
 import { Button, Field, Textarea, type ButtonTone } from '@knowzy/shared-ui';
@@ -27,6 +33,7 @@ export const DecisionForm = ({
   commentKey,
   commentRequired = false,
   tone = 'primary',
+  blockedReason,
 }: {
   questionId: string;
   action: Action;
@@ -35,16 +42,22 @@ export const DecisionForm = ({
   commentKey?: CopyKey;
   commentRequired?: boolean;
   tone?: ButtonTone;
+  /**
+   * Why this decision cannot be taken right now, ALREADY RESOLVED TO PROSE by
+   * the caller. Undefined means it is available as far as the screen knows.
+   */
+  blockedReason?: string;
 }) => {
   const [state, submit, pending] = useActionState(action, null, `/review/${questionId}`);
 
   const fieldId = `comment-${labelKey.replace(/\./g, '-')}`;
+  const blocked = blockedReason !== undefined;
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-line p-4">
       <form action={submit} className="flex flex-col gap-3">
         <input type="hidden" name="questionId" value={questionId} />
-        {commentKey === undefined ? null : (
+        {commentKey === undefined || blocked ? null : (
           <Field
             id={fieldId}
             label={t(commentKey)}
@@ -56,8 +69,12 @@ export const DecisionForm = ({
         <div>
           <Button
             tone={tone}
-            disabled={pending}
-            {...(pending ? { disabledReason: t('sources.working') } : {})}
+            disabled={pending || blocked}
+            {...(blocked
+              ? { disabledReason: blockedReason }
+              : pending
+                ? { disabledReason: t('sources.working') }
+                : {})}
           >
             {t(labelKey)}
           </Button>

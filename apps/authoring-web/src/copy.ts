@@ -401,6 +401,14 @@ export const copy = {
   'question.gatesAdvisory':
     'This evaluation is advisory. The server re-evaluates every gate at the moment of the transition.',
   'question.actionsHeading': 'Actions',
+  'question.blockedByState':
+    'Not possible while this question is {status}. Available from here: {available}.',
+  'question.blockedTerminal': '{status} is a terminal state, so nothing follows it.',
+  'question.blockedByPermission':
+    'Your identity does not hold the permission this decision requires ({permission}).',
+  'question.nextStep': 'Next step from {status}',
+  'question.selfApprovalNote':
+    'Gate 13 currently refuses this approval because you authored or last edited this version. Separation of duties is a comparison of identities, not a permission, so no role can hold both sides of it. Switch to a second identity to approve.',
   'question.claim': 'Claim for authoring',
   'question.submit': 'Submit for approval',
   'question.approve': 'Approve',

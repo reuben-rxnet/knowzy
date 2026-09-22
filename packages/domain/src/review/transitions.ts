@@ -216,6 +216,49 @@ export const requireTransition = (
   return rule;
 };
 
+/**
+ * What can be done to a question in this state, by this caller.
+ *
+ * Exists because a screen that offers every decision on every question teaches
+ * people the wrong thing. An administrator holding all 47 permissions pressed
+ * **Submit for approval** on a DRAFT, was told `STATE_TRANSITION_INVALID`, and
+ * read that as missing access -- it is not: the draft had to be CLAIMED first.
+ * The state machine already knew that, and the only reason the screen did not
+ * was that nobody had asked it.
+ *
+ * Derived from `TRANSITIONS` rather than restated, so a new transition appears
+ * on the screen without a second edit, and an action with no declared
+ * transition can never be offered. It reports both reasons separately, because
+ * they need different responses: a STATE block is a step the person has to
+ * take first, a PERMISSION block is an identity that cannot do this at all.
+ *
+ * This is ADVISORY, exactly as the gate evaluation is. The server re-resolves
+ * the transition when the decision is taken (§3.2), and nothing here is
+ * load-bearing for authorization.
+ */
+export interface AvailableTransition {
+  readonly to: QuestionStatus;
+  readonly permission: PermissionKey | null;
+  /** Legal from this state AND the caller holds the permission. */
+  readonly permitted: boolean;
+  readonly commentRequired: boolean;
+  readonly summary: string;
+}
+
+export const availableTransitions = (
+  from: QuestionStatus,
+  permissions: readonly string[],
+): readonly AvailableTransition[] => {
+  const held = new Set(permissions);
+  return TRANSITIONS.filter((rule) => rule.from === from).map((rule) => ({
+    to: rule.to,
+    permission: rule.permission,
+    permitted: rule.permission === null || held.has(rule.permission),
+    commentRequired: rule.commentRequired,
+    summary: rule.summary,
+  }));
+};
+
 /** Statuses that appear in the author review queue. */
 export const AUTHOR_QUEUE_STATUSES: readonly QuestionStatus[] = [
   'DRAFT',

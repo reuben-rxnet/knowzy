@@ -94,6 +94,15 @@ interface QuestionDetail {
     readonly questionVersion: number;
     readonly decidedAt: string;
   }[];
+  /**
+   * What the state machine allows from this status, for this identity.
+   * Optional so an older API response still renders.
+   */
+  readonly availableTransitions?: readonly {
+    readonly to: string;
+    readonly permission: string | null;
+    readonly permitted: boolean;
+  }[];
 }
 
 interface GateResult {
@@ -203,6 +212,56 @@ export default async function QuestionPage({
   }
 
   const detail = question.data;
+
+  /**
+   * Which decisions the state machine can reach from here, and why not.
+   *
+   * Taken from the API rather than restated: the transition table is the
+   * authority and it lives in the domain. A payload without the field (an
+   * older API) yields no blocks at all, so the screen degrades to what it did
+   * before rather than disabling everything.
+   *
+   * Two blocks, kept apart because the responses differ. STATE is an order of
+   * operations -- claim the draft, then submit it. PERMISSION is an identity
+   * that cannot take this decision at all.
+   */
+  const transitions = detail.availableTransitions;
+  const reachable = (transitions ?? []).filter((entry) => entry.permitted).map((entry) => entry.to);
+
+  const blockedProps = (to: string): { blockedReason?: string } => {
+    if (transitions === undefined) return {};
+    const entry = transitions.find((candidate) => candidate.to === to);
+    if (entry === undefined) {
+      return {
+        blockedReason:
+          transitions.length === 0
+            ? t('question.blockedTerminal', { status: detail.status })
+            : t('question.blockedByState', {
+                status: detail.status,
+                available: transitions.map((candidate) => candidate.to).join(', '),
+              }),
+      };
+    }
+    if (!entry.permitted) {
+      return {
+        blockedReason: t('question.blockedByPermission', {
+          permission: entry.permission ?? '',
+        }),
+      };
+    }
+    return {};
+  };
+
+  /**
+   * Whether gate 13 refuses this approval RIGHT NOW.
+   *
+   * Read from the gate evaluation the page already fetched, not recomputed:
+   * separation of duties is an identity comparison the server makes, and a
+   * second implementation of it here would be a second answer.
+   */
+  const separationWillRefuse =
+    gates.ok &&
+    gates.data.gates.some((gate) => gate.code === 'SEPARATION_OF_DUTIES' && !gate.passed);
 
   /**
    * The five stages, derived only from records this payload carries.
@@ -692,46 +751,73 @@ export default async function QuestionPage({
         </Card>
       )}
 
-      {/* The decisions, always available — this is what the page is for. Each
-          one is re-evaluated by the server, so a button being visible is not a
-          claim that it will succeed. */}
+      {/* The decisions. Each is re-evaluated by the server, so a button being
+          enabled is still not a claim that it will succeed — but one the
+          state machine cannot reach from here is now disabled and says which
+          step comes first, instead of returning a 409 that reads like a
+          missing permission. */}
       <Card>
         <CardHeader title={t('question.actionsHeading')} description={t('question.actionsIntro')} />
         <CardBody>
-          <div className="grid gap-4 xl:grid-cols-2">
-            <DecisionForm
-              questionId={detail.questionId}
-              action={claimQuestion}
-              labelKey="question.claim"
-              tone="secondary"
-            />
-            <DecisionForm
-              questionId={detail.questionId}
-              action={submitQuestion}
-              labelKey="question.submit"
-            />
-            <DecisionForm
-              questionId={detail.questionId}
-              action={approveQuestion}
-              labelKey="question.approve"
-              commentKey="question.approvalCommentLabel"
-            />
-            <DecisionForm
-              questionId={detail.questionId}
-              action={requestChanges}
-              labelKey="question.requestChanges"
-              commentKey="question.commentLabel"
-              commentRequired
-              tone="secondary"
-            />
-            <DecisionForm
-              questionId={detail.questionId}
-              action={rejectQuestion}
-              labelKey="question.reject"
-              commentKey="question.commentLabel"
-              commentRequired
-              tone="danger"
-            />
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-ink-muted">
+              {t('question.nextStep', { status: detail.status })}:{' '}
+              <span className="font-semibold text-ink">
+                {reachable.length === 0
+                  ? t('question.blockedTerminal', { status: detail.status })
+                  : reachable.join(', ')}
+              </span>
+            </p>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <DecisionForm
+                questionId={detail.questionId}
+                action={claimQuestion}
+                labelKey="question.claim"
+                tone="secondary"
+                {...blockedProps('AUTHOR_REVIEW')}
+              />
+              <DecisionForm
+                questionId={detail.questionId}
+                action={submitQuestion}
+                labelKey="question.submit"
+                {...blockedProps('SUBMITTED_FOR_APPROVAL')}
+              />
+              <div className="flex flex-col gap-2">
+                <DecisionForm
+                  questionId={detail.questionId}
+                  action={approveQuestion}
+                  labelKey="question.approve"
+                  commentKey="question.approvalCommentLabel"
+                  {...blockedProps('APPROVED')}
+                />
+                {/* Gate 13 is ADVISORY here, so Approve stays pressable: the
+                    server decides. The note says what the gate rail already
+                    shows, next to the button somebody is about to press. */}
+                {separationWillRefuse ? (
+                  <p className="rounded-md bg-warning-soft px-3 py-2 text-sm text-ink">
+                    {t('question.selfApprovalNote')}
+                  </p>
+                ) : null}
+              </div>
+              <DecisionForm
+                questionId={detail.questionId}
+                action={requestChanges}
+                labelKey="question.requestChanges"
+                commentKey="question.commentLabel"
+                commentRequired
+                tone="secondary"
+                {...blockedProps('CHANGES_REQUESTED')}
+              />
+              <DecisionForm
+                questionId={detail.questionId}
+                action={rejectQuestion}
+                labelKey="question.reject"
+                commentKey="question.commentLabel"
+                commentRequired
+                tone="danger"
+                {...blockedProps('REJECTED')}
+              />
+            </div>
           </div>
         </CardBody>
       </Card>

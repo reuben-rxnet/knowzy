@@ -514,6 +514,22 @@ question.
 
 The **decision panel** is always at the bottom, whichever tab you are on.
 
+**A decision that cannot be taken yet is disabled and says why.** The panel names the next step
+available from the question's current state, and a button the lifecycle cannot reach from here
+carries the reason on hover and for a screen reader: *"Not possible while this question is DRAFT.
+Available from here: AUTHOR_REVIEW."* Before this, all five decisions were offered on every
+question, and pressing **Submit for approval** on a draft returned
+`STATE_TRANSITION_INVALID` — which reads like a missing permission and is not one. **Claim for
+authoring first.** The reasons are two different things:
+
+- **State** — an order of operations. Claim the draft, then submit it. Nothing is wrong with your
+  access.
+- **Permission** — your identity does not hold what this decision requires, and the button names
+  the permission key.
+
+It is still the server that decides. The panel is advisory in the same way the gate rail is, and
+the note above the buttons says so.
+
 The actions, and who can use them:
 
 | Button | Who | Effect |
@@ -530,7 +546,16 @@ that.
 
 **Watch gate 13 change hands.** Open the same question as the author and then as the approver: it
 fails for the author with "the approver is the original author" and passes for the approver. That is
-separation of duties, visible.
+separation of duties, visible. Where it currently refuses, a note now sits beside **Approve**
+saying so, rather than leaving the refusal to be discovered by pressing the button.
+
+**This is the one thing full access does not grant.** A **KNOWZY Administrator** holds every
+permission in the platform, including `question.publish`, and can author, review, submit, approve,
+publish, import, generate, administer sources and create assessments. It still cannot approve a
+question it authored or last edited, because separation of duties is a comparison of two identities
+rather than a permission — no single role can hold both sides of it. A pilot run therefore needs
+exactly one identity switch, at the approval step, and a second administrator identity is seeded
+for it. Everything before and after that step is the same identity.
 
 If a duplicate was flagged, a disposition section appears. Say whether it is `DISTINCT` or a
 `DUPLICATE`, with a note. Until someone does, approval stays blocked.
@@ -796,3 +821,4 @@ the log below.
 | 2026-09-21 | UI-M1 | Both portals now render inside one shared KNOWZY shell: brand header, left-hand destinations carrying their real status, the authoring workflow ribbon, a skip link, and visible focus. The search field, KNOWZY Copilot, and notifications are shown disabled and labelled "Planned" — see §2.4. **No page body, control, action, or refusal changed**; the screens themselves are modernized one at a time from UI-M2 |
 | 2026-09-21 | `abb1c45`+ | Resume of a fully answered attempt now works (it returned a 404 before, and the home page card printed "NaN / "). Two new review views, `Published` and `All questions`, with a per-document filter; preflight counts and published inventory rows link into them. Recording `VIEW_EXISTING` or `REUSE_EXISTING` no longer offers the generate form |
 | 2026-09-22 | Import on real files | **The first two real question banks were fed in, and both were refused for reasons that were the platform’s fault rather than the files’.** Fixed, in §4.3a: a spreadsheet may leave its trailing columns blank (a fifteen-column template with twelve filled imported nothing before, and now imports every row); `OptionA`, `CorrectAnswer`, `AnswerKey`, `QuestionText`, `Justification` and `SourceDocument` are recognised as column names; a Word bank whose four options sit on one line is read; and a decoration in front of `Correct Answer:` — a tick, a bullet, a dash — no longer hides the answer. A Word bank with no explanation per question is still refused, and §4.3a now says so before you try. Also: a spreadsheet cell whose own text contains ` - ` is reported with the value it found rather than mis-split. On §4.1, **skipped** is now counted and listed apart from **failed**: a file outside this source’s configured folder is the configuration working, not an error |
+| 2026-09-22 | Decision panel | **A decision the lifecycle cannot reach is now disabled and says why** (§4.5), and the panel names the next step available from the current state. All five decisions used to be offered on every question, so pressing **Submit for approval** on a draft returned `STATE_TRANSITION_INVALID` — which reads as missing access and never was: a draft has to be claimed first. A state block and a permission block are now worded differently, because one is an order of operations and the other is an identity. Where gate 13 currently refuses an approval, a note beside **Approve** says so. §4.5 also states plainly what full access does and does not grant a KNOWZY Administrator |

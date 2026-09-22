@@ -23,6 +23,7 @@ import type { FastifyReply } from 'fastify';
 import type { ErrorCode, ProblemDetails } from '@knowzy/shared-types';
 import {
   addReview,
+  availableTransitions,
   dispositionDuplicate,
   editDraftQuestion,
   evaluateGatesForQuestion,
@@ -259,6 +260,12 @@ export const reviewRoutes = [
           decidedAt: approval.decidedAt,
         })),
         createdAt: question.createdAt,
+        // What the state machine allows FROM HERE, for THIS caller. The screen
+        // used to offer every decision on every question, so an action that
+        // was simply out of order came back as a 409 and read like a missing
+        // permission. Advisory only: the server re-resolves the transition
+        // when the decision is taken.
+        availableTransitions: availableTransitions(question.status, [...ctx.subject.permissions]),
       };
     },
   }),

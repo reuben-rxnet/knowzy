@@ -80,6 +80,7 @@ export {
 } from './review/separation-of-duties.js';
 
 export {
+  availableTransitions,
   findTransition,
   requireTransition,
   APPROVAL_QUEUE_STATUSES,
@@ -87,6 +88,7 @@ export {
   CommentRequiredError,
   TRANSITIONS,
   TransitionNotPermittedError,
+  type AvailableTransition,
   type TransitionRule,
 } from './review/transitions.js';
 
