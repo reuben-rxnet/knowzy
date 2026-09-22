@@ -1284,3 +1284,63 @@ Restarting the API after PILOT-T2 failed its own startup check: *"expected
 and PILOT-T2 updated none of them. The check did exactly its job — it refuses to run an application
 against a schema it was not built for — and the constant is now `0004_grounding_integrity` in all
 four places.
+
+---
+
+## The deterministic baseline, measured on both corpora
+
+**2026-09-22.** Artifact: `scripts/baseline.ts`. Recorded in
+[`LIVE_CLAUDE_EVALUATION_PLAN.md` §2.4](../integrations/LIVE_CLAUDE_EVALUATION_PLAN.md) and
+[`CorpusManifest.md` §9](../../RealWorldPilot/CorpusManifest.md).
+
+PILOT-T2's first three items shipped in the previous commit. This is item 4: the control arm the
+Claude comparison will be measured against, captured through the real API with the full unmodified
+gate chain rather than reproduced in a harness.
+
+| | Original SOP corpus | Generation-ready corpus |
+| --- | ---: | ---: |
+| Documents · sections | 28 · 234 | 7 · 78 |
+| Assessable | 115 | 76 |
+| **Generated** | **4** | **16** |
+| Refused | 105 | 60 |
+| Unresolved | 6 | 0 |
+| **Coverage** | **3.5%** | **21.1%** |
+| Exact quotation under STRICT | 4 of 4 | 16 of 16 |
+| Duplicates blocked or flagged | 0 | 0 |
+| Highest similarity against the corpus | 0.594 | 0.483 |
+
+### The matched run is the honest headline
+
+Same selection rule, same 50-question request, same generator, same afternoon: the original corpus
+accepted **0** questions from 93 assessable sections in scope, and the restructured corpus accepted
+**16** from 76. The original's cumulative 4 came from earlier runs over the few sections carrying a
+modal verb.
+
+That is the clearest available demonstration that the deterministic generator's limit is
+**structural and stylistic, not a shortage of content** — the same operational knowledge, rewritten
+under topic headings with its rules stated as sentences, yields four times as many questions from a
+third as many documents.
+
+### Two things recorded rather than smoothed over
+
+**Mean confidence went slightly DOWN on the better corpus** — 0.710 against 0.742 — while producing
+four times the questions. The composite weights evidence span length, and the restructured spans are
+longer (170 chars against 108), so it should have moved the other way. A small anomaly in the
+confidence formula, flagged for examination rather than reported as a quality verdict.
+
+**The duplicate rate is zero in both arms, and it is not yet a controlled measurement.** Both
+corpora derive from the same SOPs, so the 16 restructured questions were generated with the
+original's 4 already present — informative that none was blocked, but the comparison's own arm must
+run on a clean database before the number means anything. Written into the plan so it cannot be
+quoted as a result.
+
+### An adapter limitation found by registering the second source
+
+A file-repository source whose documents sit at the **tree root** synchronizes cleanly and is then
+invisible: `listContainers` derives containers from directory names, so it returns none, the
+document browser is empty and nothing can be selected for generation. Measured both ways.
+
+The corpus source therefore points one level above its documents, which makes the container real and
+browsable at the cost of `CorpusManifest.md` falling outside every configured path — one reported
+failure and a `PARTIAL` outcome. **A precise, explained PARTIAL beats a clean-looking source nobody
+can use**, and the seed records the trade-off so the next person does not "fix" it back.

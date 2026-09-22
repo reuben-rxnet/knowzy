@@ -788,7 +788,23 @@ const seedGenerationReadySource = async (ownerUserId: string): Promise<void> => 
         'rather than the approved SOP. The originals are unmodified in the pilot source.',
       sourceType: 'FILE_REPOSITORY',
       connection: {
-        localRoot: './RealWorldPilot/GenerationReady',
+        // The root is the PARENT of the corpus, with `GenerationReady` as the
+        // container, and this shape is a deliberate trade-off.
+        //
+        // `directory-tree.ts` derives a container from the first path segment
+        // and gives a file sitting directly in the tree root an EMPTY
+        // container id. Pointing the root straight at the documents therefore
+        // produces a source that synchronizes cleanly and is then INVISIBLE:
+        // `listContainers` returns nothing, so the document browser is empty
+        // and no document can be selected for generation. Measured both ways.
+        //
+        // With the root one level up, the container is real and browsable. The
+        // cost is that `CorpusManifest.md`, which sits at the root of
+        // `RealWorldPilot`, falls outside every configured path and is reported
+        // as one synchronization failure -- so the outcome is PARTIAL rather
+        // than SUCCEEDED. A precise, explained PARTIAL beats a clean-looking
+        // source nobody can use.
+        localRoot: './RealWorldPilot',
         // Committed in the repository, so the environment override must NOT
         // apply -- it points at the pilot mirror.
         rootFromEnvironment: false,
@@ -819,16 +835,7 @@ const seedGenerationReadySource = async (ownerUserId: string): Promise<void> => 
       paths: {
         create: [
           {
-            // The ROOT container, and it has to be.
-            //
-            // `directory-tree.ts` derives a container from the first path
-            // segment and gives a file sitting directly in the root an EMPTY
-            // container id. A path row naming a container therefore matches
-            // nothing, and every document fails synchronization with "falls
-            // outside every configured path" -- which is exactly what happened
-            // on the first attempt at this source. The pilot source escapes it
-            // only because its root sits one level above a `SOPs` folder.
-            containerId: '',
+            containerId: 'GenerationReady',
             containerName: 'GenerationReady',
             folderPath: '/',
             includedFileTypes: ['md', 'txt', 'html', 'pdf', 'docx', 'pptx', 'xlsx'],

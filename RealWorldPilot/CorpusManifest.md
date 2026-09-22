@@ -578,3 +578,28 @@ every run so a regression is visible rather than dormant.
 are unchanged, because `draft_question` lineage is immutable (I15) and rewriting it would falsify
 what was published. `document_section.section_key_v1` keeps those keys resolvable, and coverage
 matches on either.
+
+---
+
+## 9. Deterministic baseline, both corpora (2026-09-22)
+
+Full table and method: [`LIVE_CLAUDE_EVALUATION_PLAN.md` §2.4](../docs/integrations/LIVE_CLAUDE_EVALUATION_PLAN.md).
+Reproduce with `npx tsx scripts/baseline.ts`.
+
+|                               | Original SOP corpus | Generation-ready corpus |
+| ----------------------------- | ------------------: | ----------------------: |
+| Documents · sections          |            28 · 234 |                  7 · 78 |
+| Assessable                    |                 115 |                      76 |
+| Generated                     |               **4** |                  **16** |
+| Refused                       |                 105 |                      60 |
+| Unresolved                    |                   6 |                       0 |
+| **Coverage**                  |            **3.5%** |               **21.1%** |
+| Verified exactly under STRICT |              4 of 4 |                16 of 16 |
+| Duplicates blocked or flagged |                   0 |                       0 |
+
+Matched run, same selection rule and same 50-question request: the original corpus accepted **0**
+from 93 assessable sections in scope, the restructured corpus **16** from 76. The original's
+cumulative 4 came from earlier runs over the sections that contain a modal verb.
+
+**These figures supersede every coverage percentage recorded above §8** and are the control arm the
+Claude comparison will be measured against.

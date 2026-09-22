@@ -71,6 +71,84 @@ yield: 14 assessable sections that had never been attempted produced **zero** qu
 limit is the generator, not the selection and not the corpus. That is the finding this evaluation
 exists to act on.
 
+
+### 2.4 The deterministic baseline, measured on both corpora (2026-09-22)
+
+Captured with `npx tsx scripts/baseline.ts`, through the real API with the full unmodified gate
+chain. **This is Arm A.** Both runs used the same selection rule (documents ranked by ASSESSABLE
+section count, the §5.1 rule), the same requested count (50), the same profile, and `STRICT`
+evidence verification.
+
+| | Original SOP corpus | Generation-ready corpus |
+| --- | ---: | ---: |
+| Documents | 28 | 7 |
+| Sections | 234 | 78 |
+| **Assessable** | **115** | **76** |
+| Attempted | 109 | 76 |
+| **Generated** | **4** | **16** |
+| Refused | 105 | 60 |
+| Unresolved | 6 | 0 |
+| **Coverage** (generated / assessable) | **3.5%** | **21.1%** |
+
+#### The matched run, which is the cleanest statement of the finding
+
+Same rule, same request, same generator, same day:
+
+| | Original SOP corpus | Generation-ready corpus |
+| --- | ---: | ---: |
+| Assessable sections in scope | 93 | 76 |
+| Questions requested | 50 | 50 |
+| **Questions accepted** | **0** | **16** |
+| Sections reporting insufficiency | 93 | 60 |
+| Rejections (any reason) | 0 | 0 |
+| Tokens in / out | 21,660 / 40 | 18,203 / 5,784 |
+
+The original corpus accepted **zero** on this run because every assessable section had already been
+attempted and refused; its cumulative 4 came from the sections that happen to contain a modal verb.
+The restructured corpus accepted **16** from material with the same operational content.
+
+#### Evidence quality
+
+| | Original | Generation-ready |
+| --- | ---: | ---: |
+| Questions | 4 | 16 |
+| Verified under `STRICT` | 4 of 4 | 16 of 16 |
+| Exact quotation (similarity 1.000) | 4 | 16 |
+| Mean evidence span | 108 chars | 170 chars |
+| Mean composite confidence | 0.742 | 0.710 |
+| Evidence refusals in these runs | 0 | 0 |
+
+**Every accepted question in both arms is an exact, character-for-character quotation.** The one
+`EVIDENCE_UNVERIFIED` refusal recorded in `CorpusManifest.md` §4.4 came from a pre-PILOT-T2 run and
+its row was removed when `verify` truncated the database; the matched runs above refused nothing on
+evidence.
+
+Worth noting rather than glossing: mean confidence is slightly **lower** on the restructured corpus
+(0.710 vs 0.742) even though it produced four times as many questions. More questions, marginally
+less confident on average — and the confidence formula weights evidence span length, so the longer
+spans should have pushed the other way. That is a small anomaly in the composite, not a quality
+verdict, and §6.2 is where it should be examined.
+
+#### Duplicate rate
+
+| | Original | Generation-ready |
+| --- | ---: | ---: |
+| Accepted drafts with a duplicate disposition | 0 of 4 | 0 of 16 |
+| Blocked as duplicates | 0 | 0 |
+| Flagged | 0 | 0 |
+| Highest composite similarity against the whole corpus | 0.594 | 0.483 |
+
+Both sit below the 0.75 flag threshold and well below the 0.92 block threshold, so **the
+deterministic generator's duplicate rate on this corpus is zero** — which is unsurprising, because
+it emits at most one question per section and suppresses a stem it has already produced.
+
+**One confound, stated because it will otherwise be quoted as a result.** Both corpora derive from
+the same SOPs, so a question generated from one can legitimately duplicate one from the other. The
+16 restructured questions were generated with the original corpus's 4 already present and none was
+blocked, which is informative but is *not* a controlled measurement. **Arm A of the comparison must
+run on a clean database** for the duplicate metric to mean anything, and §4.2's requirement to
+re-run the control rather than quote these figures stands.
+
 ---
 
 ## 3. Three prerequisites, before any comparison is meaningful

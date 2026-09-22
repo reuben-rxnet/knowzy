@@ -371,3 +371,25 @@ client.
 
 Nothing in section 10's ordering changes. The two approvals — **T-29** (Anthropic) and **T-22**
 (`Sites.Selected` Write) — remain the critical path, and **T-29 still has no drafted request**.
+
+### 12.1 Deterministic baseline captured (2026-09-22)
+
+The control arm for the Claude comparison now exists as measured numbers rather than as a plan.
+`npx tsx scripts/baseline.ts` reproduces it.
+
+| | Original SOP corpus | Generation-ready corpus |
+| --- | ---: | ---: |
+| Assessable sections | 115 | 76 |
+| Questions generated | **4** | **16** |
+| Coverage | **3.5%** | **21.1%** |
+| Exact-quotation evidence | 4 of 4 | 16 of 16 |
+| Duplicates blocked | 0 | 0 |
+
+**What this changes for the pilot.** The readiness assessment could previously say only that
+question quality was untested. It can now say what the deterministic generator achieves on real
+content — 4 questions from 28 documents, and 16 from the same content restructured — which is the
+number any model has to beat, and the number a stakeholder should be shown before Claude is
+discussed.
+
+**What it does not change.** T-29 is still unrequested and still the critical path, and the
+comparison still requires a clean database for its duplicate metric to be meaningful.
