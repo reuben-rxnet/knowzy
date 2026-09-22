@@ -101,8 +101,12 @@ const main = async (): Promise<void> => {
   // what makes the committed default (`./fixtures/pilot-mirror`) work
   // identically in a container and on a workstation.
   const mirrorRoot = rawEnv['PILOT_MIRROR_ROOT'];
+  // The repository root, so a source whose `localRoot` is committed and
+  // relative resolves identically in a container and on a workstation.
+  const repoRoot = fileURLToPath(new URL('../../../', import.meta.url));
   const adapterRegistry = createAdapterRegistry({
     environment: knowzyEnv,
+    repoRoot,
     ...(isLocal ? { fixtureRoot: FIXTURE_ROOT, bankFixtureRoot: BANK_FIXTURE_ROOT } : {}),
     ...(mirrorRoot === undefined || mirrorRoot.trim() === ''
       ? {}

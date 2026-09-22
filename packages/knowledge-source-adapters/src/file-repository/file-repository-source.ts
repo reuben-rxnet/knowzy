@@ -151,8 +151,21 @@ const assertNotAborted = (ctx: AdapterContext): void => {
 };
 
 export interface FileRepositoryOptions {
-  /** Overrides the configured root. Test seam only. */
+  /**
+   * The environment's root, applied ONLY to a source whose connection sets
+   * `rootFromEnvironment`. Applying it to every source made a second
+   * file-repository source read the first one's folder.
+   */
   readonly rootOverride?: string;
+  /**
+   * Absolute repository root, used to resolve a source's own `./`-relative
+   * `localRoot`.
+   *
+   * Without it a committed relative root resolves against the process working
+   * directory, which differs between a container and a workstation -- so the
+   * committed default silently worked in one and not the other.
+   */
+  readonly repoRoot?: string;
 }
 
 export const createFileRepositoryAdapter = (
@@ -167,7 +180,11 @@ export const createFileRepositoryAdapter = (
   };
 
   const rootOf = (config: FileRepositoryConnection): string => {
-    const base = options.rootOverride ?? config.localRoot;
+    const configured =
+      config.localRoot.startsWith('./') && options.repoRoot !== undefined
+        ? `${options.repoRoot.replace(/[\\/]+$/, '')}/${config.localRoot.slice(2)}`
+        : config.localRoot;
+    const base = (config.rootFromEnvironment ? options.rootOverride : undefined) ?? configured;
     return config.corpusSubfolder === undefined || config.corpusSubfolder === ''
       ? base
       : `${base.replace(/[\\/]+$/, '')}/${config.corpusSubfolder.replace(/^[\\/]+/, '')}`;

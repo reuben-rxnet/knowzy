@@ -696,6 +696,9 @@ const seedPilotFileRepositorySource = async (ownerUserId: string): Promise<void>
       sourceType: 'FILE_REPOSITORY',
       connection: {
         localRoot: './fixtures/pilot-mirror',
+        // The real synchronized mirror is machine-specific, so this source
+        // takes its root from PILOT_MIRROR_ROOT when one is set.
+        rootFromEnvironment: true,
         provenance: 'SHAREPOINT_MIRROR',
         webUrlBase:
           'https://pilot-tenant.invalid/sites/CentralRxOperationsSupport/Shared%20Documents/Reuben/Projects/Knowzy',
@@ -754,6 +757,96 @@ const seedPilotFileRepositorySource = async (ownerUserId: string): Promise<void>
   log('  pilot source: KNOWZY Real-World Pilot SOP Corpus (FILE_REPOSITORY, UNTESTED)');
 };
 
+const seedGenerationReadySource = async (ownerUserId: string): Promise<void> => {
+  // The generation-ready corpus: the pilot SOPs restructured under topic
+  // headings so the generator comparison runs on material whose STRUCTURE is
+  // not the limiting factor. See
+  // docs/integrations/GENERATION_READY_CORPUS_SUMMARY.md.
+  //
+  // `localRoot` is repository-relative and committed, because these files ARE
+  // in the repository -- unlike the pilot mirror, there is no machine-specific
+  // path and no OneDrive involved.
+  //
+  // The name and description carry the constraint because the platform has no
+  // way to enforce it: every question generated from this source cites a
+  // DERIVED asset rather than the SOP its owner approved, so such a question
+  // must not be published to the Question Bank. That is a governance rule,
+  // recorded in CorpusManifest.md 7.5, and it is advisory here rather than
+  // structural -- a source-level publication prohibition does not exist yet,
+  // and inventing a half-enforced one would be worse than naming it plainly.
+  //
+  // `usableForRefreshers` and `usableForExplanations` are false for the same
+  // reason: derived text should never reach a learner as if it were the SOP.
+  await prisma.knowledgeSource.upsert({
+    where: { name: 'KNOWZY Generation-Ready Corpus (EVALUATION ONLY)' },
+    create: {
+      name: 'KNOWZY Generation-Ready Corpus (EVALUATION ONLY)',
+      description:
+        'Derived evaluation assets: the pilot SOPs restructured under topic headings for the ' +
+        'generator comparison. NOT documents of record, and questions generated from this ' +
+        'source must not be published to the Question Bank -- they would cite a derived file ' +
+        'rather than the approved SOP. The originals are unmodified in the pilot source.',
+      sourceType: 'FILE_REPOSITORY',
+      connection: {
+        localRoot: './RealWorldPilot/GenerationReady',
+        // Committed in the repository, so the environment override must NOT
+        // apply -- it points at the pilot mirror.
+        rootFromEnvironment: false,
+        // MANAGED_UPLOAD, not a mirror. The adapter gives a managed-upload
+        // document an explicitly NON-RESOLVING provisional URL rather than a
+        // SharePoint one, which is exactly right here: a derived file has no
+        // canonical SharePoint address, and minting one would be the
+        // provenance lie the whole URL layer exists to prevent.
+        provenance: 'MANAGED_UPLOAD',
+        includePatterns: [],
+        excludePatterns: [],
+        supportedExtensions: [],
+        maxFileBytes: 33554432,
+        partialSyncFloor: 0.8,
+        sidecarsEnabled: false,
+        isActive: true,
+      },
+      restrictions: { roles: [], domains: [], teams: [], functions: [] },
+      usableForGeneration: true,
+      usableForRefreshers: false,
+      usableForExplanations: false,
+      permissionMode: 'APP_ONLY_SITES_SELECTED',
+      connectionStatus: 'UNTESTED',
+      connectionStatusAt: null,
+      syncSchedule: { mode: 'MANUAL' },
+      isActive: true,
+      ownerUserId,
+      paths: {
+        create: [
+          {
+            // The ROOT container, and it has to be.
+            //
+            // `directory-tree.ts` derives a container from the first path
+            // segment and gives a file sitting directly in the root an EMPTY
+            // container id. A path row naming a container therefore matches
+            // nothing, and every document fails synchronization with "falls
+            // outside every configured path" -- which is exactly what happened
+            // on the first attempt at this source. The pilot source escapes it
+            // only because its root sits one level above a `SOPs` folder.
+            containerId: '',
+            containerName: 'GenerationReady',
+            folderPath: '/',
+            includedFileTypes: ['md', 'txt', 'html', 'pdf', 'docx', 'pptx', 'xlsx'],
+            excludedFileTypes: [],
+            includedMetadata: [],
+            requiresFullSync: true,
+            isActive: true,
+          },
+        ],
+      },
+    },
+    update: {},
+  });
+  log(
+    '  generation-ready source: KNOWZY Generation-Ready Corpus (EVALUATION ONLY) (FILE_REPOSITORY, UNTESTED)',
+  );
+};
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -781,6 +874,7 @@ const main = async (): Promise<void> => {
     await seedLocalTaxonomy();
     if (adminId) await seedMockSource(adminId);
     if (adminId) await seedPilotFileRepositorySource(adminId);
+    if (adminId) await seedGenerationReadySource(adminId);
   } else {
     log('  skipping stub users and mock source: not a local environment (V2)');
   }

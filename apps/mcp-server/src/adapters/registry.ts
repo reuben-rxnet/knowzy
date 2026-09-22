@@ -51,6 +51,8 @@ export interface AdapterRegistryOptions {
    * shared configuration. When absent, the row's own `localRoot` is used.
    */
   readonly fileRepositoryRoot?: string;
+  /** Absolute repository root, for a source with a committed `./` root. */
+  readonly repoRoot?: string;
 }
 
 export interface AdapterRegistry {
@@ -86,9 +88,12 @@ export const createAdapterRegistry = (options: AdapterRegistryOptions): AdapterR
   // visible on screen rather than hidden behind a registration rule.
   adapters.set(
     'FILE_REPOSITORY',
-    createFileRepositoryAdapter(
-      options.fileRepositoryRoot === undefined ? {} : { rootOverride: options.fileRepositoryRoot },
-    ),
+    createFileRepositoryAdapter({
+      ...(options.fileRepositoryRoot === undefined
+        ? {}
+        : { rootOverride: options.fileRepositoryRoot }),
+      ...(options.repoRoot === undefined ? {} : { repoRoot: options.repoRoot }),
+    }),
   );
 
   // SHAREPOINT lands in Phase 7. Until then a SharePoint source row resolves to

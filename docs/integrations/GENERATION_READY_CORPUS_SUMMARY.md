@@ -253,3 +253,52 @@ must cite the SOP its owner approved.
 | Distractor construction and `RULE_SIGNAL` | `packages/claude-services/src/generator.ts` |
 | The authoring rules applied | [`SOURCE_DOCUMENT_AUTHORING_GUIDE.md`](SOURCE_DOCUMENT_AUTHORING_GUIDE.md) §3–§7 |
 | Comparison methodology this corpus feeds | [`LIVE_CLAUDE_EVALUATION_PLAN.md`](LIVE_CLAUDE_EVALUATION_PLAN.md) §4 |
+
+---
+
+## 10. Registered as a knowledge source (2026-09-22)
+
+The corpus is now a real `FILE_REPOSITORY` source, so it can be generated from through the UI rather
+than only measured offline.
+
+| | |
+| --- | --- |
+| Source name | `KNOWZY Generation-Ready Corpus (EVALUATION ONLY)` |
+| `localRoot` | `./RealWorldPilot/GenerationReady` (committed, repository-relative) |
+| `provenance` | `MANAGED_UPLOAD` |
+| Test Connection | `ok: true` — 7 candidate documents, all with a registered extractor |
+| Synchronize (FULL) | `SUCCEEDED` — 7 of 7, **59,352 characters**, 0 failures |
+| Sections | **78, of which 76 assessable** — identical to the offline measurement |
+
+**`provenance` is `MANAGED_UPLOAD`, not a mirror, and that is deliberate.** The adapter gives a
+managed-upload document an explicitly non-resolving provisional URL instead of a SharePoint one,
+which is correct here: a derived file has no canonical SharePoint address, and minting one would be
+the provenance lie the URL layer exists to prevent.
+
+`usableForRefreshers` and `usableForExplanations` are **false**, so derived text can never reach a
+learner as though it were the SOP. The name and description carry the publication constraint from
+§7, because the platform cannot enforce it: there is no source-level publication prohibition, so
+**"do not publish questions generated from this source" remains a governance rule an operator must
+respect**, not a control. Naming it plainly beats a half-enforced mechanism.
+
+### 10.1 Two defects registering it exposed
+
+**The root override applied to every file-repository source.** `rootOverride` came from
+`PILOT_MIRROR_ROOT` and won over any source's own `localRoot`, unconditionally. Invisible while one
+such source existed; the moment a second was added it would have read the pilot's OneDrive folder.
+A source now declares `rootFromEnvironment`, and the override applies only to a source that asks for
+it. A committed `./`-relative root also resolves against the repository root rather than the process
+working directory, so it behaves identically in a container and on a workstation — which the
+existing comment already claimed but did not do.
+
+**A container-scoped path matches nothing at the root.** `directory-tree.ts` derives a container from
+the first path segment and gives a file sitting directly in the root an **empty** container id. The
+first synchronization attempt therefore failed all 7 documents with *"The document falls outside
+every configured path for this source"* — with a healthy Test Connection, because Test Connection
+reads the tree and does not evaluate path matching. The path row uses the root container, and the
+seed records why.
+
+**Also noticed, not fixed:** `excludePatterns` is declared in the file-repository connection schema
+and **never read by the adapter**. It is inert configuration that looks like a control, which is the
+shape of thing adapter template rule P1 exists to prevent. Recorded for a follow-up rather than
+fixed here.

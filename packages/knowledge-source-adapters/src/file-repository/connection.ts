@@ -48,6 +48,19 @@ export const FileRepositoryConnectionSchema = z
      * document record, an audit detail, a citation or a bank item.
      */
     localRoot: z.string().min(1),
+    /**
+     * Whether the environment's root override applies to THIS source.
+     *
+     * The override exists so a machine-specific mirror path is never
+     * committed, and it used to be applied to every FILE_REPOSITORY source
+     * unconditionally. That was invisible while one such source existed; the
+     * moment a second was added, it would have read the first one's folder.
+     *
+     * A source that keeps its documents in the repository -- derived
+     * evaluation assets, fixtures -- sets this false and keeps its own
+     * committed root.
+     */
+    rootFromEnvironment: z.boolean().default(false),
     /** Optional subfolder beneath the root, e.g. `SOPs`. */
     corpusSubfolder: z.string().optional(),
     provenance: z.enum(FILE_REPOSITORY_PROVENANCE),
