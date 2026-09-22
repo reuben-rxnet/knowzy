@@ -1041,3 +1041,85 @@ more often than a sentence matcher does.
 **Third defect in two days whose common shape is the same:** a value that is correct for the case it
 was designed for (a headed section, a curated flag, a coverage status) being reused for a case it
 cannot represent. Worth watching for.
+
+---
+
+## Generation-ready corpus, and the measurement that narrowed the authoring advice
+
+**2026-09-22.** Artifacts: `RealWorldPilot/GenerationReady/` (7 documents) ·
+[`GENERATION_READY_CORPUS_SUMMARY.md`](../integrations/GENERATION_READY_CORPUS_SUMMARY.md) ·
+[`CorpusManifest.md` §7](../../RealWorldPilot/CorpusManifest.md).
+
+Seven pilot SOPs restructured into generation-optimised Markdown so that the generator comparison has
+a corpus whose structure is not the limiting factor. **The originals were not opened for writing**;
+every derived document was produced from the platform's own stored `extracted_text`, and the
+authoritative register in §3 is unchanged. The derived files are evaluation assets, each carrying a
+header block that says so.
+
+### Measured, not predicted
+
+Both corpora were run through the real `extractContent`, the real `createDeterministicGenerator`,
+evidence verification in STRICT mode and the integrity gate.
+
+| | Original 7 | Generation-ready 7 |
+| --- | ---: | ---: |
+| Sections | 144 | 78 |
+| Sections with a heading | 122 | **78 (100%)** |
+| Assessable | 67 (46.5%) | **76 (97.4%)** |
+| **Questions accepted** | **4** | **16** |
+
+**A 4× yield increase, all sixteen evidence-verified and integrity-passing.** The largest single gain
+was `SOP - Printer Management`, a 3,053-character monolith with no internal structure, which went
+from 1 assessable section to 11 and from 0 questions to 3.
+
+### Two results that contradicted the expectation
+
+**Restructuring the best-structured document made it worse.**
+`RxNet_L2_SSL_Certificate_Renewal_SOP` was included as a control precisely to test whether
+restructuring helps unconditionally. It went from 26 assessable sections to 12 — consolidation
+replaces many small sections with fewer large ones — and produced **zero questions before and zero
+after**, despite twelve rule-dense sections averaging 965 characters. That document did not need
+converting, and "restructure everything" is therefore the wrong instruction.
+
+**Yield tracks quantities in rule sentences, not structural quality.** The generator builds its three
+distractors by swapping a quantity, a modal, or a known actor noun. A sentence carrying one modal, no
+number and no recognised actor yields **one** distractor and the section is refused for want of
+three. That is exactly the SSL document's style — *"L2 must not wait for business impact"* — a
+perfectly good rule with nothing to vary. The two documents that produced five questions each are
+full of numbers: TRACELAB carries version `1.6.0.2`, `HTTP 200 OK`, "seven situations", "thirteen
+checks"; Order Cancellation carries `NO = 1` and the one-versus-three job distinction.
+
+So the measured rule is narrower than
+[`SOURCE_DOCUMENT_AUTHORING_GUIDE.md`](../integrations/SOURCE_DOCUMENT_AUTHORING_GUIDE.md) §5.3
+implied as advice:
+
+> **Headings and section size make a document assessable. A stated quantity makes it generate.**
+
+Both findings are about **this** generator. A model reading *"L2 must not wait for business impact"*
+can construct three plausible wrong answers without a number to vary; whether it does is what the
+comparison exists to establish, and this corpus is now where that happens on equal structural
+footing.
+
+### Three judgement calls recorded rather than made silently
+
+1. **Format sections were omitted rather than filled.** The requested nine-section template and the
+   instruction not to invent knowledge conflict for any document that states no thresholds. Writing
+   plausible thresholds would have been exactly the fabrication the platform exists to prevent, so
+   `Thresholds`, `Exceptions` and `Validation Criteria` are absent where the source states none, and
+   each file records its own omissions.
+2. **`Tickets SOP's.docx` was only partially converted.** It is not a single SOP but a collection of
+   unrelated ticket notes, and its other topics carry real job numbers, live SQL, internal server
+   identifiers and an AWS instance IP. Only the SAP-to-Rx.Net interface reference (F1–F15) was
+   converted, and the file is named for what it contains rather than for its parent — a deliberate
+   departure from the requested naming convention.
+3. **Identifiers were redacted.** Named individuals, mailbox addresses, server FQDNs, an AWS instance
+   IP, customer order identifiers and job numbers were removed before anything reached version
+   control. No operational rule depends on any of them.
+
+### One governance constraint
+
+A question generated from this corpus carries provenance pointing at a **derived asset** rather than
+a document of record. That is fine for evaluation and not acceptable for publication, so **no
+question generated from this corpus may be published to the Question Bank**. Recorded in
+`CorpusManifest.md` §7.5 as well as here, because it is the kind of constraint that gets forgotten
+once the corpus starts producing better questions than the real one.

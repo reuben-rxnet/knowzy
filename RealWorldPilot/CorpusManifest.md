@@ -429,3 +429,103 @@ run reports that and carries on.
 **Still open:** the business and technical owners of this corpus are unassigned; retention (T-36) and
 the sensitivity exclusions are unconfirmed; and the corpus boundary is still one person's OneDrive
 account (§2.4), which is a transitional position and not a governance boundary.
+
+---
+
+## 7. Generation-Ready Corpus (derived assets)
+
+**Created 2026-09-22.** Location: `RealWorldPilot/GenerationReady/`. Full rationale:
+[`GENERATION_READY_CORPUS_SUMMARY.md`](../docs/integrations/GENERATION_READY_CORPUS_SUMMARY.md).
+
+### 7.1 What these files are, and what they are not
+
+Seven Markdown documents restructured from the pilot corpus so that generation quality can be
+evaluated against well-formed source material. They are **pilot, evaluation, demonstration and
+comparison assets only**.
+
+**They are not authoritative.** The `.docx` and `.pdf` files in the SharePoint library remain the
+documents of record, are unmodified, and are not replaced by these. No original file was touched:
+every derived document was produced by reading the platform's own `extracted_text`, and the register
+in §3 still describes the authoritative corpus.
+
+Content was consolidated, reorganised, re-headed and clarified. **No operational rule was added,
+removed or altered.** Where the standard format called for a section the source did not support —
+thresholds in a document that states none, exceptions in a conceptual reference — the section was
+**omitted rather than filled**, because filling it would have created knowledge the source does not
+contain. Each file records its own omissions in its header block.
+
+Named individuals, mailbox addresses, internal server FQDNs, an AWS instance IP, customer order
+identifiers and real job numbers were redacted or excluded. This changes no rule.
+
+### 7.2 The register
+
+Measured with the platform's own extraction pipeline (`extractContent` + sectionizer) and its own
+deterministic generator with evidence verification in STRICT mode and the integrity gate applied.
+"Original" figures are from §3, measured through the DOCX and PDF extractors.
+
+| Original source                                                              | Generated file                                          | Sections | Assessable | Assessable before |      Chars | Generation status | Suitability   |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------- | -------: | ---------: | ----------------: | ---------: | ----------------- | ------------- |
+| `SOP - Order Cancellation RxNet.docx`                                        | `SOP - Order Cancellation RxNet.md`                     |       13 |     **13** |                 8 |      8,508 | EXTRACTED         | **Excellent** |
+| `Rxnet Eolp Database Connection Pool Exhaustion Sop.docx`                    | `Rxnet Eolp Database Connection Pool Exhaustion Sop.md` |       13 |     **13** |                 7 |     12,371 | EXTRACTED         | **Excellent** |
+| `RxNet_L2_SSL_Certificate_Renewal_SOP.docx`                                  | `RxNet_L2_SSL_Certificate_Renewal_SOP.md`               |       12 |     **12** |                26 |     11,581 | EXTRACTED         | **Good**      |
+| `TRACELAB_Support_SOP.docx`                                                  | `TRACELAB_Support_SOP.md`                               |       12 |     **11** |                 6 |      9,274 | EXTRACTED         | **Excellent** |
+| `SOP - Printer Management.docx`                                              | `SOP - Printer Management.md`                           |       12 |     **11** |                 1 |      6,517 | EXTRACTED         | **Excellent** |
+| `Tickets SOP's.docx` (one section only)                                      | `Tickets SOP's (SAP Rx-MES Interface Reference).md`     |        9 |      **9** |                18 |      6,292 | EXTRACTED         | **Good**      |
+| `TRTF - How to Verify whether the Order reprocessed with HeadCapeAngle.docx` | same name, `.md`                                        |        7 |      **7** |                 1 |      4,667 | EXTRACTED         | **Fair**      |
+| **Totals**                                                                   | **7 files**                                             |   **78** |     **76** |            **67** | **59,210** | 7 EXTRACTED       | —             |
+
+Every one of the 78 sections carries a heading, and 76 of 78 are assessable — **97.4%**, against
+46.5% for the same seven documents in their original form.
+
+### 7.3 Coverage improvement — measured, not estimated
+
+The honest measure of improvement is not assessable-section count. It is how many questions the
+generator actually produces. Both columns below were produced by the same generator, with evidence
+verification in STRICT mode and the integrity gate applied.
+
+| Document                                             | Questions before | Questions after |
+| ---------------------------------------------------- | ---------------: | --------------: |
+| `SOP - Order Cancellation RxNet`                     |                2 |           **5** |
+| `TRACELAB_Support_SOP`                               |                0 |           **5** |
+| `SOP - Printer Management`                           |                0 |           **3** |
+| `Rxnet Eolp Database Connection Pool Exhaustion Sop` |                0 |           **1** |
+| `TRTF - HeadCapeAngle verification`                  |                0 |           **1** |
+| `Tickets SOP's` (partial derivation)                 |                2 |               1 |
+| `RxNet_L2_SSL_Certificate_Renewal_SOP`               |                0 |           **0** |
+| **Totals**                                           |            **4** |          **16** |
+
+**A 4× increase, all sixteen evidence-verified and integrity-passing.** Method caveat: the "before"
+column re-runs the generator over the stored normalized text through the plain-text extractor, so its
+sectioning differs from the DOCX path and its section counts are lower than §3. It is a proxy, and it
+agrees closely with the authoritative run, which accepted 3 questions with 2 from Order Cancellation
+and 1 from `Tickets SOP's`.
+
+### 7.4 Two results that contradict what was expected
+
+**Restructuring a well-structured document made it worse by the count metric.**
+`RxNet_L2_SSL_Certificate_Renewal_SOP` went from 26 assessable sections to 12, because consolidation
+replaces many small sections with fewer large ones. It also produced **zero questions before and
+zero after**, despite twelve rule-dense sections averaging 950 characters. That document did not need
+converting, and the conversion is recorded as **Good** rather than Excellent for that reason.
+
+**Yield tracks quantities in rule sentences, not structural quality.** The generator needs three
+distinct distractors, which it builds by swapping a quantity, a modal or a known actor noun. A
+sentence with one modal, no number and no recognised actor yields one distractor and is refused. That
+is precisely the SSL document's prose style — _"L2 must not wait for business impact"_ — and precisely
+why TRACELAB (version `1.6.0.2`, `HTTP 200`, "seven situations", "thirteen checks") and Order
+Cancellation (`NO = 1`, one versus three jobs) produced five each.
+
+So the measured requirement is narrower than the authoring guide's advice implies: **headings and
+section size make a document assessable; a stated quantity makes it generate.** Both findings are
+about this generator, and the comparison in
+[`LIVE_CLAUDE_EVALUATION_PLAN.md`](../docs/integrations/LIVE_CLAUDE_EVALUATION_PLAN.md) is what will
+show whether a model has the same constraint. It very likely does not, which is the point.
+
+### 7.5 Governance
+
+These files live in the repository rather than in the SharePoint library, so they are **not** covered
+by §2's inclusion criteria, permission assumptions or retention requirements — those govern the
+authoritative corpus. If a generation job is ever run against them, every question it produces will
+carry provenance pointing at a derived asset rather than at the document of record. **That is
+acceptable for evaluation and not acceptable for publication**, and any question generated from this
+corpus must not be published to the Question Bank.
