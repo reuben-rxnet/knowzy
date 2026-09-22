@@ -1,0 +1,296 @@
+// Detection and validation, per shape.
+//
+// The fixtures are deliberately awkward in the ways a real question bank is:
+// a cell containing the column separator, an answer on the next slide, an
+// explanation that wraps, an option list that stops at C. Each of those is a
+// specific failure this module has to report rather than guess through.
+
+import { describe, expect, it } from 'vitest';
+import { detectQuestions, type ImportSection } from './detect.js';
+import { validateDetected } from './validate.js';
+
+const section = (text: string, overrides: Partial<ImportSection> = {}): ImportSection => ({
+  sectionKey: 'k'.repeat(64),
+  heading: null,
+  pageNumber: null,
+  slideNumber: null,
+  sheetName: null,
+  startOffset: 0,
+  text,
+  ...overrides,
+});
+
+const EXPLANATION = 'The procedure states this rule directly, so the other options are wrong.';
+
+describe('tabular detection (XLSX)', () => {
+  const header = 'Domain — Topic — Question — A — B — C — D — Answer — Explanation';
+  const row =
+    'Support Ops — Escalation — Which team owns a stuck orchestration record? — ' +
+    `L2 RXIT — DBA L4 — Wintel — Incident Management — A — ${EXPLANATION}`;
+
+  it('reads a row into a question with the row as its evidence', () => {
+    const result = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(`${header}\n${row}`)],
+    });
+    expect(result.strategy).toBe('TABULAR');
+    expect(result.detected).toHaveLength(1);
+    const q = result.detected[0]!;
+    expect(q.questionText).toBe('Which team owns a stuck orchestration record?');
+    expect(q.options.A).toBe('L2 RXIT');
+    expect(q.options.D).toBe('Incident Management');
+    expect(q.correctOption).toBe('A');
+    expect(q.domainName).toBe('Support Ops');
+    expect(q.topicName).toBe('Escalation');
+    expect(q.locator).toBe('row 2');
+  });
+
+  it('quotes the row verbatim, at offsets that re-locate in the document', () => {
+    const text = `${header}\n${row}`;
+    const result = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(text, { startOffset: 500 })],
+    });
+    const q = result.detected[0]!;
+    // The offsets index the DOCUMENT, so subtracting the section start must
+    // recover the exact span. This is the property that lets an imported
+    // question pass gate 11 and gate 12.
+    expect(text.slice(q.evidenceStartOffset - 500, q.evidenceEndOffset)).toBe(q.evidence);
+    expect(q.evidence).toBe(row);
+  });
+
+  it('also reads the normalized separator, because X1 folds the em dash', () => {
+    // The XLSX extractor joins cells with ' — ' and normalization rewrites it
+    // to ' - '. Detection has to work on the STORED text, not the extractor's
+    // output.
+    const normalized = `${header}\n${row}`.replace(/ — /g, ' - ');
+    const result = detectQuestions({ fileName: 'bank.xlsx', sections: [section(normalized)] });
+    expect(result.detected).toHaveLength(1);
+    expect(result.detected[0]?.correctOption).toBe('A');
+  });
+
+  it('prefers the em dash, so an in-cell hyphen is not ambiguous', () => {
+    // Worth asserting because it is why the ambiguity below is NARROW. While
+    // the extractor's own separator survives, a cell containing ' - ' splits
+    // correctly and the row imports.
+    const hyphenInCell =
+      'Support Ops — Escalation — What is the pass - fail threshold? — ' +
+      `Seventy — Eighty — Ninety — One hundred — B — ${EXPLANATION}`;
+    const result = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(`${header}\n${hyphenInCell}`)],
+    });
+    expect(result.detected).toHaveLength(1);
+    expect(result.detected[0]?.questionText).toBe('What is the pass - fail threshold?');
+  });
+
+  it('reports a row it cannot split rather than guessing', () => {
+    // The real ambiguity, and the only one: once X1 has folded the em dash the
+    // separator and an in-cell hyphen are the SAME string, so this row yields
+    // ten parts where nine are expected. Reported, not mis-split.
+    const normalizedHeader = header.replace(/ — /g, ' - ');
+    const ambiguous = (
+      'Support Ops — Escalation — What is the pass - fail threshold? — ' +
+      `Seventy — Eighty — Ninety — One hundred — B — ${EXPLANATION}`
+    ).replace(/ — /g, ' - ');
+    const result = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(`${normalizedHeader}\n${ambiguous}`)],
+    });
+    expect(result.detected).toHaveLength(0);
+    expect(result.issues[0]?.code).toBe('ROW_SHAPE');
+    expect(result.issues[0]?.locator).toBe('row 2');
+  });
+
+  it('does not treat ordinary prose with hyphens as a header', () => {
+    const prose = 'The duty manager - who is on call - must be paged within fifteen minutes.';
+    const result = detectQuestions({ fileName: 'sop.docx', sections: [section(prose)] });
+    expect(result.strategy).not.toBe('TABULAR');
+  });
+});
+
+describe('prose detection (DOCX, PDF)', () => {
+  const block = [
+    'Which cancellation reason sends no status to the customer?',
+    'A. LAB SYSTEM SETUP AND TEST',
+    'B. LMS PATIENT REQUEST',
+    'C. LMS DISCONTINUED',
+    'D. A blank reason',
+    'Answer: A',
+    `Explanation: ${EXPLANATION}`,
+  ].join('\n');
+
+  it('reads a stem, four options, the answer and the explanation', () => {
+    const result = detectQuestions({ fileName: 'bank.docx', sections: [section(block)] });
+    expect(result.strategy).toBe('PROSE');
+    const q = result.detected[0]!;
+    expect(q.questionText).toBe('Which cancellation reason sends no status to the customer?');
+    expect(q.options.B).toBe('LMS PATIENT REQUEST');
+    expect(q.correctOption).toBe('A');
+    expect(q.explanation).toBe(EXPLANATION);
+  });
+
+  it('accepts the common option and answer punctuation', () => {
+    const variant = block
+      .replace(/^A\. /m, '(A) ')
+      .replace(/^B\. /m, 'B) ')
+      .replace('Answer: A', 'Correct answer: A');
+    const result = detectQuestions({ fileName: 'bank.docx', sections: [section(variant)] });
+    expect(result.detected[0]?.correctOption).toBe('A');
+    expect(result.detected[0]?.options.A).toBe('LAB SYSTEM SETUP AND TEST');
+  });
+
+  it('keeps two adjacent questions apart', () => {
+    const second = block.replace('Which cancellation reason', 'Which reason suppresses status');
+    const result = detectQuestions({
+      fileName: 'bank.docx',
+      sections: [section(`${block}\n\n${second}`)],
+    });
+    expect(result.detected).toHaveLength(2);
+    // The second stem must not have absorbed the first question's trailer.
+    expect(result.detected[1]?.questionText).toBe(
+      'Which reason suppresses status sends no status to the customer?',
+    );
+    expect(result.detected[1]?.questionText).not.toContain('Explanation');
+  });
+
+  it('gathers an explanation that wraps onto the next line', () => {
+    const wrapped = block.replace(
+      `Explanation: ${EXPLANATION}`,
+      'Explanation: The procedure states this rule directly,\nso the other options are wrong.',
+    );
+    const result = detectQuestions({ fileName: 'bank.docx', sections: [section(wrapped)] });
+    expect(result.detected[0]?.explanation).toBe(
+      'The procedure states this rule directly, so the other options are wrong.',
+    );
+  });
+
+  it('ignores an option list that stops before D', () => {
+    const truncated = block.replace('D. A blank reason\n', '');
+    const result = detectQuestions({ fileName: 'bank.docx', sections: [section(truncated)] });
+    // Three options is not a MULTIPLE_CHOICE_4 question, and inventing a
+    // fourth is exactly what the platform refuses elsewhere.
+    expect(result.detected).toHaveLength(0);
+  });
+
+  it('quotes the whole block as evidence, at document offsets', () => {
+    const result = detectQuestions({
+      fileName: 'bank.docx',
+      sections: [section(block, { startOffset: 1_000 })],
+    });
+    const q = result.detected[0]!;
+    expect(block.slice(q.evidenceStartOffset - 1_000, q.evidenceEndOffset - 1_000)).toBe(
+      q.evidence,
+    );
+    expect(q.evidence).toContain('Answer: A');
+  });
+});
+
+describe('slide-pair detection (PPTX)', () => {
+  const questionSlide = [
+    'Which service is restarted first?',
+    'A. RxPrinting',
+    'B. Print Spooler',
+    'C. Both together',
+    'D. Neither',
+  ].join('\n');
+
+  it('takes the answer from the following slide', () => {
+    const result = detectQuestions({
+      fileName: 'deck.pptx',
+      sections: [
+        section(questionSlide, { slideNumber: 3 }),
+        section(`Answer: A\nExplanation: ${EXPLANATION}`, { slideNumber: 4 }),
+      ],
+    });
+    expect(result.strategy).toBe('SLIDE_PAIR');
+    const q = result.detected[0]!;
+    expect(q.correctOption).toBe('A');
+    expect(q.explanation).toBe(EXPLANATION);
+    expect(q.locator).toBe('slide 3');
+  });
+
+  it('reports a question slide with no answer slide', () => {
+    const result = detectQuestions({
+      fileName: 'deck.pptx',
+      sections: [
+        section(questionSlide, { slideNumber: 3 }),
+        section('Thank you for attending.', { slideNumber: 4 }),
+      ],
+    });
+    expect(result.issues.some((i) => i.code === 'ANSWER_MISSING')).toBe(true);
+  });
+});
+
+describe('nothing recognisable', () => {
+  it('says so, and says what each shape needs', () => {
+    const result = detectQuestions({
+      fileName: 'policy.docx',
+      sections: [section('A certificate must be renewed thirty days before expiry.')],
+    });
+    expect(result.strategy).toBeNull();
+    expect(result.issues[0]?.code).toBe('NO_QUESTIONS_FOUND');
+    expect(result.issues[0]?.detail).toContain('header row');
+  });
+});
+
+describe('validation holds the same standard as generation', () => {
+  const good = detectQuestions({
+    fileName: 'bank.docx',
+    sections: [
+      section(
+        [
+          'Which cancellation reason sends no status to the customer?',
+          'A. LAB SYSTEM SETUP AND TEST',
+          'B. LMS PATIENT REQUEST',
+          'C. LMS DISCONTINUED',
+          'D. A blank reason',
+          'Answer: A',
+          `Explanation: ${EXPLANATION}`,
+        ].join('\n'),
+      ),
+    ],
+  }).detected;
+
+  it('passes a complete question', () => {
+    const outcome = validateDetected(good);
+    expect(outcome.valid).toHaveLength(1);
+    expect(outcome.invalid).toHaveLength(0);
+  });
+
+  it('refuses a question with no answer, because it cannot be graded', () => {
+    const outcome = validateDetected([{ ...good[0]!, correctOption: null }]);
+    expect(outcome.valid).toHaveLength(0);
+    expect(outcome.invalid[0]?.code).toBe('ANSWER_MISSING');
+  });
+
+  it('refuses two identical options', () => {
+    const outcome = validateDetected([
+      { ...good[0]!, options: { ...good[0]!.options, C: good[0]!.options.B } },
+    ]);
+    expect(outcome.invalid[0]?.code).toBe('OPTION_INCOMPLETE');
+  });
+
+  it('refuses a stem shorter than generation would accept', () => {
+    const outcome = validateDetected([{ ...good[0]!, questionText: 'Too short?' }]);
+    expect(outcome.invalid[0]?.code).toBe('MISSING_FIELD');
+    expect(outcome.invalid[0]?.detail).toContain('two standards');
+  });
+
+  it('refuses a missing explanation', () => {
+    const outcome = validateDetected([{ ...good[0]!, explanation: null }]);
+    expect(outcome.invalid[0]?.detail).toContain('learner sees the explanation');
+  });
+
+  it('refuses an evidence block too short to verify', () => {
+    const outcome = validateDetected([{ ...good[0]!, evidence: 'A. Yes' }]);
+    expect(outcome.invalid[0]?.code).toBe('EVIDENCE_TOO_SHORT');
+  });
+
+  it('reports one failure per question, not six', () => {
+    const outcome = validateDetected([
+      { ...good[0]!, questionText: '', correctOption: null, explanation: null },
+    ]);
+    expect(outcome.invalid).toHaveLength(1);
+  });
+});
