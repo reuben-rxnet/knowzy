@@ -54,9 +54,14 @@ export interface ExtractInput {
   readonly sizeBytes?: number;
 }
 
-export interface ExtractOptions extends SectionizeOptions {
+export interface ExtractOptions extends Omit<SectionizeOptions, 'documentScope'> {
   /** Size cap applied BEFORE parsing (source.maxDocumentBytes). */
   readonly maxBytes?: number;
+  /**
+   * The adapter's stable document identity, mixed into every section key.
+   * Defaults to `input.fileName` — see the call to `sectionize` below.
+   */
+  readonly documentScope?: string;
 }
 
 type TextExtractorFn = (raw: string) => StructuredDocument;
@@ -274,7 +279,15 @@ export const extractContent = async (
     structured = (textExtractor as TextExtractorFn)(input.content as string);
   }
 
-  const result = sectionize(structured, options);
+  // The scope defaults to the file name, which is never empty and is already
+  // required by this signature. An adapter passes the stronger
+  // `sourceDocumentId`, which is stable across databases; a bare file name is
+  // only unique within a folder, so the default is a floor rather than the
+  // intended value.
+  const result = sectionize(structured, {
+    ...options,
+    documentScope: options.documentScope ?? input.fileName,
+  });
 
   if (result.normalizedText.length === 0) {
     // An image-only PDF lands here once that extractor exists. The distinction

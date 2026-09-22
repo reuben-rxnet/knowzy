@@ -101,6 +101,7 @@ const sectionsForScope = async (
       out.push({
         sectionId: section.id,
         sectionKey: section.sectionKey,
+        sectionKeyV1: section.sectionKeyV1,
         documentId: document.documentId,
         ordinal: section.ordinal,
         label: section.headingPath ?? section.heading ?? `Section ${section.ordinal}`,

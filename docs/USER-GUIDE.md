@@ -1,8 +1,8 @@
 # Knowzy — User Guide
 
-**Applies to:** the local demonstration build at milestone PILOT-T1 (real-document ingestion from a
-synchronized folder), including UI-M3
-**Last updated:** 2026-09-21
+**Applies to:** the local demonstration build at milestone PILOT-T2 (grounding integrity and
+honest coverage), including PILOT-T1 and UI-M3
+**Last updated:** 2026-09-22
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -253,8 +253,24 @@ Act as the **author**. Three steps, in order, and they cannot be collapsed.
 unticked run is refused with a reason. Then **Run preflight**.
 
 **Step 2 — read the checks and choose an action.** Preflight runs six checks and shows, for each
-selected document, a coverage bar and then every check by name with its verdict, the sentence
-explaining that verdict, and the facts behind it:
+selected document, a coverage bar, a **section accounting** row, and then every check by name with
+its verdict, the sentence explaining that verdict, and the facts behind it.
+
+The section accounting shows five numbers side by side, and it is worth understanding what separates
+them, because a single coverage percentage cannot:
+
+| Number | Means |
+| --- | --- |
+| **Assessable** | Sections long enough to test and not marked as document furniture. Everything else is measured against this |
+| **Attempted** | Sections that have been in at least one generation run's scope |
+| **Generated** | Sections a question actually cites. **This, over assessable, is the coverage percentage** |
+| **Refused** | Sections where a run looked and reported nothing testable. This is a fact about the run, **not** a verdict that the section could never be assessed |
+| **Unresolved** | Assessable, no question, and no refusal — including sections nothing has looked at yet |
+
+A high **Refused** count with a low **Generated** count means the generator could not form questions
+from this material, not that the material is unassessable. Before 2026-09-22 refusals were counted
+as coverage, so a document could read 100% covered with two questions across eight assessable
+sections; the accounting row exists so that cannot happen silently again.
 
 | Check | What it shows you |
 | --- | --- |

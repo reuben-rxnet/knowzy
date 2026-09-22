@@ -20,6 +20,22 @@ import type { Block, StructuredDocument } from './structure.js';
 import { normalizeText } from '@knowzy/shared-types';
 
 export interface SectionizeOptions {
+  /**
+   * The document's own stable identity, mixed into every section key.
+   *
+   * REQUIRED, and required for a reason. Until 2026-09-22 the key was derived
+   * from the heading path and ordinal alone, so a section with no heading
+   * hashed `segment:9#9` — identical in every heading-less document. One key
+   * was shared by 21 documents in the pilot corpus. Both resolvers look a key
+   * up with `Array.find()`, which returns the FIRST match, so a span was
+   * verified against whichever colliding section happened to be ordered first
+   * and the question's lineage followed that section's document.
+   *
+   * Callers pass the adapter's `sourceDocumentId` — stable across
+   * re-extraction and across databases. `extractContent` defaults it to the
+   * file name, which is weaker but never empty.
+   */
+  readonly documentScope: string;
   /** Hard cap on retained characters. Truncation ends at a section boundary. */
   readonly maxChars?: number;
   /** Below this a section is NON_ASSESSABLE (coverage.minAssessableChars). */
@@ -35,8 +51,19 @@ const DEFAULTS = {
 } as const;
 
 export interface Section {
-  /** Stable across re-extraction: sha256(heading path + ordinal within parent). */
+  /**
+   * Stable across re-extraction, and unique to this document:
+   * `sha256(sha256(heading path + '#' + ordinal) + documentScope)`.
+   *
+   * The inner hash is the pre-2026-09-22 key and is still what
+   * `document_section.section_key_v1` holds, which is what makes the migration
+   * computable in SQL: the outer hash takes a FIXED-LENGTH 64-character hex
+   * string followed by the scope, so the concatenation is unambiguous and the
+   * old key is a valid input to the new derivation.
+   */
   readonly sectionKey: string;
+  /** The unscoped key, kept so a v1 reference stays resolvable. */
+  readonly sectionKeyV1: string;
   readonly ordinal: number;
   readonly heading: string | null;
   readonly headingPath: string | null;
@@ -62,6 +89,17 @@ export interface SectionizeResult {
 }
 
 const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
+
+/**
+ * Scopes an unscoped section key to one document.
+ *
+ * Exported because three things must agree on it and they are written in two
+ * languages: this module, the contract test, and migration 0004's SQL. A
+ * second implementation of this expression is how the migration silently
+ * stops matching the code.
+ */
+export const scopeSectionKey = (sectionKeyV1: string, documentScope: string): string =>
+  sha256(`${sectionKeyV1}${documentScope}`);
 
 /**
  * Headings whose sections carry nothing worth testing —
@@ -197,8 +235,13 @@ const windowSections = (text: string, windowChars: number): PendingSection[] => 
 
 export const sectionize = (
   document: StructuredDocument,
-  options: SectionizeOptions = {},
+  options: SectionizeOptions,
 ): SectionizeResult => {
+  if (options.documentScope.length === 0) {
+    // Refused rather than defaulted: an empty scope reinstates the collision
+    // this parameter exists to remove, and it would do so silently.
+    throw new Error('sectionize requires a non-empty documentScope.');
+  }
   const opts = { ...DEFAULTS, ...options };
 
   let pending: PendingSection[];
@@ -276,8 +319,11 @@ export const sectionize = (
     const isFurniture = p.heading !== null && NON_ASSESSABLE_HEADINGS.test(p.heading.trim());
     const tooShort = body.length < opts.minAssessableChars;
 
+    const sectionKeyV1 = sha256(`${headingForKey}#${p.ordinalWithinParent}`);
+
     sections.push({
-      sectionKey: sha256(`${headingForKey}#${p.ordinalWithinParent}`),
+      sectionKey: scopeSectionKey(sectionKeyV1, opts.documentScope),
+      sectionKeyV1,
       ordinal: sections.length + 1,
       heading: p.heading,
       headingPath: p.headingPath,

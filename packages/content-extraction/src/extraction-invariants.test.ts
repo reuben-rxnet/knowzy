@@ -75,8 +75,14 @@ describe('X1 normalization', () => {
 
 describe('X2 offsets index the returned text and round-trip exactly', () => {
   const cases = [
-    ['markdown with headings', sectionize(extractMarkdown(MARKDOWN))],
-    ['plain text windows', sectionize(extractPlainText(PLAIN))],
+    [
+      'markdown with headings',
+      sectionize(extractMarkdown(MARKDOWN), { documentScope: 'invariants-fixture' }),
+    ],
+    [
+      'plain text windows',
+      sectionize(extractPlainText(PLAIN), { documentScope: 'invariants-fixture' }),
+    ],
     [
       'html',
       sectionize(
@@ -84,6 +90,7 @@ describe('X2 offsets index the returned text and round-trip exactly', () => {
           `<html><body><h1>Returns</h1><p>${paragraph('Items ship back prepaid.')}</p>` +
             `<h2>Exceptions</h2><p>${paragraph('Perishables are not returnable.')}</p></body></html>`,
         ),
+        { documentScope: 'invariants-fixture' },
       ),
     ],
   ] as const;
@@ -107,7 +114,9 @@ describe('X2 offsets index the returned text and round-trip exactly', () => {
 });
 
 describe('X3 sections are ordered and non-overlapping', () => {
-  const { sections } = sectionize(extractMarkdown(MARKDOWN));
+  const { sections } = sectionize(extractMarkdown(MARKDOWN), {
+    documentScope: 'invariants-fixture',
+  });
 
   it('numbers ordinals from one with no gaps', async () => {
     expect(sections.map((s) => s.ordinal)).toEqual(sections.map((_, i) => i + 1));
@@ -129,7 +138,9 @@ describe('X3 sections are ordered and non-overlapping', () => {
 
 describe('X4 headings are captured, never invented', () => {
   it('captures the heading path from markdown structure', async () => {
-    const { sections } = sectionize(extractMarkdown(MARKDOWN));
+    const { sections } = sectionize(extractMarkdown(MARKDOWN), {
+      documentScope: 'invariants-fixture',
+    });
     expect(sections.map((s) => s.headingPath)).toEqual([
       'Support Operations Handbook',
       'Support Operations Handbook > Escalation',
@@ -139,7 +150,9 @@ describe('X4 headings are captured, never invented', () => {
   });
 
   it('labels plain-text sections honestly instead of guessing a heading', async () => {
-    const { sections } = sectionize(extractPlainText(PLAIN));
+    const { sections } = sectionize(extractPlainText(PLAIN), {
+      documentScope: 'invariants-fixture',
+    });
     expect(sections.length).toBeGreaterThan(0);
     for (const section of sections) {
       expect(section.heading).toBeNull();
@@ -151,12 +164,15 @@ describe('X4 headings are captured, never invented', () => {
   it('does not promote an ALL-CAPS line to a heading', async () => {
     const { sections } = sectionize(
       extractPlainText(`ESCALATION POLICY\n\n${paragraph('Page the on-call engineer.')}`),
+      { documentScope: 'invariants-fixture' },
     );
     expect(sections.every((s) => s.heading === null)).toBe(true);
   });
 
   it('marks document furniture non-assessable', async () => {
-    const { sections } = sectionize(extractMarkdown(MARKDOWN));
+    const { sections } = sectionize(extractMarkdown(MARKDOWN), {
+      documentScope: 'invariants-fixture',
+    });
     const furniture = sections.find((s) => s.heading === 'Revision History');
     expect(furniture?.isAssessable).toBe(false);
     expect(furniture?.nonAssessableReason).toContain('furniture');
@@ -165,6 +181,7 @@ describe('X4 headings are captured, never invented', () => {
 
   it('marks a section below the assessable minimum, with its length in the reason', async () => {
     const { sections } = sectionize(extractMarkdown('## Scope\n\nApplies to retail only.'), {
+      documentScope: 'invariants-fixture',
       minAssessableChars: 300,
     });
     expect(sections[0]?.isAssessable).toBe(false);
@@ -339,7 +356,7 @@ describe('HTML is sanitized, not swept with a regex', () => {
     '<footer>Copyright notice</footer>',
     '</body></html>',
   ].join('');
-  const result = sectionize(extractHtml(html));
+  const result = sectionize(extractHtml(html), { documentScope: 'invariants-fixture' });
 
   it('discards script and style contents entirely', async () => {
     expect(result.normalizedText).not.toContain('SCRIPTLEAK');

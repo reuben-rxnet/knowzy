@@ -505,6 +505,9 @@ const applySyncEvent = async (args: ApplyArgs): Promise<void> => {
         data: {
           documentId,
           sectionKey: section.sectionKey,
+          // Kept so a question citing the pre-0004 key stays resolvable after
+          // re-extraction, without rewriting immutable published lineage.
+          sectionKeyV1: section.sectionKeyV1,
           ordinal: section.ordinal,
           heading: section.heading ?? null,
           headingPath: section.headingPath ?? null,

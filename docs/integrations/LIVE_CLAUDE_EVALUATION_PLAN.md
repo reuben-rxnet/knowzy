@@ -77,7 +77,13 @@ exists to act on.
 
 These are not nice-to-haves. Each one silently corrupts a metric the brief asks for.
 
-### 3.1 The coverage metric does not currently measure coverage
+### 3.1 The coverage metric does not currently measure coverage — FIXED 2026-09-22
+
+> **Closed by PILOT-T2**, migration `0004_grounding_integrity`. Coverage is now `generated /
+> assessable`, and the five states are reported separately. On the pilot corpus the corrected figure
+> is **2.6%** where 94.8% was reported. `scripts/coverage-report.ts` prints the accounting and the
+> section-key collision count. The account below is kept because the defect explains what the metric
+> used to mean, and any figure quoted from before this date carries it.
 
 **This is a defect, and it is a residual of one I fixed on 2026-09-22 — the fix was incomplete.**
 
@@ -134,7 +140,11 @@ must not write a document-level coverage status at all. `NON_ASSESSABLE` should 
 author curation and by the length threshold, exactly as §6.2 of the generation specification says for
 `isAssessable`.
 
-### 3.2 The recorded prompt version is not the prompt that would be sent
+### 3.2 The recorded prompt version is not the prompt that would be sent — FIXED 2026-09-22
+
+> **Closed by PILOT-T2.** `PromptVersion.body` is now `canonicalPromptBody()` at version
+> 1.2.0, pinned by `PROMPT_BODY_SHA256` and guarded by a contract test that fails if the
+> prompt changes without the version.
 
 Implementation plan §3.2. Every question records `promptVersionId`, and the seeded body is a
 hand-written paraphrase of what `framing.ts` builds. For a comparison whose whole purpose is to

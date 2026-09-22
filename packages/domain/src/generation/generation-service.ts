@@ -528,25 +528,46 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     // generator: a model asked to work the corpus afterwards would be handed
     // one that says there is almost nothing left to assess.
     for (const section of scope.sections) {
+      // Either key. A question published before migration 0004 cites the
+      // unscoped key and is immutable, so matching only the scoped key would
+      // report its section as uncovered — replacing one wrong coverage figure
+      // with another.
+      const keys = [section.sectionKey, ...(section.sectionKeyV1 ? [section.sectionKeyV1] : [])];
       const covered = await tx.draftQuestion.count({
         where: {
-          sectionKey: section.sectionKey,
+          sectionKey: { in: keys },
           status: { notIn: ['REJECTED', 'ARCHIVED'] },
         },
       });
       const wasInsufficient = insufficient.some((row) => row.sectionKey === section.sectionKey);
+      const reason = insufficient.find((row) => row.sectionKey === section.sectionKey)?.reason;
+
+      // PILOT-T2: the run's outcome and the section's coverage are written to
+      // SEPARATE fields, because they are separate facts.
+      //
+      // The earlier fix stopped this block writing `isAssessable`, but left it
+      // writing `coverageStatus = 'NON_ASSESSABLE'` on a refusal — and
+      // preflight counted a section as uncovered only when its status was
+      // NOT_COVERED or PARTIALLY_COVERED. So a refused section stayed in the
+      // denominator and vanished from the numerator's complement: every
+      // refusal was counted as coverage. On the pilot corpus that read 94.8%
+      // where the truth was 2.6%, and the 106 "hidden" sections were exactly
+      // the 106 recorded refusals.
+      //
+      // `coverageStatus` now answers one question — does a question cite this
+      // section — and the generator's verdict lives in
+      // `lastGenerationOutcome` with its own reason column.
       await tx.documentSection.updateMany({
         where: { id: section.sectionId },
         data: {
-          coverageStatus:
-            covered > 0 ? 'COVERED' : wasInsufficient ? 'NON_ASSESSABLE' : 'NOT_COVERED',
-          ...(wasInsufficient
-            ? {
-                // The reason is recorded so an author can read it, but
-                // `isAssessable` is left alone — see above.
-                nonAssessableReason: 'Insufficient assessable content: no testable rule stated.',
-              }
-            : {}),
+          coverageStatus: covered > 0 ? 'COVERED' : 'NOT_COVERED',
+          generationAttemptCount: { increment: 1 },
+          lastAttemptedAt: startedAt,
+          lastGenerationOutcome:
+            covered > 0 ? 'GENERATED' : wasInsufficient ? 'REFUSED' : 'UNRESOLVED',
+          // The generator's own words, so an author reads why. Never written
+          // to `nonAssessableReason`, which is author curation.
+          lastRefusalReason: wasInsufficient ? (reason ?? 'No reason recorded.') : null,
         },
       });
     }

@@ -221,6 +221,7 @@ export const createMockKnowledgeSourceAdapter = (
         sizeBytes: document.sizeBytes,
       },
       {
+        documentScope: document.sourceDocumentId,
         maxBytes: ctx.limits.maxBytes,
         maxChars: extractOptions.maxChars ?? ctx.limits.maxCharsPerDocument,
         ...(extractOptions.minAssessableChars !== undefined
@@ -244,6 +245,7 @@ export const createMockKnowledgeSourceAdapter = (
     const sections: ExtractedSection[] = result.sections.map((section) => ({
       ordinal: section.ordinal,
       sectionKey: section.sectionKey,
+      sectionKeyV1: section.sectionKeyV1,
       ...(section.heading === null ? {} : { heading: section.heading }),
       ...(section.headingPath === null ? {} : { headingPath: section.headingPath }),
       ...(section.pageNumber === null ? {} : { pageNumber: section.pageNumber }),

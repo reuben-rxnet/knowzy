@@ -1123,3 +1123,94 @@ a document of record. That is fine for evaluation and not acceptable for publica
 question generated from this corpus may be published to the Question Bank**. Recorded in
 `CorpusManifest.md` §7.5 as well as here, because it is the kind of constraint that gets forgotten
 once the corpus starts producing better questions than the real one.
+
+---
+
+## PILOT-T2 — grounding integrity and coverage that tells the truth
+
+**2026-09-22.** Migration `0004_grounding_integrity`. Gates:
+`packages/testing/contracts/grounding-integrity.test.ts` (10 tests). Reporting:
+`scripts/coverage-report.ts`, `scripts/verify-section-keys.ts`.
+
+Three defects fixed before any Claude work, because all three corrupt the measurement the Claude
+comparison depends on. `npm run verify` passes: **634 tests across 26 files**, up from 624.
+
+### 1. Coverage counted refusals as coverage
+
+`coverage_status` carried two unrelated facts. Generation wrote `NON_ASSESSABLE` on a refusal, and
+preflight counted a section as uncovered only when its status was `NOT_COVERED` or
+`PARTIALLY_COVERED` — so a refused section stayed in the denominator and disappeared from the
+complement of the numerator. **Every refusal was counted as coverage.**
+
+The five states are now separate fields and separate concepts:
+
+| Concept | Where it lives | Means |
+| --- | --- | --- |
+| **assessable** | `is_assessable` | Long enough, not curated out. The denominator |
+| **attempted** | `generation_attempt_count` | Has been in a job's scope |
+| **generated** | `coverage_status = COVERED` | A question cites it. This, over assessable, IS coverage |
+| **refused** | `last_generation_outcome = REFUSED` | A run found nothing testable. A fact about the run |
+| **unresolved** | neither of the above | Assessable, no question, no refusal |
+
+`UNRESOLVED` exists as a fourth outcome value because a section blocked by the duplicate gate was
+attempted and is neither generated nor refused. Recording it as `NOT_ATTEMPTED` would have been the
+same class of lie.
+
+Measured on the pilot corpus, before and after:
+
+| | Reported before | Actual |
+| --- | ---: | ---: |
+| Assessable | 115 | 115 |
+| Coverage | **94.8%** | **2.6%** |
+| Generated | — | 3 |
+| Refused | hidden | 106 |
+| Unresolved | — | 6 |
+
+### 2. Section keys collided across documents
+
+`section_key` was `sha256(heading path + ordinal)`, so a section with no heading hashed
+`segment:N#N` — identical in every heading-less document. One key was shared by **21 documents**,
+another by 10, five more by three each: **53 collisions across 251 sections.** Both resolvers use
+`Array.find()`, which returns the first match, so a span could verify against another document's
+section and the question's lineage would follow that document.
+
+The key is now `sha256(unscoped_key + sourceDocumentId)`. Two properties made the migration
+possible: the unscoped key is a fixed 64 hex characters, so the concatenation is unambiguous without
+a separator; and the new key is a pure function of the old one, so SQL can recompute it. After
+migration: **251 sections, 251 distinct keys, 0 collisions**, and
+`scripts/verify-section-keys.ts` confirms all 251 agree with the TypeScript derivation.
+
+**The migration ran into I15 and lost, which was correct.** The first attempt tried to rewrite
+`draft_question.section_key`, and a trigger refused it: *"draft_question lineage is immutable; edits
+create a new version."* Rewriting a published question's section key would have changed what the
+platform claims was published, after the fact, with no new version and no audit record. So an
+existing question keeps its v1 key permanently, `document_section.section_key_v1` keeps that key
+resolvable, and coverage matches on either. The two job-level tables are rewritten only where
+exactly one of the job's documents owns the key; where the collision made it genuinely ambiguous the
+old value is left in place rather than guessed at.
+
+### 3. The recorded prompt was not the prompt
+
+`PromptVersion.body` held a hand-written paraphrase of the generation rules while `framing.ts`
+assembled a different text at call time. Harmless only because the deterministic generator never
+reads the prompt — and permanently wrong provenance the moment a model does, because the table is
+immutable by design.
+
+The body is now `canonicalPromptBody()`, rendered by the code that builds the prompt with the
+per-call nonce placeheld, pinned by `PROMPT_BODY_SHA256`, at version **1.2.0**. Editing the prompt
+fails the contract test until the hash and the semantic version are updated together.
+
+### What this cost, and the lesson
+
+The three defects shared one shape: **a field correct for the case it was designed for, reused for a
+case it cannot represent.** `coverage_status` was asked to carry a run outcome. `section_key` was
+asked to identify a section globally when it only identified one within a document. `PromptVersion.body`
+was asked to be a record when it was written as a description.
+
+All three passed 624 tests. Two of the three were found by reading two files against each other, and
+one of them — the coverage conflation — was a **residual of a fix made hours earlier**: that fix
+stopped the bad write to `isAssessable` and left the identical bad write to `coverage_status`
+untouched. A fix to a conflation must follow the conflated value everywhere it is written.
+
+The test that asserted `coverageStatus === 'NON_ASSESSABLE'` is the clearest artifact of that: **the
+suite encoded the defect**, so the defect could not fail a build. It now asserts the split.

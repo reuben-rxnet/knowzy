@@ -351,3 +351,23 @@ Better to say so now than at the demo.
 | Claude controls | [architecture.md](../architecture.md) §9, [security.md](../security.md) §5 |
 | Phase exit criteria | [implementation-roadmap.md](../implementation-roadmap.md) §3 |
 | Capability classifications | [full-solution-capability-matrix.md](../ui/full-solution-capability-matrix.md) |
+
+---
+
+## 12. PILOT-T2 update (2026-09-22)
+
+Three measurement and grounding defects are closed, and they matter to this assessment because two
+of them would have corrupted any figure the pilot reported.
+
+| Gap | Status |
+| --- | --- |
+| Coverage counted generation refusals as coverage | **Closed.** Five section states now reported separately; pilot coverage corrected from 94.8% to **2.6%** |
+| `section_key` collided across heading-less documents (21 on one key) | **Closed.** Keys scoped by document; 251 sections, 251 distinct keys, 0 collisions |
+| `PromptVersion.body` was a paraphrase, not the prompt | **Closed.** Derived from `framing.ts`, pinned by hash, version 1.2.0 |
+
+**G-7 is now partly closed**: the profile's `modelId` is still ignored by the deterministic
+generator, but the prompt-provenance half of that trap is gone. The rest lands with the Anthropic
+client.
+
+Nothing in section 10's ordering changes. The two approvals — **T-29** (Anthropic) and **T-22**
+(`Sites.Selected` Write) — remain the critical path, and **T-29 still has no drafted request**.

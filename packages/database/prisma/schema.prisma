@@ -189,6 +189,22 @@ enum IndexingStatus {
   @@map("indexing_status")
 }
 
+/// What the LAST generation run did with this section. A section can be
+/// assessable, attempted and refused all at once; coverage is a sixth,
+/// separate question. Splitting these is PILOT-T2.
+enum SectionGenerationOutcome {
+  NOT_ATTEMPTED
+  GENERATED
+  REFUSED
+  /// In scope, but neither a question nor a refusal came back — the candidate
+  /// was blocked as a duplicate, or the job reached its requested count first.
+  /// Without this value such a section would be recorded as never attempted,
+  /// which is the same kind of lie this whole split exists to remove.
+  UNRESOLVED
+
+  @@map("section_generation_outcome")
+}
+
 enum CoverageStatus {
   NOT_COVERED
   PARTIALLY_COVERED
@@ -1095,8 +1111,12 @@ model KnowledgeDocument {
 model DocumentSection {
   id                     String         @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   documentId             String         @map("document_id") @db.Uuid
-  /// SHA-256 of (normalized heading path + ordinal within parent).
+  /// SHA-256 of (unscoped key + the document's own sourceDocumentId). Scoped
+  /// since migration 0004: the unscoped form collided across every
+  /// heading-less document.
   sectionKey             String         @map("section_key") @db.Char(64)
+  /// The pre-0004 unscoped key, kept so a historical reference still resolves.
+  sectionKeyV1           String?        @map("section_key_v1") @db.Char(64)
   ordinal                Int
   heading                String?
   headingPath            String?        @map("heading_path")
@@ -1110,7 +1130,18 @@ model DocumentSection {
   isAssessable           Boolean        @default(true) @map("is_assessable")
   nonAssessableReason    String?        @map("non_assessable_reason")
   targetQuestionCount    Int            @map("target_question_count")
+  /// Whether a question COVERS this section. Never records a generator's
+  /// failure: a refusal is an outcome of a run, not a property of the section,
+  /// and conflating the two made every refusal count as coverage.
   coverageStatus         CoverageStatus @default(NOT_COVERED) @map("coverage_status")
+  /// --- generation outcome, deliberately separate from coverage -----------
+  /// How many jobs have had this section in scope.
+  generationAttemptCount Int            @default(0) @map("generation_attempt_count")
+  lastAttemptedAt        DateTime?      @map("last_attempted_at") @db.Timestamptz(6)
+  lastGenerationOutcome  SectionGenerationOutcome @default(NOT_ATTEMPTED) @map("last_generation_outcome")
+  /// The generator's own words, shown to an author. Distinct from
+  /// `nonAssessableReason`, which is curation and is never written by a run.
+  lastRefusalReason      String?        @map("last_refusal_reason")
   documentVersionCounter Int            @map("document_version_counter")
 
   createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1121,6 +1152,7 @@ model DocumentSection {
   @@unique([documentId, sectionKey, documentVersionCounter])
   @@index([documentId, documentVersionCounter, ordinal])
   @@index([documentId, coverageStatus])
+  @@index([documentId, lastGenerationOutcome])
   @@map("document_section")
 }
 

@@ -287,7 +287,10 @@ export const createFileRepositoryAdapter = (
           content: isBinary ? bytes : Buffer.from(bytes).toString('utf8'),
           sizeBytes: document.sizeBytes,
         },
-        { maxChars: ctx.limits.maxCharsPerDocument },
+        {
+          maxChars: ctx.limits.maxCharsPerDocument,
+          documentScope: document.sourceDocumentId,
+        },
       );
       return result.normalizedText;
     } catch {
@@ -625,6 +628,9 @@ export const createFileRepositoryAdapter = (
           sizeBytes: document.sizeBytes,
         },
         {
+          // The adapter's own stable id, so two heading-less documents in this
+          // tree cannot produce the same section key.
+          documentScope: document.sourceDocumentId,
           maxBytes: ctx.limits.maxBytes,
           maxChars: extractOptions.maxChars ?? ctx.limits.maxCharsPerDocument,
           ...(extractOptions.minAssessableChars !== undefined
@@ -652,6 +658,7 @@ export const createFileRepositoryAdapter = (
         sections: result.sections.map((section) => ({
           ordinal: section.ordinal,
           sectionKey: section.sectionKey,
+          sectionKeyV1: section.sectionKeyV1,
           ...(section.heading === null ? {} : { heading: section.heading }),
           ...(section.headingPath === null ? {} : { headingPath: section.headingPath }),
           ...(section.pageNumber === null ? {} : { pageNumber: section.pageNumber }),

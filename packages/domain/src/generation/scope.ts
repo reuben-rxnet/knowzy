@@ -25,6 +25,15 @@ declare const scopeBrand: unique symbol;
 export interface ScopedSection {
   readonly sectionId: string;
   readonly sectionKey: string;
+  /**
+   * The pre-0004 unscoped key, or null for a section extracted since.
+   *
+   * Questions published before migration 0004 carry v1 keys and CANNOT be
+   * rewritten: a trigger enforces I15, and rewriting a published question's
+   * lineage would change what the platform claims was published. So coverage
+   * matches on either key rather than pretending the old ones do not exist.
+   */
+  readonly sectionKeyV1: string | null;
   readonly documentId: string;
   readonly ordinal: number;
   readonly label: string;

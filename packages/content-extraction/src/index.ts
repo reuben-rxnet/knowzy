@@ -13,7 +13,7 @@
 export { normalizeText, normalizeForComparison } from '@knowzy/shared-types';
 export { headingBlock, textBlock } from './structure.js';
 export type { Block, HeadingBlock, TextBlock, StructuredDocument } from './structure.js';
-export { sectionize } from './sectionize.js';
+export { sectionize, scopeSectionKey } from './sectionize.js';
 export type { Section, SectionizeOptions, SectionizeResult } from './sectionize.js';
 export { extractPlainText, extractMarkdown } from './extractors/text.js';
 export { extractHtml } from './extractors/html.js';

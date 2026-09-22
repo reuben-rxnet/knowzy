@@ -69,3 +69,11 @@ export {
 } from './generator.js';
 
 export const PACKAGE_NAME = '@knowzy/claude-services' as const;
+
+export {
+  canonicalPromptBody,
+  promptBodyHash,
+  CANONICAL_PROMPT_NONCE,
+  PROMPT_BODY_SHA256,
+  PROMPT_SEMANTIC_VERSION,
+} from './prompt-version.js';

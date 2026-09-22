@@ -529,3 +529,52 @@ authoritative corpus. If a generation job is ever run against them, every questi
 carry provenance pointing at a derived asset rather than at the document of record. **That is
 acceptable for evaluation and not acceptable for publication**, and any question generated from this
 corpus must not be published to the Question Bank.
+
+---
+
+## 8. Corrected corpus metrics (PILOT-T2, 2026-09-22)
+
+Every coverage figure recorded above section 7 was computed against a denominator that counted
+refusals as coverage. Migration `0004_grounding_integrity` separated the two, and these are the
+figures the platform now reports. Reproduce with `npx tsx scripts/coverage-report.ts`.
+
+| Section state                          |   Count | Share of assessable |
+| -------------------------------------- | ------: | ------------------: |
+| **Assessable**                         | **115** |                100% |
+| Attempted (has been in a job's scope)  |     109 |               94.8% |
+| **Generated** (a question cites it)    |   **3** |            **2.6%** |
+| Refused (a run found nothing testable) |     106 |               92.2% |
+| Unresolved (no question, no refusal)   |       6 |                5.2% |
+
+**Coverage is 2.6%, not the 94.8% previously reported.** The two numbers are the same arithmetic
+with the 106 refusals moved from the numerator's side to their own column, which is where they
+belong: a refusal is a fact about a generation run, not about the document.
+
+Per document, the corrected picture is blunter than the aggregate:
+
+| Document                                                  | Assessable | Generated | Refused | Coverage |
+| --------------------------------------------------------- | ---------: | --------: | ------: | -------: |
+| `SOP - Order Cancellation RxNet.docx`                     |          8 |         2 |       6 |    25.0% |
+| `Tickets SOP's.docx`                                      |         18 |         1 |      17 |     5.6% |
+| `RxNet_L2_SSL_Certificate_Renewal_SOP.docx`               |         26 |         0 |      26 |     0.0% |
+| `EOLP Support SOP.pdf`                                    |         12 |         0 |      12 |     0.0% |
+| `Rxnet Eolp Database Connection Pool Exhaustion Sop.docx` |          7 |         0 |       7 |     0.0% |
+| `TRACELAB_Support_SOP.docx`                               |          6 |         0 |       6 |     0.0% |
+
+### 8.1 Section-key integrity
+
+|                                      |  Before |   After |
+| ------------------------------------ | ------: | ------: |
+| Sections                             |     251 |     251 |
+| Distinct section keys                | **198** | **251** |
+| Keys shared by two or more documents |  **53** |   **0** |
+
+The largest collision group was **21 documents sharing one key** — every heading-less document whose
+first section hashed `segment:1#1`. `scripts/verify-section-keys.ts` confirms all 251 stored keys
+match the TypeScript derivation, and `scripts/coverage-report.ts` reports the collision count on
+every run so a regression is visible rather than dormant.
+
+**Questions published before the migration keep their v1 keys** — `KNZ-SUPPORT_OPS-2026-000001..003`
+are unchanged, because `draft_question` lineage is immutable (I15) and rewriting it would falsify
+what was published. `document_section.section_key_v1` keeps those keys resolvable, and coverage
+matches on either.

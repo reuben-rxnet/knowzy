@@ -371,6 +371,9 @@ export const extractDocumentContent = registerTool({
       sections: extracted.sections.map((section) => ({
         ordinal: section.ordinal,
         sectionKey: section.sectionKey,
+        // Kept so a question citing the pre-0004 key stays resolvable after
+        // re-extraction, without rewriting immutable published lineage.
+        sectionKeyV1: section.sectionKeyV1,
         heading: section.heading ?? null,
         headingPath: section.headingPath ?? null,
         label: section.label,
@@ -432,6 +435,9 @@ export const getDocumentSections = registerTool({
       sections: sections.map((section) => ({
         sectionId: section.id,
         sectionKey: section.sectionKey,
+        // Kept so a question citing the pre-0004 key stays resolvable after
+        // re-extraction, without rewriting immutable published lineage.
+        sectionKeyV1: section.sectionKeyV1,
         ordinal: section.ordinal,
         heading: section.heading,
         headingPath: section.headingPath,

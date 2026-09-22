@@ -823,17 +823,36 @@ describeDb('generation workflow', () => {
       expect(recorded).toHaveLength(1);
       expect(recorded[0]?.detail).toContain('no testable rule');
 
-      // And the section is marked, so coverage tells the truth.
+      // And the section records the RUN's outcome, separately from coverage.
+      //
+      // This assertion used to require `coverageStatus === 'NON_ASSESSABLE'`,
+      // which is the defect PILOT-T2 removed: preflight counted a section as
+      // uncovered only when its status was NOT_COVERED or PARTIALLY_COVERED,
+      // so a refusal recorded this way was silently counted as coverage. The
+      // test encoded the defect, which is why 624 passing tests did not catch
+      // it.
       const marked = await prisma.documentSection.findFirstOrThrow({
         where: { id: sections[1]!.sectionId },
       });
-      expect(marked.coverageStatus).toBe('NON_ASSESSABLE');
-      expect(marked.nonAssessableReason).toContain('Insufficient assessable content');
+      expect(marked.coverageStatus).toBe('NOT_COVERED');
+      expect(marked.lastGenerationOutcome).toBe('REFUSED');
+      expect(marked.lastRefusalReason).toContain('no testable rule');
+      expect(marked.generationAttemptCount).toBeGreaterThan(0);
+      // Curation is untouched: a refusal says nothing about assessability.
+      expect(marked.isAssessable).toBe(true);
+      expect(marked.nonAssessableReason).toBeNull();
 
       await cleanup(jobId);
       await prisma.documentSection.update({
         where: { id: sections[1]!.sectionId },
-        data: { isAssessable: true, coverageStatus: 'NOT_COVERED', nonAssessableReason: null },
+        data: {
+          isAssessable: true,
+          coverageStatus: 'NOT_COVERED',
+          nonAssessableReason: null,
+          lastGenerationOutcome: 'NOT_ATTEMPTED',
+          lastRefusalReason: null,
+          generationAttemptCount: 0,
+        },
       });
     });
   });

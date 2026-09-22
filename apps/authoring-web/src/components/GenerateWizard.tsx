@@ -75,6 +75,14 @@ interface DocumentPreflight {
   readonly documentName: string;
   readonly coveragePercent: number;
   readonly uncoveredSectionCount: number;
+  readonly sections?: {
+    readonly assessable: number;
+    readonly attempted: number;
+    readonly generated: number;
+    readonly refused: number;
+    readonly unresolved: number;
+    readonly neverAttempted: number;
+  };
   readonly check1: PreflightCheck & {
     readonly jobIds: readonly string[];
     readonly lastGeneratedAt?: string | null;
@@ -450,9 +458,42 @@ export const GenerateWizard = ({
                       percent={Number(document.coveragePercent)}
                       tone={document.coveragePercent >= 75 ? 'success' : 'warning'}
                       summary={t('generate.coverageSummary', {
-                        uncovered: document.uncoveredSectionCount,
+                        generated: document.sections?.generated ?? 0,
+                        assessable: document.sections?.assessable ?? 0,
                       })}
                     />
+
+                    {/* The five states, side by side. Coverage alone cannot
+                        distinguish "no question here" from "a run looked and
+                        found nothing" from "nothing has ever looked", and
+                        collapsing them is what let every refusal count as
+                        coverage. */}
+                    {document.sections === undefined ? null : (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-2xs font-bold uppercase tracking-wide text-ink-subtle">
+                          {t('generate.sectionAccounting')}
+                        </span>
+                        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-5">
+                          {(
+                            [
+                              ['generate.sectionsAssessable', document.sections.assessable],
+                              ['generate.sectionsAttempted', document.sections.attempted],
+                              ['generate.sectionsGenerated', document.sections.generated],
+                              ['generate.sectionsRefused', document.sections.refused],
+                              ['generate.sectionsUnresolved', document.sections.unresolved],
+                            ] as const
+                          ).map(([key, value]) => (
+                            <div key={key} className="flex flex-col">
+                              <dt className="text-2xs text-ink-subtle">{t(key)}</dt>
+                              <dd className="font-mono text-sm font-bold text-brand-navy-text">
+                                {value}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                        <p className="text-2xs text-ink-muted">{t('generate.accountingNote')}</p>
+                      </div>
+                    )}
 
                     <ol className="flex flex-col divide-y divide-line rounded-md border border-line">
                       {checks.map((entry) => (

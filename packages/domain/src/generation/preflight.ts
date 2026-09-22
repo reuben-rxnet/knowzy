@@ -65,11 +65,36 @@ export interface PreflightCheck6 {
   readonly detail: string;
 }
 
+/**
+ * The five section states, reported separately because they answer different
+ * questions and were previously collapsed into one.
+ *
+ * `assessable` is the denominator for everything else. The other four are
+ * disjoint and sum to it: a section has a question, or a run refused it, or a
+ * run had it in scope and neither happened, or no run has seen it.
+ */
+export interface SectionAccounting {
+  /** Long enough and not curated out. The denominator. */
+  readonly assessable: number;
+  /** Has been in at least one job's scope. */
+  readonly attempted: number;
+  /** A question cites it. This, over `assessable`, is coverage. */
+  readonly generated: number;
+  /** A run reported it had nothing testable. A fact about the run. */
+  readonly refused: number;
+  /** Attempted, not generated, not refused — or never attempted at all. */
+  readonly unresolved: number;
+  /** Of `unresolved`, the ones no run has ever had in scope. */
+  readonly neverAttempted: number;
+}
+
 export interface DocumentPreflight {
   readonly documentId: string;
   readonly documentName: string;
+  /** `generated / assessable`. Counts questions, not runs. */
   readonly coveragePercent: number;
   readonly uncoveredSectionCount: number;
+  readonly sections: SectionAccounting;
   readonly check1: PreflightCheck1;
   readonly check2: PreflightCheck2;
   readonly check3: PreflightCheck3;
@@ -122,6 +147,8 @@ export const runPreflight = async (args: RunPreflightArgs): Promise<PreflightRes
           isAssessable: true,
           coverageStatus: true,
           assessableCharCount: true,
+          generationAttemptCount: true,
+          lastGenerationOutcome: true,
         },
       },
       jobDocuments: {
@@ -167,10 +194,26 @@ export const runPreflight = async (args: RunPreflightArgs): Promise<PreflightRes
     const sectionCharCounts = new Map(
       currentSections.map((section) => [section.sectionKey, section.assessableCharCount]),
     );
-    const uncovered = assessable.filter(
+    // Coverage is about questions. A section is covered when one cites it, and
+    // nothing else counts — a generator's refusal used to arrive here as
+    // `NON_ASSESSABLE` and was silently excluded from `uncovered`, so every
+    // refusal read as coverage.
+    const generated = assessable.filter((section) => section.coverageStatus === 'COVERED');
+    const refused = assessable.filter(
       (section) =>
-        section.coverageStatus === 'NOT_COVERED' || section.coverageStatus === 'PARTIALLY_COVERED',
+        section.coverageStatus !== 'COVERED' && section.lastGenerationOutcome === 'REFUSED',
     );
+    const attempted = assessable.filter((section) => section.generationAttemptCount > 0);
+    const neverAttempted = assessable.filter((section) => section.generationAttemptCount === 0);
+    const uncovered = assessable.filter((section) => section.coverageStatus !== 'COVERED');
+    const accounting: SectionAccounting = {
+      assessable: assessable.length,
+      attempted: attempted.length,
+      generated: generated.length,
+      refused: refused.length,
+      unresolved: assessable.length - generated.length - refused.length,
+      neverAttempted: neverAttempted.length,
+    };
 
     // --- check 1: previously processed
     const jobDocuments = document.jobDocuments;
@@ -266,10 +309,9 @@ export const runPreflight = async (args: RunPreflightArgs): Promise<PreflightRes
       documentId: document.id,
       documentName: document.name,
       coveragePercent:
-        assessable.length === 0
-          ? 0
-          : Math.round(((assessable.length - uncovered.length) / assessable.length) * 100),
+        assessable.length === 0 ? 0 : Math.round((generated.length / assessable.length) * 100),
       uncoveredSectionCount: uncovered.length,
+      sections: accounting,
       check1,
       check2,
       check3,

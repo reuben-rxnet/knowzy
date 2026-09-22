@@ -140,6 +140,14 @@ export interface AccessDecision {
 export interface ExtractedSection {
   readonly ordinal: number;
   readonly sectionKey: string;
+  /**
+   * The unscoped key this section would have had before migration 0004.
+   *
+   * Carried through the contract because a question published before that
+   * migration cites the unscoped key and is immutable (I15), so the platform
+   * needs both to resolve coverage without rewriting published lineage.
+   */
+  readonly sectionKeyV1: string;
   readonly heading?: string;
   readonly headingPath?: string;
   readonly pageNumber?: number;

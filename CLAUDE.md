@@ -77,14 +77,15 @@ Current Status:
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
 - npm run verify passes: typecheck 30/30, lint 19/19, build 19/19,
-  tests 430 passing + 6 todo across 14 files, boundaries 0 errors,
+  tests 634 passing + 12 todo across 26 files, boundaries 0 errors,
   codegen contract clean, format clean.
 - The integration project is 189 of those tests, and until 2026-09-21 three of
   its suites (152 tests) only passed on a database where somebody had
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 3 migrations apply from empty; seed is idempotent.
+- 4 migrations apply from empty; seed is idempotent. 0004 is PILOT-T2:
+  section keys scoped per document, coverage split from generation outcome.
 - Full docker compose stack verified: postgres, api, mcp, jobs, both web apps.
 - 19 of 36 MCP tools registered; 48 API routes, every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
@@ -123,11 +124,14 @@ Still Open:
 
 Next Immediate Task:
 
-1. Configure the git remote and let CI run once. Everything else is harder to
-   trust until something outside this machine has verified the tree.
-2. Wire the live Claude generator behind the existing QuestionGenerator port
-   (packages/claude-services/src/generator.ts) and review a real batch.
-3. Automate the end-to-end acceptance script, now that there is a UI to drive.
+1. Request T-29 (Anthropic processor approval). It is the longest-lead item on
+   the critical path and has no drafted request anywhere.
+2. Measure the blind-stem baseline on the published questions, and aggregate
+   `confidenceComponents` — neither needs a key or an approval. See
+   docs/integrations/LIVE_CLAUDE_EVALUATION_PLAN.md section 9.
+3. Automate the 36-step acceptance script before any adapter is swapped.
+4. Wire the live Claude generator behind the existing QuestionGenerator port
+   (packages/claude-services/src/generator.ts) and run the recorded comparison.
 
 Working Commands:
 
@@ -202,6 +206,27 @@ Gotchas learned by execution (each of these cost real time):
   not resolve (the tags carry a `v`). Actions are resolved BEFORE any step
   runs, so a bad tag fails the job in three seconds with nothing else
   attempted — the build error behind it stayed invisible for a whole round.
+- Coverage and generation outcome are SEPARATE fields since 0004. `coverageStatus`
+  answers only "does a question cite this section"; a generator's refusal goes
+  to `lastGenerationOutcome = REFUSED` with `lastRefusalReason`. Writing a
+  refusal into `coverageStatus` made preflight count every refusal as coverage
+  (94.8% reported where the truth was 2.6%). A contract test now refuses it.
+- `section_key` is `sha256(unscoped_key + sourceDocumentId)`. The unscoped form
+  collided across every heading-less document — one key was shared by 21 pilot
+  documents — and both resolvers use `Array.find()`, so a span could verify
+  against the wrong document. `sectionize()` REQUIRES `documentScope`;
+  `extractContent` defaults it to the file name, adapters pass the stronger
+  `sourceDocumentId`.
+- Questions published before 0004 keep their v1 section keys and CANNOT be
+  rewritten: a trigger enforces I15 (draft_question lineage is immutable), and
+  it refused the first attempt at that migration. Coverage matches on
+  `sectionKey` OR `sectionKeyV1`. Never try to rewrite published lineage.
+- `PromptVersion.body` is DERIVED from `framing.ts` via `canonicalPromptBody()`
+  and pinned by `PROMPT_BODY_SHA256`. Editing the prompt fails the contract test
+  until the hash and `PROMPT_SEMANTIC_VERSION` are updated together.
+- A test can encode a defect. The suite asserted
+  `coverageStatus === 'NON_ASSESSABLE'` on a refusal, so the defect could not
+  fail a build. When a test fails after a fix, check which of the two is wrong.
 - preflight.offeredActions is ALWAYS the four workflows.md 4.2 actions and
   never includes GENERATE_NEW, which is what a never-processed document
   recommends. Any UI listing the offered actions must union in the

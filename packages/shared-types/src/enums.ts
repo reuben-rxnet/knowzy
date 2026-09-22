@@ -136,6 +136,23 @@ export const COVERAGE_STATUS = [
 export const CoverageStatusSchema = z.enum(COVERAGE_STATUS);
 export type CoverageStatus = z.infer<typeof CoverageStatusSchema>;
 
+/**
+ * What the last generation run did with a section.
+ *
+ * Deliberately NOT part of `CoverageStatus`. A refusal is a fact about a run;
+ * coverage is a fact about whether a question exists. Recording a refusal as
+ * `NON_ASSESSABLE` made preflight count every refusal as coverage, which read
+ * 94.8% on a corpus whose true coverage was 2.6%.
+ */
+export const SECTION_GENERATION_OUTCOME = [
+  'NOT_ATTEMPTED',
+  'GENERATED',
+  'REFUSED',
+  'UNRESOLVED',
+] as const;
+export const SectionGenerationOutcomeSchema = z.enum(SECTION_GENERATION_OUTCOME);
+export type SectionGenerationOutcome = z.infer<typeof SectionGenerationOutcomeSchema>;
+
 export const SECTION_MATCH_RULE = ['KEY', 'HASH', 'SIMILARITY', 'NEW', 'REMOVED'] as const;
 export const SectionMatchRuleSchema = z.enum(SECTION_MATCH_RULE);
 export type SectionMatchRule = z.infer<typeof SectionMatchRuleSchema>;
