@@ -363,3 +363,34 @@ export const createAndPublishAssessment = async (
 export const goToQuestion = async (formData: FormData): Promise<void> => {
   redirect(`/review/${String(formData.get('questionId') ?? '')}`);
 };
+
+// ------------------------------------------------------------------ import
+
+/**
+ * Preview or import, chosen by the submit button.
+ *
+ * One action rather than two because a form binds one action, and the two
+ * calls take identical input. The INTENT decides which: `preview` writes
+ * nothing, `import` creates drafts. Defaulting to preview is deliberate — a
+ * missing intent must never import.
+ */
+export const importQuestions = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const intent = String(formData.get('intent') ?? 'preview');
+  const body = {
+    documentId: String(formData.get('documentId') ?? ''),
+    domainId: String(formData.get('domainId') ?? ''),
+    topicId: String(formData.get('topicId') ?? ''),
+  };
+  const path =
+    intent === 'import'
+      ? '/api/v1/authoring/question-import'
+      : '/api/v1/authoring/question-import/preview';
+  const result = await api<unknown>(path, { method: 'POST', body });
+  if (intent === 'import') revalidatePath('/review');
+  return result.ok
+    ? { ok: true, data: { ...(result.data as object), intent } }
+    : failed(result.problem);
+};

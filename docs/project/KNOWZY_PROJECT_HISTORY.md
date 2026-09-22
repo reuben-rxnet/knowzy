@@ -1419,3 +1419,90 @@ untested integrations and no answer to the question the pilot exists to answer. 
 declare the rest, and let the comparison decide what is worth building** — and note that steps 0–5
 of the order, which is most of the architecture, need no approval, no credential and no tenant
 access at all.
+
+---
+
+## The Question Acquisition Framework
+
+**2026-09-22.** Two ways a question enters the platform, one governance model.
+Commits: provider generation, then the import detection core, then import wiring.
+
+### Part A — provider-based generation
+
+Implemented the registry from
+[`MULTI_PROVIDER_GENERATION_ARCHITECTURE.md`](../integrations/MULTI_PROVIDER_GENERATION_ARCHITECTURE.md)
+steps 3-5. **The deterministic generator is the only REGISTERED provider**; Anthropic, Copilot,
+Azure OpenAI and Gemini are DECLARED, so a request for one is refused with a specific reason rather
+than served by a substitute. Anthropic still needs T-29; Copilot needs an answer to whether it can
+be invoked retrieval-free at all.
+
+Five refusals, verified over HTTP, and all of them ordered BEFORE `createGenerationJob`:
+
+| Request | Result |
+| --- | --- |
+| `MICROSOFT_COPILOT`, platform managed | `PROVIDER_MODE_NOT_SUPPORTED` — Copilot is user-managed only |
+| `MICROSOFT_COPILOT`, user managed | `PROVIDER_NOT_GROUNDING_SAFE` — it retrieves its own context |
+| `ANTHROPIC` / `GEMINI` / `AZURE_OPENAI` | `PROVIDER_NOT_REGISTERED` |
+| **Orphaned job rows left behind** | **0** |
+
+That last row is the one worth keeping. Resolving the provider after the job row would persist a
+QUEUED job for a provider that was never available, and a job row nobody can explain is worse than a
+request that was turned away.
+
+Provenance now records `providerId`, `executionMode`, `providerVersion`, `onBehalfOfUserId` and
+`tokenUsageReported` on the job and the draft (migration 0005), and
+`GenerationProfileSettings` finally carries `modelId` so a provider is constructed FROM
+configuration (T-30) rather than from a constant.
+
+### Part B — question import, and the decision that made it possible
+
+An imported question has no evidence span, and every approval gate requires one. Gate 1 refuses a
+question with no evidence, gate 11 verifies the span character-by-character, gate 12 re-locates it,
+and `DraftQuestion` makes the lineage columns non-null and immutable. So there were two options: an
+"imported" question that skips the grounding gates, or an imported question grounded like any other.
+
+**The uploaded file becomes a knowledge document.** A detected question's evidence is the verbatim
+block it was read from, at real offsets into that document. Every gate then passes for the same
+reason it passes for a generated question, and a reviewer can see exactly which lines of the file a
+question came from. Import is a different **acquisition** path onto the same rails.
+
+Proved on a real bank, end to end:
+
+| | |
+| --- | --- |
+| Detected / valid / created | 2 / 2 / 2 |
+| Evidence verification | **STRICT, similarity 1.000** on both — exact quotations of 324 and 332 characters |
+| Confidence | 0.901 and 0.827 — **higher** than the generated questions (0.71-0.78), because the spans are longer and the options more distinct |
+| `modelId`, `promptVersionId`, `generationJobId` | **NULL.** Nothing generated these |
+| Gates evaluated on an imported question | **13, with 12 passing and gate 13 refusing self-approval** |
+| Re-importing the same file | **0 new drafts.** Every question blocked as a duplicate |
+
+The last two rows are the ones that matter. Import does not bypass governance, and the most likely
+real failure — importing the same bank twice — is caught by the duplicate gate rather than producing
+a doubled question bank.
+
+### Three things found by running it rather than reading it
+
+**The extractor joins a paragraph's lines.** Line-based detection reported `NO_QUESTIONS_FOUND` on a
+file that plainly contained questions, because the markdown extractor collapses a paragraph into one
+line and DOCX concatenates runs the same way. A bank written one-option-per-line arrives as
+`"Stem? A. First B. Second C. Third D. Fourth Answer: A Explanation: ..."`. An INLINE strategy now
+handles it, tried second because line-based detection is the more precise of the two.
+
+**A test was wrong and the code was right.** The ambiguity of a cell containing the column separator
+is narrower than it looked: `splitRow` prefers the em dash, so a cell containing ` - ` splits
+correctly while the extractor's own separator survives. Only once X1 has folded the em dash are the
+two the same string. Both behaviours are now asserted, and the fixture that claimed otherwise was
+the thing at fault.
+
+**The screen claimed drafts were created when none were.** Re-importing the same file creates
+nothing, and the summary still said "drafts are in the review queue". Found by driving the browser,
+not by a test. It now distinguishes three states, and the zero case explains why: the bank has
+already been imported.
+
+### One deliberate omission
+
+**There is no browser file upload.** The file must reach a synchronized folder first. Adding upload
+means a filename-traversal guard, a size ceiling, a type allow-list and a writable mount — four
+controls that have to be right rather than present — so it is left for its own change rather than
+rushed in alongside everything else. Recorded in the user guide where an importer will look.

@@ -175,6 +175,24 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'confidenceScore',
     'maxSimilarityScore',
   ],
+  // A question lifted out of an uploaded question bank. The locator is where
+  // to look in the file; the document name identifies the file. No question
+  // text and no option text, for the same reason as every other action here.
+  'AUTHORING.QUESTION.IMPORTED': [
+    'importLocator',
+    'importStrategy',
+    'sourceDocumentName',
+    'confidenceScore',
+  ],
+  'AUTHORING.QUESTION.IMPORT_RUN': [
+    'sourceDocumentName',
+    'importStrategy',
+    'detectedCount',
+    'validCount',
+    'invalidCount',
+    'createdCount',
+    'rejectedCount',
+  ],
   // contentHash identifies WHICH content was extracted without reproducing any
   // of it, which is what makes an extraction traceable without putting document
   // text in the audit store.

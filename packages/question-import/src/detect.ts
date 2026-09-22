@@ -416,6 +416,82 @@ const detectProseIn = (
   return { detected, issues };
 };
 
+// ---------------------------------------------------------------------------
+// Inline prose (one question per PARAGRAPH, not one option per line)
+//
+// Found by running an import end to end rather than by reading the code. The
+// markdown extractor joins the lines of a paragraph into a single line, and
+// DOCX concatenates runs the same way, so a question bank written as
+//
+//     Which reason suppresses status?
+//     A. First
+//     B. Second
+//     ...
+//
+// arrives as ONE line: "Which reason suppresses status? A. First B. Second ...".
+// Line-based detection sees no option lines at all and reports
+// NO_QUESTIONS_FOUND on a file that plainly contains questions.
+//
+// So the options are matched INLINE as well, anchored on the A-B-C-D sequence
+// in order. Requiring the order is what stops a stray "A." inside prose from
+// starting a false match.
+
+const INLINE_PATTERN =
+  /(?<stem>.{10,400}?)\bA[).:]\s+(?<a>.+?)\bB[).:]\s+(?<b>.+?)\bC[).:]\s+(?<c>.+?)\bD[).:]\s+(?<d>.+?)\b(?:correct\s+answer|answer|ans|key)\s*[:.-]\s*\(?(?<answer>[A-Da-d])\)?(?:[\s.]*\b(?:explanation|rationale|why|reason)\s*[:.-]\s*(?<explanation>.+?))?\s*$/i;
+
+const detectInlineIn = (
+  section: ImportSection,
+  strategy: ImportStrategy,
+  locatorFor: (line: number) => string,
+  startOrdinal: number,
+): DetectedQuestion[] => {
+  const lines = section.text.split('\n');
+  const detected: DetectedQuestion[] = [];
+  let cursor = 0;
+  let ordinal = startOrdinal;
+
+  for (const [lineIndex, line] of lines.entries()) {
+    const lineStart = cursor;
+    cursor += line.length + 1;
+    const match = INLINE_PATTERN.exec(line);
+    const groups = match?.groups;
+    if (groups === undefined) continue;
+
+    const answer = (groups['answer'] ?? '').toUpperCase();
+    detected.push({
+      ordinal,
+      questionText: (groups['stem'] ?? '').trim(),
+      options: {
+        A: (groups['a'] ?? '').trim(),
+        B: (groups['b'] ?? '').trim(),
+        C: (groups['c'] ?? '').trim(),
+        D: (groups['d'] ?? '').trim(),
+      },
+      correctOption: (OPTION_KEYS as readonly string[]).includes(answer)
+        ? (answer as OptionKey)
+        : null,
+      explanation: groups['explanation'] === undefined ? null : groups['explanation'].trim(),
+      domainName: null,
+      topicName: section.heading,
+      difficulty: null,
+      tags: [],
+      sourceLabel: null,
+      // The whole paragraph, verbatim. It is what the question was read from,
+      // so it is what a reviewer should be shown and what verification checks.
+      evidence: line.trim(),
+      evidenceStartOffset:
+        section.startOffset + lineStart + (line.length - line.trimStart().length),
+      evidenceEndOffset: section.startOffset + lineStart + line.trimEnd().length,
+      sectionKey: section.sectionKey,
+      strategy,
+      locator: locatorFor(lineIndex + 1),
+    });
+    ordinal += 1;
+  }
+
+  return detected;
+};
+
 const detectProse = (input: DetectInput): DetectionResult | null => {
   const detected: DetectedQuestion[] = [];
   const issues: DetectionIssue[] = [];
@@ -427,8 +503,15 @@ const detectProse = (input: DetectInput): DetectionResult | null => {
           ? `"${section.heading}", line ${line}`
           : `line ${line}`;
     const result = detectProseIn(section, 'PROSE', locatorFor, detected.length + 1);
-    detected.push(...result.detected);
-    issues.push(...result.issues);
+    if (result.detected.length > 0) {
+      detected.push(...result.detected);
+      issues.push(...result.issues);
+      continue;
+    }
+    // Nothing on its own line, so try one question per paragraph. Tried
+    // SECOND because line-based detection is the more precise of the two: an
+    // inline match has to infer where the stem ends.
+    detected.push(...detectInlineIn(section, 'PROSE', locatorFor, detected.length + 1));
   }
   return detected.length === 0 ? null : { strategy: 'PROSE', detected, issues };
 };

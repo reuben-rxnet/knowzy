@@ -97,9 +97,10 @@ describe('navigation cannot create a dead link', () => {
 
   it('holds for the authoring sidebar', () => {
     assertHonest(AUTHORING_NAV);
-    // §9 lists ten destinations; this build adds Publish, which is a real
-    // route today, so eleven entries is correct and not a miscount.
-    expect(AUTHORING_NAV).toHaveLength(11);
+    // §9 lists ten destinations; this build adds Publish and Import
+    // Questions, both of which are real routes today, so twelve entries is
+    // correct and not a miscount.
+    expect(AUTHORING_NAV).toHaveLength(12);
   });
 
   it('holds for the learner sidebar', () => {

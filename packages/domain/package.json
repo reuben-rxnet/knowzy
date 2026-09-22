@@ -25,7 +25,8 @@
     "@knowzy/claude-services": "*",
     "@knowzy/database": "*",
     "@knowzy/observability": "*",
-    "@knowzy/shared-types": "*"
+    "@knowzy/shared-types": "*",
+    "@knowzy/question-import": "*"
   },
   "devDependencies": {
     "@knowzy/eslint-config": "*",

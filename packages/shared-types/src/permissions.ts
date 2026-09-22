@@ -34,6 +34,7 @@ export const PERMISSION_KEYS = [
   // question
   'question.read',
   'question.generate',
+  'question.import',
   'question.regenerate',
   'question.edit',
   'question.submit',
@@ -187,6 +188,12 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
     permissions: [
       ...AUTHORING_SHELL,
       'question.generate',
+      // Importing an existing question bank is a DIFFERENT capability from
+      // generating, not the same one by another route: it brings in content
+      // written outside this platform, for a purpose the platform cannot see.
+      // A tenant may reasonably allow one and not the other, so it is its own
+      // key rather than a reuse of `question.generate`.
+      'question.import',
       'question.edit',
       'question.submit',
       'question.read',
@@ -337,6 +344,7 @@ export const WRITE_PERMISSION_KEYS: readonly PermissionKey[] = [
   'document.section.manage',
   'document.exclude',
   'question.generate',
+  'question.import',
   'question.regenerate',
   'question.edit',
   'question.submit',

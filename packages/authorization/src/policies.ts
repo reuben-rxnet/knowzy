@@ -79,6 +79,12 @@ export const POLICIES = {
     description: 'Run generation preflight and create a generation job.',
   },
 
+  'question.import': {
+    permission: 'question.import',
+    portals: AUTHORING,
+    description: 'Preview an uploaded question bank and create drafts from it.',
+  },
+
   // ------------------------------------------------- question lifecycle
   'question.read': {
     permission: 'question.read',

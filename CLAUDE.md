@@ -84,7 +84,7 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 4 migrations apply from empty; seed is idempotent. 0004 is PILOT-T2:
+- 7 migrations apply from empty; seed is idempotent. 0004 is PILOT-T2:
   section keys scoped per document, coverage split from generation outcome.
 - Full docker compose stack verified: postgres, api, mcp, jobs, both web apps.
 - 19 of 36 MCP tools registered; 48 API routes, every one with a declared
@@ -277,6 +277,42 @@ Four things to know before touching it:
 - BankItemWrite.claudeModel is a provider-specific name in a provider-agnostic
   port, written into the PUBLISHED record. Rename it before the SharePoint bank
   adapter ships or it becomes tenant data migration.
+
+## Question acquisition
+
+Two ways a question enters the platform, ONE governance model.
+
+Generation: provider-based. See "Generation providers" above.
+
+Import: @knowzy/question-import plus runQuestionImport in @knowzy/domain.
+The design rests on one decision -- THE UPLOADED FILE BECOMES A KNOWLEDGE
+DOCUMENT, and a detected question's evidence span is the verbatim block it was
+read from, at real offsets into that document. Every approval gate then passes
+for the same reason it passes for a generated question. Import is a different
+ACQUISITION path onto the same rails, never a second set of rails.
+
+Things to know:
+
+- `DraftQuestion.acquisition` is GENERATED or IMPORTED, and `importLocator`
+  records where in the file ("row 7", "slide 4"). A reviewer needs both.
+- An imported draft has NULL modelId, promptVersionId and generationJobId.
+  Nothing generated it, and a sentinel model id would pollute every yield
+  comparison.
+- Import holds the SAME thresholds generation holds (15-char stem, four
+  distinct options, 20-char explanation, 40-char evidence span). Two standards
+  in one review queue would be indistinguishable after approval.
+- Detection has THREE strategies, tried most-unambiguous first: TABULAR
+  (header row), SLIDE_PAIR, PROSE. The first that finds anything wins.
+- PROSE has to handle options INLINE as well as one-per-line: the markdown
+  extractor joins a paragraph's lines and DOCX concatenates runs, so a bank
+  written one-option-per-line arrives as a single line. Found by running an
+  import end to end, not by reading the code.
+- There is NO browser file upload. The file must reach a synchronized folder
+  first. Adding upload means traversal, size, type and a writable mount -- four
+  controls, deliberately its own change.
+- `question.import` is its own permission key, not a reuse of
+  `question.generate`: importing brings in content written outside the
+  platform, which a tenant may reasonably allow or forbid separately.
 
 ## UI Source of Truth
 

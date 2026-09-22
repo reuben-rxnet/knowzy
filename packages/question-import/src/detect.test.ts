@@ -173,6 +173,38 @@ describe('prose detection (DOCX, PDF)', () => {
     expect(result.detected).toHaveLength(0);
   });
 
+  it('reads a question whose options are INLINE on one paragraph', () => {
+    // The shape a real import produced, and the reason this strategy exists.
+    // The markdown extractor joins a paragraph's lines, and DOCX concatenates
+    // runs the same way, so a bank written one-option-per-line arrives as a
+    // single line. Line-based detection saw nothing and reported
+    // NO_QUESTIONS_FOUND on a file that plainly contained questions.
+    const inline =
+      'Which cancellation reason sends no status message to the customer? ' +
+      'A. LAB SYSTEM SETUP AND TEST B. LMS PATIENT REQUEST C. A blank reason ' +
+      `D. Any reason chosen by the handler Answer: A Explanation: ${EXPLANATION}`;
+    const result = detectQuestions({ fileName: 'bank.md', sections: [section(inline)] });
+    expect(result.detected).toHaveLength(1);
+    const q = result.detected[0]!;
+    expect(q.questionText).toBe(
+      'Which cancellation reason sends no status message to the customer?',
+    );
+    expect(q.options.A).toBe('LAB SYSTEM SETUP AND TEST');
+    expect(q.options.D).toBe('Any reason chosen by the handler');
+    expect(q.correctOption).toBe('A');
+    expect(q.explanation).toBe(EXPLANATION);
+    expect(q.evidence).toBe(inline);
+  });
+
+  it('prefers line-based detection when options ARE on their own lines', () => {
+    // Guards the ordering: an inline match has to infer where the stem ends,
+    // so the more precise strategy must win when both could match.
+    const result = detectQuestions({ fileName: 'bank.docx', sections: [section(block)] });
+    expect(result.detected[0]?.questionText).toBe(
+      'Which cancellation reason sends no status to the customer?',
+    );
+  });
+
   it('quotes the whole block as evidence, at document offsets', () => {
     const result = detectQuestions({
       fileName: 'bank.docx',

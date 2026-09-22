@@ -181,6 +181,18 @@ export type DocumentType = z.infer<typeof DocumentTypeSchema>;
  *
  * See docs/integrations/MULTI_PROVIDER_GENERATION_ARCHITECTURE.md.
  */
+/**
+ * How a question entered the platform.
+ *
+ * A reviewer must be able to tell a question a generator drafted from one
+ * lifted out of an existing question bank: the second was written by somebody
+ * outside this platform, for a purpose the platform cannot see, and it
+ * deserves a different kind of reading even though it passes the same gates.
+ */
+export const QUESTION_ACQUISITION = ['GENERATED', 'IMPORTED'] as const;
+export const QuestionAcquisitionSchema = z.enum(QUESTION_ACQUISITION);
+export type QuestionAcquisition = z.infer<typeof QuestionAcquisitionSchema>;
+
 export const GENERATION_PROVIDER = [
   'DETERMINISTIC_LOCAL',
   'ANTHROPIC',

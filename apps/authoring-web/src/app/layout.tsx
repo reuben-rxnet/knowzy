@@ -44,6 +44,7 @@ const stageForPath = (location: string): string | null => {
     // The approval queue is its own stage in the ribbon, not part of review.
     return new URLSearchParams(query).get('queue') === 'approval' ? 'Approval' : 'Review';
   }
+  if (path.startsWith('/import')) return 'Import Questions';
   if (path.startsWith('/publish')) return 'Question Bank';
   return null;
 };

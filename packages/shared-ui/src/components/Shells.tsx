@@ -14,6 +14,7 @@ import {
   Building2,
   ClipboardCheck,
   FileStack,
+  FileUp,
   GaugeCircle,
   Layers,
   ListChecks,
@@ -72,6 +73,13 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     icon: <FileStack className="size-5" />,
     status: 'PARTIALLY_IMPLEMENTED',
     note: 'On Publish',
+  },
+  {
+    label: 'Import Questions',
+    href: '/import',
+    icon: <FileUp className="size-5" />,
+    status: 'IMPLEMENTED',
+    note: 'From a synchronized file',
   },
   {
     label: 'Assessments',

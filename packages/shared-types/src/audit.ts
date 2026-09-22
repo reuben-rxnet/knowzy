@@ -96,6 +96,8 @@ export const AUDIT_FAMILIES = {
   ],
   'AUTHORING.QUESTION': [
     'CREATED',
+    'IMPORTED',
+    'IMPORT_RUN',
     'EDITED',
     'SUBMITTED',
     'APPROVED',

@@ -200,3 +200,12 @@ export {
 } from './assessment/session-service.js';
 
 export const PACKAGE_NAME = '@knowzy/domain' as const;
+
+export {
+  runQuestionImport,
+  type ImportRejection,
+  type ImportRunResult,
+  type ImportTargetDocument,
+  type ImportTargetSection,
+  type RunImportArgs,
+} from './import/import-service.js';

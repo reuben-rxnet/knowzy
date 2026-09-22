@@ -189,6 +189,15 @@ enum IndexingStatus {
   @@map("indexing_status")
 }
 
+/// How a question entered the platform. A reviewer reads an imported question
+/// differently from a generated one even though both pass the same gates.
+enum QuestionAcquisition {
+  GENERATED
+  IMPORTED
+
+  @@map("question_acquisition")
+}
+
 /// Who drafted a question. Closed enum: a provider a job claims to have used
 /// is a value the platform knows about.
 enum GenerationProviderId {
@@ -312,6 +321,11 @@ enum RejectionReason {
 
 enum ChangeKind {
   GENERATED
+  /// Lifted out of an uploaded question bank rather than drafted by a
+  /// generator. A version snapshot must say which, because "GENERATED" on an
+  /// imported question would misattribute authorship in the one place the
+  /// history is append-only.
+  IMPORTED
   EDITED
   REVALIDATED
   PUBLISHED
@@ -1501,6 +1515,12 @@ model DraftQuestion {
   /// Provider provenance, carried on the question as well as the job because
   /// a question outlives its job and these lineage columns are immutable
   /// after insert (I15) -- the same reasoning that put `modelId` on both.
+  /// GENERATED or IMPORTED. Defaults to GENERATED because every question that
+  /// existed before import did come from a generator.
+  acquisition               QuestionAcquisition   @default(GENERATED)
+  /// Where in the imported file this question was found: "row 7", "slide 4".
+  /// Null for a generated question, which has a section rather than a locator.
+  importLocator             String?               @map("import_locator")
   providerId                GenerationProviderId? @map("provider_id")
   executionMode             GenerationExecutionMode? @map("execution_mode")
   providerVersion           String?               @map("provider_version")

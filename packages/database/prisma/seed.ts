@@ -854,6 +854,71 @@ const seedGenerationReadySource = async (ownerUserId: string): Promise<void> => 
   );
 };
 
+const seedImportSource = async (ownerUserId: string): Promise<void> => {
+  // Where an existing question bank is dropped so it can be imported.
+  //
+  // An imported question is grounded in the FILE it came from, so that file
+  // has to become a knowledge document first. The platform already has one
+  // proven, audited way for that to happen -- a configured source folder plus
+  // a synchronize -- so import reuses it rather than adding a second upload
+  // path with its own traversal, size and type controls to get right.
+  //
+  // MANAGED_UPLOAD provenance: an uploaded bank has no canonical SharePoint
+  // address, and the adapter gives it an explicitly non-resolving URL rather
+  // than minting one.
+  await prisma.knowledgeSource.upsert({
+    where: { name: 'KNOWZY Imported Question Banks' },
+    create: {
+      name: 'KNOWZY Imported Question Banks',
+      description:
+        'Drop an existing multiple-choice question bank here, synchronize, then import from ' +
+        'Question Bank > Import. Imported questions land as DRAFT and pass the same evidence, ' +
+        'duplicate, review and approval gates as generated ones.',
+      sourceType: 'FILE_REPOSITORY',
+      connection: {
+        localRoot: './RealWorldPilot',
+        rootFromEnvironment: false,
+        provenance: 'MANAGED_UPLOAD',
+        includePatterns: [],
+        excludePatterns: [],
+        supportedExtensions: [],
+        maxFileBytes: 33554432,
+        partialSyncFloor: 0.8,
+        sidecarsEnabled: false,
+        isActive: true,
+      },
+      restrictions: { roles: [], domains: [], teams: [], functions: [] },
+      // Not a knowledge source for GENERATION: generating questions from a
+      // question bank would produce questions about questions.
+      usableForGeneration: false,
+      usableForRefreshers: false,
+      usableForExplanations: false,
+      permissionMode: 'APP_ONLY_SITES_SELECTED',
+      connectionStatus: 'UNTESTED',
+      connectionStatusAt: null,
+      syncSchedule: { mode: 'MANUAL' },
+      isActive: true,
+      ownerUserId,
+      paths: {
+        create: [
+          {
+            containerId: 'ImportSamples',
+            containerName: 'ImportSamples',
+            folderPath: '/',
+            includedFileTypes: ['md', 'txt', 'html', 'pdf', 'docx', 'pptx', 'xlsx'],
+            excludedFileTypes: [],
+            includedMetadata: [],
+            requiresFullSync: true,
+            isActive: true,
+          },
+        ],
+      },
+    },
+    update: {},
+  });
+  log('  import source: KNOWZY Imported Question Banks (FILE_REPOSITORY, UNTESTED)');
+};
+
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -882,6 +947,7 @@ const main = async (): Promise<void> => {
     if (adminId) await seedMockSource(adminId);
     if (adminId) await seedPilotFileRepositorySource(adminId);
     if (adminId) await seedGenerationReadySource(adminId);
+    if (adminId) await seedImportSource(adminId);
   } else {
     log('  skipping stub users and mock source: not a local environment (V2)');
   }

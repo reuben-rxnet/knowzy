@@ -426,3 +426,23 @@ a port change and five call sites; renaming after Phase 8 is tenant data migrati
 **Recommendation carried from the architecture:** register two providers, declare the rest. Six
 integrations before one measurement produces five untested providers and no answer to the question
 the pilot exists to answer.
+
+### 12.3 Question Acquisition Framework (2026-09-22)
+
+The platform now supports two acquisition paths under one governance model.
+
+| | Status |
+| --- | --- |
+| Provider-based generation | **Framework built.** Deterministic registered; Anthropic, Copilot, Azure OpenAI and Gemini declared and refused with specific reasons |
+| Question import | **Built and proved end to end** on a real bank: 2 detected, 2 valid, 2 drafts, both verified under STRICT at similarity 1.000 |
+| Import governance | **12 of 13 gates pass on an imported question and gate 13 refuses self-approval.** Re-importing the same file creates nothing — every question blocked as a duplicate |
+| Browser file upload | **Not built.** Deliberate: traversal, size, type and a writable mount are four controls that need their own change |
+
+**What this means for the pilot.** A customer with an existing question bank no longer has to choose
+between importing it ungoverned and re-authoring it. The bank becomes a knowledge document, its
+questions are grounded in it, and they pass the same gates as generated ones — so an imported
+question and a generated one are equally defensible at approval, and a reviewer can tell them apart.
+
+**No new blockers.** T-29 (Anthropic), P-2 (Copilot retrieval), P-3 (per-provider data processing)
+and P-4 (`claudeModel` rename) are unchanged. Import needs none of them: it requires no provider, no
+credential and no approval.

@@ -1,7 +1,7 @@
 # Knowzy — User Guide
 
-**Applies to:** the local demonstration build at milestone PILOT-T2 (grounding integrity and
-honest coverage), including PILOT-T1 and UI-M3
+**Applies to:** the local demonstration build with the Question Acquisition Framework
+(provider-based generation and question import), including PILOT-T1, PILOT-T2 and UI-M3
 **Last updated:** 2026-09-22
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -337,6 +337,74 @@ how many candidates — plus the scope, the job reference and the model usage. A
 reason — most often that no set of four distinct plausible options could be built from it, or that a
 question already tests it. Asking for six and getting five is normal and is not an error: the
 platform would rather refuse a question than invent one the document does not support.
+
+
+### 4.3a Import an existing question bank — `/import`
+
+Act as an **author** or the **KNOWZY Administrator**. This brings a
+multiple-choice bank you already have into Knowzy.
+
+**It needs the file to be a document Knowzy already holds**, and that is not
+red tape. An imported question is grounded in the file it came from: its
+evidence is the exact block of text the question was read from, at real
+offsets into that document. Without the file as a document there is nothing to
+quote and nothing to verify, so the approval gates could not pass.
+
+So the order is: drop the bank into a configured knowledge-source folder
+(`KNOWZY Imported Question Banks` is seeded for this), **Test Connection**,
+**Synchronize**, then come here.
+
+**Two buttons, and the order matters.**
+
+**Preview** reads the document and writes nothing. It reports:
+
+| | |
+| --- | --- |
+| **Detected** | Questions recognised in the file |
+| **Valid** | Questions with everything the question model requires |
+| **Invalid** | Detected but unusable, each with the reason and where to look |
+| **Drafts created / Refused by a gate** | Dashes until you actually import |
+
+**Create drafts** then imports what was valid. Each question becomes a
+**DRAFT** in the review queue and goes through exactly the same gates as a
+generated one — evidence verification, integrity, duplicate detection, the 13
+approval gates, and approval by a different identity. **Importing a question
+publishes nothing.**
+
+#### What it can read
+
+| Shape | Recognised as |
+| --- | --- |
+| A spreadsheet with a header row naming `Question`, `A`, `B`, `C`, `D`, `Answer`, `Explanation` (and optionally `Domain`, `Topic`, `Difficulty`, `Tags`, `Source`) | **TABULAR** |
+| A question slide followed by an answer slide | **SLIDE_PAIR** |
+| A stem, then options A to D, then `Answer:` and `Explanation:` — on their own lines **or** all on one paragraph | **PROSE** |
+
+Formats: `.docx`, `.pdf`, `.pptx`, `.xlsx`, `.md`, `.txt`, `.html` — whatever
+the platform can already extract.
+
+#### Why something was not imported
+
+The list under **What was not imported, and why** separates three stages,
+because they need different fixes:
+
+- **DETECTION** — nothing was recognised there. Usually a missing header row,
+  or options that do not run A, B, C, D in order.
+- **VALIDATION** — a required field was missing. No answer, no explanation,
+  two identical options, a stem shorter than fifteen characters. Import holds
+  the **same thresholds generation holds**, so the review queue never contains
+  two standards of question.
+- **GATE** — it reached a gate and failed it. Most often `DUPLICATE`: the bank
+  has already been imported, so every question matched one that exists. That is
+  the expected result of importing the same file twice, and the screen says so
+  rather than claiming drafts were created.
+
+#### What is not built yet
+
+**There is no file upload in the browser.** The file has to reach a
+synchronized folder first. Adding an upload means a filename-traversal guard,
+a size ceiling, a type allow-list and a writable mount — four controls that
+have to be right rather than merely present — so it is deliberately left for
+its own change rather than half-built here.
 
 ### 4.4 Draft review queue — `/review`
 
