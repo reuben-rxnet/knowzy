@@ -154,6 +154,18 @@ Everything *except* that one step can be done as a single identity. See below.
 A screen you lack permission for does not hide — it shows the refusal, with the code and the reason.
 An empty table means "nothing here"; a refusal panel means "not for you".
 
+**If Test connection or Synchronize says "Forbidden — Requires permission
+source.test" or "source.sync"**, you are acting as an identity that does not
+hold it. The **Author** holds `source.read` only: it can browse documents and
+generate, but not test or synchronize a source. Switch to **KNOWZY
+Administrator** or **Source administrator** on the dashboard. The refusal panel
+names the identity you are acting as, for exactly this reason.
+
+**Your chosen identity persists in a cookie**, so a browser that was once set
+to Author stays Author. The administrator is only the *default* for a browser
+that has never chosen one.
+
+
 ---
 
 

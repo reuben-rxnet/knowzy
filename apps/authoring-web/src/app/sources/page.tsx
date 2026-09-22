@@ -19,6 +19,7 @@ import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
 import { SourceActions } from '../../components/SourceActions';
+import { currentSubject } from '../../lib/identity';
 
 interface SourceRow {
   readonly sourceId: string;
@@ -74,7 +75,10 @@ const relativeTo = (value: string | null): string | null => {
  * owner field, and an invented one would be a name presented as fact.
  */
 export default async function SourcesPage() {
-  const result = await api<{ sources: readonly SourceRow[] }>('/api/v1/authoring/sources');
+  const [result, subject] = await Promise.all([
+    api<{ sources: readonly SourceRow[] }>('/api/v1/authoring/sources'),
+    currentSubject(),
+  ]);
   const sources = result.ok ? result.data.sources : [];
 
   return (
@@ -185,7 +189,11 @@ export default async function SourcesPage() {
         <Card key={source.sourceId}>
           <CardHeader title={source.name} description={t('sources.operationsSubtitle')} />
           <CardBody>
-            <SourceActions sourceId={source.sourceId} sourceName={source.name} />
+            <SourceActions
+              sourceId={source.sourceId}
+              sourceName={source.name}
+              actingAs={subject.label}
+            />
           </CardBody>
         </Card>
       ))}

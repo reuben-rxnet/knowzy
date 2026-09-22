@@ -227,6 +227,8 @@ export const copy = {
   'generate.decide': 'Record decision',
   'generate.jobHeading': 'Generate',
   'generate.countLabel': 'Questions requested',
+  'error.actingAs':
+    'You are acting as {identity}. This is a permission refusal, not a broken feature — switch identity on the dashboard to one that holds it, then try again.',
   'import.title': 'Import questions',
   'import.lead':
     'Bring an existing multiple-choice bank into Knowzy. Imported questions land as DRAFT and pass the same evidence, duplicate, review and approval gates as generated ones — nothing is published by importing it.',

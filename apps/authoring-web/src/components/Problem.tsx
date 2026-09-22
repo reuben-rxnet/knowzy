@@ -38,7 +38,22 @@ const REFUSAL_CODES = new Set([
 
 const UNAVAILABLE_CODES = new Set(['MCP_UNAVAILABLE', 'SOURCE_UNAVAILABLE', 'UPSTREAM_TIMEOUT']);
 
-export const Problem = ({ problem }: { problem: ApiProblem }) => {
+export const Problem = ({
+  problem,
+  actingAs,
+}: {
+  problem: ApiProblem;
+  /**
+   * The identity the request was made as.
+   *
+   * Passed in where the surface knows it, because a FORBIDDEN that names the
+   * permission but not the IDENTITY leaves the reader one fact short of
+   * acting: "Requires permission source.sync" reads like a broken feature
+   * until you also know you are the Author. The header shows the identity,
+   * but a drawer can cover it — which is exactly how this was reported.
+   */
+  actingAs?: string;
+}) => {
   const title = problem.title === '' ? t('error.heading') : problem.title;
   // The code and the HTTP status stay visible. They are what makes a refusal
   // reportable — the same token appears in the audit row and in the API.
@@ -64,11 +79,28 @@ export const Problem = ({ problem }: { problem: ApiProblem }) => {
       </div>
     ) : undefined;
 
+  // A permission refusal is almost always the wrong identity rather than a
+  // missing capability, so it says so and says what to do.
+  const identityHint =
+    actingAs === undefined ||
+    !(problem.status === 403 || problem.code === 'FORBIDDEN') ? undefined : (
+      <p className="text-sm text-ink-muted">{t('error.actingAs', { identity: actingAs })}</p>
+    );
+
   const shared = {
     title,
     reason: problem.detail,
     code,
-    ...(gates === undefined ? {} : { details: gates }),
+    ...(gates === undefined && identityHint === undefined
+      ? {}
+      : {
+          details: (
+            <div className="flex flex-col gap-3">
+              {identityHint}
+              {gates}
+            </div>
+          ),
+        }),
   };
 
   if (problem.status === 403 || REFUSAL_CODES.has(problem.code) || gates !== undefined) {

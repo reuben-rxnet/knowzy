@@ -62,9 +62,12 @@ interface SyncResult {
 export const SourceActions = ({
   sourceId,
   sourceName,
+  actingAs,
 }: {
   readonly sourceId: string;
   readonly sourceName: string;
+  /** Named in a permission refusal, so the reader knows WHY it was refused. */
+  readonly actingAs: string;
 }) => {
   // The third argument is the permalink React navigates to if a submission is
   // ever replayed outside the hook's control. These forms do need JavaScript:
@@ -120,7 +123,7 @@ export const SourceActions = ({
         width="wide"
       >
         <div className="flex flex-col gap-6">
-          {problem === undefined ? null : <Problem problem={problem} />}
+          {problem === undefined ? null : <Problem problem={problem} actingAs={actingAs} />}
 
           {test === null ? null : (
             <section className="flex flex-col gap-3">
