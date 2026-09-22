@@ -22,6 +22,7 @@ import {
   ROLE_DEFINITIONS,
   permissionFamily,
   type PermissionKey,
+  type RoleKey,
 } from '@knowzy/shared-types';
 import {
   CONFIG_KEYS,
@@ -495,13 +496,44 @@ const localOid = (slug: string): string => `local-stub-${slug}`;
 const seedLocalUsers = async (): Promise<string> => {
   // One user per role, so every authorization path is exercisable locally
   // without a tenant (§8).
-  const people = ROLE_DEFINITIONS.map((role) => ({
+  const people: {
+    slug: string;
+    displayName: string;
+    roleKeys: readonly RoleKey[];
+    authoring: boolean;
+    live: boolean;
+  }[] = ROLE_DEFINITIONS.map((role) => ({
     slug: role.key.toLowerCase().replace(/_/g, '-'),
     displayName: `Local ${role.name}`,
-    roleKey: role.key,
+    roleKeys: [role.key] as readonly RoleKey[],
     authoring: role.portalScope !== 'LIVE',
     live: role.portalScope !== 'AUTHORING',
   }));
+
+  // The KNOWZY Administrator identity holds TWO roles, because that is how
+  // access-control.md 2 rule 3 says to combine approval and publication: "A
+  // tenant may combine them by assigning both roles, which is a visible,
+  // audited decision rather than a default." Permissions are the union across
+  // a user's roles, so this identity holds every permission key.
+  const administrator = people.find((person) => person.slug === 'knowzy-administrator');
+  if (administrator) administrator.roleKeys = ['KNOWZY_ADMINISTRATOR', 'PUBLISHER'];
+
+  // A SECOND administrator, and not a convenience.
+  //
+  // Separation of duties is an identity comparison, not a permission: gate 13
+  // refuses an approver who is the question's author or last editor, and no
+  // permission key can satisfy it. One administrator therefore cannot carry a
+  // question from draft to approval alone -- correctly. This second identity
+  // exists so the pilot workflow can be completed end to end with exactly one
+  // deliberate switch at the approval step, rather than by weakening the gate
+  // that makes approval mean anything.
+  people.push({
+    slug: 'knowzy-administrator-2',
+    displayName: 'Local KNOWZY Administrator (second approver)',
+    roleKeys: ['KNOWZY_ADMINISTRATOR', 'PUBLISHER'],
+    authoring: true,
+    live: true,
+  });
 
   let adminId = '';
 
@@ -520,25 +552,27 @@ const seedLocalUsers = async (): Promise<string> => {
       update: { displayName: person.displayName },
     });
 
-    if (person.roleKey === 'PLATFORM_ADMINISTRATOR') adminId = user.id;
+    if (person.slug === 'platform-administrator') adminId = user.id;
 
-    const role = await prisma.role.findUniqueOrThrow({ where: { key: person.roleKey } });
-    const already = await prisma.userRole.findFirst({
-      where: { userId: user.id, roleId: role.id, revokedAt: null },
-    });
-    if (!already) {
-      await prisma.userRole.create({
-        data: {
-          userId: user.id,
-          roleId: role.id,
-          grantedByUserId: user.id,
-          reason: 'Local development seed',
-        },
+    for (const roleKey of person.roleKeys) {
+      const role = await prisma.role.findUniqueOrThrow({ where: { key: roleKey } });
+      const already = await prisma.userRole.findFirst({
+        where: { userId: user.id, roleId: role.id, revokedAt: null },
       });
+      if (!already) {
+        await prisma.userRole.create({
+          data: {
+            userId: user.id,
+            roleId: role.id,
+            grantedByUserId: user.id,
+            reason: 'Local development seed',
+          },
+        });
+      }
     }
   }
 
-  log(`  local users: ${people.length} (one per role)`);
+  log(`  local users: ${people.length} (one per role, plus a second administrator)`);
   return adminId;
 };
 

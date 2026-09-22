@@ -25,12 +25,29 @@ export interface DemoSubject {
 /**
  * The seeded local users this portal needs.
  *
- * Deliberately NOT every seeded role: the workflow needs an author, a
- * reviewer/approver, a publisher, a source administrator, and an assessment
- * manager. The role catalogue separates authoring from approval, so no single
- * identity can carry a question end to end — which is the point.
+ * The KNOWZY Administrator holds every permission key and is the default, so
+ * a pilot lead is never stopped by a missing capability while moving between
+ * screens. The single-purpose roles below it remain, because they are how the
+ * separation the platform depends on is demonstrated.
+ *
+ * One thing the administrator still cannot do: approve a question it authored.
+ * Separation of duties is an IDENTITY comparison at approval
+ * (`authorMayApproveOwn: false`), not a permission, so no amount of access
+ * satisfies it. That is why a second administrator identity is seeded — the
+ * pilot completes with one deliberate switch at the approval step instead of a
+ * weakened gate.
  */
 export const DEMO_SUBJECTS: readonly DemoSubject[] = [
+  {
+    upn: 'knowzy-administrator@local.invalid',
+    label: 'KNOWZY Administrator',
+    can: 'Full platform access',
+  },
+  {
+    upn: 'knowzy-administrator-2@local.invalid',
+    label: 'KNOWZY Administrator (second approver)',
+    can: 'Full platform access — use to approve a question the first administrator authored',
+  },
   {
     upn: 'source-administrator@local.invalid',
     label: 'Source administrator',
@@ -58,10 +75,11 @@ export const DEMO_SUBJECTS: readonly DemoSubject[] = [
   },
 ];
 
-export const DEFAULT_SUBJECT: DemoSubject = DEMO_SUBJECTS[1] ?? {
-  upn: 'author@local.invalid',
-  label: 'Author',
-  can: '',
+/** The administrator, so local and pilot work starts with full access. */
+export const DEFAULT_SUBJECT: DemoSubject = DEMO_SUBJECTS[0] ?? {
+  upn: 'knowzy-administrator@local.invalid',
+  label: 'KNOWZY Administrator',
+  can: 'Full platform access',
 };
 
 export const subjectByUpn = (upn: string | undefined): DemoSubject =>

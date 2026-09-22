@@ -1214,3 +1214,73 @@ untouched. A fix to a conflation must follow the conflated value everywhere it i
 
 The test that asserted `coverageStatus === 'NON_ASSESSABLE'` is the clearest artifact of that: **the
 suite encoded the defect**, so the defect could not fail a build. It now asserts the split.
+
+---
+
+## KNOWZY Administrator — a full-access role that is not an exemption
+
+**2026-09-22.** Role: `KNOWZY_ADMINISTRATOR`. Identities:
+`knowzy-administrator@local.invalid` (default in both portals) and
+`knowzy-administrator-2@local.invalid`.
+
+A permanent production role for platform owners, product owners, knowledge managers,
+administrators, pilot leads and operational platform support. It holds **all 46 permission keys**,
+so no screen in the platform refuses it for want of a capability. Every existing role is unchanged.
+
+### The rule that shaped the implementation
+
+The obvious build — one role holding every permission — **failed a contract test**, which cited
+access-control.md §2 rule 3: *"No role grants both `question.approve` and `question.publish` by
+default. A tenant may combine them by assigning both roles, which is a visible, audited decision
+rather than a default."*
+
+The gate was right and the spec outranks the convenience, so the role was composed the way the rule
+prescribes rather than by exempting the role from the rule:
+
+- `KNOWZY_ADMINISTRATOR` holds every key **except** `question.publish`.
+- The administrator **user** also holds `PUBLISHER`.
+- Permissions are the union across a user's roles, so the identity holds all 46.
+
+Two `user_role` rows, both audited, instead of one role with a special case and a weakened test.
+Verified in the database: both administrator identities resolve **46 of 46** permission keys.
+
+### Full access is not exemption, and the validation proves it
+
+The brief asked for one identity to complete Source → Generate → Review → Approve → Publish →
+Assessment without switching, **and** for separation-of-duties controls to stay intact. Those two
+requirements cannot both hold, and the reason is structural rather than a matter of configuration:
+separation of duties is an **identity comparison** made at approval (`authorMayApproveOwn: false`),
+so no permission set can satisfy it.
+
+Rather than pick one requirement silently, the role delivers everything a permission can give and
+the gate keeps the one thing it is for. A second administrator identity makes the pilot completable
+with a single deliberate switch at approval.
+
+`PILOT_DEMO_AS_ADMIN=1 npx tsx scripts/pilot-demo.ts` runs the whole workflow as the administrator.
+The recorded run:
+
+| Step | Identity | Result |
+| --- | --- | --- |
+| Test Connection, Synchronize | administrator | 11 checks, 8 PASS; 28 documents, 122,106 chars |
+| Preflight, decision, Generate | administrator | `GENERATE_NEW`; **4 accepted** of 6, 89 insufficient |
+| Claim, submit | administrator | 4 submitted |
+| **Approve own draft** | administrator | **REFUSED 403 — gate 13, before anything was recorded** |
+| Approve | administrator-2 | 4 approved |
+| Publish | administrator | 1 published as `KNZ-SUPPORT_OPS-2026-000004`, 3 already published |
+| Assessment | administrator | Validated, published with a pinned pool of 4 |
+| Learner attempt | administrator | 4 answered, 3 correct, **75% PASSED PROFICIENT** |
+
+The 403 in the middle is the point of the exercise. An administrator with every permission in the
+system is still refused when it tries to approve its own work.
+
+**Generation accepted 4 questions where the same job previously accepted 3** — a PILOT-T2 side
+effect, not a role effect: with refusals no longer suppressing sections, a section that had been
+hidden became available again.
+
+### One omission this caught
+
+Restarting the API after PILOT-T2 failed its own startup check: *"expected
+0003_platform_constraints, found 0004_grounding_integrity."* Four files pin the expected migration
+and PILOT-T2 updated none of them. The check did exactly its job — it refuses to run an application
+against a schema it was not built for — and the constant is now `0004_grounding_integrity` in all
+four places.

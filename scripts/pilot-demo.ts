@@ -22,14 +22,39 @@
 const API = process.env['PILOT_DEMO_API'] ?? 'http://localhost:8080';
 const SOURCE_NAME = 'KNOWZY Real-World Pilot SOP Corpus';
 
-const SUBJECTS = {
-  sourceAdmin: 'source-administrator@local.invalid',
-  author: 'author@local.invalid',
-  approver: 'approver@local.invalid',
-  publisher: 'publisher@local.invalid',
-  assessmentManager: 'assessment-manager@local.invalid',
-  learner: 'learner@local.invalid',
-} as const;
+/**
+ * `PILOT_DEMO_AS_ADMIN=1` runs every step as the KNOWZY Administrator.
+ *
+ * This is the validation for that role: one identity performs source
+ * registration, synchronization, generation, review, submission, publication,
+ * assessment creation and publication, and the learner attempt. Only the
+ * approval step uses a different identity, and only because it must -- gate 13
+ * compares the approver against the author, so no permission set can satisfy
+ * it. Step 8 still provokes the refusal and asserts the 403, which means the
+ * administrator's own attempt to approve its own draft is refused on the way
+ * through.
+ */
+const AS_ADMIN = process.env['PILOT_DEMO_AS_ADMIN'] === '1';
+const ADMIN = 'knowzy-administrator@local.invalid';
+const ADMIN_2 = 'knowzy-administrator-2@local.invalid';
+
+const SUBJECTS = AS_ADMIN
+  ? ({
+      sourceAdmin: ADMIN,
+      author: ADMIN,
+      approver: ADMIN_2,
+      publisher: ADMIN,
+      assessmentManager: ADMIN,
+      learner: ADMIN,
+    } as const)
+  : ({
+      sourceAdmin: 'source-administrator@local.invalid',
+      author: 'author@local.invalid',
+      approver: 'approver@local.invalid',
+      publisher: 'publisher@local.invalid',
+      assessmentManager: 'assessment-manager@local.invalid',
+      learner: 'learner@local.invalid',
+    } as const);
 
 interface CallOptions {
   readonly method?: 'GET' | 'POST';

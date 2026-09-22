@@ -81,6 +81,7 @@ export type PermissionKey = z.infer<typeof PermissionKeySchema>;
 export const permissionFamily = (key: PermissionKey): string => key.split('.')[0] ?? key;
 
 export const ROLE_KEYS = [
+  'KNOWZY_ADMINISTRATOR',
   'PLATFORM_ADMINISTRATOR',
   'SOURCE_ADMINISTRATOR',
   'AUTHOR',
@@ -110,6 +111,34 @@ export interface RoleDefinition {
 const AUTHORING_SHELL: readonly PermissionKey[] = ['authoring.dashboard.view', 'taxonomy.read'];
 
 export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
+  {
+    key: 'KNOWZY_ADMINISTRATOR',
+    name: 'KNOWZY Administrator',
+    description:
+      'Full platform access across both portals, for platform and product owners, knowledge ' +
+      'managers, administrators, pilot leads and operational platform support.',
+    portalScope: 'BOTH',
+    // DERIVED from the closed key union rather than enumerated, so the role
+    // cannot fall behind when a permission is added.
+    //
+    // ONE key is withheld, and the reason is a spec rule rather than caution.
+    // access-control.md 2 rule 3: "No role grants both `question.approve` and
+    // `question.publish` by default. A tenant may combine them BY ASSIGNING
+    // BOTH ROLES, which is a visible, audited decision rather than a default."
+    // A contract test enforces it for every role.
+    //
+    // So publication is granted the way the specification says to grant it: the
+    // administrator USER holds this role AND `PUBLISHER`, and permissions are
+    // the union across a user's roles. The identity ends up with every
+    // permission, the role matrix stays compliant, and the combination is two
+    // visible role grants in `user_role` rather than a weakened gate.
+    //
+    // What no permission grants is exemption from separation of duties. That is
+    // an IDENTITY comparison made at approval (workflows.md 3.4,
+    // `authorMayApproveOwn: false`), so an administrator still cannot approve a
+    // question they authored. Gate 13 refuses it, on screen, as it should.
+    permissions: PERMISSION_KEYS.filter((key) => key !== 'question.publish'),
+  },
   {
     key: 'PLATFORM_ADMINISTRATOR',
     name: 'Platform Administrator',

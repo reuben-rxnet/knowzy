@@ -13,7 +13,7 @@ import {
 } from '@knowzy/configuration';
 import { probeDatabase, type PrismaClient } from '@knowzy/database';
 
-export const EXPECTED_MIGRATION = '0003_platform_constraints';
+export const EXPECTED_MIGRATION = '0004_grounding_integrity';
 
 export interface ApiStartupDeps {
   readonly prisma: PrismaClient;

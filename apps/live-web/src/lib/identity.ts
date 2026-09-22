@@ -35,6 +35,16 @@ export const DEMO_SUBJECTS: readonly DemoSubject[] = [
     can: 'Take assessments, see their own results',
   },
   {
+    // Present so a pilot lead can finish the workflow they started in the
+    // authoring portal without borrowing the learner's identity. Its
+    // `learning.*` grants are the same own-scoped ones the learner holds, so
+    // it can read ITS OWN results and nobody else's -- the privacy rule is
+    // unchanged by the amount of access the role carries elsewhere.
+    upn: 'knowzy-administrator@local.invalid',
+    label: 'KNOWZY Administrator',
+    can: 'Full platform access — take an assessment to complete a pilot run',
+  },
+  {
     upn: 'manager@local.invalid',
     label: 'Local Manager',
     can: 'Has no Live Portal access — shown so a refusal can be demonstrated',

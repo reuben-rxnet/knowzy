@@ -35,6 +35,7 @@ becomes part of the SQL query.
 
 | Role key | Portal | Purpose | Notable permissions |
 | --- | --- | --- | --- |
+| `KNOWZY_ADMINISTRATOR` | Both | Full platform access for platform and product owners, knowledge managers, administrators, pilot leads and operational platform support | Every permission key except `question.publish`, which is granted by ALSO assigning `PUBLISHER` (rule 3) |
 | `PLATFORM_ADMINISTRATOR` | Authoring | Platform configuration, taxonomy, profiles, field mappings, feature flags, break-glass | `platform.configure`, `access.manage`, `taxonomy.manage`, `questionbank.reconcile`, everything in `source.*` |
 | `SOURCE_ADMINISTRATOR` | Authoring | Keep sources accurate and healthy | `source.manage`, `source.test`, `source.sync`, `source.read`, `document.browse` |
 | `AUTHOR` | Authoring | Turn documents into draft questions | `question.generate`, `question.edit`, `question.submit`, `question.read`, `document.browse`, `document.section.manage` |
@@ -57,6 +58,16 @@ Rules:
    matrix is a deployment, so a role's meaning cannot drift silently between environments.
 3. No role grants both `question.approve` and `question.publish` by default. A tenant may combine them
    by assigning both roles, which is a visible, audited decision rather than a default.
+   **`KNOWZY_ADMINISTRATOR` is composed this way and is not an exception to this rule:** the role
+   withholds `question.publish`, and the administrator *user* additionally holds `PUBLISHER`.
+   Permissions are the union across a user's roles, so the identity holds every key while the role
+   matrix stays compliant. Two `user_role` rows, both audited, rather than one role with a special
+   case in it.
+   **Full access is not exemption.** Separation of duties is an identity comparison made at approval
+   (§3.4 policies `authorMayApproveOwn` and `editorMayApproveOwn`, both defaulting to false), so an
+   administrator cannot approve a question they authored. No permission key satisfies gate 13, and
+   the only sanctioned override remains break-glass: Platform Administrator, mandatory written
+   justification, audited as `AUTHORING.QUESTION.APPROVAL_OVERRIDE`.
 4. `AUDITOR` holds no write permission of any kind, including no `question.edit`. Read-only is
    structural: the role's permission set contains no write key.
 5. `LEARNER` is the only role with `PortalScope = LIVE`. A learner token cannot reach an authoring

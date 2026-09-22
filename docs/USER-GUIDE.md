@@ -132,6 +132,8 @@ The header of every page says who you are acting as, with your initials, your ro
 this is a demonstration build — the words "Local Development Identity". Change it from the Authoring
 Portal's home page, or from the learner portal's home page for the learner side.
 
+| **KNOWZY Administrator** *(default)* | Full Platform Access — every capability the platform has |
+| **KNOWZY Administrator (second approver)** | Full Platform Access — use it to approve what the first administrator wrote |
 | Identity | What it can do |
 | --- | --- |
 | **Source administrator** | Register sources, test connections, synchronize documents |
@@ -142,14 +144,40 @@ Portal's home page, or from the learner portal's home page for the learner side.
 | **Local Learner** (portal 3001) | Take assessments, see their own results |
 | **Local Manager** (portal 3001) | Has no learner-portal access — there so a refusal can be shown |
 
-**You have to switch.** No seeded identity can carry a question from draft to published: the
-approval gate that checks separation of duties will refuse an approval by the question's own author,
-and you will see it refuse. That is the product working, not a configuration mistake.
+**You still have to switch once, even as an administrator.** No identity can carry a question from
+draft to published alone: the approval gate that checks separation of duties will refuse an approval
+by the question's own author, and you will see it refuse. That is the product working, not a
+configuration mistake — and it is why there are two administrator identities rather than one.
+
+Everything *except* that one step can be done as a single identity. See below.
 
 A screen you lack permission for does not hide — it shows the refusal, with the code and the reason.
 An empty table means "nothing here"; a refusal panel means "not for you".
 
 ---
+
+
+### The KNOWZY Administrator identity
+
+The identity picker's first entry, and the one selected by default, is **KNOWZY Administrator —
+Full Platform Access**. It is a real production role, intended for platform and product owners,
+knowledge managers, administrators, pilot leads and operational platform support. It holds every
+permission the platform has, so you can move from Knowledge Sources through generation, review,
+the Question Bank, assessments and publishing without ever being stopped by a missing capability.
+
+**One thing it deliberately cannot do: approve a question it wrote itself.** That is not a gap in
+the role. Separation of duties compares the approver against the author at the moment of approval,
+and no amount of access changes the answer — gate 13 refuses the approval and records the refusal
+before anything else happens. You will see it fail on screen with the reason.
+
+A second identity, **KNOWZY Administrator (second approver)**, is provided for exactly that step.
+Switch to it to approve, then switch back. One deliberate switch is the whole cost of keeping
+approval meaningful, and the refusal you see in between is the control working rather than an
+error.
+
+Everything the administrator does is audited identically to any other identity. Governance,
+approval recording, evidence verification, publishing logs and the audit trail are unchanged;
+the role grants access, never exemption.
 
 ## 4. Authoring: from a document to a published question
 

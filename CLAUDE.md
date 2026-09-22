@@ -232,6 +232,29 @@ Gotchas learned by execution (each of these cost real time):
   recommends. Any UI listing the offered actions must union in the
   recommendation or the recommended action cannot be chosen.
 
+## Roles
+
+Fourteen seeded roles. `KNOWZY_ADMINISTRATOR` is a permanent production role for
+platform and product owners, knowledge managers, administrators, pilot leads and
+operational platform support. It holds every permission key except
+`question.publish`; the administrator USER also holds `PUBLISHER`, so the
+identity has full access while access-control.md 2 rule 3 stays satisfied --
+permissions are the union across a user's roles.
+
+Full access is NOT exemption. Separation of duties is an identity comparison at
+approval, not a permission, so an administrator cannot approve a question it
+authored. Gate 13 refuses it. A second seeded identity,
+`knowzy-administrator-2@local.invalid`, exists so a pilot run completes with one
+deliberate switch at the approval step rather than a weakened gate.
+
+`knowzy-administrator@local.invalid` is the DEFAULT identity in both portals'
+local selectors. Validate the whole workflow as that role with:
+
+PILOT_DEMO_AS_ADMIN=1 npx tsx scripts/pilot-demo.ts
+
+Every existing role is unchanged. Do not grant one role both `question.approve`
+and `question.publish` -- a contract test refuses it, and /docs backs it.
+
 ## UI Source of Truth
 
 2
