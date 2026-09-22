@@ -125,8 +125,36 @@ const splitRow = (line: string): string[] => {
 };
 
 const OPTION_PATTERN = /^\s*\(?([A-Da-d])[).:\-\s]\s*(.+)$/;
-const ANSWER_PATTERN = /^\s*(?:correct\s+answer|answer|ans|key)\s*[:.-]\s*\(?([A-Da-d])\)?\b/i;
-const EXPLANATION_PATTERN = /^\s*(?:explanation|rationale|why|reason)\s*[:.-]\s*(.*)$/i;
+
+/**
+ * Anything before the keyword is tolerated, and it has to be.
+ *
+ * A real question bank marks its answer line with a tick, a bullet, a dash or
+ * a bold glyph — `✅ Correct Answer: C. …` is what Word produced for the first
+ * bank this was tried on. Anchoring on `^\s*` refused the whole file, and the
+ * screen said NO_QUESTIONS_FOUND about a document that plainly contained ten
+ * questions.
+ *
+ * `[^A-Za-z]*` rather than a list of known markers: enumerating the decorations
+ * people use is a losing game, and the keyword itself is the real anchor.
+ */
+const ANSWER_PATTERN =
+  /^[^A-Za-z]*(?:correct\s*answer|answer|ans|key)\s*[:.-]\s*\(?([A-Da-d])\)?\b/i;
+const EXPLANATION_PATTERN = /^[^A-Za-z]*(?:explanation|rationale|why|reason)\s*[:.-]\s*(.*)$/i;
+
+/**
+ * The same keywords once more, UNANCHORED, for a trailer on the option line.
+ *
+ * A document flattened to one paragraph carries the options, the answer and
+ * the explanation in a single line, so the line-anchored patterns above cannot
+ * reach them. `TRAILING_TRAILER_PATTERN` is what option D is trimmed with:
+ * either keyword ends the option, whichever appears first.
+ */
+const TRAILING_ANSWER_PATTERN =
+  /\b(?:correct\s*answer|answer|ans|key)\s*[:.-]\s*\(?([A-Da-d])\)?\b/i;
+const TRAILING_EXPLANATION_PATTERN = /\b(?:explanation|rationale|why|reason)\s*[:.-]\s*(.*)$/i;
+const TRAILING_TRAILER_PATTERN =
+  /\s*[^A-Za-z]*\b(?:correct\s*answer|answer|ans|key|explanation|rationale|why|reason)\s*[:.-].*$/i;
 
 const blank = (line: string): boolean => line.trim().length === 0;
 
@@ -140,19 +168,37 @@ interface HeaderMap {
   readonly index: Readonly<Record<string, number>>;
 }
 
+/**
+ * Column names, with the spellings real templates actually use.
+ *
+ * The list grew after meeting a working SharePoint question-bank template
+ * whose columns were `OptionA` and `CorrectAnswer`. `optiona` already matched;
+ * `correctanswer` did not, so every row of an otherwise well-formed bank would
+ * have imported with no answer and been refused. Recognising the customer's
+ * spelling is the platform's job, not theirs.
+ */
 const HEADER_ALIASES: Readonly<Record<string, readonly string[]>> = {
   domain: ['domain'],
-  topic: ['topic', 'subtopic'],
-  question: ['question', 'stem', 'question text'],
-  a: ['a', 'option a', 'optiona', 'choice a'],
-  b: ['b', 'option b', 'optionb', 'choice b'],
-  c: ['c', 'option c', 'optionc', 'choice c'],
-  d: ['d', 'option d', 'optiond', 'choice d'],
-  answer: ['answer', 'correct', 'correct answer', 'key'],
-  explanation: ['explanation', 'rationale'],
+  topic: ['topic', 'subtopic', 'subject'],
+  question: ['question', 'stem', 'question text', 'questiontext'],
+  a: ['a', 'option a', 'optiona', 'option_a', 'choice a', 'choicea'],
+  b: ['b', 'option b', 'optionb', 'option_b', 'choice b', 'choiceb'],
+  c: ['c', 'option c', 'optionc', 'option_c', 'choice c', 'choicec'],
+  d: ['d', 'option d', 'optiond', 'option_d', 'choice d', 'choiced'],
+  answer: [
+    'answer',
+    'correct',
+    'correct answer',
+    'correctanswer',
+    'correct_answer',
+    'answer key',
+    'answerkey',
+    'key',
+  ],
+  explanation: ['explanation', 'rationale', 'justification'],
   difficulty: ['difficulty', 'level'],
   tags: ['tags', 'keywords'],
-  source: ['source', 'reference'],
+  source: ['source', 'reference', 'sourcedocument', 'source document'],
   version: ['version'],
 };
 
@@ -198,43 +244,77 @@ const detectTabular = (input: DetectInput): DetectionResult | null => {
       if (i <= headerAt || blank(line)) continue;
 
       const locator = `row ${i + 1}`;
+      const ambiguous =
+        `A cell containing the column separator cannot be told apart from a column ` +
+        'break, so the row is reported rather than guessed at.';
       const cells = splitRow(line);
-      if (cells.length !== header.columns) {
+
+      // MORE cells than the header names can only mean a cell contained the
+      // separator, which moves every later value and cannot be undone.
+      if (cells.length > header.columns) {
         issues.push({
           locator,
           code: 'ROW_SHAPE',
-          detail:
-            `Expected ${header.columns} columns and found ${cells.length}. A cell containing ` +
-            'the column separator cannot be told apart from a column break, so the row is ' +
-            'reported rather than guessed at.',
+          detail: `Expected ${header.columns} columns and found ${cells.length}. ${ambiguous}`,
         });
         continue;
       }
 
+      // FEWER is normal and must be accepted: a spreadsheet writes nothing for
+      // a trailing empty cell, so a template whose last columns are left blank
+      // -- SourceDocument, ApprovedBySME, LastReviewed on the first real bank
+      // this met -- produces a short row for every question in the file.
+      // Refusing them rejected a well-formed bank in full. The extractor
+      // preserves column position for interior gaps (see extractors/xlsx.ts),
+      // so a short row is short only at the tail and padding cannot shift a
+      // value into the wrong column.
+      const padded = [...cells];
+      while (padded.length < header.columns) padded.push('');
+
       const options = emptyOptions();
       for (const key of OPTION_KEYS) {
-        options[key] = cellAt(cells, header.index[key.toLowerCase()]) ?? '';
+        options[key] = cellAt(padded, header.index[key.toLowerCase()]) ?? '';
       }
-      const answerRaw = cellAt(cells, header.index['answer']);
+      const answerRaw = cellAt(padded, header.index['answer']);
       const answer = answerRaw?.trim().toUpperCase().charAt(0) ?? '';
+
+      // A short row whose answer cell holds something that is not an option
+      // letter is the other face of the separator problem: the row was short
+      // because a cell SPLIT, not because a column was blank, and the values
+      // after it are one place out. Said plainly, rather than passed on as a
+      // question with a wrong answer.
+      if (
+        cells.length < header.columns &&
+        answerRaw !== null &&
+        !(OPTION_KEYS as readonly string[]).includes(answer)
+      ) {
+        issues.push({
+          locator,
+          code: 'ROW_SHAPE',
+          detail:
+            `Expected ${header.columns} columns and found ${cells.length}, and the answer ` +
+            `column holds "${answerRaw}" rather than A, B, C or D. ${ambiguous}`,
+        });
+        continue;
+      }
 
       detected.push({
         ordinal: detected.length + 1,
-        questionText: cellAt(cells, header.index['question']) ?? '',
+        questionText: cellAt(padded, header.index['question']) ?? '',
         options,
         correctOption: (OPTION_KEYS as readonly string[]).includes(answer)
           ? (answer as OptionKey)
           : null,
-        explanation: cellAt(cells, header.index['explanation']),
-        domainName: cellAt(cells, header.index['domain']),
-        topicName: cellAt(cells, header.index['topic']),
-        difficulty: cellAt(cells, header.index['difficulty']),
+        explanation: cellAt(padded, header.index['explanation']),
+        domainName: cellAt(padded, header.index['domain']),
+        topicName: cellAt(padded, header.index['topic']),
+        difficulty: cellAt(padded, header.index['difficulty']),
         tags:
-          cellAt(cells, header.index['tags'])
+          cellAt(padded, header.index['tags'])
             ?.split(/[,;]/)
             .map((tag) => tag.trim())
             .filter((tag) => tag.length > 0) ?? [],
-        sourceLabel: cellAt(cells, header.index['source']),
+        sourceLabel: cellAt(padded, header.index['source']),
         // The row exactly as the document holds it. Quoting the whole row
         // rather than the question cell keeps the span locatable and gives a
         // reviewer the answer and explanation in the same breath.
@@ -436,8 +516,45 @@ const detectProseIn = (
 // in order. Requiring the order is what stops a stray "A." inside prose from
 // starting a false match.
 
-const INLINE_PATTERN =
-  /(?<stem>.{10,400}?)\bA[).:]\s+(?<a>.+?)\bB[).:]\s+(?<b>.+?)\bC[).:]\s+(?<c>.+?)\bD[).:]\s+(?<d>.+?)\b(?:correct\s+answer|answer|ans|key)\s*[:.-]\s*\(?(?<answer>[A-Da-d])\)?(?:[\s.]*\b(?:explanation|rationale|why|reason)\s*[:.-]\s*(?<explanation>.+?))?\s*$/i;
+/**
+ * No word boundary before the option letters, and that is deliberate.
+ *
+ * The DOCX extractor concatenates a paragraph's runs WITHOUT a separator, so
+ * four options written as four runs arrive as
+ * `A. Financial Reporting SystemB. Customer Relationship Management ToolC. …`
+ * — with `B` pressed against the previous word. `\bB` cannot match there
+ * (letter followed by letter is no boundary), so the first real Word question
+ * bank this met produced nothing at all.
+ *
+ * Dropping `\b` widens what could match, so two things keep it safe: the
+ * letters must appear in the order A, B, C, D, and each must be followed by a
+ * delimiter. A stray "B." mid-sentence cannot satisfy a full ordered run.
+ */
+/**
+ * An ordered A-B-C-D run on ONE line, with the answer allowed to follow.
+ *
+ * Split from the answer deliberately. A real Word bank puts the four options
+ * in one paragraph and the answer in the NEXT one:
+ *
+ *     1. What is the primary purpose of VisionStar LMS?
+ *
+ *     A. Financial Reporting SystemB. Customer Relationship ManagementC. ...
+ *
+ *     \u2705 Correct Answer: C. Lab Management System ...
+ *
+ * Requiring the answer on the same line as the options refused that file
+ * entirely. So this pattern finds the options, and the answer is looked for on
+ * the following lines using the same tolerant pattern the line-based strategy
+ * uses.
+ *
+ * No word boundary before the letters, and that is deliberate too: the DOCX
+ * extractor concatenates a paragraph's runs WITHOUT a separator, so `B` arrives
+ * pressed against the previous word and `\bB` cannot match. Two things keep the
+ * looser pattern safe -- the letters must appear in order, and each must carry
+ * a delimiter -- so a stray "B." in prose cannot satisfy a full ordered run.
+ */
+const INLINE_OPTIONS_PATTERN =
+  /(?<stem>.*?)A[).:]\s*(?<a>.+?)B[).:]\s*(?<b>.+?)C[).:]\s*(?<c>.+?)D[).:]\s*(?<d>.+)$/i;
 
 const detectInlineIn = (
   section: ImportSection,
@@ -446,47 +563,110 @@ const detectInlineIn = (
   startOrdinal: number,
 ): DetectedQuestion[] => {
   const lines = section.text.split('\n');
-  const detected: DetectedQuestion[] = [];
+  const lineStarts: number[] = [];
   let cursor = 0;
-  let ordinal = startOrdinal;
-
-  for (const [lineIndex, line] of lines.entries()) {
-    const lineStart = cursor;
+  for (const line of lines) {
+    lineStarts.push(cursor);
     cursor += line.length + 1;
-    const match = INLINE_PATTERN.exec(line);
-    const groups = match?.groups;
-    if (groups === undefined) continue;
+  }
 
-    const answer = (groups['answer'] ?? '').toUpperCase();
+  const detected: DetectedQuestion[] = [];
+  let ordinal = startOrdinal;
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index] as string;
+    const match = INLINE_OPTIONS_PATTERN.exec(line);
+    const groups = match?.groups;
+    if (groups === undefined) {
+      index += 1;
+      continue;
+    }
+
+    // The stem is whatever preceded option A on this line; when the line
+    // begins with the options, it is the nearest non-empty line above.
+    let stem = (groups['stem'] ?? '').trim();
+    let firstLine = index;
+    if (stem.length === 0) {
+      for (let back = index - 1; back >= 0 && back >= index - 4; back -= 1) {
+        const previous = (lines[back] as string).trim();
+        if (previous.length === 0) continue;
+        if (ANSWER_PATTERN.test(previous) || EXPLANATION_PATTERN.test(previous)) break;
+        stem = previous;
+        firstLine = back;
+        break;
+      }
+    }
+    // A leading question number is not part of the question.
+    stem = stem.replace(/^\s*\d+[).:]\s*/, '').trim();
+
+    let correctOption: OptionKey | null = null;
+    let explanation: string | null = null;
+    let lastLine = index;
+
+    for (let ahead = index + 1; ahead < Math.min(lines.length, index + 6); ahead += 1) {
+      const next = lines[ahead] as string;
+      if (next.trim().length === 0) continue;
+      const answer = ANSWER_PATTERN.exec(next);
+      if (answer !== null) {
+        correctOption = (answer[1] as string).toUpperCase() as OptionKey;
+        lastLine = ahead;
+        continue;
+      }
+      const why = EXPLANATION_PATTERN.exec(next);
+      if (why !== null) {
+        explanation = (why[1] as string).trim();
+        lastLine = ahead;
+        continue;
+      }
+      // Anything else ends this question, so the next one's stem is not
+      // absorbed into this one's trailer.
+      break;
+    }
+
+    // The answer and the explanation may also TRAIL on the option line, which
+    // is what a document flattened to a single paragraph produces.
+    if (correctOption === null) {
+      const trailing = TRAILING_ANSWER_PATTERN.exec(line);
+      if (trailing !== null) correctOption = (trailing[1] as string).toUpperCase() as OptionKey;
+    }
+    if (explanation === null) {
+      const trailing = TRAILING_EXPLANATION_PATTERN.exec(line);
+      if (trailing !== null) explanation = (trailing[1] as string).trim();
+    }
+
+    const from = lineStarts[firstLine] ?? 0;
+    const to = (lineStarts[lastLine] ?? 0) + (lines[lastLine] as string).length;
+
+    // Option D absorbs whatever trailed it, so it is trimmed back to the
+    // option itself. Either keyword ends it, whichever comes first.
+    const optionD = (groups['d'] ?? '').replace(TRAILING_TRAILER_PATTERN, '').trim();
+
     detected.push({
       ordinal,
-      questionText: (groups['stem'] ?? '').trim(),
+      questionText: stem,
       options: {
         A: (groups['a'] ?? '').trim(),
         B: (groups['b'] ?? '').trim(),
         C: (groups['c'] ?? '').trim(),
-        D: (groups['d'] ?? '').trim(),
+        D: optionD,
       },
-      correctOption: (OPTION_KEYS as readonly string[]).includes(answer)
-        ? (answer as OptionKey)
-        : null,
-      explanation: groups['explanation'] === undefined ? null : groups['explanation'].trim(),
+      correctOption,
+      explanation,
       domainName: null,
       topicName: section.heading,
       difficulty: null,
       tags: [],
       sourceLabel: null,
-      // The whole paragraph, verbatim. It is what the question was read from,
-      // so it is what a reviewer should be shown and what verification checks.
-      evidence: line.trim(),
-      evidenceStartOffset:
-        section.startOffset + lineStart + (line.length - line.trimStart().length),
-      evidenceEndOffset: section.startOffset + lineStart + line.trimEnd().length,
+      evidence: section.text.slice(from, to).trim(),
+      evidenceStartOffset: section.startOffset + from,
+      evidenceEndOffset: section.startOffset + to,
       sectionKey: section.sectionKey,
       strategy,
-      locator: locatorFor(lineIndex + 1),
+      locator: locatorFor(firstLine + 1),
     });
     ordinal += 1;
+    index = lastLine + 1;
   }
 
   return detected;

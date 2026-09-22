@@ -102,6 +102,58 @@ describe('tabular detection (XLSX)', () => {
     expect(result.issues[0]?.locator).toBe('row 2');
   });
 
+  it('accepts a row whose TRAILING columns are blank', () => {
+    // The shape of every row in the first working question-bank template this
+    // met: fifteen named columns, twelve filled, the last three left for a
+    // reviewer. A spreadsheet writes nothing at all for a trailing empty cell,
+    // so the row arrives short -- and refusing it rejected the whole bank.
+    const wide =
+      'QuestionID — Domain — Topic — Difficulty — Question — OptionA — OptionB — OptionC — ' +
+      'OptionD — CorrectAnswer — IsActive — Explanation — SourceDocument — ApprovedBySME — ' +
+      'LastReviewed';
+    const filled =
+      'VS-E-002 — VisionStar — Support Escalation — Easy — ' +
+      'Which team should be contacted for Level 2 support? — SAP BASIS Team — ' +
+      `DXC Database Team — RXIT L2 Support Team — Lab Technical Services — C — Yes — ${EXPLANATION}`;
+    const result = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(`${wide}\n${filled}`)],
+    });
+    expect(result.issues).toHaveLength(0);
+    expect(result.detected).toHaveLength(1);
+    const q = result.detected[0]!;
+    expect(q.correctOption).toBe('C');
+    expect(q.options.D).toBe('Lab Technical Services');
+    expect(q.explanation).toBe(EXPLANATION);
+    // Padding must not invent a value for a column that was genuinely blank.
+    expect(q.sourceLabel).toBeNull();
+    expect(validateDetected(result.detected).valid).toHaveLength(1);
+  });
+
+  it('reports a SHORT row whose answer column holds the wrong thing', () => {
+    // The other face of the separator problem. This row is short AND shifted:
+    // an option containing ' - ' split in two, so every later value moved one
+    // place left and the answer column holds an option. Padding a short row is
+    // only safe when it was short at the TAIL, so this has to be caught rather
+    // than imported as a question with a wrong key.
+    const wide =
+      'QuestionID — Domain — Topic — Difficulty — Question — OptionA — OptionB — OptionC — ' +
+      'OptionD — CorrectAnswer — IsActive — Explanation — SourceDocument — ApprovedBySME — ' +
+      'LastReviewed';
+    const shifted = (
+      'VS-E-004 — VisionStar — Environment Variables — Easy — ' +
+      'Which command loads the environment variables? — sqlplus prism/lmscole — ' +
+      `sudo su - root — lms.sh — startPROD.s — C — Yes — ${EXPLANATION}`
+    ).replace(/ — /g, ' - ');
+    const result = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(`${wide.replace(/ — /g, ' - ')}\n${shifted}`)],
+    });
+    expect(result.detected).toHaveLength(0);
+    expect(result.issues[0]?.code).toBe('ROW_SHAPE');
+    expect(result.issues[0]?.detail).toContain('startPROD.s');
+  });
+
   it('does not treat ordinary prose with hyphens as a header', () => {
     const prose = 'The duty manager - who is on call - must be paged within fifteen minutes.';
     const result = detectQuestions({ fileName: 'sop.docx', sections: [section(prose)] });
@@ -324,5 +376,72 @@ describe('validation holds the same standard as generation', () => {
       { ...good[0]!, questionText: '', correctOption: null, explanation: null },
     ]);
     expect(outcome.invalid).toHaveLength(1);
+  });
+});
+
+describe('shapes taken from real question banks', () => {
+  // Both fixtures are the EXACT text the platform extracted from a customer
+  // file, not an idealised version of it. Each one produced
+  // NO_QUESTIONS_FOUND on a document that plainly contained questions.
+
+  it('reads a Word bank whose options concatenate and whose answer is ticked', () => {
+    // Two defects in one line. The DOCX extractor joins a paragraph's runs
+    // with no separator, so the options arrive pressed together; and the
+    // answer line begins with a tick, which an anchored pattern refused.
+    const extracted = [
+      '1. What is the primary purpose of VisionStar LMS?',
+      '',
+      'A. Financial Reporting SystemB. Customer Relationship Management ToolC. Lab Management System used to run manufacturing labsD. SAP Integration Platform',
+      '',
+      '✅ Correct Answer: C. Lab Management System used to run manufacturing labs',
+    ].join('\n');
+
+    const result = detectQuestions({
+      fileName: 'VisionStar Support Knowledge Assessment Quiz.docx',
+      sections: [section(extracted)],
+    });
+    expect(result.detected).toHaveLength(1);
+    const q = result.detected[0]!;
+    expect(q.options.A).toBe('Financial Reporting System');
+    expect(q.options.B).toBe('Customer Relationship Management Tool');
+    expect(q.options.C).toBe('Lab Management System used to run manufacturing labs');
+    expect(q.options.D).toBe('SAP Integration Platform');
+    expect(q.correctOption).toBe('C');
+  });
+
+  it('still refuses a stray option letter mid-sentence', () => {
+    // The guard for dropping the word boundary above: an ordered A-B-C-D run
+    // is required, so prose mentioning one letter cannot start a false match.
+    const prose = 'Escalate to the duty manager. Option B. is not available outside office hours.';
+    const result = detectQuestions({ fileName: 'sop.docx', sections: [section(prose)] });
+    expect(result.detected).toHaveLength(0);
+  });
+
+  it('reads a SharePoint template using OptionA and CorrectAnswer', () => {
+    // The customer's own column spelling. `optiona` already matched and
+    // `correctanswer` did not, so every row would have imported with no
+    // answer and been refused.
+    const header =
+      'QuestionID — Domain — Topic — Difficulty — Question — OptionA — OptionB — OptionC — ' +
+      'OptionD — CorrectAnswer — IsActive — Explanation';
+    const row =
+      'VS-E-001 — VisionStar — LMS Overview — Easy — What is the primary purpose of VisionStar ' +
+      'LMS? — Financial Reporting System — Customer Relationship Management Tool — Lab ' +
+      'Management System used to run manufacturing labs — SAP Integration Platform — C — Yes — ' +
+      'VisionStar LMS is used as a Lab Management System for manufacturing.';
+
+    const result = detectQuestions({
+      fileName: 'Quiz Question Bank Import Template.xlsx',
+      sections: [section(`${header}\n${row}`)],
+    });
+    expect(result.strategy).toBe('TABULAR');
+    expect(result.detected).toHaveLength(1);
+    const q = result.detected[0]!;
+    expect(q.correctOption).toBe('C');
+    expect(q.domainName).toBe('VisionStar');
+    expect(q.topicName).toBe('LMS Overview');
+    expect(q.difficulty).toBe('Easy');
+    expect(q.options.D).toBe('SAP Integration Platform');
+    expect(validateDetected(result.detected).valid).toHaveLength(1);
   });
 });

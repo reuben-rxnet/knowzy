@@ -143,6 +143,10 @@ export const copy = {
   'sources.syncModified': 'Modified',
   'sources.syncUnchanged': 'Unchanged',
   'sources.syncFailed': 'Failed',
+  'sources.syncSkipped': 'Skipped',
+  'sources.syncSkips': 'Documents deliberately not indexed',
+  'sources.syncSkipsNote':
+    'These fall outside every configured path for this source — usually because they belong to another source. Skipping them is the configuration working, so they do not count as failures.',
   'sources.syncChars': 'Characters extracted',
 
   'browser.heading': 'Document browser',

@@ -284,13 +284,15 @@ const pptx = () =>
 // ---------------------------------------------------------------- XLSX
 
 const SHARED_STRINGS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="6" uniqueCount="6">
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="8" uniqueCount="8">
 <si><t>Environment</t></si>
 <si><t>Renewal window</t></si>
 <si><t>Approver</t></si>
 <si><t>Production</t></si>
 <si><t>30 days before expiry</t></si>
 <si><t>The team leader must approve every production renewal request.</t></si>
+<si><t>Staging</t></si>
+<si><t>The duty manager approves a staging renewal.</t></si>
 </sst>`;
 
 const SHEET_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -298,6 +300,7 @@ const SHEET_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c><c r="C1" t="s"><v>2</v></c></row>
 <row r="2"><c r="A2" t="s"><v>3</v></c><c r="B2" t="s"><v>4</v></c><c r="C2" t="s"><v>5</v></c></row>
 <row r="3"><c r="A3"><f>SUM(1,1)</f><v>2</v></c></row>
+<row r="4"><c r="A4" t="s"><v>6</v></c><c r="C4" t="s"><v>7</v></c></row>
 </sheetData></worksheet>`;
 
 const WORKBOOK_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

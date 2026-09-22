@@ -1041,6 +1041,11 @@ model KnowledgeSourceSync {
   itemsDeleted           Int         @default(0) @map("items_deleted")
   itemsUnchanged         Int         @default(0) @map("items_unchanged")
   itemsFailed            Int         @default(0) @map("items_failed")
+  /// Discovered and deliberately not indexed -- outside every configured
+  /// path. Kept apart from `itemsFailed`: a skip is the configuration working,
+  /// and counting it as a failure made a healthy source report PARTIAL
+  /// permanently.
+  itemsSkipped           Int         @default(0) @map("items_skipped")
   extractedCharCount     Int         @default(0) @map("extracted_char_count")
   questionsFlaggedForRevalidation Int @default(0) @map("questions_flagged_for_revalidation")
   /// Knowzy error codes and safe messages only. Secrets never enter this column.

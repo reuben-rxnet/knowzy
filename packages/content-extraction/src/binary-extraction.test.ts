@@ -215,6 +215,18 @@ describe('XLSX extraction', () => {
     expect(structured.blocks[0]?.sheetName).toBe('Certificate policy');
   });
 
+  it('keeps a cell in its own COLUMN when an earlier cell is empty', () => {
+    // A spreadsheet omits an empty cell rather than writing an empty one, so
+    // row 4 holds A and C and no B. Reading cells in document order would
+    // close the gap and move the C value into column B -- and a consumer that
+    // maps columns by position (the question-bank import does) would then read
+    // the wrong field with no way to notice.
+    const structured = extractXlsx(bytes('policy.xlsx'));
+    const text = structured.blocks.map((block) => block.text).join('\n');
+    const row = text.split('\n').find((line) => line.startsWith('Staging'));
+    expect(row).toBe('Staging —  — The duty manager approves a staging renewal.');
+  });
+
   it("reads a formula's cached result and not the formula", () => {
     const structured = extractXlsx(bytes('policy.xlsx'));
     const text = structured.blocks.map((block) => block.text).join('\n');

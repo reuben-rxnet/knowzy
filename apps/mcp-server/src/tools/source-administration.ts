@@ -221,6 +221,20 @@ interface SyncTotals {
   unchanged: number;
   deleted: number;
   failed: number;
+  /**
+   * Discovered, and deliberately not indexed.
+   *
+   * SEPARATE from `failed`, because they are different facts and a reader
+   * acts on them differently. A failure is something that went wrong and may
+   * need attention; a skip is the configuration working -- a document outside
+   * every configured path was correctly left alone.
+   *
+   * They were one number until 2026-09-22, and the consequence was a source
+   * that reported PARTIAL forever with two "failures" that were simply files
+   * in the tree belonging to a different source's configured path. A failure
+   * count that includes working-as-designed is a failure count nobody reads.
+   */
+  skipped: number;
   extractedChars: number;
 }
 
@@ -270,14 +284,18 @@ export const synchronizeKnowledgeSource = registerTool({
       unchanged: 0,
       deleted: 0,
       failed: 0,
+      skipped: 0,
       extractedChars: 0,
     };
     const failures: { sourceDocumentId: string; reason: string; retryable: boolean }[] = [];
+    // Reported alongside the failures and kept apart from them, so a reader
+    // can see WHAT was skipped and why without it counting against the run.
+    const skips: { sourceDocumentId: string; documentName: string; reason: string }[] = [];
 
     try {
       for await (const event of adapter.synchronize(context, { mode: input.mode })) {
         try {
-          await applySyncEvent({ event, deps, source, adapter, context, totals, failures });
+          await applySyncEvent({ event, deps, source, adapter, context, totals, failures, skips });
         } catch (error) {
           // FAILURE ISOLATION: one document that cannot be read or persisted
           // must leave the rest of the run synchronized with a per-item
@@ -345,6 +363,7 @@ export const synchronizeKnowledgeSource = registerTool({
             itemsUnchanged: totals.unchanged,
             itemsDeleted: totals.deleted,
             itemsFailed: totals.failed,
+            itemsSkipped: totals.skipped,
             extractedCharCount: totals.extractedChars,
           },
         });
@@ -369,6 +388,7 @@ export const synchronizeKnowledgeSource = registerTool({
       completedAt,
       ...totals,
       failures,
+      skips,
     };
   },
 });
@@ -394,6 +414,7 @@ interface ApplyArgs {
   readonly context: ReturnType<typeof buildAdapterContext>;
   readonly totals: SyncTotals;
   readonly failures: { sourceDocumentId: string; reason: string; retryable: boolean }[];
+  readonly skips: { sourceDocumentId: string; documentName: string; reason: string }[];
 }
 
 /**
@@ -404,7 +425,7 @@ interface ApplyArgs {
  * others synchronized, with a per-item outcome recorded.
  */
 const applySyncEvent = async (args: ApplyArgs): Promise<void> => {
-  const { event, deps, source, adapter, context, totals, failures } = args;
+  const { event, deps, source, adapter, context, totals, failures, skips } = args;
 
   if (event.type === 'ITEM_FAILED') {
     totals.scanned += 1;
@@ -435,13 +456,25 @@ const applySyncEvent = async (args: ApplyArgs): Promise<void> => {
   const item = event.item;
   const pathId = attributePath(source, item.containerSiteName ?? '', item.folderPath);
   if (pathId === undefined) {
-    // Discovered outside every configured path. Recording it would attach a
-    // document to a path that does not exist, so it is a failure, not a skip.
-    totals.failed += 1;
-    failures.push({
+    // Discovered outside every configured path, so it is SKIPPED rather than
+    // failed.
+    //
+    // It cannot be recorded -- attaching a document to a path that does not
+    // exist would be worse -- but "cannot be recorded" and "the run failed"
+    // are different claims. A tree legitimately contains files belonging to
+    // another source's configured paths, and calling those failures made a
+    // healthy source report PARTIAL permanently.
+    //
+    // It is still REPORTED, with its reason, because a document the operator
+    // expected to be indexed and which silently vanished would be worse
+    // again. A skip is visible and costs the run nothing.
+    totals.skipped += 1;
+    skips.push({
       sourceDocumentId: item.sourceDocumentId,
+      // The NAME, because a hashed id tells an operator nothing about which
+      // file was left alone.
+      documentName: item.name,
       reason: 'The document falls outside every configured path for this source.',
-      retryable: false,
     });
     return;
   }

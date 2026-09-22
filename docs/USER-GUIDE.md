@@ -221,7 +221,12 @@ many documents it has indexed.
    support live search, so it says so instead of pretending. Underneath, the declared capabilities
    are listed — a capability a source lacks is reported `false` rather than emulated.
 2. **Synchronize** indexes the documents and extracts their text. The result gives you scanned,
-   added, modified, unchanged, failed, and the character count extracted.
+   added, modified, unchanged, **failed**, **skipped**, and the character count extracted.
+   **Failed and skipped are different things and are listed separately.** A failure is something
+   that went wrong: a file the reader could not open. A skip is the configuration working: a file
+   that sits in the tree but outside the folder this source is configured to read. Skips are listed
+   in a calmer tone underneath, so a document you expected to be indexed cannot disappear quietly
+   without a reason on screen.
 
 Both results open in a **panel on the right**. Close it with the × or the Escape key; the page
 behind it does not move while you read. The three figures above the table — configured sources,
@@ -393,6 +398,40 @@ publishes nothing.**
 
 Formats: `.docx`, `.pdf`, `.pptx`, `.xlsx`, `.md`, `.txt`, `.html` — whatever
 the platform can already extract.
+
+**You do not have to rename your columns.** The spellings a working template
+actually uses are recognised as they are: `QuestionText`, `OptionA`..`OptionD`,
+`CorrectAnswer`, `AnswerKey`, `Justification`, `SourceDocument`, `Choice A`,
+`Option_A`, and the plain `A`..`D`. `CorrectAnswer` may hold the letter (`C`)
+or the letter with the option text after it.
+
+**Trailing columns may be left blank.** A template that names fifteen columns
+and fills the first twelve — `SourceDocument`, `ApprovedBySME` and
+`LastReviewed` left for a reviewer — imports normally. A spreadsheet writes
+nothing at all for an empty cell at the end of a row, so those rows arrive
+short, and that is expected rather than a problem.
+
+**One thing in a spreadsheet cell still cannot be read: ` - ` inside the text
+of a cell.** The extractor separates columns with a dash, so a cell containing
+`sudo su - root` cannot be told apart from two columns. That row is reported
+with the value it found in the answer column and skipped; the rest of the file
+imports. Write it without the spaces (`sudo su -root`) or put it in a cell of
+its own.
+
+**A Word or PDF bank needs an explanation for every question.** The first real
+Word bank this met had a stem, four options, and `✅ Correct Answer: C` — and
+no explanation anywhere. Every question in it was detected and then refused,
+because a learner sees the explanation on review and the question model has
+nowhere to store "there wasn't one". Add a line per question:
+
+```
+Explanation: A restart happens only after a request from the impacted lab.
+```
+
+The decoration in front of the keyword does not matter — a tick, a bullet, a
+dash and a bold glyph all read the same — and `Rationale:`, `Why:` and
+`Reason:` are accepted alongside `Explanation:`. In Word the four options may
+sit on one line or on four; both are read.
 
 #### Why something was not imported
 
@@ -756,3 +795,4 @@ the log below.
 | 2026-09-21 | UI-M2 | The six authoring screens are on the design system: Knowledge Sources (§4.1 — results now open in a side panel, and three counted figures sit above the table), the document browser (§4.2 — libraries are tabs, with a breadcrumb), Generate (§4.3 — three numbered cards), the review queue (§4.4 — five queues as tabs with counts), Question approval (§4.5 — **six tabs, with the gate verdict kept outside them**), and Publish (§4.6 — Retire is now a confirmation dialog). **No control, action, or refusal changed.** Also fixed: clicking Finish and score, Test connection, Claim, Submit, or the assessment steps returned a 400 "Validation failed" — every one of them now works |
 | 2026-09-21 | UI-M1 | Both portals now render inside one shared KNOWZY shell: brand header, left-hand destinations carrying their real status, the authoring workflow ribbon, a skip link, and visible focus. The search field, KNOWZY Copilot, and notifications are shown disabled and labelled "Planned" — see §2.4. **No page body, control, action, or refusal changed**; the screens themselves are modernized one at a time from UI-M2 |
 | 2026-09-21 | `abb1c45`+ | Resume of a fully answered attempt now works (it returned a 404 before, and the home page card printed "NaN / "). Two new review views, `Published` and `All questions`, with a per-document filter; preflight counts and published inventory rows link into them. Recording `VIEW_EXISTING` or `REUSE_EXISTING` no longer offers the generate form |
+| 2026-09-22 | Import on real files | **The first two real question banks were fed in, and both were refused for reasons that were the platform’s fault rather than the files’.** Fixed, in §4.3a: a spreadsheet may leave its trailing columns blank (a fifteen-column template with twelve filled imported nothing before, and now imports every row); `OptionA`, `CorrectAnswer`, `AnswerKey`, `QuestionText`, `Justification` and `SourceDocument` are recognised as column names; a Word bank whose four options sit on one line is read; and a decoration in front of `Correct Answer:` — a tick, a bullet, a dash — no longer hides the answer. A Word bank with no explanation per question is still refused, and §4.3a now says so before you try. Also: a spreadsheet cell whose own text contains ` - ` is reported with the value it found rather than mis-split. On §4.1, **skipped** is now counted and listed apart from **failed**: a file outside this source’s configured folder is the configuration working, not an error |

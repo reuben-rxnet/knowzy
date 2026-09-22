@@ -114,7 +114,34 @@ const sheetsOf = (
     .map((path) => ({ name: '', path }));
 };
 
-/** One line per row, cells joined as prose. */
+/**
+ * Spreadsheet column index from a cell reference: `A1` is 0, `B1` is 1, `AA1`
+ * is 26.
+ *
+ * Needed because a spreadsheet OMITS an empty cell entirely rather than
+ * writing an empty one. Reading cells in document order therefore CLOSES the
+ * gap, and every value after an empty cell shifts one column to the left. A
+ * reader that ignores `r` cannot tell "Difficulty was blank" from "Question is
+ * in the Difficulty column", which is exactly the kind of silent mis-mapping
+ * that turns an import into wrong data.
+ */
+const columnIndex = (reference: string): number | null => {
+  const letters = /^([A-Z]+)\d+$/.exec(reference.toUpperCase())?.[1];
+  if (letters === undefined) return null;
+  let index = 0;
+  for (const letter of letters) index = index * 26 + (letter.charCodeAt(0) - 64);
+  return index - 1;
+};
+
+/**
+ * One line per row, cells joined as prose, WITH COLUMN POSITION PRESERVED.
+ *
+ * A gap becomes an empty cell, so the nth value on a line is the nth column of
+ * the sheet. Trailing empties are still dropped — nothing in the file marks
+ * where the used range ends on a given row — so a row can be SHORTER than its
+ * header, and only ever at the tail. Anything consuming this text can rely on
+ * that.
+ */
 const sheetLines = (xml: string, strings: readonly string[], maxRows: number): string[] => {
   const lines: string[] = [];
   const rowMatcher = /<row\b(?:\s[^>]*)?>([\s\S]*?)<\/row>/g;
@@ -142,10 +169,18 @@ const sheetLines = (xml: string, strings: readonly string[], maxRows: number): s
       }
 
       const trimmed = value.replace(/[\t\r\n]+/g, ' ').trim();
-      if (trimmed.length > 0) cells.push(trimmed);
+      // `r` places the cell; without it the only honest choice is the next
+      // position, which is what a file with no references implies anyway.
+      const at = columnIndex(/\br="([^"]+)"/.exec(attributes)?.[1] ?? '') ?? cells.length;
+      while (cells.length < at) cells.push('');
+      if (at < cells.length) cells[at] = trimmed;
+      else cells.push(trimmed);
       cell = cellMatcher.exec(row[1] ?? '');
     }
-    if (cells.length > 0) lines.push(cells.join(CELL_SEPARATOR));
+    // Trailing empties carry nothing and are dropped, so a line never ends in
+    // a run of separators.
+    while (cells.length > 0 && (cells[cells.length - 1] ?? '') === '') cells.pop();
+    if (cells.some((value) => value.length > 0)) lines.push(cells.join(CELL_SEPARATOR));
     row = rowMatcher.exec(xml);
   }
   return lines;

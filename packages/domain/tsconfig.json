@@ -6,6 +6,9 @@
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"],
-  "references": [{ "path": "../shared-types" },
-    { "path": "../question-import" }, { "path": "../observability" }]
+  "references": [
+    { "path": "../shared-types" },
+    { "path": "../question-import" },
+    { "path": "../observability" }
+  ]
 }

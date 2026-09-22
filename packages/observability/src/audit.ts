@@ -72,9 +72,12 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'unchanged',
     'deleted',
     'failed',
+    // Kept apart from `failed` in the audit too, so a seven-year row can still
+    // distinguish "something went wrong" from "the configuration excluded it".
+    'skipped',
     'extractedChars',
   ],
-  'ADMIN.SOURCE.SYNC_FAILED': ['mode', 'scanned', 'failed'],
+  'ADMIN.SOURCE.SYNC_FAILED': ['mode', 'scanned', 'failed', 'skipped'],
   'ADMIN.FEATUREFLAG.ENABLED': ['key', 'environment', 'ceiling'],
   'ADMIN.FEATUREFLAG.DISABLED': ['key', 'environment'],
   'ADMIN.FEATUREFLAG.ROLLOUT_CHANGED': ['key', 'environment'],

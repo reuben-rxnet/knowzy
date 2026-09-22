@@ -1506,3 +1506,65 @@ already been imported.
 means a filename-traversal guard, a size ceiling, a type allow-list and a writable mount — four
 controls that have to be right rather than present — so it is left for its own change rather than
 rushed in alongside everything else. Recorded in the user guide where an importer will look.
+
+---
+
+## Import, met by two real question banks
+
+**2026-09-22.** The framework was built against fixtures. The first two files a person actually
+handed it — a Word quiz and a filled-in SharePoint question-bank template — were both refused **in
+full**, and every reason was the platform's fault rather than the files'.
+
+### What the files exposed
+
+| What arrived | Why it was refused | What changed |
+| --- | --- | --- |
+| `✅ Correct Answer: C. …` | The answer pattern was anchored at the start of the line, so a tick in front of the keyword hid the answer | Anything that is not a letter is tolerated before the keyword. Enumerating the decorations people use is a losing game; the keyword is the anchor |
+| `A. FirstB. SecondC. ThirdD. Fourth` on one line, the answer on the next | The inline pattern required the answer on the SAME line as the options, and `\bB` cannot match a `B` pressed against the previous word — DOCX concatenates a paragraph's runs with no separator | Options and answer are found separately: an ordered A-B-C-D run on one line, then the answer on the lines below. The letters must be in order and each must carry a delimiter, so a stray "B." in prose still cannot pass |
+| A 15-column template with 12 columns filled | A row shorter than its header was reported `ROW_SHAPE`, so a well-formed bank imported **nothing** — every row | A short row is padded and imported. Sound only because the extractor now preserves column POSITION |
+| A column named `CorrectAnswer` | `optiona` was an alias and `correctanswer` was not, so every row would have imported with no answer | The spellings a real template uses are recognised. Recognising the customer's column names is the platform's job, not theirs |
+
+### The defect underneath the third row
+
+A spreadsheet **omits** an empty cell rather than writing an empty one. Reading cells in document
+order therefore closes the gap, and every value after a blank cell shifts one column left. Nothing
+downstream could tell "Difficulty was blank" from "Question is in the Difficulty column" — the
+silent kind of wrong that turns an import into bad data instead of a refusal.
+
+The XLSX extractor now places each cell by its `r` reference and pads the gaps, so the nth value on
+a line is the nth column of the sheet. Trailing empties are still dropped, because nothing in the
+file marks where a row's used range ends — which is exactly why a short row can only be short at
+the tail, and why padding one is now sound. Asserted by a fixture row holding A and C and no B; the
+assertion fails when the padding is removed.
+
+This is the fifth instance of one shape recorded in this document: **a field that is correct for its
+designed case, reused for a case it cannot represent.** `isAssessable`, `coverage_status`,
+`section_key`, `PromptVersion.body`, and now a spreadsheet row's cell ORDER standing in for its
+column POSITION.
+
+### What is still refused, and correctly
+
+The Word bank carries no explanation for any of its five questions, and `draft_question.explanation`
+is NOT NULL because a learner sees it on review. All five are detected and all five are refused,
+with the reason and the line. The fix is one line per question in the document, and the user guide
+now says so before somebody tries.
+
+One row of the template holds `sudo su - root` in an option cell. Once X1 has folded the em dash
+that is the column separator, and the row cannot be split with certainty. It is reported as
+`ROW_SHAPE` **naming the value it found in the answer column** — `startPROD.s` — rather than
+imported as a question with a wrong key. A short row whose answer column does not hold A, B, C or D
+was short because a cell split, not because a column was blank.
+
+### Verified end to end
+
+14 of the template's 15 rows imported as DRAFT, evidence verified STRICT at similarity 1.000, with
+no `modelId`, no `generationJobId`, and a locator naming the row each came from. The one refusal is
+the ambiguous row. Nothing was published by importing.
+
+### Also in this change
+
+A sync now counts **skipped** apart from **failed**. A file that sits in the tree but outside the
+folder a source is configured to read was reported as a per-item failure, which made a healthy
+`PARTIAL` look like two broken documents. Skips are listed separately and in a calmer tone —
+shown rather than hidden, so a document an operator expected to be indexed cannot vanish without a
+reason on screen.

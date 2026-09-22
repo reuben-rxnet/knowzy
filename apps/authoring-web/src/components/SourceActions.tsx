@@ -55,8 +55,10 @@ interface SyncResult {
   readonly modified: number;
   readonly unchanged: number;
   readonly failed: number;
+  readonly skipped?: number;
   readonly extractedChars: number;
   readonly failures: readonly { documentName?: string; reason?: string; detail?: string }[];
+  readonly skips?: readonly { documentName?: string; reason?: string }[];
 }
 
 export const SourceActions = ({
@@ -176,6 +178,30 @@ export const SourceActions = ({
                   ))}
                 </ul>
               </div>
+              {/* Skips are listed SEPARATELY from failures and in a calmer
+                  tone, because they are the configuration working: a file in
+                  the tree that belongs to another source's configured path.
+                  Shown rather than hidden, so a document the operator expected
+                  to be indexed cannot vanish quietly. */}
+              {sync === null || (sync.skips ?? []).length === 0 ? null : (
+                <div className="flex flex-col gap-2">
+                  <h4 className="text-base font-semibold text-brand-navy-text">
+                    {t('sources.syncSkips')}
+                  </h4>
+                  <p className="text-2xs text-ink-muted">{t('sources.syncSkipsNote')}</p>
+                  <ul className="flex flex-col gap-1">
+                    {(sync?.skips ?? []).map((skip, index) => (
+                      <li
+                        key={`skip-${skip.documentName ?? index}`}
+                        className="rounded-md bg-surface-muted px-3 py-2 text-sm text-ink-muted"
+                      >
+                        <span className="font-semibold">{skip.documentName ?? '—'}</span>{' '}
+                        {skip.reason ?? ''}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </section>
           )}
 
@@ -192,6 +218,7 @@ export const SourceActions = ({
                   { label: t('sources.syncModified'), value: sync.modified },
                   { label: t('sources.syncUnchanged'), value: sync.unchanged },
                   { label: t('sources.syncFailed'), value: sync.failed },
+                  { label: t('sources.syncSkipped'), value: sync.skipped ?? 0 },
                   {
                     label: t('sources.syncChars'),
                     value: sync.extractedChars.toLocaleString('en-GB'),
