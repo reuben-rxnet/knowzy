@@ -42,6 +42,7 @@
     "ADMIN.TAXONOMY.TOPIC_CREATED",
     "ADMIN.TAXONOMY.TOPIC_MERGED",
     "ADMIN.TAXONOMY.TOPIC_RENAMED",
+    "ADMIN.TAXONOMY.TOPIC_UPDATED",
     "ADMIN.USER.DEPROVISIONED",
     "ADMIN.USER.PROVISIONED",
     "ADMIN.USER.PSEUDONYMIZED",
@@ -578,6 +579,21 @@
       "category": "CONFLICT",
       "retryable": false,
       "status": 409
+    },
+    "TAXONOMY_CODE_IMMUTABLE": {
+      "category": "CONFLICT",
+      "retryable": false,
+      "status": 409
+    },
+    "TAXONOMY_DUPLICATE": {
+      "category": "CONFLICT",
+      "retryable": false,
+      "status": 409
+    },
+    "TAXONOMY_MAPPING_REQUIRED": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
     },
     "TAXONOMY_MISSING": {
       "category": "VALIDATION",

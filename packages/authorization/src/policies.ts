@@ -44,6 +44,15 @@ export const POLICIES = {
     portals: AUTHORING,
     description: 'Read the domain and topic catalogue.',
   },
+  // Taxonomy WRITE is a separate policy from the read above, because the two
+  // are held by different people: every author reads the catalogue, and only a
+  // platform administrator may add to it. A domain code is permanent once
+  // published under, so this is a narrow grant on purpose.
+  'taxonomy.manage': {
+    permission: 'taxonomy.manage',
+    portals: AUTHORING,
+    description: 'Create and edit domains and topics, and activate or deactivate them.',
+  },
   'source.read': {
     permission: 'source.read',
     portals: AUTHORING,

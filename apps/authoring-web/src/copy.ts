@@ -149,6 +149,71 @@ export const copy = {
     'These fall outside every configured path for this source — usually because they belong to another source. Skipping them is the configuration working, so they do not count as failures.',
   'sources.syncChars': 'Characters extracted',
 
+  // -------------------------------------------------- taxonomy administration
+  'tax.heading': 'Knowledge Domains',
+  'tax.intro':
+    'Domains and topics are the taxonomy every question, assessment and gap report is grouped by. A domain code appears inside every published question id, which is why it becomes permanent.',
+  'tax.domainsHeading': 'Domains',
+  'tax.topicsHeading': 'Topics',
+  'tax.domainCount': 'Domains',
+  'tax.activeDomainCount': 'Active domains',
+  'tax.topicCount': 'Topics',
+  'tax.activeTopicCount': 'Active topics',
+  'tax.search': 'Search code, domain or topic',
+  'tax.searchHint': 'Matches a domain code, a domain name, or a topic name.',
+  'tax.filterActive': 'Show',
+  'tax.filterAll': 'Active and deactivated',
+  'tax.filterActiveOnly': 'Active only',
+  'tax.filterInactiveOnly': 'Deactivated only',
+  'tax.apply': 'Apply',
+  'tax.code': 'Code',
+  'tax.name': 'Display name',
+  'tax.description': 'Description',
+  'tax.active': 'Active',
+  'tax.topicsColumn': 'Topics',
+  'tax.questionsColumn': 'Questions',
+  'tax.domainColumn': 'Domain',
+  'tax.actions': 'Actions',
+  'tax.newDomain': 'New domain',
+  'tax.newTopic': 'New topic',
+  'tax.edit': 'Edit',
+  'tax.activate': 'Activate',
+  'tax.deactivate': 'Deactivate',
+  'tax.editDomainTitle': 'Edit domain',
+  'tax.createDomainTitle': 'New domain',
+  'tax.editTopicTitle': 'Edit topic',
+  'tax.createTopicTitle': 'New topic',
+  'tax.save': 'Save',
+  'tax.cancel': 'Cancel',
+  'tax.codeHint':
+    'Letters, digits and underscores. It is upper-cased, and it appears in every published question id as KNZ-{CODE}-YYYY-NNNNNN.',
+  'tax.codeLocked': 'Permanent',
+  'tax.codeLockedReason':
+    'This code can no longer be changed: {questions} question(s) reference this domain and a published question id carries the code forever. The display name is still editable.',
+  'tax.codeEditableReason':
+    'Nothing references this domain yet, so the code can still be corrected. It becomes permanent as soon as a question, assessment or question set uses it.',
+  'tax.requireSmeSignoff': 'Require SME sign-off in this domain',
+  'tax.activeField': 'Active — offered for generation, import and assessments',
+  'tax.deactivateNote':
+    'Deactivating hides a domain or topic from every selection screen. Nothing is deleted and every existing question keeps its lineage.',
+  'tax.noDomains': 'No domain matches this search.',
+  'tax.noTopics': 'No topic matches this search.',
+  'tax.published': '{count} published',
+  'tax.topicOf': 'in {domain}',
+  'tax.nothingYet': '—',
+
+  // ------------------------------------------------------ import taxonomy map
+  'import.taxonomyHeading': 'Domains and topics in this file',
+  'import.taxonomyIntro':
+    'What the file itself says about where each question belongs, matched against the taxonomy this platform holds. An import never creates a domain or a topic: a spreadsheet typo would become a permanent domain code.',
+  'import.taxonomyFileValue': 'In the file',
+  'import.taxonomyQuestions': 'Questions',
+  'import.taxonomyStatus': 'Resolution',
+  'import.taxonomyDetail': 'What happens',
+  'import.taxonomyUnmatched':
+    '{count} value(s) in this file do not exist here. Create them under Administration → Knowledge Domains, or import a file that names taxonomy this platform already holds. Nothing was written.',
+  'import.taxonomyAllMatched': 'Every domain and topic in this file resolves to existing taxonomy.',
+
   'browser.heading': 'Document browser',
   'browser.intro':
     'Only configured containers are browsable, and a document the source denies is absent rather than greyed out.',

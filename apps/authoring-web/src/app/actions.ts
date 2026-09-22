@@ -394,3 +394,116 @@ export const importQuestions = async (
     ? { ok: true, data: { ...(result.data as object), intent } }
     : failed(result.problem);
 };
+
+// ---------------------------------------------------------------- taxonomy
+
+/**
+ * Domains and topics.
+ *
+ * A checkbox is absent from the form data when it is unchecked, so `isActive`
+ * is read as "the field is present" rather than compared to a string. A form
+ * that posts no checkbox and a form that posts `false` mean the same thing
+ * here, and both mean deactivated.
+ */
+const checked = (formData: FormData, field: string): boolean => formData.get(field) !== null;
+
+export const createDomainAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const result = await api<unknown>('/api/v1/authoring/taxonomy/domains', {
+    method: 'POST',
+    body: {
+      code: String(formData.get('code') ?? ''),
+      name: String(formData.get('name') ?? ''),
+      description: String(formData.get('description') ?? ''),
+      requireSmeSignoff: checked(formData, 'requireSmeSignoff'),
+      isActive: checked(formData, 'isActive'),
+    },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+export const updateDomainAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const domainId = String(formData.get('domainId') ?? '');
+  // The code is sent ONLY when the form offered it, which it does only while
+  // nothing references the domain. Sending an unchanged code would be
+  // harmless, but sending one the screen did not show would not be.
+  const code = formData.get('code');
+  const result = await api<unknown>(`/api/v1/authoring/taxonomy/domains/${domainId}`, {
+    method: 'PATCH',
+    body: {
+      name: String(formData.get('name') ?? ''),
+      description: String(formData.get('description') ?? ''),
+      requireSmeSignoff: checked(formData, 'requireSmeSignoff'),
+      isActive: checked(formData, 'isActive'),
+      ...(code === null ? {} : { code: String(code) }),
+    },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+export const setDomainActiveAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const domainId = String(formData.get('domainId') ?? '');
+  const result = await api<unknown>(`/api/v1/authoring/taxonomy/domains/${domainId}`, {
+    method: 'PATCH',
+    body: { isActive: String(formData.get('isActive') ?? 'false') === 'true' },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+export const createTopicAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const result = await api<unknown>('/api/v1/authoring/taxonomy/topics', {
+    method: 'POST',
+    body: {
+      domainId: String(formData.get('domainId') ?? ''),
+      name: String(formData.get('name') ?? ''),
+      description: String(formData.get('description') ?? ''),
+      isActive: checked(formData, 'isActive'),
+    },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+export const updateTopicAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const topicId = String(formData.get('topicId') ?? '');
+  const result = await api<unknown>(`/api/v1/authoring/taxonomy/topics/${topicId}`, {
+    method: 'PATCH',
+    body: {
+      name: String(formData.get('name') ?? ''),
+      description: String(formData.get('description') ?? ''),
+      isActive: checked(formData, 'isActive'),
+    },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+export const setTopicActiveAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const topicId = String(formData.get('topicId') ?? '');
+  const result = await api<unknown>(`/api/v1/authoring/taxonomy/topics/${topicId}`, {
+    method: 'PATCH',
+    body: { isActive: String(formData.get('isActive') ?? 'false') === 'true' },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};

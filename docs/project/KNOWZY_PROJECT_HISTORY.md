@@ -1568,3 +1568,81 @@ folder a source is configured to read was reported as a per-item failure, which 
 `PARTIAL` look like two broken documents. Skips are listed separately and in a calmer tone —
 shown rather than hidden, so a document an operator expected to be indexed cannot vanish without a
 reason on screen.
+
+---
+
+## Taxonomy administration
+
+**2026-09-22.** The first Administration screen with a backend behind it, and the reason it went
+first: the platform shipped with **one** seeded domain and **one** seeded topic, and no way to add a
+second. Every imported question bank therefore landed wherever the seed happened to point, which is
+how a VisionStar question came to be filed under Support Operations / Escalation and Billing.
+
+### What already existed, and what did not
+
+`Domain` and `Topic` have carried every field this needed since migration `0001` -- `code` unique,
+`name`, `description`, `isActive`, and `Topic` unique on `[domainId, slug]`. **No schema migration
+was required.** What was missing was the write path: no policy, no route, no screen.
+`taxonomy.manage` had been a permission key in the closed union and in `access-control.md` since
+Phase 2 with nothing behind it, so this change adds the policy and **no role gained anything**.
+
+### The one judgment call, stated
+
+Two rules pull against each other: *"the domain code is immutable"* and *"the domain code cannot be
+changed after publication"*. Read literally, the first makes a mistyped code permanent from the
+instant it is saved -- and the code is inside every published `KNZ-{CODE}-{YYYY}-{SEQ}` identifier,
+which lives in the SharePoint Question Bank where Knowzy cannot reach it.
+
+So the window is closed by **reference**, not by publication: the code is editable while nothing
+cites the domain, and refused with `TAXONOMY_CODE_IMMUTABLE` the moment a question, assessment or
+question set does. A draft is enough to lock it, because the draft's published id will carry the
+code. The screen renders a locked code as text with the counts that locked it rather than as a
+disabled input -- a disabled field still looks like something that could be enabled.
+
+### Import: the rule worth writing down
+
+**An import never creates taxonomy.** A question-bank file carries hand-typed Domain and Topic
+columns, and `VissionStar` is one keystroke from a real domain. Creating what a file names would
+mint a permanent code from a typo.
+
+`resolveImportTaxonomy` therefore resolves the distinct pairs a file names -- MATCHED on a folded
+code or name, MAPPED by the importer, FALLBACK only when the file names *nothing* -- and anything
+else is UNMATCHED, which refuses the whole file with the values and the question counts behind them.
+
+Two decisions inside that are easy to get wrong:
+
+1. **A matched domain with an unmatched topic is still a refusal.** Filing a question under the
+   right domain and the wrong topic is not an improvement, because topic is what a learner's gap
+   report groups by.
+2. **The screen's dropdown is not a fallback for a name that failed to match.** Using it would be
+   the same mistake as creating the domain, only quieter.
+
+### Proved on the customer's own file
+
+Their `Quiz_Question_Bank_Template.xlsx` names two domains and fifteen topics -- VisionStar and
+Rx.Net. After creating exactly those through the new API (nothing invented; every name taken from
+the file), all 14 detected questions resolved MATCHED and imported under the domain and topic each
+row names. Before this change all 14 would have been filed under Support Operations.
+
+`Rx.Net` is a useful case: the display name keeps its dot and the code is `RX_NET`, because a code
+may hold only letters, digits and underscores. The importer matches on the display NAME as well as
+the code, so the file needs no knowledge of codes.
+
+### Also recorded
+
+`TOPIC_UPDATED` is new in the closed audit action union, and `audit-model.md` §2 now lists it.
+`TOPIC_RENAMED` would be a false statement about a deactivation, and one action per field would
+spread "what changed about this topic" across four vocabularies.
+
+19 integration tests and 23 unit tests, and the two controls that matter were mutation-tested: with
+the reference check removed, the code-immutability test fails; with UNMATCHED turned into a
+fallback, four mapping tests fail.
+
+### A cost worth recording
+
+Running `npm run verify` mid-session **destroyed the demonstration data a person was working
+through** -- the integration suites share the dev database and delete `draft_question` and
+`published_question_reference`, and for a few seconds their taxonomy dropdowns showed this suite's
+own fixtures. The suites clean up after themselves and the gotcha is documented, but the cost lands
+on whoever is using the app at the time. CLAUDE.md now says so where the other execution gotchas
+are.

@@ -14,6 +14,7 @@ import { learningRoutes } from './learning.js';
 import { questionImportRoutes } from './question-import.js';
 import { reviewRoutes } from './review.js';
 import { sourceRoutes } from './sources.js';
+import { taxonomyRoutes } from './taxonomy.js';
 import { whoamiRoutes } from './whoami.js';
 
 export const ALL_ROUTES: readonly KnowzyRoute[] = [
@@ -23,4 +24,5 @@ export const ALL_ROUTES: readonly KnowzyRoute[] = [
   ...questionImportRoutes,
   ...reviewRoutes,
   ...learningRoutes,
+  ...taxonomyRoutes,
 ];

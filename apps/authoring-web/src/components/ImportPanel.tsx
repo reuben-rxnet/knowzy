@@ -62,6 +62,14 @@ interface Issue {
   readonly detail: string;
 }
 
+interface TaxonomyResolution {
+  readonly domainName: string | null;
+  readonly topicName: string | null;
+  readonly questionCount: number;
+  readonly status: string;
+  readonly detail: string;
+}
+
 interface ImportResponse {
   readonly intent?: string;
   readonly documentName: string;
@@ -70,8 +78,13 @@ interface ImportResponse {
     readonly detected: number;
     readonly valid: number;
     readonly invalid: number;
+    readonly unmappedTaxonomy?: number;
     readonly created?: number;
     readonly rejected?: number;
+  };
+  readonly taxonomy?: {
+    readonly resolutions: readonly TaxonomyResolution[];
+    readonly unmatched: readonly TaxonomyResolution[];
   };
   readonly valid?: readonly PreviewQuestion[];
   readonly invalid: readonly Issue[];
@@ -205,6 +218,69 @@ export const ImportPanel = ({
                   ? t('import.createdNote')
                   : t('import.createdNoneNote')}
             </p>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* What the FILE says about taxonomy, against what the platform holds.
+          Shown before the question list, because an unresolved domain stops
+          the import and reading the questions first wastes the reader's
+          time. */}
+      {shown?.taxonomy === undefined || shown.taxonomy.resolutions.length === 0 ? null : (
+        <Card>
+          <CardHeader
+            title={t('import.taxonomyHeading')}
+            description={t('import.taxonomyIntro')}
+            actions={
+              <Badge
+                tone={shown.taxonomy.unmatched.length === 0 ? 'success' : 'warning'}
+                withIcon={false}
+              >
+                {shown.taxonomy.unmatched.length === 0
+                  ? t('import.taxonomyAllMatched')
+                  : t('import.taxonomyUnmatched', { count: shown.taxonomy.unmatched.length })}
+              </Badge>
+            }
+          />
+          <CardBody>
+            <DataTable caption={t('import.taxonomyHeading')} captionHidden>
+              <THead>
+                <Tr>
+                  <Th scope="col">{t('import.taxonomyFileValue')}</Th>
+                  <Th scope="col" align="end">
+                    {t('import.taxonomyQuestions')}
+                  </Th>
+                  <Th scope="col">{t('import.taxonomyStatus')}</Th>
+                  <Th scope="col">{t('import.taxonomyDetail')}</Th>
+                </Tr>
+              </THead>
+              <TBody>
+                {shown.taxonomy.resolutions.map((resolution) => (
+                  <Tr key={`${resolution.domainName ?? ''}/${resolution.topicName ?? ''}`}>
+                    <Th scope="row">
+                      {[resolution.domainName, resolution.topicName].filter(Boolean).join(' · ') ||
+                        '—'}
+                    </Th>
+                    <Td numeric>{resolution.questionCount}</Td>
+                    <Td>
+                      <StatusBadge
+                        status={resolution.status}
+                        tone={
+                          resolution.status === 'UNMATCHED'
+                            ? 'danger'
+                            : resolution.status === 'FALLBACK'
+                              ? 'neutral'
+                              : 'success'
+                        }
+                      />
+                    </Td>
+                    <Td>
+                      <span className="text-2xs text-ink-muted">{resolution.detail}</span>
+                    </Td>
+                  </Tr>
+                ))}
+              </TBody>
+            </DataTable>
           </CardBody>
         </Card>
       )}

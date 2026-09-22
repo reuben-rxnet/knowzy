@@ -82,8 +82,16 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   'ADMIN.FEATUREFLAG.DISABLED': ['key', 'environment'],
   'ADMIN.FEATUREFLAG.ROLLOUT_CHANGED': ['key', 'environment'],
   'ADMIN.RETENTION.EXECUTED': ['target', 'removedCount', 'evaluatedAt', 'cutoff'],
-  'ADMIN.TAXONOMY.DOMAIN_CREATED': ['code', 'name'],
-  'ADMIN.TAXONOMY.TOPIC_CREATED': ['domainCode', 'slug'],
+  // Taxonomy administration. `code` is declared because it is the one field
+  // that becomes permanent -- it appears in every published QuestionID -- so
+  // the row that created it has to carry it. `changedFields` is what makes an
+  // update readable years later: the row cannot otherwise say whether a
+  // deactivation or a rename happened.
+  'ADMIN.TAXONOMY.DOMAIN_CREATED': ['code', 'name', 'isActive'],
+  'ADMIN.TAXONOMY.DOMAIN_UPDATED': ['code', 'name', 'isActive', 'changedFields'],
+  'ADMIN.TAXONOMY.TOPIC_CREATED': ['domainCode', 'slug', 'name', 'isActive'],
+  'ADMIN.TAXONOMY.TOPIC_UPDATED': ['domainCode', 'slug', 'name', 'isActive', 'changedFields'],
+  'ADMIN.TAXONOMY.TOPIC_RENAMED': ['domainCode', 'slug', 'name', 'previousName'],
   'ADMIN.USER.PROVISIONED': ['entraObjectId', 'source'],
   'ADMIN.USER.RECONCILED': ['added', 'flaggedForRemoval'],
   // M3 generation. Counts, ids, hashes, and scores only — no question text, no
@@ -270,6 +278,7 @@ const VALUE_DIFF_ACTIONS: ReadonlySet<string> = new Set<string>([
   'ADMIN.TAXONOMY.DOMAIN_UPDATED',
   'ADMIN.TAXONOMY.TOPIC_MERGED',
   'ADMIN.TAXONOMY.TOPIC_RENAMED',
+  'ADMIN.TAXONOMY.TOPIC_UPDATED',
   'ADMIN.SOURCE.UPDATED',
   'ADMIN.SOURCE.RESTRICTIONS_CHANGED',
   'ADMIN.SOURCE.PATH_MODIFIED',

@@ -211,3 +211,37 @@ export {
   type ImportTargetSection,
   type RunImportArgs,
 } from './import/import-service.js';
+
+export {
+  createDomain,
+  createTopic,
+  normalizeDescription,
+  normalizeDisplayName,
+  normalizeDomainCode,
+  readTaxonomy,
+  topicSlug,
+  updateDomain,
+  updateTopic,
+  TaxonomyError,
+  type CreateDomainArgs,
+  type CreateTopicArgs,
+  type DomainRow,
+  type TaxonomyActor,
+  type TaxonomyDeps,
+  type TaxonomyQuery,
+  type TopicRow,
+  type UpdateDomainArgs,
+  type UpdateTopicArgs,
+} from './taxonomy/taxonomy-service.js';
+
+export {
+  resolveImportTaxonomy,
+  taxonomyResolver,
+  type DetectedTaxonomy,
+  type MappingStatus,
+  type ResolveArgs,
+  type ResolveResult,
+  type TaxonomyCatalogueDomain,
+  type TaxonomyMappingChoice,
+  type TaxonomyResolution,
+} from './taxonomy/import-mapping.js';

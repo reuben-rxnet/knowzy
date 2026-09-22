@@ -20,7 +20,14 @@
 // question bank into the review queue before anyone had read the summary.
 
 import { z } from 'zod';
-import { runQuestionImport, type ImportTargetSection } from '@knowzy/domain';
+import {
+  resolveImportTaxonomy,
+  runQuestionImport,
+  taxonomyResolver,
+  type ImportTargetSection,
+  type TaxonomyCatalogueDomain,
+  type TaxonomyMappingChoice,
+} from '@knowzy/domain';
 import { detectQuestions, validateDetected, type ImportSection } from '@knowzy/question-import';
 import { systemClock } from '@knowzy/observability';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
@@ -31,8 +38,32 @@ import type { FastifyReply } from 'fastify';
 const Body = z
   .object({
     documentId: z.string().uuid(),
+    // The FALLBACK domain and topic: used for a question whose file names no
+    // taxonomy at all, never as a substitute for a name that was written and
+    // not recognised.
     domainId: z.string().uuid(),
     topicId: z.string().uuid(),
+    /**
+     * The importer's decisions about the names inside the file.
+     *
+     * One entry per detected (domain, topic) pair. Anything the file names and
+     * this list does not resolve stops the import: a spreadsheet typo must
+     * never create a domain code, because a code is permanent once a question
+     * publishes under it.
+     */
+    mappings: z
+      .array(
+        z
+          .object({
+            domainName: z.string().max(200).nullable(),
+            topicName: z.string().max(200).nullable(),
+            domainId: z.string().uuid(),
+            topicId: z.string().uuid(),
+          })
+          .strict(),
+      )
+      .max(200)
+      .optional(),
   })
   .strict();
 
@@ -154,6 +185,36 @@ const loadDocument = async (
   };
 };
 
+/**
+ * The taxonomy an import may map onto: ACTIVE only.
+ *
+ * A deactivated domain is deliberately not offerable. Importing into one would
+ * create drafts that no generation run, assessment or selection screen can
+ * ever see, which is worse than the refusal.
+ */
+const loadCatalogue = async (deps: RouteDeps): Promise<TaxonomyCatalogueDomain[]> => {
+  const domains = await deps.prisma.domain.findMany({
+    where: { isActive: true },
+    orderBy: { name: 'asc' },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      topics: {
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true },
+      },
+    },
+  });
+  return domains.map((domain) => ({
+    domainId: domain.id,
+    code: domain.code,
+    name: domain.name,
+    topics: domain.topics.map((topic) => ({ topicId: topic.id, name: topic.name })),
+  }));
+};
+
 export const questionImportRoutes = [
   defineRoute({
     method: 'POST',
@@ -191,6 +252,21 @@ export const questionImportRoutes = [
       });
       const outcome = validateDetected(detection.detected);
 
+      // What the FILE says about taxonomy, resolved against what the platform
+      // holds. Reported by the preview so the mapping choices appear before
+      // anything is written -- which is the whole point of a preview.
+      const mapping = resolveImportTaxonomy({
+        detected: outcome.valid.map((question) => ({
+          domainName: question.domainName,
+          topicName: question.topicName,
+        })),
+        catalogue: await loadCatalogue(deps),
+        ...(body.data.mappings === undefined
+          ? {}
+          : { mappings: body.data.mappings as TaxonomyMappingChoice[] }),
+        fallback: { domainId: body.data.domainId, topicId: body.data.topicId },
+      });
+
       return {
         documentId: body.data.documentId,
         documentName: loaded.documentName,
@@ -199,6 +275,11 @@ export const questionImportRoutes = [
           detected: detection.detected.length,
           valid: outcome.valid.length,
           invalid: outcome.invalid.length,
+          unmappedTaxonomy: mapping.unmatched.length,
+        },
+        taxonomy: {
+          resolutions: mapping.resolutions,
+          unmatched: mapping.unmatched,
         },
         // A bounded preview. The importer needs to recognise their own bank,
         // not read all of it back.
@@ -253,6 +334,40 @@ export const questionImportRoutes = [
       });
       const outcome = validateDetected(detection.detected);
 
+      // Taxonomy first, and a refusal for the WHOLE file rather than a partial
+      // import: a bank half-filed under the right domains and half under a
+      // dropdown's default is harder to correct than one that never landed.
+      const mapping = resolveImportTaxonomy({
+        detected: outcome.valid.map((question) => ({
+          domainName: question.domainName,
+          topicName: question.topicName,
+        })),
+        catalogue: await loadCatalogue(deps),
+        ...(body.data.mappings === undefined
+          ? {}
+          : { mappings: body.data.mappings as TaxonomyMappingChoice[] }),
+        fallback: { domainId: body.data.domainId, topicId: body.data.topicId },
+      });
+      if (mapping.unmatched.length > 0) {
+        const named = mapping.unmatched
+          .slice(0, 5)
+          .map(
+            (entry) =>
+              `"${entry.domainName ?? ''}" / "${entry.topicName ?? ''}" (${entry.questionCount})`,
+          )
+          .join(', ');
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'TAXONOMY_MAPPING_REQUIRED',
+          `${mapping.unmatched.length} domain/topic value(s) in this file do not exist here: ` +
+            `${named}. Map each one to an existing domain and topic, or create them in ` +
+            'Administration first. An import never creates taxonomy, because a spreadsheet typo ' +
+            'would become a permanent domain code.',
+        );
+      }
+
       // The profile supplies the evidence mode and the duplicate thresholds,
       // so an import is held to the SAME configured standard as a generation
       // run rather than to constants chosen here.
@@ -275,6 +390,7 @@ export const questionImportRoutes = [
         questions: outcome.valid,
         domainId: body.data.domainId,
         topicId: body.data.topicId,
+        resolveTaxonomy: taxonomyResolver(mapping),
         evidenceMode: profile.evidenceStrictness,
         thresholds: {
           flagThreshold: Number(profile.duplicateFlagThreshold),

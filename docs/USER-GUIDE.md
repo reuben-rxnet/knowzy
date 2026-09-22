@@ -1,7 +1,8 @@
 # Knowzy — User Guide
 
 **Applies to:** the local demonstration build with the Question Acquisition Framework
-(provider-based generation and question import), including PILOT-T1, PILOT-T2 and UI-M3
+(provider-based generation and question import) and taxonomy administration, including PILOT-T1,
+PILOT-T2 and UI-M3
 **Last updated:** 2026-09-22
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -382,6 +383,27 @@ So the order is: drop the bank into a configured knowledge-source folder
 | **Invalid** | Detected but unusable, each with the reason and where to look |
 | **Drafts created / Refused by a gate** | Dashes until you actually import |
 
+#### Where each question is filed
+
+After **Preview**, the panel **Domains and topics in this file** lists every distinct Domain/Topic
+pair the file itself names, with what will happen to it:
+
+| Resolution | Meaning |
+| --- | --- |
+| `MATCHED` | The name matches an existing active domain or topic. Case, spacing and `-` versus `_` are ignored |
+| `MAPPED` | You chose where these questions go |
+| `FALLBACK` | The file names nothing for these questions, so the Domain and Topic selected above are used |
+| `UNMATCHED` | The file names something this platform does not hold. **Nothing will be imported until this is resolved** |
+
+**An import never creates a domain or a topic.** A spreadsheet typo would otherwise become a
+permanent domain code — `VissionStar` is one keystroke from a real domain, and §4.3b explains why a
+code cannot be taken back. Create what is missing under **Administration → Knowledge Domains**,
+using the name the file uses, then preview again.
+
+An unmatched value refuses the **whole file**, not the individual questions: a bank half-filed under
+the right domains and half under a dropdown's default is harder to correct than one that never
+landed.
+
 **Create drafts** then imports what was valid. Each question becomes a
 **DRAFT** in the review queue and goes through exactly the same gates as a
 generated one — evidence verification, integrity, duplicate detection, the 13
@@ -456,6 +478,68 @@ synchronized folder first. Adding an upload means a filename-traversal guard,
 a size ceiling, a type allow-list and a writable mount — four controls that
 have to be right rather than merely present — so it is deliberately left for
 its own change rather than half-built here.
+
+### 4.3b Knowledge Domains — `/administration/taxonomy`
+
+Act as the **KNOWZY Administrator** or a **platform administrator** (`taxonomy.manage`).
+
+**This is where domains and topics come from.** Until now the platform had exactly one domain and
+one topic, from the seed, and no way to add a second — so an imported question bank about VisionStar
+was filed under Support Operations / Escalation and Billing, because that was the only choice on the
+screen.
+
+Two tables: **Domains** and **Topics**. Search matches a domain code, a domain name or a topic name,
+and the filter shows active, deactivated, or both. The result is a URL you can send to someone.
+
+#### A domain
+
+| Field | Rule |
+| --- | --- |
+| **Code** | Letters, digits and underscores, upper-cased. It appears in every published question id as `KNZ-{CODE}-2026-000001` |
+| **Display name** | Editable at any time, forever |
+| **Description** | Optional |
+| **Active** | Deactivating hides it everywhere it could be selected. Nothing is deleted |
+| **Require SME sign-off** | Carried on the domain, as it already was |
+
+**The code becomes permanent, and the screen tells you when.** While nothing references the domain,
+the code is an editable field with a note saying so — that window exists so a typo can be corrected.
+As soon as a question, assessment or question set uses the domain, the code turns into plain text
+marked **Permanent**, with the counts that locked it. A published question id carries the code into
+the SharePoint Question Bank, which is outside this platform, so a rename would orphan identifiers
+Knowzy cannot reach.
+
+A duplicate code is refused and the refusal names it. Two codes that differ only in case are the
+same code: `visionstar` is stored as `VISIONSTAR`.
+
+#### A topic
+
+A topic belongs to **exactly one domain**, chosen when it is created and never changed afterwards —
+moving a topic would take its questions' lineage with it. Its name is unique **within its domain**,
+so "Patching" can exist in two domains and means something different in each.
+
+Names are compared after folding case, spacing and punctuation. `SAP Integration`,
+`sap integration` and `SAP  Integration` are one topic, and the second attempt is refused.
+
+#### Deactivate, never delete
+
+There is no delete button, and that is deliberate. A domain or topic with questions cannot be
+removed without destroying the lineage every published question depends on. Deactivating:
+
+- removes it from the generate form, the import screen and assessment creation;
+- makes a generation job against it refuse;
+- **changes nothing about existing questions.** They stay published, keep their ids, and stay
+  answerable in the Live Portal.
+
+Deactivated rows stay visible on this screen so they can be reactivated. Every create, edit,
+activation and deactivation is audited with what changed.
+
+#### What is not here yet
+
+The rest of **Administration** — generation profiles, duplicate and proficiency thresholds, field
+mapping profiles, badge definitions, the Question Bank target — has no backend and is still marked
+**Needs backend** in the sidebar. **Merging** two topics is specified and not built: the column
+exists in the data model, and the operation that rewrites every reference in one transaction does
+not. Deactivate the wrong one instead.
 
 ### 4.4 Draft review queue — `/review`
 
@@ -822,3 +906,4 @@ the log below.
 | 2026-09-21 | `abb1c45`+ | Resume of a fully answered attempt now works (it returned a 404 before, and the home page card printed "NaN / "). Two new review views, `Published` and `All questions`, with a per-document filter; preflight counts and published inventory rows link into them. Recording `VIEW_EXISTING` or `REUSE_EXISTING` no longer offers the generate form |
 | 2026-09-22 | Import on real files | **The first two real question banks were fed in, and both were refused for reasons that were the platform’s fault rather than the files’.** Fixed, in §4.3a: a spreadsheet may leave its trailing columns blank (a fifteen-column template with twelve filled imported nothing before, and now imports every row); `OptionA`, `CorrectAnswer`, `AnswerKey`, `QuestionText`, `Justification` and `SourceDocument` are recognised as column names; a Word bank whose four options sit on one line is read; and a decoration in front of `Correct Answer:` — a tick, a bullet, a dash — no longer hides the answer. A Word bank with no explanation per question is still refused, and §4.3a now says so before you try. Also: a spreadsheet cell whose own text contains ` - ` is reported with the value it found rather than mis-split. On §4.1, **skipped** is now counted and listed apart from **failed**: a file outside this source’s configured folder is the configuration working, not an error |
 | 2026-09-22 | Decision panel | **A decision the lifecycle cannot reach is now disabled and says why** (§4.5), and the panel names the next step available from the current state. All five decisions used to be offered on every question, so pressing **Submit for approval** on a draft returned `STATE_TRANSITION_INVALID` — which reads as missing access and never was: a draft has to be claimed first. A state block and a permission block are now worded differently, because one is an order of operations and the other is an identity. Where gate 13 currently refuses an approval, a note beside **Approve** says so. §4.5 also states plainly what full access does and does not grant a KNOWZY Administrator |
+| 2026-09-22 | Taxonomy administration | **Domains and topics can now be created and edited** (§4.3b, **Administration → Knowledge Domains**), which is the first Administration screen with a backend behind it. Before this the platform held one seeded domain and one seeded topic and offered no way to add a second, so an imported VisionStar question bank was filed under Support Operations. A domain code is editable only while nothing references the domain and then shows as **Permanent** with the counts that locked it; a topic belongs to exactly one domain and is unique within it; nothing can be deleted, only deactivated. **Import now files each question where the FILE says it belongs** (§4.3a) and refuses a file naming taxonomy that does not exist, rather than creating it — a spreadsheet typo must never mint a permanent domain code |

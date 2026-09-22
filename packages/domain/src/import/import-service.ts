@@ -61,7 +61,8 @@ export interface ImportRejection {
     | 'OPTION_DUPLICATE'
     | 'ANSWER_INVALID'
     | 'QUESTION_INCOMPLETE'
-    | 'DUPLICATE';
+    | 'DUPLICATE'
+    | 'TAXONOMY_MAPPING_REQUIRED';
   readonly detail: string;
 }
 
@@ -71,8 +72,23 @@ export interface RunImportArgs {
   readonly document: ImportTargetDocument;
   readonly sections: readonly ImportTargetSection[];
   readonly questions: readonly ValidatedQuestion[];
+  /** The batch default, used for a question whose file names no taxonomy. */
   readonly domainId: string;
   readonly topicId: string;
+  /**
+   * Per-question taxonomy, from the file's own Domain and Topic columns.
+   *
+   * Returning null REFUSES the question rather than filing it under the batch
+   * default: a name the file wrote and the platform does not hold is a
+   * question for the importer, and quietly filing it somewhere plausible is
+   * the failure this whole path exists to prevent. Omit the resolver entirely
+   * and every question takes the batch default, which is what a file with no
+   * taxonomy columns needs.
+   */
+  readonly resolveTaxonomy?: (detected: {
+    readonly domainName: string | null;
+    readonly topicName: string | null;
+  }) => { readonly domainId: string; readonly topicId: string } | null;
   readonly evidenceMode: EvidenceMode;
   readonly thresholds: DuplicateThresholds;
   readonly minAssessableChars: number;
@@ -194,8 +210,37 @@ export const runQuestionImport = async (args: RunImportArgs): Promise<ImportRunR
       continue;
     }
 
+    // --- taxonomy: where this question is filed, from the FILE, not the form.
+    //
+    // Before the duplicate check on purpose: duplicate scoring is scoped by
+    // domain, so a question whose domain is unresolved cannot be scored
+    // meaningfully either.
+    const placement =
+      args.resolveTaxonomy === undefined
+        ? { domainId: args.domainId, topicId: args.topicId }
+        : args.resolveTaxonomy({
+            domainName: question.domainName,
+            topicName: question.topicName,
+          });
+    if (placement === null) {
+      rejections.push({
+        locator: question.locator,
+        reason: 'TAXONOMY_MAPPING_REQUIRED',
+        detail:
+          `The file files this question under "${question.domainName ?? ''}" / ` +
+          `"${question.topicName ?? ''}", which does not exist here. Map it to an existing ` +
+          'domain and topic, or create them in Administration first. An import never creates ' +
+          'taxonomy: a spreadsheet typo would become a permanent domain code.',
+      });
+      continue;
+    }
+
     // --- gate 3: duplicates, against drafts, approved and published.
-    const verdict = assessDuplicate(asComparable(question, args.domainId), corpus, args.thresholds);
+    const verdict = assessDuplicate(
+      asComparable(question, placement.domainId),
+      corpus,
+      args.thresholds,
+    );
     if (verdict.action === 'BLOCK') {
       rejections.push({
         locator: question.locator,
@@ -226,8 +271,8 @@ export const runQuestionImport = async (args: RunImportArgs): Promise<ImportRunR
           status: 'DRAFT',
           acquisition: 'IMPORTED',
           importLocator: question.locator,
-          domainId: args.domainId,
-          topicId: args.topicId,
+          domainId: placement.domainId,
+          topicId: placement.topicId,
           questionText: question.questionText,
           answerPayload: {
             kind: 'MULTIPLE_CHOICE_4',
@@ -308,7 +353,7 @@ export const runQuestionImport = async (args: RunImportArgs): Promise<ImportRunR
         entityType: 'DraftQuestion',
         entityId: created.id,
         entityLabel: created.id,
-        domainId: args.domainId,
+        domainId: placement.domainId,
         sourceId: document.sourceId,
         correlationId: args.correlationId,
         requestId: args.requestId,
@@ -331,7 +376,7 @@ export const runQuestionImport = async (args: RunImportArgs): Promise<ImportRunR
     // Added to the corpus so the NEXT question in the same import is compared
     // against it. Without this, a file containing the same question twice
     // would import it twice.
-    corpus.push({ ...asComparable(question, args.domainId), questionId });
+    corpus.push({ ...asComparable(question, placement.domainId), questionId });
   }
 
   return { createdQuestionIds, rejections };

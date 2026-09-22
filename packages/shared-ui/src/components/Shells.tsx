@@ -105,9 +105,15 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     status: 'REQUIRES_BACKEND_EXTENSION',
   },
   {
+    // PARTIALLY_IMPLEMENTED, not IMPLEMENTED: taxonomy administration is real
+    // and the rest of authoring-portal.md §11 -- profiles, thresholds, field
+    // mappings, badge definitions -- is not. The note says which part works,
+    // so the link is not a promise the screen cannot keep.
     label: 'Administration',
+    href: '/administration/taxonomy',
     icon: <Settings className="size-5" />,
-    status: 'REQUIRES_BACKEND_EXTENSION',
+    status: 'PARTIALLY_IMPLEMENTED',
+    note: 'Knowledge Domains',
   },
 ] as const;
 

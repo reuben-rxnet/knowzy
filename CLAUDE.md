@@ -154,6 +154,14 @@ Gotchas learned by execution (each of these cost real time):
 - Integration tests share ONE database and are serialized to a single fork
   (vitest.workspace.ts). Never run two test processes at once — they delete
   each other's rows and the failures look like real defects.
+- `npm run verify` DESTROYS whatever demo data is on screen. The integration
+  suites share the dev database: they delete draft_question and
+  published_question_reference, and their own fixtures are briefly visible in
+  the taxonomy dropdowns while a suite runs. Ask before running it while
+  somebody is clicking through the portals, and expect to re-import and
+  re-publish afterwards. The mock question bank JSON SURVIVES the wipe, so a
+  republish then reports ALREADY_PUBLISHED for ids the database no longer has —
+  delete `fixtures/bank/.state/knowzy-question-bank.json` for a clean run.
 - Audit `detail` keys are DROPPED unless declared in the allow-list in
   packages/observability/src/audit.ts. A dropped key shows up as
   `_droppedKeys` in the row. Check the LATEST audit rows when verifying, not
@@ -313,6 +321,33 @@ Things to know:
 - `question.import` is its own permission key, not a reuse of
   `question.generate`: importing brings in content written outside the
   platform, which a tenant may reasonably allow or forbid separately.
+
+## Taxonomy
+
+Domains and topics are managed at Administration -> Knowledge Domains
+(`/administration/taxonomy`), `taxonomy.manage`. Notes:
+docs/migrations/TAXONOMY_ADMINISTRATION_NOTES.md
+
+- NO SCHEMA MIGRATION was needed: `Domain` and `Topic` have carried every field
+  since 0001 (`code` unique, `Topic` unique on `[domainId, slug]`). What was
+  missing was the write path.
+- A DOMAIN CODE is inside every published `KNZ-{CODE}-{YYYY}-{SEQ}`, which lives
+  in the SharePoint Question Bank outside this platform. It is editable only
+  while NOTHING references the domain, and then refused with
+  `TAXONOMY_CODE_IMMUTABLE`. Display names stay editable forever.
+- Nothing is ever deleted. Deactivation removes a domain or topic from every
+  selection surface and leaves existing lineage intact; a job against a
+  deactivated domain is refused by `createGenerationJob`.
+- A topic's SLUG is derived from its name and is the identity within its domain,
+  so "SAP Integration" and "sap integration" are one topic. A topic never
+  changes domain.
+- AN IMPORT NEVER CREATES TAXONOMY. `resolveImportTaxonomy` matches the file's
+  own Domain/Topic columns on a folded code or name; anything unmatched refuses
+  the WHOLE file with `TAXONOMY_MAPPING_REQUIRED`. The screen's dropdown is a
+  fallback only for a file that names nothing, never a substitute for a name
+  that failed to match — a spreadsheet typo would mint a permanent code.
+- The seed still ships ONE domain and ONE topic. Taxonomy beyond that is a
+  tenant decision; do not seed a customer's domain model.
 
 ## UI Source of Truth
 

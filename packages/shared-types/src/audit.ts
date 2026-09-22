@@ -68,6 +68,12 @@ export const AUDIT_FAMILIES = {
     'DOMAIN_CREATED',
     'DOMAIN_UPDATED',
     'TOPIC_CREATED',
+    // TOPIC_UPDATED covers a description or an activation change, where
+    // TOPIC_RENAMED would be a false statement about what changed. Activation
+    // is an update carrying `isActive` and `changedFields`, not an action of
+    // its own: a reader asks "what changed about this topic", and one action
+    // per field would spread that answer across four vocabularies.
+    'TOPIC_UPDATED',
     'TOPIC_MERGED',
     'TOPIC_RENAMED',
     'RETIRED',

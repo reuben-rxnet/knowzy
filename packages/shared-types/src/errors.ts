@@ -158,6 +158,45 @@ export const ERROR_REGISTRY = {
     message: 'A domain and topic are required.',
     retryable: false,
   },
+  /**
+   * A domain code, or a topic within a domain, already exists.
+   *
+   * Its own code rather than VALIDATION_FAILED (E5): a duplicate code is the
+   * one refusal a taxonomy administrator will meet repeatedly, and it needs a
+   * message that says which value collided rather than "invalid".
+   */
+  TAXONOMY_DUPLICATE: {
+    category: 'CONFLICT',
+    status: 409,
+    message: 'A domain or topic with that code or name already exists.',
+    retryable: false,
+  },
+  /**
+   * An attempt to change a domain code that something already depends on.
+   *
+   * The code appears in every QuestionID published under the domain
+   * (`KNZ-{DOMAIN_CODE}-{YYYY}-{SEQ}`), so changing it would orphan published
+   * identifiers that live in the Question Bank outside this platform.
+   */
+  TAXONOMY_CODE_IMMUTABLE: {
+    category: 'CONFLICT',
+    status: 409,
+    message: 'This domain code can no longer be changed.',
+    retryable: false,
+  },
+  /**
+   * An import names a domain or topic the platform does not hold.
+   *
+   * Refused rather than created: a spreadsheet typo would otherwise mint a
+   * permanent domain code, and a domain code cannot be taken back once a
+   * question has published under it.
+   */
+  TAXONOMY_MAPPING_REQUIRED: {
+    category: 'VALIDATION',
+    status: 422,
+    message: 'The file names a domain or topic that does not exist. Map it before importing.',
+    retryable: false,
+  },
   PROFILE_NOT_AVAILABLE: {
     category: 'VALIDATION',
     status: 422,
