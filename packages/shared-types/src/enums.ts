@@ -171,6 +171,38 @@ export type DocumentType = z.infer<typeof DocumentTypeSchema>;
 
 // ------------------------------------------------------------ generation
 
+/**
+ * Who drafted a question.
+ *
+ * A closed enum rather than free text, so a provider a job claims to have used
+ * is a value the platform knows about. Values exist from this migration
+ * onward, including providers that are declared but not registered -- adding a
+ * value to a PostgreSQL enum is cheap and a job row's history is not.
+ *
+ * See docs/integrations/MULTI_PROVIDER_GENERATION_ARCHITECTURE.md.
+ */
+export const GENERATION_PROVIDER = [
+  'DETERMINISTIC_LOCAL',
+  'ANTHROPIC',
+  'MICROSOFT_COPILOT',
+  'AZURE_OPENAI',
+  'GEMINI',
+] as const;
+export const GenerationProviderSchema = z.enum(GENERATION_PROVIDER);
+export type GenerationProviderId = z.infer<typeof GenerationProviderSchema>;
+
+/**
+ * Whose entitlement a generation run consumed.
+ *
+ * PLATFORM_MANAGED spends the platform's credential; USER_MANAGED spends the
+ * author's own licence or quota through a delegated token. The distinction is
+ * recorded because it changes who paid, whose tenant terms applied, and
+ * whether a cost is observable at all.
+ */
+export const GENERATION_EXECUTION_MODE = ['PLATFORM_MANAGED', 'USER_MANAGED'] as const;
+export const GenerationExecutionModeSchema = z.enum(GENERATION_EXECUTION_MODE);
+export type GenerationExecutionMode = z.infer<typeof GenerationExecutionModeSchema>;
+
 export const GENERATION_SCOPE = [
   'ENTIRE_DOCUMENT',
   'MODIFIED_SECTIONS_ONLY',

@@ -140,6 +140,8 @@ export const runGeneration = async (
       topicId: String(formData.get('topicId') ?? ''),
       reasonCode: String(formData.get('reasonCode') ?? 'NEW_KNOWLEDGE'),
       requestedQuestionCount: Number(formData.get('requestedQuestionCount') ?? 5),
+      providerId: String(formData.get('providerId') ?? 'DETERMINISTIC_LOCAL'),
+      executionMode: String(formData.get('executionMode') ?? 'PLATFORM_MANAGED'),
     },
   });
   revalidatePath('/review');

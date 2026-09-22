@@ -189,6 +189,27 @@ enum IndexingStatus {
   @@map("indexing_status")
 }
 
+/// Who drafted a question. Closed enum: a provider a job claims to have used
+/// is a value the platform knows about.
+enum GenerationProviderId {
+  DETERMINISTIC_LOCAL
+  ANTHROPIC
+  MICROSOFT_COPILOT
+  AZURE_OPENAI
+  GEMINI
+
+  @@map("generation_provider")
+}
+
+/// Whose entitlement a run consumed. Changes who paid, whose tenant terms
+/// applied, and whether a cost is observable at all.
+enum GenerationExecutionMode {
+  PLATFORM_MANAGED
+  USER_MANAGED
+
+  @@map("generation_execution_mode")
+}
+
 /// What the LAST generation run did with this section. A section can be
 /// assessable, attempted and refused all at once; coverage is a sixth,
 /// separate question. Splitting these is PILOT-T2.
@@ -1269,6 +1290,18 @@ model GenerationJob {
   promptVersionId        String               @map("prompt_version_id") @db.Uuid
   /// Captured at run time, never resolved later.
   modelId                String               @map("model_id")
+  /// --- provider provenance ------------------------------------------------
+  providerId             GenerationProviderId @default(DETERMINISTIC_LOCAL) @map("provider_id")
+  executionMode          GenerationExecutionMode @default(PLATFORM_MANAGED) @map("execution_mode")
+  /// The provider's own version string. Distinct from `modelId`.
+  providerVersion        String?              @map("provider_version")
+  /// WHOSE entitlement was spent. Null when platform-managed. Distinct from
+  /// `createdByUserId`, which records who ran the job -- the same person in
+  /// practice, a different fact in principle.
+  onBehalfOfUserId       String?              @map("on_behalf_of_user_id") @db.Uuid
+  /// False when the token counts are the platform's estimate rather than a
+  /// provider's report. A cost derived from an estimate is an estimate.
+  tokenUsageReported     Boolean              @default(false) @map("token_usage_reported")
   domainId               String               @map("domain_id") @db.Uuid
   topicId                String               @map("topic_id") @db.Uuid
   targetAudience         String?              @map("target_audience")
@@ -1308,6 +1341,7 @@ model GenerationJob {
   @@index([domainId, createdAt(sort: Desc)])
   @@index([promptVersionId])
   @@index([correlationId])
+  @@index([providerId, createdAt(sort: Desc)])
   @@map("generation_job")
 }
 
@@ -1464,6 +1498,12 @@ model DraftQuestion {
   generationJobId           String?               @map("generation_job_id") @db.Uuid
   modelId                   String?               @map("model_id")
   promptVersionId           String?               @map("prompt_version_id") @db.Uuid
+  /// Provider provenance, carried on the question as well as the job because
+  /// a question outlives its job and these lineage columns are immutable
+  /// after insert (I15) -- the same reasoning that put `modelId` on both.
+  providerId                GenerationProviderId? @map("provider_id")
+  executionMode             GenerationExecutionMode? @map("execution_mode")
+  providerVersion           String?               @map("provider_version")
 
   // --- quality -----------------------------------------------------------
   /// Composite, platform-computed. Authorizes nothing.

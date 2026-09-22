@@ -182,6 +182,39 @@ export const ERROR_REGISTRY = {
     message: 'The selected scope contains no sections to generate from.',
     retryable: false,
   },
+  PROVIDER_NOT_REGISTERED: {
+    category: 'VALIDATION',
+    status: 422,
+    message:
+      'That generation provider is not available in this environment. No substitute is used.',
+    retryable: false,
+  },
+  PROVIDER_MODE_NOT_SUPPORTED: {
+    category: 'VALIDATION',
+    status: 422,
+    message: 'That provider does not support the requested execution mode.',
+    retryable: false,
+  },
+  PROVIDER_CREDENTIAL_UNAVAILABLE: {
+    category: 'UPSTREAM',
+    status: 503,
+    message: 'The provider credential could not be resolved, so no generation was attempted.',
+    retryable: true,
+  },
+  PROVIDER_NOT_GROUNDING_SAFE: {
+    category: 'VALIDATION',
+    status: 422,
+    message:
+      'That provider retrieves its own context, so a question it drafts cannot be grounded in the selected sections alone.',
+    retryable: false,
+  },
+  USER_ENTITLEMENT_UNAVAILABLE: {
+    category: 'VALIDATION',
+    status: 422,
+    message:
+      'User-managed generation needs your own provider entitlement, and none was found for your account.',
+    retryable: false,
+  },
   BUDGET_EXCEEDED: {
     category: 'VALIDATION',
     status: 422,

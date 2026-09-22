@@ -286,6 +286,7 @@ export const createGenerationJob = async (args: CreateJobArgs): Promise<CreatedJ
   const profile: GenerationProfileSettings = {
     profileId: profileRow.id,
     promptVersionId: profileRow.promptVersionId,
+    modelId: profileRow.modelId,
     evidenceMode: profileRow.evidenceStrictness,
     thresholds: {
       flagThreshold: Number(profileRow.duplicateFlagThreshold),

@@ -18,6 +18,7 @@ import type { DataScope, PortalContext, Subject } from '@knowzy/shared-types';
 import { authorize, type PolicyName } from '@knowzy/authorization';
 import type { AuditWriter, PrismaClient } from '@knowzy/database';
 import type { Logger } from '@knowzy/observability';
+import type { ProviderRegistry } from '../generation/provider-registry.js';
 import type { McpClient } from '../mcp/client.js';
 import { toProblem } from './problem.js';
 
@@ -39,6 +40,13 @@ export interface RouteDeps {
    */
   readonly mcp: McpClient;
   readonly auditWriter: AuditWriter;
+  /**
+   * The generation provider registry.
+   *
+   * A dependency rather than an import so a test can substitute one, and
+   * because the credential that backs a provider resolves in this app.
+   */
+  readonly providers: ProviderRegistry;
   readonly logger: Logger;
   readonly resolveSubject: (
     headers: Readonly<Record<string, string | string[] | undefined>>,

@@ -77,3 +77,13 @@ export {
   PROMPT_BODY_SHA256,
   PROMPT_SEMANTIC_VERSION,
 } from './prompt-version.js';
+
+export {
+  PROVIDER_CATALOGUE,
+  createDeterministicProvider,
+  isGroundingSafe,
+  type ExecutionContext,
+  type GenerationProvider,
+  type ProviderCapabilities,
+  type ProviderGenerateResult,
+} from './provider.js';

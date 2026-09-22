@@ -13,6 +13,7 @@
 // this.
 
 import { z } from 'zod';
+import { GenerationExecutionModeSchema, GenerationProviderSchema } from '@knowzy/shared-types';
 import type { FastifyReply } from 'fastify';
 import type { ErrorCode } from '@knowzy/shared-types';
 import {
@@ -27,6 +28,7 @@ import {
 } from '@knowzy/domain';
 import { systemClock } from '@knowzy/observability';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
+import { ProviderResolutionError } from '../generation/provider-registry.js';
 import { toProblem } from '../http/problem.js';
 import { replyFromMcpError } from './sources.js';
 
@@ -56,6 +58,12 @@ const replyFromGenerationError = (
 ): FastifyReply => {
   if (error instanceof PreflightRequiredError) {
     return problemReply(reply, ctx, instance, 'PREFLIGHT_REQUIRED', error.message);
+  }
+  if (error instanceof ProviderResolutionError) {
+    // Carries its own ErrorCode, so the registry's five distinct refusals
+    // reach the caller as five distinct problem documents rather than as one
+    // generic 500 -- which is what an unmapped throw would have produced.
+    return problemReply(reply, ctx, instance, error.code, error.message);
   }
   if (error instanceof GenerationSelectionRequiredError) {
     return problemReply(reply, ctx, instance, 'GENERATION_SELECTION_REQUIRED', error.message);
@@ -118,6 +126,16 @@ const JobBody = z
     requestedQuestionCount: z.number().int().min(1).max(50),
     justification: z.string().max(2_000).optional(),
     objectiveIds: z.array(z.string().uuid()).optional(),
+    /**
+     * Which provider drafts, and whose entitlement pays.
+     *
+     * Optional so an existing caller keeps working, and defaulted to the
+     * deterministic generator rather than to "whatever is available" -- a
+     * default that silently chose a model would spend money nobody asked to
+     * spend.
+     */
+    providerId: GenerationProviderSchema.optional(),
+    executionMode: GenerationExecutionModeSchema.optional(),
   })
   .strict();
 
@@ -219,7 +237,54 @@ export const generationRoutes = [
         );
       }
 
+      const requestedProvider = body.data.providerId ?? 'DETERMINISTIC_LOCAL';
+      const requestedMode = body.data.executionMode ?? 'PLATFORM_MANAGED';
+
       try {
+        // Resolved BEFORE the job row is created, and this ordering is the
+        // point rather than a detail. A provider refusal must leave NOTHING
+        // behind: resolving after `createGenerationJob` would persist a QUEUED
+        // job for a provider that was never available, and a job row nobody
+        // can explain is worse than a request that was turned away.
+        //
+        // The model comes from the profile only once the profile is loaded, so
+        // the check that needs no profile happens here and the model-bearing
+        // construction happens below. Splitting it keeps the refusal free.
+        const capabilities = deps.providers.capabilitiesOf(requestedProvider);
+        if (!capabilities.supportedExecutionModes.includes(requestedMode)) {
+          return problemReply(
+            reply,
+            ctx,
+            request.url,
+            'PROVIDER_MODE_NOT_SUPPORTED',
+            `${requestedProvider} supports ${capabilities.supportedExecutionModes.join(', ')} only.`,
+          );
+        }
+        if (!deps.providers.registeredProviders.includes(requestedProvider)) {
+          // Checked here too, and not only inside `resolve`, so an
+          // unregistered provider also leaves no job row behind. Only the
+          // final construction needs the profile's model, so everything that
+          // does not need it is decided before anything is persisted.
+          return problemReply(
+            reply,
+            ctx,
+            request.url,
+            'PROVIDER_NOT_REGISTERED',
+            `${requestedProvider} is declared but not registered in this environment. ` +
+              'No substitute provider is used.',
+          );
+        }
+        if (!capabilities.retrievalFree) {
+          return problemReply(
+            reply,
+            ctx,
+            request.url,
+            'PROVIDER_NOT_GROUNDING_SAFE',
+            `${requestedProvider} retrieves its own context, so a question it drafts cannot be ` +
+              'grounded in the selected sections alone.',
+          );
+        }
+
         const created = await createGenerationJob({
           prisma: deps.prisma,
           clock: systemClock,
@@ -249,8 +314,18 @@ export const generationRoutes = [
         // moving it behind the existing pg-boss queue is wiring, not redesign —
         // but until that happens this call is synchronous and a large job will
         // hold the request open. Recorded in MVP-Plan.md.
+        const provider = await deps.providers.resolve({
+          providerId: requestedProvider,
+          executionMode: requestedMode,
+          modelId: created.profile.modelId,
+          requestingUserId: ctx.subject.userId,
+        });
+
         const result = await runGenerationJob({
           prisma: deps.prisma,
+          provider,
+          executionMode: requestedMode,
+          onBehalfOfUserId: requestedMode === 'USER_MANAGED' ? ctx.subject.userId : null,
           clock: systemClock,
           scope: created.resolvedScope,
           profile: created.profile,

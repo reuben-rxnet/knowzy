@@ -21,15 +21,22 @@
 import {
   checkIntegrity,
   computeConfidence,
-  createDeterministicGenerator,
+  createDeterministicProvider,
+  PROVIDER_CATALOGUE,
   verifyEvidence,
   type EvidenceSection,
   type GeneratedQuestion,
   type QuestionGenerator,
+  type GenerationProvider,
 } from '@knowzy/claude-services';
 import { createAuditWriter, type DbClient, type PrismaClient } from '@knowzy/database';
 import type { Clock } from '@knowzy/observability';
-import type { EvidenceMode, GenerationReasonCode, RejectionReason } from '@knowzy/shared-types';
+import type {
+  EvidenceMode,
+  GenerationExecutionMode,
+  GenerationReasonCode,
+  RejectionReason,
+} from '@knowzy/shared-types';
 import {
   assessDuplicate,
   type ComparableQuestion,
@@ -53,6 +60,17 @@ export interface GenerationRunContext {
 export interface GenerationProfileSettings {
   readonly profileId: string;
   readonly promptVersionId: string;
+  /**
+   * The configured model.
+   *
+   * Carried on the settings so a provider is constructed FROM configuration
+   * (T-30: "model IDs are configuration, never hardcoded"). The profile row
+   * has always held this value and the generator ignored it, which is the trap
+   * the implementation plan §3.1 describes: a hardcoded constant would satisfy
+   * the interface, produce plausible audit rows, and leave a configured field
+   * that appears to control the model and does not.
+   */
+  readonly modelId: string;
   readonly evidenceMode: EvidenceMode;
   readonly thresholds: DuplicateThresholds;
   readonly minAssessableChars: number;
@@ -70,6 +88,18 @@ export interface RunGenerationArgs {
   readonly requestedQuestionCount: number;
   /** Defaults to the deterministic local generator (no key required). */
   readonly generator?: QuestionGenerator;
+  /**
+   * The resolved provider, when one was selected.
+   *
+   * Takes precedence over `generator`. Both exist during the transition
+   * because the deterministic generator, its tests and the zero-credential
+   * path all reference the older port and there is no reason to break them in
+   * the same change that adds a provider.
+   */
+  readonly provider?: GenerationProvider;
+  readonly executionMode?: GenerationExecutionMode;
+  /** Whose entitlement paid, when user-managed. */
+  readonly onBehalfOfUserId?: string | null;
 }
 
 export interface GenerationRejection {
@@ -174,9 +204,39 @@ const asComparable = (
   sectionKey: question.sectionKey,
 });
 
+/**
+ * Presents a legacy `QuestionGenerator` as a provider.
+ *
+ * Needed because tests inject a fixed generator and the zero-credential path
+ * constructs one directly. It declares DETERMINISTIC_LOCAL provenance, which
+ * is honest for every current caller -- the only implementations of that port
+ * are the deterministic generator and test doubles of it.
+ */
+const wrapGenerator = (generator: QuestionGenerator): GenerationProvider => ({
+  providerId: 'DETERMINISTIC_LOCAL',
+  capabilities: PROVIDER_CATALOGUE.DETERMINISTIC_LOCAL,
+  modelId: generator.modelId,
+  providerVersion: generator.modelId,
+  async generate(generateArgs) {
+    const result = await generator.generate(generateArgs);
+    return {
+      ...result,
+      providerId: 'DETERMINISTIC_LOCAL' as const,
+      providerVersion: generator.modelId,
+      tokenUsageReported: false,
+    };
+  },
+});
+
 export const runGenerationJob = async (args: RunGenerationArgs): Promise<GenerationRunResult> => {
   const { prisma, clock, scope, context, profile } = args;
-  const generator = args.generator ?? createDeterministicGenerator();
+  // A provider wins if one was resolved; otherwise the legacy generator port,
+  // otherwise the deterministic default. No path here chooses a DIFFERENT
+  // provider from the one requested -- the registry refuses instead, because a
+  // substitution would make the provenance recorded below false.
+  const provider: GenerationProvider =
+    args.provider ??
+    (args.generator === undefined ? createDeterministicProvider() : wrapGenerator(args.generator));
   const startedAt = clock.now();
 
   await prisma.generationJob.update({
@@ -211,8 +271,17 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     startOffset: section.startOffset,
   }));
 
-  const { output, insufficientSections, modelId, inputTokens, outputTokens } =
-    await generator.generate({
+  const {
+    output,
+    insufficientSections,
+    modelId,
+    inputTokens,
+    outputTokens,
+    providerId,
+    providerVersion,
+    tokenUsageReported,
+  } = await provider.generate(
+    {
       sections: scope.sections.map((section) => ({
         sectionKey: section.sectionKey,
         label: section.label,
@@ -222,7 +291,13 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
       requestedQuestionCount: args.requestedQuestionCount,
       domainName: profile.domainName,
       topicName: profile.topicName,
-    });
+    },
+    {
+      mode: args.executionMode ?? 'PLATFORM_MANAGED',
+      onBehalfOfUserId: args.onBehalfOfUserId ?? null,
+      correlationId: context.correlationId,
+    },
+  );
 
   const rejections: GenerationRejection[] = [];
   // §2.7: recorded PER SECTION, whether or not other sections succeeded.
@@ -358,6 +433,9 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
 
             generationJobId: context.jobId,
             modelId,
+            providerId,
+            providerVersion,
+            executionMode: args.executionMode ?? 'PLATFORM_MANAGED',
             promptVersionId: profile.promptVersionId,
 
             confidenceScore: confidence.score,
@@ -496,6 +574,11 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
       data: {
         status,
         modelId,
+        providerId,
+        providerVersion,
+        executionMode: args.executionMode ?? 'PLATFORM_MANAGED',
+        onBehalfOfUserId: args.onBehalfOfUserId ?? null,
+        tokenUsageReported,
         acceptedQuestionCount: acceptedQuestionIds.length,
         rejectionCounts,
         inputTokens,
@@ -634,6 +717,10 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
         // GenerationJob columns; this is the auditable copy.
         inputTokenCount: inputTokens,
         outputTokenCount: outputTokens,
+        providerId,
+        providerVersion,
+        executionMode: args.executionMode ?? 'PLATFORM_MANAGED',
+        tokenUsageReported,
       },
     });
   });

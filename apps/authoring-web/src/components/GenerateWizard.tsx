@@ -684,6 +684,31 @@ export const GenerateWizard = ({
                     ))}
                   </Select>
                 </Field>
+                {/* Provider and execution mode.
+                    Only the deterministic generator is registered, so this is
+                    a single honest option rather than a list of choices the
+                    platform cannot honour. The note says what the other
+                    providers do instead of greying out controls that would
+                    imply they are nearly ready. */}
+                <Field id="providerId" label={t('generate.providerLabel')}>
+                  <Select id="providerId" name="providerId" defaultValue="DETERMINISTIC_LOCAL">
+                    <option value="DETERMINISTIC_LOCAL">
+                      {t('generate.providerDeterministic')}
+                    </option>
+                  </Select>
+                  <p className="mt-1 text-2xs text-ink-muted">
+                    {t('generate.providerDeterministicNote')}
+                  </p>
+                  <p className="mt-1 text-2xs text-ink-subtle">
+                    {t('generate.providerUnavailableNote')}
+                  </p>
+                </Field>
+                <Field id="executionMode" label={t('generate.executionModeLabel')}>
+                  <Select id="executionMode" name="executionMode" defaultValue="PLATFORM_MANAGED">
+                    <option value="PLATFORM_MANAGED">{t('generate.executionModePlatform')}</option>
+                  </Select>
+                  <p className="mt-1 text-2xs text-ink-muted">{t('generate.executionModeNote')}</p>
+                </Field>
                 <Field id="requestedQuestionCount" label={t('generate.countLabel')}>
                   <TextInput
                     id="requestedQuestionCount"

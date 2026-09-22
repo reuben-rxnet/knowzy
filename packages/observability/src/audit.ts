@@ -110,6 +110,10 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'modelId',
     'inputTokenCount',
     'outputTokenCount',
+    'providerId',
+    'providerVersion',
+    'executionMode',
+    'tokenUsageReported',
   ],
   'AUTHORING.GENERATION.JOB_FAILED': [
     'jobStatus',
@@ -119,6 +123,10 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'modelId',
     'inputTokenCount',
     'outputTokenCount',
+    'providerId',
+    'providerVersion',
+    'executionMode',
+    'tokenUsageReported',
   ],
   // M4 review and approval. Counts, ids, hashes, decisions and field NAMES —
   // never question text, option text, evidence spans, or comment bodies. The

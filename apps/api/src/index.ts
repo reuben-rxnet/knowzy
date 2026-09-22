@@ -13,6 +13,7 @@ import {
 import { createLogger, systemClock } from '@knowzy/observability';
 import { createSubjectResolver } from '@knowzy/authentication';
 import { createAuditWriter, createPrismaClient, subjectLookupRepository } from '@knowzy/database';
+import { createProviderRegistry } from './generation/provider-registry.js';
 import { createMcpClient } from './mcp/client.js';
 import { buildServer } from './server.js';
 import { runApiStartupValidation } from './startup.js';
@@ -77,6 +78,16 @@ const main = async (): Promise<void> => {
       auditWriter,
       logger,
       mcp: createMcpClient({ baseUrl: rawEnv['MCP_ENDPOINT'] ?? 'http://mcp:8081' }),
+      // Only the deterministic provider is registered. Every other provider is
+      // DECLARED, so a request for one is refused with a specific reason
+      // rather than silently served by a substitute.
+      //
+      // `credentialedProviders` stays empty until a provider is built: naming
+      // a provider here without an implementation would make
+      // PROVIDER_NOT_REGISTERED read as PROVIDER_CREDENTIAL_UNAVAILABLE, which
+      // would send an operator looking for a missing key rather than a missing
+      // integration.
+      providers: createProviderRegistry({ environment }),
       resolveSubject: (headers) => resolver.resolve(headers),
     },
   });

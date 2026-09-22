@@ -392,6 +392,26 @@
       "retryable": false,
       "status": 422
     },
+    "PROVIDER_CREDENTIAL_UNAVAILABLE": {
+      "category": "UPSTREAM",
+      "retryable": true,
+      "status": 503
+    },
+    "PROVIDER_MODE_NOT_SUPPORTED": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
+    },
+    "PROVIDER_NOT_GROUNDING_SAFE": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
+    },
+    "PROVIDER_NOT_REGISTERED": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
+    },
     "QUESTIONBANK_INDEX_MISSING": {
       "category": "CONFIGURATION",
       "retryable": false,
@@ -581,6 +601,11 @@
       "category": "UPSTREAM",
       "retryable": true,
       "status": 502
+    },
+    "USER_ENTITLEMENT_UNAVAILABLE": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
     },
     "VALIDATION_FAILED": {
       "category": "VALIDATION",
