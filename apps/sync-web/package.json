@@ -1,0 +1,33 @@
+{
+  "name": "@knowzy/sync-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "cross-env NEXT_TELEMETRY_DISABLED=1 next build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --dir src --passWithNoTests",
+    "dev": "cross-env NEXT_TELEMETRY_DISABLED=1 next dev --port 3002",
+    "start": "cross-env NEXT_TELEMETRY_DISABLED=1 next start --port 3002"
+  },
+  "dependencies": {
+    "@knowzy/configuration": "*",
+    "@knowzy/shared-types": "*",
+    "@knowzy/shared-ui": "*",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@knowzy/eslint-config": "*",
+    "@knowzy/tsconfig": "*",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "cross-env": "^7.0.3",
+    "lucide-react": "^0.451.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.3"
+  }
+}

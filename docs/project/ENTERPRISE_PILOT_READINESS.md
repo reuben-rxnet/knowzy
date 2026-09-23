@@ -148,7 +148,7 @@ and they are already written down as pending tests rather than as prose.
 | G-8 | 17 of 36 specified MCP tools unregistered | Medium | 7–10 | 19 registered vs [mcp-tools.md](../mcp-tools.md) §§5–12 |
 | G-9 | Reporting is a placeholder package; no aggregate read model | High *if* the pilot promises reports | 10 | `IMPLEMENTED_IN = 'Phase 10'` |
 | G-10 | No automated end-to-end test; no UI test | High for pilot regression safety | 11 | Stated in `CLAUDE.md` |
-| G-11 | Container image scan never executed | Medium, unbounded | 11 | CI history |
+| G-11 | ~~Container image scan never executed~~ **CLOSED 2026-09-23** | — | 11 | Ran against all five images: 16 HIGH/CRITICAL, reduced to 0 by removing `npm` from the runtime stage and applying distribution updates. The two remaining are EX-001, declared in `.trivyignore` with its expiry. See §12.5 |
 | G-12 | `Team` model exists and nothing writes it, so every team-scoped report and permission is untestable | Medium | 10 | [full-solution-capability-matrix.md](../ui/full-solution-capability-matrix.md) §A1 |
 | G-13 | No per-learner results list endpoint | Low for a pilot; blocks learner progress surfaces | 9/10 | 48 routes; `learning/results/:resultId` is by-id only |
 
@@ -459,3 +459,50 @@ question and a generated one are equally defensible at approval, and a reviewer 
 **No new blockers.** T-29 (Anthropic), P-2 (Copilot retrieval), P-3 (per-provider data processing)
 and P-4 (`claudeModel` rename) are unchanged. Import needs none of them: it requires no provider, no
 credential and no approval.
+
+### 12.4 Source administration and scheduling (2026-09-23)
+
+The SharePoint Sync Manager (`apps/sync-web`, port 3002) closes a pilot-operations gap that was not
+in the register because it looked like a UI matter and was not: **a knowledge source could only be
+seeded.** A pilot could not add a folder, correct a path, pause a source, retire one, or put any of
+it on a schedule without a developer and a migration.
+
+| | Status |
+| --- | --- |
+| Create, edit, activate, deactivate, archive, delete a source | **Built.** `source.manage`, eight routes, lineage-protected: a source anything references cannot be hard-deleted |
+| Add and modify source folders | **Built.** Server-side allow-list validation on every local root |
+| Scheduled synchronization | **Built.** Manual, hourly, daily, weekly, monthly, cron; pg-boss; singleton per due window; retries with backoff |
+| Stuck-run recovery | **Built,** and needed: one `RUNNING` row from a killed container had already locked a source permanently, because the concurrency guard had no expiry |
+| Operational visibility | **Built.** Connection health, five 30-day counts, derived workflow status, the last 25 runs with their trigger |
+| Destination synchronization | **Not built, and not planned for this release.** There is no destination model. See below |
+
+**What the pilot may claim:** that a source administrator can register and schedule a document
+source, see whether it is working, and recover it when it is not, without engineering involvement.
+
+**What the pilot must not imply.** The product is named after SharePoint and this release does not
+replicate content between SharePoint locations in either direction. It synchronizes configured
+sources **into** Knowzy. The header says so on every screen, and seven capabilities ship disabled
+with **"Requires Microsoft Graph write integration and tenant approval."** — a destination
+site/library/folder, two-way sync, syncing deletions back, writing metadata back, and a SharePoint
+Graph source. The first four depend on **A-03 / T-22** (`Sites.Selected` Write); the fifth is
+**G-2/G-3**, unchanged.
+
+**No new tenant blockers.** Everything above runs on the file-repository adapter with no credential,
+no consent and no approval. The dependencies that remain are the ones already registered: G-2 and
+G-3 for a real SharePoint source, T-22 for anything written back, G-1 for any deployment at all.
+
+### 12.5 G-11 closed: the image scan ran (2026-09-23)
+
+The CI trivy step existed from 2026-09-21 and had **never executed** — an unresolvable action tag
+killed the job in three seconds, which read as a configuration error rather than as an unscanned
+image. With all five images building it ran and reported **16 HIGH/CRITICAL**.
+
+Fourteen were in `npm`, which sits in the runtime image and is never invoked by it. The fix was to
+**delete it from the runtime stage** and apply distribution security updates — not to suppress the
+findings. The remaining two are the `postcss` advisories already classified as EX-001, and
+`.trivyignore` declares exactly those two, each pointing at that classification and inheriting its
+2026-12-31 expiry. A new advisory in any image still fails the build.
+
+The lesson for the pilot's security posture is not the count. It is that **a control which has never
+executed has produced no evidence**, and this one had been green on the dashboard for two days.
+

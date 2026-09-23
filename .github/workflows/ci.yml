@@ -244,6 +244,8 @@ jobs:
             dockerfile: infrastructure/docker/Dockerfile.web
           - app: live-web
             dockerfile: infrastructure/docker/Dockerfile.web
+          - app: sync-web
+            dockerfile: infrastructure/docker/Dockerfile.web
     steps:
       - uses: actions/checkout@v4
 
@@ -277,6 +279,10 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           severity: HIGH,CRITICAL
+          # The same register as the npm audit gate: every id in .trivyignore
+          # is an advisory classified in docs/SECURITY-EXCEPTIONS.md with a
+          # reason and an expiry. Nothing is suppressed without an entry.
+          trivyignores: .trivyignore
 
   # -------------------------------------------------------------------------
   # Dependency and license gates — security.md §14.

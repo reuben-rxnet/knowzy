@@ -1,9 +1,9 @@
 # Knowzy — User Guide
 
 **Applies to:** the local demonstration build with the Question Acquisition Framework
-(provider-based generation and question import) and taxonomy administration, including PILOT-T1,
-PILOT-T2 and UI-M3
-**Last updated:** 2026-09-22
+(provider-based generation and question import), taxonomy administration and the SharePoint Sync
+Manager, including PILOT-T1, PILOT-T2, UI-M3 and SYNC-M1..M4
+**Last updated:** 2026-09-23
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -13,7 +13,7 @@ assessment manager, a learner, or someone being shown the product
 > software is right and this guide is out of date.
 >
 > **What you are using is a demonstration build.** It runs only on one machine, against fixture
-> documents, with identities you pick from a list rather than sign in to. §9 says exactly what is
+> documents, with identities you pick from a list rather than sign in to. §10 says exactly what is
 > and is not real.
 
 ---
@@ -55,8 +55,8 @@ From the repository root:
 docker compose -f infrastructure/compose/docker-compose.yml up -d
 ```
 
-That brings up PostgreSQL, the API, the MCP server, the job runner, both web applications, and
-Mailpit. The first start also applies migrations and seeds the local users, roles, and taxonomy.
+That brings up PostgreSQL, the API, the MCP server, the job runner, all three web applications,
+and Mailpit. The first start also applies migrations and seeds the local users, roles, and taxonomy.
 
 ### 2.2 The addresses
 
@@ -64,11 +64,12 @@ Mailpit. The first start also applies migrations and seeds the local users, role
 | --- | --- |
 | **Authoring Portal** | http://localhost:3000 |
 | **Live Learning Portal** | http://localhost:3001 |
+| **SharePoint Sync Manager** | http://localhost:3002 — an operations console, not a learning screen (§6) |
 | API | http://localhost:8080 — the portals call it from their own process; you do not need it |
 | Mailpit (captured mail) | http://localhost:8025 |
 
-Start at **http://localhost:3000**. The two portals are separate applications on purpose and there
-is no link between them — open the learner portal in its own tab.
+Start at **http://localhost:3000**. The three applications are separate on purpose and there are no
+links between them — open each in its own tab.
 
 ### 2.3 If a page says "API unreachable"
 
@@ -85,7 +86,7 @@ If you edited source files and the browser shows no change, the containers did n
 file watching does not cross the bind mount on Windows. Restart the app you changed:
 
 ```bash
-docker compose -f infrastructure/compose/docker-compose.yml restart authoring-web live-web
+docker compose -f infrastructure/compose/docker-compose.yml restart authoring-web live-web sync-web
 ```
 
 ### 2.4 What surrounds every page
@@ -785,7 +786,102 @@ for a learner, in the quiz or in the result.
 
 ---
 
-## 6. When something is refused
+## 6. The SharePoint Sync Manager — http://localhost:3002
+
+A third application, for whoever keeps the document sources healthy. It does one job: **it
+synchronizes configured document sources INTO Knowzy**, on a schedule or on demand, and shows you
+whether that is working.
+
+> **Read the subtitle under the product name.** It says *Knowledge-source synchronization into
+> KNOWZY*, and it is the most important sentence on the screen. This release does **not** copy
+> content from one SharePoint location to another, in either direction. There is no destination in
+> the product, because Knowzy's own index is the destination. Everything a two-location product
+> would offer — a destination site, a library, a folder, two-way sync, syncing deletions back,
+> writing metadata back — is on screen, disabled, reading **"Requires Microsoft Graph write
+> integration and tenant approval."** Nothing is hidden and nothing is faked.
+
+Who can open it: any identity holding **source.read** — the **Knowledge Source Administrator** and
+the **KNOWZY Administrator**. Anyone else is refused with `PORTAL_ACCESS_DENIED` and sees no data at
+all, not an empty table.
+
+### 6.1 The dashboard
+
+One page, no navigation, because there is only one thing here.
+
+- **Connection health** — how many sources are reachable, and *when that was last actually
+  checked*. It is the result of the last real probe, not a fresh test dressed up as one. Press
+  **Test connection** on a row if you want a current answer.
+- **Five figures**, each a count of rows over the **last 30 days**: total workflows, successful
+  syncs, failed syncs, pending, and documents indexed. There are no trends and no "vs last month",
+  because no history of these numbers is stored anywhere to compare against.
+- **The workflow table** — one row per knowledge source, with its adapter, its paths, its schedule,
+  its next run, and its status: `RUNNING`, `SUCCESS`, `FAILED`, `PAUSED`, `SCHEDULED`, `DISABLED`,
+  or `NEVER_RUN`. A status is worked out from the state; none of them is a stored label somebody
+  could forget to update.
+- **Recent activity** — the last 25 runs, each with how many documents it saw, added, updated,
+  failed and skipped, and whether **a person or the scheduler** started it. A failed run's reason
+  opens in a panel.
+
+### 6.2 Creating a workflow
+
+**New workflow** opens a four-step wizard: basic information, the source, options, and scheduling.
+
+Two things about the source step are deliberate and will look like gaps:
+
+- **The adapter list contains only adapters that exist.** Today that is a file repository, plus the
+  mock source in the local environment. **SharePoint over Graph is listed and disabled** — the
+  adapter is not written (Phase 7), and offering it would mean a workflow that can never run.
+- **You type the root path; you cannot browse for it.** The browser is never given a directory
+  listing of the server, and the path you type is checked **on the server** against a configured
+  allow-list before anything is saved. A path outside it is refused, naming the roots that are
+  allowed. A path containing `..`, a relative path, or a null byte is refused before the allow-list
+  is even consulted. If a deployment configures no roots, **every** local path is refused — an
+  unconfigured environment is the strictest one, not the loosest.
+
+The first folder is created with the workflow, because a source with no folder has nothing to scan.
+
+### 6.3 Scheduling
+
+**Manual**, **Hourly** (with the number of hours), **Daily**, **Weekly**, **Monthly**, or a
+validated **Cron** expression, each with a timezone. The job runner executes them; the next run is
+shown on the row, and an overdue one says so rather than showing a time in the past as if it were
+upcoming.
+
+> **Weekly and Monthly are intervals, not dates.** Weekly means *every 7 days from the last run* and
+> Monthly means *every 30 days*, and the screen words it that way. They are not "every Monday" or
+> "the 1st of the month" — calendar anchoring is a separate piece of work, and guessing at it would
+> quietly run your sync on the wrong day.
+
+A **Cron** schedule is handed to the job runner, which owns cron parsing, so the row shows the
+expression rather than a next run this application computed.
+
+### 6.4 Running, pausing, retiring
+
+- **Sync now** runs one workflow immediately. **Sync all** runs every *eligible* one — active, not
+  archived, with at least one active folder — one after another, so one failure cannot stop the
+  rest. The summary lists each source's outcome, and **lists what it skipped with the reason**: a
+  paused source, a source with no folder, or one that is already running.
+- A source that is **already running** is never started a second time, by you or by the scheduler.
+  If a run is interrupted — the container is killed mid-sync — the scheduler releases it on its
+  next tick, so that protection cannot lock a source forever.
+- **Pause** stops the scheduler picking it up and leaves everything it has already indexed alone.
+  **Resume** puts it back.
+- **Delete** asks you to choose **Archive** or **Delete**, and a source that anything references —
+  documents, questions, generation jobs, or its own run history — **cannot be deleted**, only
+  archived. Published questions trace back to the document they were written from, and that trail
+  is not allowed to break.
+
+Every one of these writes an audit record naming who did it and what changed.
+
+### 6.5 What this application is not for
+
+No learning, no assessments, no question generation, no badges, no reporting. Those are the other
+two portals. And it has not been deployed anywhere — it runs in the local stack, and
+`docs/operations/SHAREPOINT_SYNC_MANAGER_DEPLOYMENT.md` describes what a real deployment would need.
+
+---
+
+## 7. When something is refused
 
 A refusal panel gives a title, a plain-language reason, a code, and — for an approval — the gates
 that failed. The ones you are most likely to meet:
@@ -809,7 +905,7 @@ that failed. The ones you are most likely to meet:
 
 ---
 
-## 7. A complete walkthrough, in order
+## 8. A complete walkthrough, in order
 
 For showing the product end to end from an empty state. Roughly fifteen minutes.
 
@@ -836,7 +932,7 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 
 ---
 
-## 8. Things that will surprise you
+## 9. Things that will surprise you
 
 - **You will switch identity several times.** By design; see §3.
 - **Generation returns fewer questions than you ask for.** The local generator only builds a
@@ -854,7 +950,7 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 
 ---
 
-## 9. What is real, and what is not
+## 10. What is real, and what is not
 
 **Real, and working:**
 
@@ -878,17 +974,19 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | **Refreshers** | Not built |
 | **The assessment builder** | One form on the Publish page, not the specified builder |
 | **Email** | Captured by Mailpit; nothing is sent anywhere |
+| **Destination synchronization** | There is none, and there is no plan for one in this release. The Sync Manager brings documents **into** Knowzy. A destination, two-way sync, syncing deletions back, and writing metadata back are all shown disabled reading "Requires Microsoft Graph write integration and tenant approval." (§6) |
+| **A deployed Sync Manager** | It runs in the local stack only. No hosting target, environment or pipeline exists |
 
 For the full assessment of what is built and how it was verified, see
 [MVP-READINESS.md](MVP-READINESS.md).
 
 ---
 
-## 10. Keeping this guide current
+## 11. Keeping this guide current
 
 This guide tracks the software, not the plan. It is updated in the same commit as any change that
 alters what a person sees or does — a new screen, a moved control, a changed label, a new refusal, or
-a promotion of something in §9 from "not real yet" to real. A milestone that changes the UI is not
+a promotion of something in §10 from "not real yet" to real. A milestone that changes the UI is not
 finished until this file matches it.
 
 When updating, change the header block at the top (`Applies to` and `Last updated`) and add a row to
@@ -907,4 +1005,5 @@ the log below.
 | 2026-09-22 | Import on real files | **The first two real question banks were fed in, and both were refused for reasons that were the platform’s fault rather than the files’.** Fixed, in §4.3a: a spreadsheet may leave its trailing columns blank (a fifteen-column template with twelve filled imported nothing before, and now imports every row); `OptionA`, `CorrectAnswer`, `AnswerKey`, `QuestionText`, `Justification` and `SourceDocument` are recognised as column names; a Word bank whose four options sit on one line is read; and a decoration in front of `Correct Answer:` — a tick, a bullet, a dash — no longer hides the answer. A Word bank with no explanation per question is still refused, and §4.3a now says so before you try. Also: a spreadsheet cell whose own text contains ` - ` is reported with the value it found rather than mis-split. On §4.1, **skipped** is now counted and listed apart from **failed**: a file outside this source’s configured folder is the configuration working, not an error |
 | 2026-09-22 | Decision panel | **A decision the lifecycle cannot reach is now disabled and says why** (§4.5), and the panel names the next step available from the current state. All five decisions used to be offered on every question, so pressing **Submit for approval** on a draft returned `STATE_TRANSITION_INVALID` — which reads as missing access and never was: a draft has to be claimed first. A state block and a permission block are now worded differently, because one is an order of operations and the other is an identity. Where gate 13 currently refuses an approval, a note beside **Approve** says so. §4.5 also states plainly what full access does and does not grant a KNOWZY Administrator |
 | 2026-09-22 | Taxonomy administration | **Domains and topics can now be created and edited** (§4.3b, **Administration → Knowledge Domains**), which is the first Administration screen with a backend behind it. Before this the platform held one seeded domain and one seeded topic and offered no way to add a second, so an imported VisionStar question bank was filed under Support Operations. A domain code is editable only while nothing references the domain and then shows as **Permanent** with the counts that locked it; a topic belongs to exactly one domain and is unique within it; nothing can be deleted, only deactivated. **Import now files each question where the FILE says it belongs** (§4.3a) and refuses a file naming taxonomy that does not exist, rather than creating it — a spreadsheet typo must never mint a permanent domain code |
+| 2026-09-23 | SYNC-M1..M4 | **A third application**, the **SharePoint Sync Manager** on http://localhost:3002 (§6), for whoever keeps the document sources healthy: connection health, five counted figures over a 30-day window, a workflow table with a derived status, and the last 25 runs with who or what started them. New capability behind it: a source can now be **created, edited, paused, resumed and archived** from a screen rather than only seeded, and it can be put on a **schedule** — manual, hourly, daily, weekly, monthly or cron — executed by the job runner. **Sync all** reports each source's outcome and names what it skipped and why. Four things it deliberately does not do, each on screen and disabled with "Requires Microsoft Graph write integration and tenant approval.": a destination, two-way sync, syncing deletions back, writing metadata back — this release synchronizes **into** Knowzy and has no destination model at all. A SharePoint Graph source is listed and disabled because the adapter is not written. A local root path is **typed, not browsed**, and validated server-side against an allow-list. Also fixed, found by the browser test: a dialog taller than the window could not be scrolled, so its buttons were unreachable at 720px — that affected the existing portals too |
 | 2026-09-23 | Acceptance automation | **Nothing about the screens changed.** What changed is that they are now driven by an automated browser suite — sources, generation, review, **gate 13**, publication, and a learner attempt including resume and scoring — so a broken screen is found by the build rather than by the next person to open it. Two things that suite is not: it does not cover refreshers, the revalidation queue or the audit surfaces, because those are not built; and it is not part of `npm run verify`, because it needs the stack running |

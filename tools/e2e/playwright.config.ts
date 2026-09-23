@@ -21,6 +21,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const AUTHORING = process.env['E2E_AUTHORING_URL'] ?? 'http://localhost:3000';
 const LEARNER = process.env['E2E_LEARNER_URL'] ?? 'http://localhost:3001';
+const SYNC = process.env['E2E_SYNC_URL'] ?? 'http://localhost:3002';
 const channel = process.env['E2E_BROWSER_CHANNEL'];
 
 export default defineConfig({
@@ -48,6 +49,11 @@ export default defineConfig({
       name: 'authoring',
       testMatch: /authoring\/.*\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], baseURL: AUTHORING, ...(channel ? { channel } : {}) },
+    },
+    {
+      name: 'sync',
+      testMatch: /sync\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], baseURL: SYNC, ...(channel ? { channel } : {}) },
     },
     {
       name: 'learner',

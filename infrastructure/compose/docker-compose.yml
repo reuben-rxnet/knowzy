@@ -206,6 +206,35 @@ services:
     ports:
       - '3001:3001'
 
+  # The SharePoint Sync Manager: the third portal, SYNC-M4. Same identity and
+  # authorization architecture as the authoring portal -- it authorizes as the
+  # AUTHORING context -- and its own image, so it can be deployed on its own.
+  sync-web:
+    <<: *node-base
+    command: ['npm', 'run', '-w', '@knowzy/sync-web', 'dev']
+    environment:
+      <<: *node-env
+      OTEL_SERVICE_NAME: knowzy-sync-web
+      PUBLIC_API_BASE_URL: http://localhost:8080
+      API_INTERNAL_BASE_URL: http://api:8080
+    ports:
+      - '3002:3002'
+    healthcheck:
+      # The dashboard itself, not a synthetic endpoint: if the page cannot
+      # render, the service is not healthy however green a /healthz would be.
+      # A YAML block scalar, so the quoting stays readable: a single-line
+      # flow sequence with nested quotes is how the first version of this
+      # file failed to parse at all.
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "fetch('http://localhost:3002/').then((r) =>
+          process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
   # Notification capture. Release 1 delivers in-app only
   # (knowledge-source-administration.md §8); mailpit is here for the phase that
   # adds email, and is harmless until then.

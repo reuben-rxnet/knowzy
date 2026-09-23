@@ -64,10 +64,12 @@ Current Status:
 - Phases 1-6 complete, plus M7 (the thin UI). All seven MVP objectives verified
   end to end IN A BROWSER on the mock adapters, with no tenant credentials.
   See docs/MVP-READINESS.md for the full assessment.
-- Both portals serve real screens: authoring on :3000 (sources, document
-  browser, generate, review queue, question approval, publish) and learning on
-  :3001 (assessment list, start, quiz, results). Server components plus server
-  actions — the browser never calls the API and never holds a subject header.
+- THREE web applications serve real screens: authoring on :3000 (sources,
+  document browser, generate, review queue, question approval, publish,
+  administration/taxonomy), learning on :3001 (assessment list, start, quiz,
+  results) and the SharePoint Sync Manager on :3002 (one operational dashboard).
+  Server components plus server actions — the browser never calls the API and
+  never holds a subject header.
 - Last live walkthrough (M7, through the two portals): source tested and
   synchronized, 6 drafts generated from 4 documents, claimed, submitted,
   approved by a different identity, published as
@@ -76,12 +78,12 @@ Current Status:
   EXPERT on the attempt answered correctly. Gate 13 failed for the author and
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
-- npm run verify passes: typecheck 33/33, lint 21/21,
-  tests 728 passing + 12 todo across 32 files, boundaries 0 errors,
+- npm run verify passes: typecheck 34/34, lint 22/22,
+  tests 795 passing + 12 todo across 36 files, boundaries 0 errors,
   codegen contract clean, format clean. Re-counted 2026-09-23; see
   docs/project/STATUS_RECONCILIATION_2026-09-23.md for what was stale.
-- npm run test:e2e passes: 10 browser acceptance tests across two projects,
-  driving both portals against the running stack. It is NOT part of verify —
+- npm run test:e2e passes: 19 browser acceptance tests across three projects,
+  driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
   as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
 - The integration project is 189 of those tests, and until 2026-09-21 three of
@@ -93,12 +95,15 @@ Current Status:
   section keys scoped per document, coverage split from generation outcome.
   0008 splits SKIPPED from FAILED on a sync. Taxonomy administration needed
   NO migration: Domain and Topic have carried every field since 0001.
-- Full docker compose stack verified: postgres, api, mcp, jobs, both web apps.
-- 19 of 36 MCP tools registered; 55 API routes, every one with a declared
+- Full docker compose stack verified: postgres, api, mcp, jobs, all three web
+  apps. All five images build and were SCANNED for the first time on
+  2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
+- 19 of 36 MCP tools registered; 66 API routes, every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
-  administration 5.
+  administration 5, and the Sync Manager 11 (2 read/aggregate plus 9 source
+  administration).
 
 Environment:
 
@@ -204,7 +209,7 @@ Gotchas learned by execution (each of these cost real time):
 - The web containers DO NOT see host file edits (no inotify across the Windows
   bind mount). `next dev` compiles a route once and keeps serving it, so an
   edit looks like it did nothing. Fix: docker compose ... restart
-  authoring-web live-web. This wasted a diagnosis; the code was right the whole
+  authoring-web live-web sync-web. This wasted a diagnosis; the code was right the whole
   time.
 - A host `npm run build` can also break the container node_modules volume, not
   just `npm install`. Same fix: `up migrate`, then restart api and mcp.
@@ -259,6 +264,21 @@ Gotchas learned by execution (each of these cost real time):
 - A test can encode a defect. The suite asserted
   `coverageStatus === 'NON_ASSESSABLE'` on a refusal, so the defect could not
   fail a build. When a test fails after a fix, check which of the two is wrong.
+- A CONCURRENCY GUARD WITH NO TIMEOUT IS AN OUTAGE WAITING FOR A CRASH. Both
+  Sync Now and the scheduler refuse a source with a RUNNING
+  knowledge_source_sync row, and one row left RUNNING by a killed container had
+  frozen a real source permanently with nothing on screen explaining it.
+  `reapStuckRuns` runs FIRST on every scheduler tick and fails a run past its
+  window. Any new guard of this shape needs the same expiry.
+- A SCHEDULED job must build its MCP envelope with `portal: 'SYSTEM'`, or the
+  run it performs is recorded as `trigger: MANUAL` and every automatic sync
+  looks like somebody's click. The enum value is `SCHEDULE`, not `SCHEDULED`.
+- Trivy findings are declared in `.trivyignore` at the repo root, which the CI
+  step reads via `trivyignores:`. It may name ONLY CVEs already classified in
+  docs/SECURITY-EXCEPTIONS.md, and it inherits their expiry. The runtime images
+  deliberately DELETE npm and npx (14 of the original 16 HIGH/CRITICAL were
+  npm's, and no runtime stage invokes it) — fix the image, do not widen the
+  register.
 - preflight.offeredActions is ALWAYS the four workflows.md 4.2 actions and
   never includes GENERATE_NEW, which is what a never-processed document
   recommends. Any UI listing the offered actions must union in the
@@ -576,4 +596,31 @@ Do not use it for learning, assessments, question generation, badges, or reporti
 The image is the visual source of truth.
 
 The Markdown specification is the AI-readable source of truth.
-``
+
+BUILT 2026-09-23, SYNC-M1..M4: `apps/sync-web` on :3002, one page, no side nav.
+The specification's own header block records exactly what of it is implemented.
+
+- THIS RELEASE SYNCHRONIZES INTO KNOWZY. There is no destination model, and the
+  header's second line ("Knowledge-source synchronization into KNOWZY") is
+  load-bearing. A destination site/library/folder, two-way sync, syncing
+  deletes back, writing metadata back, and a SharePoint Graph source are all
+  rendered DISABLED reading "Requires Microsoft Graph write integration and
+  tenant approval.", sourced from GET /authoring/sync/capabilities so the
+  reason and the re-enabling are one change in one place. Do not add a
+  destination selector that stores values nothing reads.
+- A LOCAL ROOT PATH IS TYPED, NOT BROWSED. `requireAllowedLocalRoot` validates
+  server-side against configured allowed roots, refuses traversal, relative
+  paths and null bytes BEFORE the allow-list, refuses everything when no root
+  is configured, and `isWithinRoot` compares SEGMENTS (`/corpus-secrets`
+  startsWith `/corpus` is true and must not be). Never give the browser a
+  server directory listing.
+- WEEKLY and MONTHLY are fixed 7- and 30-day INTERVALS from the last run, not
+  calendar anchors, and the UI says "Every 7 days". Calendar anchoring needs a
+  timezone-aware library and a stored anchor.
+- The adapter list comes from the ADAPTER REGISTRY, so a provider that does not
+  exist cannot be selected.
+- Scheduling runs in apps/jobs on pg-boss, one singleton key per due window.
+  See "Gotchas" for the stuck-run reaper and the SYSTEM portal.
+- It is DEPLOYABLE and HAS NOT BEEN DEPLOYED. No hosting target, environment or
+  pipeline exists: docs/operations/SHAREPOINT_SYNC_MANAGER_DEPLOYMENT.md.
+  ``

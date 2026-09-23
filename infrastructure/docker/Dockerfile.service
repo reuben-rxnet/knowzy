@@ -68,7 +68,14 @@ WORKDIR /repo
 # the openssl-1.1.x engine on a host that actually has OpenSSL 3. Installed
 # before dropping to the non-root user, and the apt lists are removed so the
 # layer stays small.
-RUN apt-get update  && apt-get install -y --no-install-recommends openssl ca-certificates  && rm -rf /var/lib/apt/lists/*
+# The same layer also UPGRADES the base packages and removes npm. The first
+# trivy scan ever run against an image from this repository (2026-09-23)
+# reported 16 HIGH/CRITICAL findings, thirteen of them npm's own bundled
+# tooling -- `pacote`, `sigstore`, `tar`, `brace-expansion`, `ip-address`,
+# `picomatch` -- and three `libpcre2-8-0` in the base layer. A service runs
+# `node dist/index.js`; it needs neither npm nor npx, so shipping them is pure
+# CVE surface. Nothing is suppressed here: the vulnerable code is removed.
+RUN apt-get update   && apt-get install -y --no-install-recommends openssl ca-certificates   && apt-get upgrade -y --no-install-recommends   && rm -rf /var/lib/apt/lists/*   && rm -rf /usr/local/lib/node_modules/npm   && rm -f /usr/local/bin/npm /usr/local/bin/npx
 
 # Non-root. Node's image already provides uid/gid 1000 as `node`.
 USER node

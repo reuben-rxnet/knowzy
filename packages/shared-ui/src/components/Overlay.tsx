@@ -194,7 +194,14 @@ export const Modal = ({
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className={`relative flex w-full max-w-lg flex-col rounded-lg bg-brand-surface shadow-overlay ${
+        // `max-h` plus a scrolling body, because a dialog TALLER than the
+        // viewport put its own buttons out of reach. Found by a browser test
+        // on the Sync Manager's workflow wizard at 1280x720: the element was
+        // "visible, enabled and stable" and still un-clickable, because it was
+        // below the fold of a panel that could not scroll. A confirmation
+        // dialog whose Confirm button cannot be reached is worse than no
+        // dialog.
+        className={`relative flex max-h-[90dvh] w-full max-w-lg flex-col rounded-lg bg-brand-surface shadow-overlay ${
           tone === 'danger' ? 'border-t-4 border-danger' : ''
         }`}
       >
@@ -210,7 +217,12 @@ export const Modal = ({
             <p className="mt-1 text-sm text-ink-muted">{description}</p>
           )}
         </div>
-        {children === undefined ? null : <div className="px-5 py-4">{children}</div>}
+        {children === undefined ? null : (
+          // The BODY scrolls, not the whole panel: the title stays put and the
+          // footer stays reachable, which is what makes a long form usable on
+          // a short screen.
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        )}
         <div className="flex flex-wrap justify-end gap-2 px-5 pb-5 pt-2">
           {footer ?? (
             <button

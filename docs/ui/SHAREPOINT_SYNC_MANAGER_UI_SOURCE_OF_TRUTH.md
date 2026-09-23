@@ -1,5 +1,70 @@
 # SharePoint Sync Manager UI Source of Truth
 
+## Implementation status — 2026-09-23
+
+**Built and running on port 3002** (`apps/sync-web`), SYNC-M1 through SYNC-M4. This section is the
+record of what the specification below asks for versus what the release does, because the product
+name says SharePoint and the release does something narrower.
+
+### The product statement, which the header carries on every screen
+
+```text
+SharePoint Sync Manager
+Knowledge-source synchronization into KNOWZY
+```
+
+The second line is load-bearing. **This release synchronizes configured document sources INTO
+KNOWZY for extraction and indexing. It does not replicate content between two SharePoint
+locations.**
+
+### Implemented
+
+| Specification section | Status | Notes |
+| --- | --- | --- |
+| Single-page dashboard, no left navigation | `IMPLEMENTED` | One route. A browser test asserts there is no `navigation` landmark |
+| Header, connection status, last checked | `IMPLEMENTED` | The last time a probe actually ran, never a live re-test dressed up as one |
+| Header settings / help / notifications | `DISABLED_IN_CURRENT_RELEASE` | Rendered disabled with "Not available in this release." |
+| KPI summary | `IMPLEMENTED` | Total workflows, successful, failed, pending, documents indexed — all counts of rows, over a stated 30-day window. **No trends**: no KPI history is stored anywhere |
+| Action bar: New workflow, Sync all, Refresh | `IMPLEMENTED` | Real backend actions |
+| Workflow table with sorting, filtering, search | `PARTIALLY_IMPLEMENTED` | The table, the statuses and the row actions are real. Client-side sort and free-text search are not built; the table is short enough that the omission is visible rather than disguised |
+| Status values | `IMPLEMENTED` | `RUNNING` · `SUCCESS` · `FAILED` · `PAUSED` · `SCHEDULED` · `DISABLED` · `NEVER_RUN`, each derived from state rather than stored |
+| Row actions: Sync now, Edit, Pause, Resume, Delete | `IMPLEMENTED` | Delete is archive-or-delete: a source with lineage cannot be hard-deleted |
+| Creation wizard | `IMPLEMENTED` | Basic information, source configuration, options, scheduling |
+| Source configuration with validated pickers | `PARTIALLY_IMPLEMENTED` | The adapter list comes from what is actually registered. The root path is **typed and validated server-side against an allow-list** — the browser never lists server directories, which is deliberate rather than unfinished |
+| Scheduling: Manual, Hourly, Daily, Weekly, Monthly | `IMPLEMENTED` | Plus a validated `CRON` mode. Executed by pg-boss in `apps/jobs` |
+| Next run, timezone | `IMPLEMENTED` | Computed from the schedule and the last run, with "overdue" said out loud |
+| Monitoring dashboard | `IMPLEMENTED` | Real workflow state, no decorative charts |
+| Recent activity | `IMPLEMENTED` | Real runs with their counts and whether a person or the scheduler started them. **The last 25 of any outcome, with no filter**, so a failure leaves the feed after 25 newer runs — the 30-day failed count still holds it. Filtering the feed by outcome is not built |
+
+### Not implemented, shown disabled, with the reason on screen
+
+Each carries: **"Requires Microsoft Graph write integration and tenant approval."**
+
+| Capability | Why |
+| --- | --- |
+| Destination site / library / folder | **There is no destination model.** The platform ingests into its own index |
+| Two-Way Sync | Not implemented. One-way, into KNOWZY |
+| Sync Deletes to SharePoint | Needs Graph write (T-22) |
+| Write Metadata to SharePoint | Needs Graph write (T-22) |
+| A SharePoint Graph source | The adapter does not exist (roadmap Phase 7). Today: `FILE_REPOSITORY`, and `MOCK` in `local` only |
+
+Reported by `GET /authoring/sync/capabilities`, so the reason travels with the refusal and one
+change re-enables them.
+
+### Scheduling, stated precisely
+
+`WEEKLY` and `MONTHLY` are **fixed intervals** from the last run — 7 days and 30 days — not calendar
+anchors. Calendar anchoring ("every Monday at 02:00") needs a timezone-aware library and a stored
+anchor, and inventing behaviour for "the 31st of February" is worse than an honest interval. The UI
+therefore says *Every 7 days*, never *Mondays*.
+
+### Deployment
+
+`docs/operations/SHAREPOINT_SYNC_MANAGER_DEPLOYMENT.md`. The application is deployable; **it has not
+been deployed**, and no hosting target exists.
+
+---
+
 ## Purpose
 
 SharePoint Sync Manager is a dedicated workflow-management application used to configure, monitor, schedule, and execute SharePoint synchronization workflows.

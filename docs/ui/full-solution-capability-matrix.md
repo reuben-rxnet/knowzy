@@ -378,3 +378,29 @@ unsupported element ships labelled rather than fabricated.
 1. Reinterpreting assessments as courses to fill My Learnings (§7.2).
 2. Computing "vs last month" deltas from nothing — no KPI history exists anywhere.
 3. Publishing from the generation screen because the mockup has the button (§15).
+
+---
+
+## SharePoint Sync Manager (2026-09-23)
+
+A separate application, classified here so one document still answers "what exists". **The
+counts above cover the two learning portals only** and are unchanged by this section. Full detail:
+[`SHAREPOINT_SYNC_MANAGER_UI_SOURCE_OF_TRUTH.md`](SHAREPOINT_SYNC_MANAGER_UI_SOURCE_OF_TRUTH.md).
+
+| Feature | Classification | Backing |
+| --- | --- | --- |
+| Operational dashboard on :3002 | `IMPLEMENTED` | `GET /authoring/sync/overview` |
+| KPI summary | `IMPLEMENTED` | Counts over a 30-day window. No trend is computable — no KPI history is stored |
+| Workflow table and statuses | `IMPLEMENTED` | `KnowledgeSource` + `KnowledgeSourceSync` |
+| Sorting, filtering, free-text search | `PARTIALLY_IMPLEMENTED` | The table is real; client-side sort and search are not built |
+| Sync Now | `IMPLEMENTED` | `synchronize_knowledge_source` |
+| Sync All | `IMPLEMENTED` | `POST /authoring/sync/sync-all`, per-source results, failures isolated, already-running skipped |
+| Create / edit / pause / resume | `IMPLEMENTED` | `source.manage`, new in SYNC-M2 |
+| Archive with lineage protection | `IMPLEMENTED` | A source with documents, questions, jobs or run history cannot be hard-deleted |
+| Scheduling (Manual/Hourly/Daily/Weekly/Monthly/Cron) | `IMPLEMENTED` | pg-boss in `apps/jobs`, SYNC-M3 |
+| Next run and timezone | `IMPLEMENTED` | Computed; `WEEKLY`/`MONTHLY` are intervals, not calendar anchors |
+| Stuck-run recovery | `IMPLEMENTED` | The reaper. Concurrency protection without it is a permanent lock |
+| Destination site / library / folder | `DISABLED_IN_CURRENT_RELEASE` | No destination model; needs Graph write and T-22 |
+| Two-way sync · sync deletes · write metadata | `DISABLED_IN_CURRENT_RELEASE` | Same |
+| SharePoint Graph source | `REQUIRES_BACKEND_EXTENSION` | Roadmap Phase 7 |
+| Deployment to a hosting target | `PLANNED` | Deployable; no approved target exists |

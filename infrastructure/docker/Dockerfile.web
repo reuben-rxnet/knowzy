@@ -1,8 +1,8 @@
-# Production image for a Next.js deployable: authoring-web or live-web.
+# Production image for a Next.js deployable: authoring-web, live-web, sync-web.
 #
-# Two images, never one (ADR-001): the authoring routes are not present in the
-# learner's bundle, which is the property that makes the separation meaningful
-# rather than cosmetic.
+# Three images, never one (ADR-001): the authoring routes are not present in
+# the learner's bundle, which is the property that makes the separation
+# meaningful rather than cosmetic. The Sync Manager is the third.
 #
 #   docker build -f infrastructure/docker/Dockerfile.web \
 #     --build-arg APP=live-web -t knowzy/live-web .
@@ -34,6 +34,29 @@ ARG APP
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+
+# ---------------------------------------------------------------- hardening
+#
+# The FIRST trivy scan ever run against an image from this repository (2026-09-23,
+# sync-web) reported 16 HIGH/CRITICAL findings. Thirteen were not this
+# application's dependencies at all: they were npm's own bundled tooling
+# (`pacote`, `sigstore`, `tar`, `brace-expansion`, `ip-address`, `picomatch`)
+# shipped inside the node image, and three were `libpcre2-8-0` in the base
+# layer.
+#
+# A standalone Next server runs `node server.js`. It needs neither npm nor npx,
+# so shipping them is pure attack surface AND pure CVE surface. Both are
+# removed, and the base packages are upgraded in the same layer.
+#
+# This is not the audit gate being widened -- nothing is suppressed. The
+# vulnerable code is removed from the image.
+USER root
+RUN apt-get update \
+  && apt-get upgrade -y --no-install-recommends \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /usr/local/lib/node_modules/npm \
+  && rm -f /usr/local/bin/npm /usr/local/bin/npx
+
 WORKDIR /app
 USER node
 

@@ -1746,3 +1746,118 @@ reads like coverage in a summary, and the flow that most needed a browser test w
 One environment fact: `cdn.playwright.dev` is blocked on this network, so Playwright's bundled
 Chromium cannot be downloaded. The suite runs against the installed browser with
 `E2E_BROWSER_CHANNEL=chrome`, and CI should leave that unset.
+
+---
+
+## SYNC-M1..M4 — the SharePoint Sync Manager
+
+| | |
+| --- | --- |
+| **Dates** | 2026-09-23 |
+| **Application** | `apps/sync-web`, port 3002 — the third portal |
+
+A separate operations console for whoever keeps the document sources healthy. Four milestones, all
+four of the ones that do not require Microsoft Graph, Entra administration, `Sites.Selected`, or a
+hosting target:
+
+- **SYNC-M1 — the dashboard.** `GET /authoring/sync/overview`: connection health with the time of
+  the last real probe, five counts over a stated 30-day window, a workflow table whose status is
+  derived rather than stored, the last 25 runs with their per-document counts, and
+  `POST /authoring/sync/sync-all` with per-source outcomes, failure isolation and skip reasons.
+- **SYNC-M2 — source administration.** Create, edit, activate, deactivate, archive and delete a
+  source, and add or modify its folders, from a screen. Eight routes on `source.manage`.
+- **SYNC-M3 — scheduling.** `MANUAL`, `HOURLY`, `DAILY`, `WEEKLY`, `MONTHLY`, `CRON`, executed by
+  pg-boss in `apps/jobs` with a singleton key per due window, retries with backoff, and a reaper.
+- **SYNC-M4 — deployability and validation.** An image, the compose service, the CI build, the
+  first trivy scan in the project's history, nine browser tests, and
+  [`SHAREPOINT_SYNC_MANAGER_DEPLOYMENT.md`](../operations/SHAREPOINT_SYNC_MANAGER_DEPLOYMENT.md).
+
+### The product name promises something this release does not do
+
+The application is called the SharePoint Sync Manager, the approved mockup has a **destination**
+site, library and folder, and the specification lists "source and destination management" as a
+responsibility. **There is no destination in this platform.** Knowzy's own index is where documents
+go; nothing is ever written back. A destination picker would have been a form whose values no code
+reads.
+
+So the header carries a second line on every screen — *Knowledge-source synchronization into
+KNOWZY* — and seven capabilities are rendered **disabled with the reason on them**: destination
+site/library/folder, two-way sync, syncing deletions back, writing metadata back, and a SharePoint
+Graph source. Each reads **"Requires Microsoft Graph write integration and tenant approval."** The
+reasons come from `GET /authoring/sync/capabilities` rather than being typed into the component, so
+the refusal and the re-enabling are one change in one place.
+
+The alternative — a destination selector that stores values and shows a green success — is the
+exact failure mode this project has a rule against, and it would have been indistinguishable from
+working software until a tenant asked where their files went.
+
+### Three deliberate narrowings, each visible rather than disguised
+
+- **`WEEKLY` and `MONTHLY` are fixed intervals**, 7 and 30 days from the last run, not calendar
+  anchors. Calendar anchoring needs a timezone-aware library and a stored anchor, and "the 31st of
+  February" has no honest answer. The screen says *Every 7 days*, never *Mondays*.
+- **The root path is typed, not browsed.** A directory picker means handing the browser a listing of
+  the server's filesystem. `requireAllowedLocalRoot` validates server-side against a configured
+  allow-list, refusing traversal, relative paths and null bytes **before** the allow-list is
+  consulted, and refusing **everything** when no root is configured — an unconfigured deployment is
+  the strictest, not the loosest. `isWithinRoot` compares path segments, because
+  `'/corpus-secrets'.startsWith('/corpus')` is true and must not be.
+- **Sorting and free-text search are not built.** The table is short enough that the absence is
+  visible. A client-side sort that silently only sorts the loaded page is worse.
+
+### A defect in the live database, found because a real source was frozen
+
+One `KnowledgeSourceSync` row had been `RUNNING` since 2026-09-22, left by a container restart
+mid-sync. Both **Sync Now** and the scheduler refuse a source that is already running — correct
+concurrency protection — and with no expiry that protection is **a permanent lock**. The source
+could never sync again, and nothing on any screen said why.
+
+`reapStuckRuns` now runs first on every scheduler tick, marking a run that has exceeded its window
+`FAILED` with the reason recorded. The lesson is the shape of it: **a guard with no timeout is an
+outage waiting for a crash**, and this one was already holding.
+
+### Four more found by building it
+
+1. **Seven audit detail keys were being dropped.** The allow-list in
+   `packages/observability/src/audit.ts` silently discards undeclared keys into `_droppedKeys`, so
+   every new audit action was recording an action with no detail. Caught by this milestone's own
+   tests asserting `_droppedKeys === undefined` rather than asserting the row exists.
+2. **`SyncTrigger` is `SCHEDULE`, not `SCHEDULED`** — and chasing the type error exposed the real
+   problem: the scheduler's MCP envelope had no portal, so a scheduled run would have been recorded
+   as `MANUAL`. Every automatic sync would have looked like somebody's click. It now authorizes as
+   `portal: 'SYSTEM'`.
+3. **A dialog taller than the window could not be scrolled**, putting its buttons out of reach at
+   720px. A real defect in `@knowzy/shared-ui`, so it affected the existing two portals as well.
+   Found by a browser test failing to click a button a human would also not have found.
+4. **`zod` in `@knowzy/domain`** — the schedule schema had to move to `@knowzy/shared-types`, which
+   declares it. The boundary rule was right: domain declares no zod dependency, so the import
+   worked only by hoisting.
+
+### The first trivy scan this project has ever run
+
+CI has had a trivy step since 2026-09-21 and it had **never executed against an image** — the
+action tag was unresolvable, so the job died in three seconds. With the images building, it ran:
+**16 HIGH/CRITICAL findings.**
+
+Fourteen were in `npm` itself, which is present in the runtime image and never used by it. They were
+removed by **deleting npm from the runtime stage** and applying distribution security updates, not
+by suppression. The remaining two are the `postcss` advisories already classified as EX-001 in
+`docs/SECURITY-EXCEPTIONS.md`, and `.trivyignore` declares exactly those two, each pointing at that
+classification with its expiry. A new advisory still fails the build.
+
+### Validated, in the order the brief required
+
+Browser validation first, because `npm run verify` deletes rows the browser is looking at:
+**9 browser tests** (`--project=sync`) asserting the dashboard's figures match the API, the
+unsupported capabilities are disabled **with their reason**, a workflow can be created with a daily
+schedule and a computed next run, edit/pause/resume, Sync Now, Sync All with its skip reasons, a
+failed run's detail, and an identity without `source.read` refused. Then `npm run verify`:
+**795 tests passing + 12 todo across 36 files**, 34 typecheck, 22 lint, 0 boundary errors. Then the
+image build, trivy, and the demonstration data restored.
+
+### Not done, and not claimed
+
+**It has not been deployed.** No App Service, Container App, hostname or environment exists, and no
+pipeline is wired, because there is no approved target and no credentials. The deployment document
+states what a real deployment needs and stops there.
+

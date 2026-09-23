@@ -1,0 +1,72 @@
+/* SharePoint Sync Manager stylesheet.
+ *
+ * Tailwind, then the shared Knowzy tokens for the primitives this portal
+ * reuses (tables, cards, buttons, dialogs), then a small token layer of its
+ * OWN for the palette the approved design specifies.
+ *
+ * Why its own layer: the Sync Manager is a separate application with a
+ * Fluent-inspired palette — #146EF5 primary, #00B388 success, #F5F8FC
+ * background, #08245C text — and those are not the Knowzy brand values. The
+ * variables are overridden rather than the components rewritten, so a button
+ * here is the same accessible, keyboard-operable button the rest of the
+ * platform ships, wearing this product's colours.
+ */
+
+@import 'tailwindcss';
+@import '@knowzy/shared-ui/tokens.css';
+
+@source '../../../../packages/shared-ui/src/**/*.tsx';
+
+:root {
+  /* The approved palette, verbatim from the specification. */
+  --sync-primary: #146ef5;
+  --sync-success: #00b388;
+  --sync-warning: #f59e0b;
+  --sync-error: #dc2626;
+  --sync-text: #08245c;
+  --sync-surface: #ffffff;
+  --sync-background: #f5f8fc;
+  --sync-border: #dbe3ee;
+
+  /* The shared primitives read these, so overriding them re-skins the
+   * components without touching one of them. */
+  --color-brand-blue: var(--sync-primary);
+  --color-brand-navy: #0b2f7a;
+  --color-brand-navy-text: var(--sync-text);
+  --color-brand-surface: var(--sync-surface);
+  --color-ink: var(--sync-text);
+  --color-line: var(--sync-border);
+  --color-success: var(--sync-success);
+  --color-warning: var(--sync-warning);
+  --color-danger: var(--sync-error);
+}
+
+body {
+  background-color: var(--sync-background);
+  color: var(--sync-text);
+}
+
+/* A 16:9 operational layout: one column, generous gutters, and a maximum
+ * width so a 1920-wide screen does not stretch a table to unreadable rows.
+ * 1280, 1440 and 1920 are the three widths the specification optimizes for. */
+.sync-shell {
+  margin-inline: auto;
+  max-width: 1760px;
+  padding-inline: clamp(1rem, 2vw, 2.5rem);
+}
+
+/* Fluent-ish surface: white, soft grey border, subtle shadow, moderate radius.
+ * No decorative gradients — the specification asks for an operational console,
+ * not a marketing page. */
+.sync-card {
+  background-color: var(--sync-surface);
+  border: 1px solid var(--sync-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px rgb(8 36 92 / 6%);
+}
+
+/* Focus must be visible on every control, on light surfaces (§Accessibility). */
+.sync-shell :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--sync-primary);
+  outline-offset: 2px;
+}

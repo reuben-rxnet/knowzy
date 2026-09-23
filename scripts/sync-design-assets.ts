@@ -25,7 +25,10 @@ import { SERVED_ASSETS } from '@knowzy/shared-ui/assets';
 
 const REPO_ROOT = join(import.meta.dirname, '..');
 const SOURCE = join(REPO_ROOT, 'design', 'approved', 'knowzy_design_elements_asset_pack');
-const APPS = ['authoring-web', 'live-web'] as const;
+// The Sync Manager is the third portal and needs the branding assets its
+// header and favicon reference. A missing public folder also fails
+// Dockerfile.web, which COPYs it unconditionally.
+const APPS = ['authoring-web', 'live-web', 'sync-web'] as const;
 const DESTINATION = join('public', 'assets', 'knowzy');
 
 const check = process.argv.includes('--check');

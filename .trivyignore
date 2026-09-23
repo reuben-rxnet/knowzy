@@ -1,0 +1,18 @@
+# Image-scan exceptions — the SAME register as `npm run audit:gate`.
+#
+# This file is not a way to make the scan quiet. Every id below is an advisory
+# already classified in docs/SECURITY-EXCEPTIONS.md with a reason and an expiry,
+# and the rule from CLAUDE.md applies unchanged: never widen the gate, add or
+# re-assess an entry instead.
+#
+# EX-001 — postcss 8.4.31, reachable only at build time, pinned exactly by
+# Next 15. The fix is a patch inside 8.x that npm will not install while Next
+# pins it, so it moves with the Next 15 -> 16 upgrade. Entry expires
+# 2026-12-31.
+#
+# Everything else the first scan found (2026-09-23: 16 HIGH/CRITICAL) was
+# FIXED rather than declared — npm's bundled tooling is removed from the
+# runtime images and the base packages are upgraded. See
+# infrastructure/docker/Dockerfile.web.
+CVE-2026-45623
+CVE-2026-73646
