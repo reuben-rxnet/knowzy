@@ -7,6 +7,7 @@
     { "path": "../../packages/shared-types" },
     { "path": "../../packages/observability" },
     { "path": "../../packages/configuration" },
-    { "path": "../../packages/database" }
+    { "path": "../../packages/database" },
+    { "path": "../../packages/domain" }
   ]
 }
