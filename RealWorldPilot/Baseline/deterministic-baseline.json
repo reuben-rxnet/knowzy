@@ -1,0 +1,161 @@
+{
+  "capturedAt": "2026-09-23T05:59:18.554Z",
+  "corpora": [
+    {
+      "source": "KNOWZY Generation-Ready Corpus (EVALUATION ONLY)",
+      "documents": 7,
+      "sections": 78,
+      "assessable": 76,
+      "attempted": 76,
+      "generated": 16,
+      "refused": 60,
+      "unresolved": 0,
+      "coveragePercent": 0.2105,
+      "questions": 16,
+      "evidence": {
+        "accepted": 16,
+        "strict": 16,
+        "exactSpans": 16,
+        "unverifiedRejections": 0,
+        "successRate": 1,
+        "meanSpanChars": 170
+      },
+      "duplicates": {
+        "flagged": 0,
+        "blocked": 0,
+        "dispositioned": 0,
+        "rate": 0,
+        "maxSimilarity": 0.483
+      },
+      "confidence": {
+        "mean": 0.71,
+        "min": 0.658,
+        "max": 0.76,
+        "components": {
+          "duplicateDistance": 0.632,
+          "evidenceMatchQuality": 0.945,
+          "metadataCompleteness": 1,
+          "modelDeclaredConfidence": 0.6,
+          "optionDistinctness": 0.168,
+          "sectionCoverageAdequacy": 0.815
+        }
+      },
+      "rejectionsByReason": {
+        "INSUFFICIENT_EVIDENCE": 60
+      }
+    },
+    {
+      "source": "KNOWZY Imported Question Banks",
+      "documents": 1,
+      "sections": 1,
+      "assessable": 1,
+      "attempted": 0,
+      "generated": 0,
+      "refused": 0,
+      "unresolved": 1,
+      "coveragePercent": 0,
+      "questions": 0,
+      "evidence": {
+        "accepted": 0,
+        "strict": 0,
+        "exactSpans": 0,
+        "unverifiedRejections": 0,
+        "successRate": null,
+        "meanSpanChars": null
+      },
+      "duplicates": {
+        "flagged": 0,
+        "blocked": 0,
+        "dispositioned": 0,
+        "rate": null,
+        "maxSimilarity": null
+      },
+      "confidence": {
+        "mean": null,
+        "min": null,
+        "max": null,
+        "components": {}
+      },
+      "rejectionsByReason": {}
+    },
+    {
+      "source": "KNOWZY Real-World Pilot SOP Corpus",
+      "documents": 30,
+      "sections": 238,
+      "assessable": 118,
+      "attempted": 93,
+      "generated": 4,
+      "refused": 89,
+      "unresolved": 25,
+      "coveragePercent": 0.0339,
+      "questions": 4,
+      "evidence": {
+        "accepted": 4,
+        "strict": 4,
+        "exactSpans": 4,
+        "unverifiedRejections": 0,
+        "successRate": 1,
+        "meanSpanChars": 108
+      },
+      "duplicates": {
+        "flagged": 0,
+        "blocked": 0,
+        "dispositioned": 0,
+        "rate": 0,
+        "maxSimilarity": 0.594
+      },
+      "confidence": {
+        "mean": 0.741,
+        "min": 0.707,
+        "max": 0.778,
+        "components": {
+          "duplicateDistance": 0.722,
+          "evidenceMatchQuality": 0.936,
+          "metadataCompleteness": 1,
+          "modelDeclaredConfidence": 0.6,
+          "optionDistinctness": 0.256,
+          "sectionCoverageAdequacy": 0.869
+        }
+      },
+      "rejectionsByReason": {
+        "INSUFFICIENT_EVIDENCE": 89
+      }
+    },
+    {
+      "source": "Mock Support Operations",
+      "documents": 4,
+      "sections": 17,
+      "assessable": 17,
+      "attempted": 10,
+      "generated": 0,
+      "refused": 4,
+      "unresolved": 13,
+      "coveragePercent": 0,
+      "questions": 0,
+      "evidence": {
+        "accepted": 0,
+        "strict": 0,
+        "exactSpans": 0,
+        "unverifiedRejections": 0,
+        "successRate": null,
+        "meanSpanChars": null
+      },
+      "duplicates": {
+        "flagged": 0,
+        "blocked": 0,
+        "dispositioned": 0,
+        "rate": null,
+        "maxSimilarity": null
+      },
+      "confidence": {
+        "mean": null,
+        "min": null,
+        "max": null,
+        "components": {}
+      },
+      "rejectionsByReason": {
+        "INSUFFICIENT_EVIDENCE": 1
+      }
+    }
+  ]
+}

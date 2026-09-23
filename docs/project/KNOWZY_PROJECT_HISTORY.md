@@ -1646,3 +1646,103 @@ through** -- the integration suites share the dev database and delete `draft_que
 own fixtures. The suites clean up after themselves and the gotcha is documented, but the cost lands
 on whoever is using the app at the time. CLAUDE.md now says so where the other execution gotchas
 are.
+
+---
+
+## Pre-Claude preparation: reconciliation, a measured baseline, and the acceptance suite
+
+**2026-09-23.** Three items, in this order because each depended on the one before being honest.
+
+### A. What the status documents were claiming
+
+Four documents carried figures that had stopped being true. Every number was re-measured from the
+repository or the running stack rather than carried forward, and every correction is recorded with
+its reason in [`STATUS_RECONCILIATION_2026-09-23.md`](STATUS_RECONCILIATION_2026-09-23.md).
+
+The corrections that matter: **728 tests across 32 files** (not 634 across 26), **55 API routes**
+(not 48), **47 permission keys** (not 46), **8 migrations** (not 7) — and the two claims that
+had become actively misleading:
+
+- *"No test drives the UI. A broken screen is found by a person."* True when written, false now.
+- *"Request T-29 — it has no drafted request anywhere."* The request was written the day before.
+  What it needs is **sending**, which is not an engineering action, so the task now says so.
+
+One thing was deliberately left as an unknown rather than upgraded: eleven commits were pushed and
+**the CI result has never been read from this machine.** An unread run is not a pass.
+
+### B. The baseline, and a denormalized claim that outlived its question
+
+Before re-measuring, the two corpora reported **20 covered sections while the database held zero
+generated questions.** `document_section.coverage_status` is a cached claim, the integration suites
+delete `draft_question` rows, and nothing clears the flag. A baseline taken in that state measures
+the memory of a run.
+
+So `scripts/baseline.ts` gained `--reset`, which clears the state as a stated measurement
+precondition, refuses to delete published lineage, and leaves imported questions alone — an
+imported bank is a real duplicate comparator, and removing it would flatter the numbers.
+
+Measured from a reset state, through the real API with the full gate chain
+([`RealWorldPilot/Baseline/`](../../RealWorldPilot/Baseline/DeterministicBaseline.md)):
+
+| | SOP corpus | Generation-ready |
+| --- | ---: | ---: |
+| Assessable sections | 118 | 76 |
+| Questions accepted | **4** | **16** |
+| Coverage | **3.4%** | **21.1%** |
+| Evidence verification success | 100% | 100% |
+| Duplicate rate | 0% (max 0.594) | 0% (max 0.483) |
+| Composite confidence | 0.741 | 0.710 |
+| **`optionDistinctness`** | **0.256** | **0.168** |
+
+Three findings worth keeping:
+
+1. **The matched comparison is now 4 versus 16, not 0 versus 16.** The earlier capture accepted zero
+   from the SOP corpus because every section in scope had already been attempted. Same rule, same
+   request, clean state.
+2. **`optionDistinctness` is the predicted defect, measured.** It is the lowest component by a wide
+   margin while `evidenceMatchQuality` scores 0.94. The platform's own confidence signal already
+   knows the four options are near-copies of each other. A composite of 0.74 is 0.94 on the
+   mechanical half and 0.26 on the pedagogical half, averaged — so quoting the composite alone
+   overstates these questions.
+3. **The first version of the duplicate metric was wrong and looked right.** `maxSimilarityScore` is
+   written on every draft whatever the score, so counting non-null values reported a **100%**
+   duplicate rate on a corpus whose highest match was 0.483. It now applies the profile's flag
+   threshold, reports **0%**, and prints the highest observed score beside the rate — because a
+   rate with no maximum cannot be sanity-checked.
+
+Also measured, and recorded as a corpus-hygiene action: the SOP corpus is now **30 documents**, not
+28, because two question-bank files were dropped into the mirrored SOP folder. They are not SOPs and
+they inflate the denominator.
+
+### C. The 36-step script, in a browser
+
+`tools/e2e`, Playwright, ten tests across two projects, driving both portals against the running
+stack. Steps 1–9, 11–18 and 21–29. **Assertions are on outcomes, not on elements** —
+"the Synchronize button exists" is worth nothing.
+
+**Gate 13 is the reason the suite exists in this shape.** Separation of duties cannot be
+demonstrated by one session: it is a comparison of two identities. The spec claims a draft, submits
+it, presses Approve **as the author** and asserts the refusal by code, then asserts the status did
+**not** move — an approval that silently succeeded would satisfy a weaker test — then
+switches identity through the real picker and approves.
+
+Five selector traps cost real time and are recorded in
+[`tools/e2e/README.md`](../../tools/e2e/README.md) so nobody pays for them twice. Two are worth
+repeating here because they are properties of the product, not of Playwright:
+
+- **A disabled button's accessible name carries its reason.** `Button` renders `disabledReason` as
+  an sr-only span inside the button, so the name is `ApproveNot possible while ...`, and
+  `getByRole(name: 'Approve')` matches **three** buttons because the other reasons contain
+  "Available from here: APPROVED".
+- **Every decision is a server action behind `useActionState`, so it needs hydration.** A click that
+  lands too early does nothing and leaves no trace. The suite clicks, waits for the **server's**
+  state to move, and retries once; the assertion is still on the state, so a transition that never
+  happens still fails.
+
+The learner specs **provision their own precondition** — publishing questions and an assessment
+through the real workflow — rather than skipping when the database is empty. A skipped test
+reads like coverage in a summary, and the flow that most needed a browser test would never have run.
+
+One environment fact: `cdn.playwright.dev` is blocked on this network, so Playwright's bundled
+Chromium cannot be downloaded. The suite runs against the installed browser with
+`E2E_BROWSER_CHANNEL=chrome`, and CI should leave that unset.

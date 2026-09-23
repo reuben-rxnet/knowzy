@@ -127,7 +127,7 @@ const baseTs = [
 
 /**
  * @param {object} options
- * @param {'library'|'service'|'web'|'adapters'|'reporting'|'configuration'|'database'|'domain'|'testing'} options.kind
+ * @param {'library'|'service'|'web'|'adapters'|'reporting'|'configuration'|'database'|'domain'|'testing'|'e2e'} options.kind
  */
 export function knowzyConfig({ kind }) {
   /** @type {import('eslint').Linter.Config[]} */
@@ -145,7 +145,14 @@ export function knowzyConfig({ kind }) {
   }
 
   // C3 — @knowzy/configuration is the only reader of process.env.
-  if (kind !== 'configuration') {
+  //
+  // `e2e` is the second exemption, and a narrow one: the browser acceptance
+  // harness is not deployed and is not part of the product's configuration
+  // surface. It reads the URLs of the stack it drives and which installed
+  // browser to use. Routing those through @knowzy/configuration would declare
+  // test-runner settings as platform configuration keys, which is the opposite
+  // of what C3 is protecting.
+  if (kind !== 'configuration' && kind !== 'e2e') {
     restricted.push(...NO_PROCESS_ENV);
   }
 

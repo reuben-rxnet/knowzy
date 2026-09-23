@@ -76,21 +76,29 @@ Current Status:
   EXPERT on the attempt answered correctly. Gate 13 failed for the author and
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
-- npm run verify passes: typecheck 30/30, lint 19/19, build 19/19,
-  tests 634 passing + 12 todo across 26 files, boundaries 0 errors,
-  codegen contract clean, format clean.
+- npm run verify passes: typecheck 33/33, lint 21/21,
+  tests 728 passing + 12 todo across 32 files, boundaries 0 errors,
+  codegen contract clean, format clean. Re-counted 2026-09-23; see
+  docs/project/STATUS_RECONCILIATION_2026-09-23.md for what was stale.
+- npm run test:e2e passes: 10 browser acceptance tests across two projects,
+  driving both portals against the running stack. It is NOT part of verify —
+  it needs the stack up. On a network that blocks cdn.playwright.dev, run it
+  as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
 - The integration project is 189 of those tests, and until 2026-09-21 three of
   its suites (152 tests) only passed on a database where somebody had
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 7 migrations apply from empty; seed is idempotent. 0004 is PILOT-T2:
+- 8 migrations apply from empty; seed is idempotent. 0004 is PILOT-T2:
   section keys scoped per document, coverage split from generation outcome.
+  0008 splits SKIPPED from FAILED on a sync. Taxonomy administration needed
+  NO migration: Domain and Topic have carried every field since 0001.
 - Full docker compose stack verified: postgres, api, mcp, jobs, both web apps.
-- 19 of 36 MCP tools registered; 48 API routes, every one with a declared
+- 19 of 36 MCP tools registered; 55 API routes, every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
-  GET /authoring/questions/:id.
+  GET /authoring/questions/:id. Question import added 2, taxonomy
+  administration 5.
 
 Environment:
 
@@ -101,7 +109,11 @@ Still Open:
 - The UI is the MINIMUM that demonstrates the workflow. No dashboard, badges,
   certificates, reports, or assessment builder (assessment creation is one form
   on the Publish page). See MVP-READINESS.md 7.1 for the full exclusion list.
-- No test drives the UI. A broken screen is found by a person, not the build.
+- The UI IS driven by tests now (tools/e2e, Playwright): sources, generation,
+  review, gate 13, publish, and the learner attempt including resume and
+  scoring. What it does NOT cover is named in tools/e2e/README.md —
+  refreshers, the revalidation queue, the audit surfaces and the second-tab
+  sequence conflict, because the platform does not implement them.
 - No live Claude call. Generation uses a deterministic local generator and
   records modelId = knowzy-deterministic-local-1. Question QUALITY has never
   been tested against Claude, which is the product's actual purpose.
@@ -110,13 +122,17 @@ Still Open:
   and all five image builds (an unresolvable action tag). Both fixed and
   verified locally. The trivy SCAN itself has still never executed against an
   image, so a base-image CVE could be the next red.
+- 11 commits were pushed on 2026-09-23 and THE RESULT OF THAT RUN IS UNKNOWN
+  from this machine: `gh` is not installed and the repository is private, so
+  the Actions tab has to be read by a person. An unread run is not a pass.
 - Deferred with reasons in docs/SECURITY-EXCEPTIONS.md: Next.js 15 -> 16 and
   Vitest 2 -> 5. Major upgrades whose advisories are not reachable here; both
   entries expire 2026-12-31.
 - phase-1-validation is an old branch and can be deleted.
-- No automated end-to-end test. docs/initial-end-to-end-proof.md section 3
-  defines a 36-step acceptance script; the equivalent has only ever been run
-  by hand.
+- The 36-step acceptance script (docs/initial-end-to-end-proof.md section 3)
+  is automated for the built surface: steps 1-9, 11-18 and 21-29. The rest
+  need capability that does not exist and are listed as exclusions rather
+  than written as skipped tests, because a skipped test reads like coverage.
 - Tenant values still required before Phase 7 — see
   docs/assumptions-and-tenant-configuration.md
 - 9 recorded deviations from the design docs, each asserted by a test — see
@@ -124,14 +140,22 @@ Still Open:
 
 Next Immediate Task:
 
-1. Request T-29 (Anthropic processor approval). It is the longest-lead item on
-   the critical path and has no drafted request anywhere.
-2. Measure the blind-stem baseline on the published questions, and aggregate
-   `confidenceComponents` — neither needs a key or an approval. See
-   docs/integrations/LIVE_CLAUDE_EVALUATION_PLAN.md section 9.
-3. Automate the 36-step acceptance script before any adapter is swapped.
-4. Wire the live Claude generator behind the existing QuestionGenerator port
-   (packages/claude-services/src/generator.ts) and run the recorded comparison.
+1. SEND the T-29 request. It is drafted at
+   docs/integrations/T29_PRIVACY_LEGAL_REQUEST.md and nobody in Privacy,
+   Legal, InfoSec or Data Governance has seen it. Longest lead time on the
+   critical path, and not an engineering action.
+2. Read the CI result for the 2026-09-23 push. Eleven commits went up and the
+   outcome has never been read from this machine (`gh` absent, repo private).
+3. Measure blind-stem answerability on the published questions. The
+   confidence-component half of this is DONE and recorded in
+   docs/integrations/LIVE_CLAUDE_EVALUATION_PLAN.md section 2.5; the
+   blind-stem half needs a person and no credential.
+4. Build the budget and cost layer (LIVE_CLAUDE_IMPLEMENTATION_PLAN.md
+   section 6). It must ship WITH the Claude client, not after it, and it can
+   be built now against the deterministic generator.
+5. Wire the live Claude generator behind the existing QuestionGenerator port
+   (packages/claude-services/src/generator.ts) and run the recorded
+   comparison. Blocked on T-29 and T-28.
 
 Working Commands:
 
@@ -321,6 +345,24 @@ Things to know:
 - `question.import` is its own permission key, not a reuse of
   `question.generate`: importing brings in content written outside the
   platform, which a tenant may reasonably allow or forbid separately.
+
+## Browser acceptance tests
+
+tools/e2e, Playwright, driving both portals against the RUNNING STACK. Read
+tools/e2e/README.md before touching it: it records five selector traps that
+cost real time, including that a disabled button's accessible name carries its
+`disabledReason`, and that the publish checkboxes arrive pre-checked inside
+their labels so `check()` toggles them OFF.
+
+- `npm run test:e2e` (stack must be up). NOT part of `npm run verify`.
+- `cdn.playwright.dev` is blocked on this network, so the bundled Chromium
+  cannot be downloaded: run with `E2E_BROWSER_CHANNEL=chrome`. CI should leave
+  it unset and use the bundled browser.
+- `workers: 1`, always. The suite drives one shared database through the real
+  workflow.
+- The learner specs PROVISION their precondition (publish questions, create
+  and publish an assessment) rather than skipping. A skipped test reads like
+  coverage in a summary.
 
 ## Taxonomy
 

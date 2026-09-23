@@ -64,7 +64,7 @@ platform-side logic is complete and tested; only the external adapter is absent.
 | Component | Rating | What exists | What a pilot still needs |
 | --- | --- | --- | --- |
 | **Identity** | Partially built | `SubjectResolver` port; local stub issuer, which **throws if constructed outside `local`**; roles and scopes resolved from the database per request (ADR-011); account status re-checked per request | `createEntraResolver()` is a stub that throws. **Any non-local deployment fails every request today.** This is the single hardest gate in the workstream |
-| **Authorization** | Production-ready | Closed `PermissionKey` union (46 keys); seeded role matrix; 48 API routes each with a declared policy, asserted by a build-failing registry test; 13 approval gates re-evaluated server-side at every transition | Nothing structural. Entra group → role *provisioning* is additive and never authorizes (ADR-011, T-06) |
+| **Authorization** | Production-ready | Closed `PermissionKey` union (**47 keys**); seeded role matrix (14 roles); **55 API routes** each with a declared policy, asserted by a build-failing registry test; 13 approval gates re-evaluated server-side at every transition. **Taxonomy is now managed through the product** under `taxonomy.manage` — domains and topics were seed-only until 2026-09-22 | Nothing structural. Entra group → role *provisioning* is additive and never authorizes (ADR-011, T-06) |
 | **Knowledge Sources** | Ready behind a mock | `KnowledgeSourceAdapter` contract written for SharePoint: containers, folder hierarchy, delta via opaque `STATE_CHECKPOINT`, `getEffectiveAccess` with a first-class `UNKNOWN`, capability negotiation, both permission modes, `writeCapable: false` as the literal type. Mock adapter runs the **real extractors over real files** and satisfies a reusable conformance suite | `SharePointKnowledgeSourceAdapter` — zero lines exist. Roadmap Phase 7 |
 | **Question Bank** | Ready behind a mock | `QuestionBankAdapter` port with **required** `ifMatch`, `operationKey` idempotency, and **no delete method** — governance rule G7 enforced by the type system. Mock persists to JSON and is conformance-tested. `PublishedQuestionReference` projection populated | `SharePointQuestionBankAdapter`, field-mapping profile validation, list provisioning, reconciliation. Roadmap Phase 8 |
 | **Question Generation** | Ready behind a mock | The **entire gate chain is model-agnostic and built**: nonce-delimited untrusted framing with a zero tool grant, Zod output schema, evidence verification (STRICT exact / STANDARD ≥0.95 trigram), option integrity, six-component composite confidence, rejection taxonomy, prompt-version records on jobs and questions | A `QuestionGenerator` whose `kind` is `'anthropic'`. The port already declares that variant. No Anthropic SDK is a dependency of any workspace |
@@ -75,10 +75,18 @@ platform-side logic is complete and tested; only the external adapter is absent.
 ### 1.3 What the pilot can honestly claim today
 
 Everything on mock adapters, in a browser, with no tenant credentials: source configuration and
-synchronization, document browsing, governed generation with refusals, draft review, approval under
-separation of duties, publication to a reusable bank with idempotency, assessment publication with a
-pinned pool, and a scored learner attempt with resume. `npm run verify` is green — typecheck 30/30,
-lint 19/19, boundaries 0 errors, codegen clean, **501 tests across 23 files**; `build` 19/19.
+synchronization, document browsing, governed generation with refusals, **question-bank import under
+the same gates**, **taxonomy administration**, draft review, approval under separation of duties,
+publication to a reusable bank with idempotency, assessment publication with a pinned pool, and a
+scored learner attempt with resume.
+
+`npm run verify` is green — typecheck 33/33, lint 21/21, boundaries 0 errors, codegen clean,
+**728 tests passed and 12 todo across 32 files**. `npm run test:e2e` is green — **10 browser
+acceptance tests** driving both portals against the running stack.
+
+Figures re-counted on 2026-09-23;
+[STATUS_RECONCILIATION_2026-09-23.md](STATUS_RECONCILIATION_2026-09-23.md) records what was stale
+and why.
 
 ### 1.4 What the pilot cannot claim, and must not imply
 
@@ -86,9 +94,14 @@ lint 19/19, boundaries 0 errors, codegen clean, **501 tests across 23 files**; `
 - **Question quality has never been tested against a model.** Generation is deterministic and
   records `modelId = knowzy-deterministic-local-1`. Quality is the product's actual purpose and it
   is the one thing the MVP did not evaluate.
-- **No automated test drives the UI.** A broken screen is found by a person.
-  [initial-end-to-end-proof.md](../initial-end-to-end-proof.md) §3 defines a 36-step acceptance
-  script; the equivalent has only ever been run by hand.
+- ~~**No automated test drives the UI.**~~ **Corrected 2026-09-23.** `tools/e2e` drives both
+  portals in a browser: sources, generation, review, **gate 13**, publication, and a learner
+  attempt including resume and scoring — steps 1–9, 11–18 and 21–29 of
+  [initial-end-to-end-proof.md](../initial-end-to-end-proof.md) §3. What it still does **not**
+  cover, because the platform does not implement it: refreshers (30–31), the revalidation queue
+  (32–33), the audit surfaces (35–36), the second-tab sequence conflict (26), and forcing
+  `SOURCE_NOT_CONFIGURED` by removing a credential (3). Those are named exclusions rather than
+  skipped tests, because a skipped test reads like coverage.
 - **The container image vulnerability scan has never executed.** CI's trivy step has not once run
   against a built image, so a base-image CVE is an unknown, not an absence.
 - **Reporting does not exist.** See §1.2.
@@ -282,7 +295,7 @@ nothing depends on an untested assumption.
 
 | # | Action | Why first |
 | --- | --- | --- |
-| 0a | Request **T-29** (Anthropic legal approval) and **T-22** (`Sites.Selected` Write) | Both are approvals with external owners on the critical path. Neither is blocked by any code. Every week these wait is a week added to the end |
+| 0a | **SEND** the drafted **T-29** request ([T29_PRIVACY_LEGAL_REQUEST.md](../integrations/T29_PRIVACY_LEGAL_REQUEST.md), written 2026-09-22, **not yet sent**) and request **T-22** (`Sites.Selected` Write) | Both are approvals with external owners on the critical path. Neither is blocked by any code, and the T-29 request is now written — what remains is a person sending it. Every week these wait is a week added to the end |
 | 0b | Request the T-01..T-05 registrations and per-site **Read** grants (T-16) | Lead time, not effort |
 | 0c | Make CI's **trivy image scan actually execute** | It has never run. A base-image CVE found in week 1 is a patch; found at pilot launch it is a delay. Cheapest risk reduction available |
 | 0d | Automate the 36-step acceptance script from `initial-end-to-end-proof.md` §3 | This is the regression net for everything that follows. Replacing a mock adapter with a real one is exactly the change a hand-run script will not catch reliably |

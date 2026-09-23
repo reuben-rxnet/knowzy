@@ -1,0 +1,19 @@
+{
+  "name": "@knowzy/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint tests playwright.config.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "install:browser": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@knowzy/eslint-config": "*",
+    "@knowzy/tsconfig": "*",
+    "@playwright/test": "^1.48.0",
+    "typescript": "^5.6.3"
+  }
+}

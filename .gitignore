@@ -20,3 +20,8 @@ fixtures/bank/.state/
 .DS_Store
 Thumbs.db
 *.log
+
+# Playwright, from tools/e2e
+tools/e2e/test-results/
+tools/e2e/playwright-report/
+tools/e2e/blob-report/

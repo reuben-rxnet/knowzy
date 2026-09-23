@@ -72,7 +72,13 @@ limit is the generator, not the selection and not the corpus. That is the findin
 exists to act on.
 
 
-### 2.4 The deterministic baseline, measured on both corpora (2026-09-22)
+### 2.4 The deterministic baseline, first capture (2026-09-22)
+
+> **Superseded as the control by §2.5**, which re-measures from a reset state and adds the four
+> metrics this capture does not carry. This section is kept because the two runs disagree in a way
+> that is itself a finding: §2.4 was taken on a database whose sections had already been attempted
+> by earlier runs, so its "matched run" accepted **zero** questions from the SOP corpus. That is a
+> property of the accumulated state, not of the corpus.
 
 Captured with `npx tsx scripts/baseline.ts`, through the real API with the full unmodified gate
 chain. **This is Arm A.** Both runs used the same selection rule (documents ranked by ASSESSABLE
@@ -117,6 +123,126 @@ The restructured corpus accepted **16** from material with the same operational 
 | Mean evidence span | 108 chars | 170 chars |
 | Mean composite confidence | 0.742 | 0.710 |
 | Evidence refusals in these runs | 0 | 0 |
+
+---
+
+### 2.5 The deterministic baseline, re-measured from a reset state (2026-09-23)
+
+**This is Arm A.** Captured with:
+
+```
+npx tsx scripts/baseline.ts --reset "<source>"
+npx tsx scripts/baseline.ts --generate "<source>"
+npx tsx scripts/baseline.ts --report --json RealWorldPilot/Baseline/deterministic-baseline.json \
+                                     --markdown RealWorldPilot/Baseline/DeterministicBaseline.md
+```
+
+Artifacts: [`RealWorldPilot/Baseline/DeterministicBaseline.md`](../../RealWorldPilot/Baseline/DeterministicBaseline.md)
+and the machine-readable
+[`deterministic-baseline.json`](../../RealWorldPilot/Baseline/deterministic-baseline.json). Every
+figure below is a query against the database after a real run through the real API with the full
+unmodified gate chain.
+
+#### Why a reset was necessary, and what it revealed
+
+`document_section.coverage_status` is a **denormalized claim that outlives the question it refers
+to.** The integration suites delete `draft_question` rows and nothing clears the flag, so before
+this run the two corpora reported **20 covered sections while the database held zero generated
+questions.** A baseline taken in that state measures the memory of a run.
+
+`scripts/baseline.ts --reset` therefore clears `coverage_status`, the attempt counter and the
+outcome fields, and deletes `acquisition = 'GENERATED'` drafts for one source. It refuses to touch
+published lineage, and it leaves imported questions in place deliberately — an imported bank is a
+real duplicate comparator, and removing it would flatter the numbers.
+
+#### Section accounting
+
+| | Original SOP corpus | Generation-ready corpus |
+| --- | ---: | ---: |
+| Documents | 30 | 7 |
+| Sections | 238 | 78 |
+| **Assessable** | **118** | **76** |
+| Attempted (this run's scope) | 93 | 76 |
+| **Generated** | **4** | **16** |
+| Refused | 89 | 60 |
+| Unresolved (outside the 10-document cap) | 25 | 0 |
+| **Coverage** (generated / assessable) | **3.4%** | **21.1%** |
+
+Two deltas against §2.4, both explained rather than reconciled away:
+
+- **The SOP corpus grew from 28 documents to 30.** The customer's Word quiz and their filled-in
+  XLSX question-bank template were dropped into the mirrored SOP folder and are now synchronized as
+  documents. They are **not SOPs**, and they raise the assessable denominator from 115 to 118. They
+  belong in the folder the `KNOWZY Imported Question Banks` source reads; until they move, the SOP
+  coverage figure is understated by their presence.
+- **This run accepted 4 from the SOP corpus where §2.4's matched run accepted 0.** The earlier run
+  had nothing left to attempt. From a reset state the honest matched comparison is **4 versus 16** —
+  still a 4× difference, and now measured under identical conditions.
+
+#### Evidence verification
+
+| | Original | Generation-ready |
+| --- | ---: | ---: |
+| Accepted questions | 4 | 16 |
+| Verified under `STRICT` | 4 of 4 | 16 of 16 |
+| Exact quotation (similarity 1.000) | 4 | 16 |
+| `EVIDENCE_UNVERIFIED` rejections | 0 | 0 |
+| **Evidence verification success** | **100%** | **100%** |
+
+100% is expected and is **not a quality signal**: the deterministic generator copies the section's
+own sentence as the correct option, so the span is verbatim by construction. The number's value is
+as a control — it says the verification path is working, so a drop under Arm B is attributable to
+the model rather than to the checker.
+
+#### Duplicates
+
+| | Original | Generation-ready |
+| --- | ---: | ---: |
+| Flagged (≥ 0.750, the profile's threshold) | 0 | 0 |
+| Blocked (≥ 0.920) | 0 | 0 |
+| **Duplicate rate** | **0%** | **0%** |
+| Highest similarity observed | 0.594 | 0.483 |
+
+The highest score on any accepted draft sits well below the flag threshold, so this corpus produced
+no near-duplicates at all. Worth stating because the first version of this measurement counted
+every draft carrying a non-null `maxSimilarityScore` and reported **100%** — `maxSimilarityScore` is
+written on every draft whatever the score, so the flag threshold has to be applied explicitly.
+
+#### Confidence, including the component that matters
+
+| | Original | Generation-ready |
+| --- | ---: | ---: |
+| Mean composite | 0.741 | 0.710 |
+| Min / max | 0.707 / 0.778 | 0.658 / 0.760 |
+| `evidenceMatchQuality` | 0.936 | 0.945 |
+| `sectionCoverageAdequacy` | 0.869 | 0.815 |
+| `duplicateDistance` | 0.722 | 0.632 |
+| `modelDeclaredConfidence` | 0.600 | 0.600 |
+| **`optionDistinctness`** | **0.256** | **0.168** |
+
+**This is the §8.2 prediction, measured.** `optionDistinctness` is the lowest component by a wide
+margin — 0.17 to 0.26 out of 1.0, carrying weight 0.20 — while evidence quality scores 0.94. The
+platform's own confidence signal already knows what §2.2 argues: the four options are near-copies
+of each other, because every distractor is a mutation of the correct answer.
+
+Two consequences for this evaluation:
+
+1. **The signal is trustworthy enough to screen with.** It scored the weakness it was supposed to
+   score, on questions that pass every gate. `optionDistinctness` is therefore a legitimate
+   pre-registered metric for Arm B rather than a metric that needs fixing first.
+2. **A composite of 0.74 is not a quality endorsement.** It is 0.94 on the mechanical part and 0.26
+   on the pedagogical part, averaged. Any report quoting the composite alone will overstate these
+   questions, and the §9 metric table now carries the component breakdown for that reason.
+
+#### Rejections
+
+| Reason | Original | Generation-ready |
+| --- | ---: | ---: |
+| `INSUFFICIENT_EVIDENCE` | 89 | 60 |
+| Everything else | 0 | 0 |
+
+Every refusal in both runs is the generator declining to invent a question — the behaviour rule 5 of
+the prompt asks for. No candidate was rejected by a gate in either run.
 
 **Every accepted question in both arms is an exact, character-for-character quotation.** The one
 `EVIDENCE_UNVERIFIED` refusal recorded in `CorpusManifest.md` §4.4 came from a pre-PILOT-T2 run and
@@ -301,17 +427,18 @@ trusted.
 
 | # | Metric | Definition | Source | Arm A baseline |
 | --- | --- | --- | --- | --- |
-| 1 | **Accepted questions** | Drafts persisted after the full gate chain | `GenerationJob.acceptedQuestionCount` | 3 over three jobs |
-| 2 | **Yield per assessable section** | Accepted ÷ assessable sections in scope | Job + `DocumentSection` | 3 / 93 ≈ 0.03 |
-| 3 | **Insufficiency rate** | Sections reporting nothing testable ÷ sections in scope | `insufficientSections` on the job | 97 / 93 (some sections reported twice across jobs) |
-| 4 | **Evidence refusal rate** | `EVIDENCE_UNVERIFIED` ÷ candidates emitted | `GenerationJobRejection` | 1 of 4 candidates |
-| 5 | **Evidence quality** | §6.3 | `DraftQuestion.evidenceSimilarityScore`, span length | 1.000 exact (verbatim by construction) |
-| 6 | **Coverage** | Assessable sections with ≥ 1 accepted question ÷ assessable sections in scope. **Computed for this evaluation, not read from `coveragePercent`** — see §3.1 | Recomputed from `DraftQuestion.sectionKey` | 3 of 93 ≈ 3% |
-| 7 | **Duplicate rate** | §6.4 | `GenerationJobRejection` reason `DUPLICATE`, `maxSimilarityScore` | 0 blocked; 2 suppressed pre-emptively |
+| 1 | **Accepted questions** | Drafts persisted after the full gate chain | `GenerationJob.acceptedQuestionCount` | **4** (SOP) · **16** (generation-ready), §2.5 |
+| 2 | **Yield per assessable section** | Accepted ÷ assessable sections in scope | Job + `DocumentSection` | 4 / 93 ≈ **0.043** · 16 / 76 ≈ **0.211** |
+| 3 | **Insufficiency rate** | Sections reporting nothing testable ÷ sections in scope | `insufficientSections` on the job | 89 / 93 ≈ **96%** · 60 / 76 ≈ **79%** |
+| 4 | **Evidence refusal rate** | `EVIDENCE_UNVERIFIED` ÷ candidates emitted | `GenerationJobRejection` | **0 of 4** · **0 of 16** — 100% verification success |
+| 5 | **Evidence quality** | §6.3 | `DraftQuestion.evidenceSimilarityScore`, span length | 1.000 exact on every draft (verbatim by construction) |
+| 6 | **Coverage** | Assessable sections with ≥ 1 accepted question ÷ assessable sections in scope. **Computed for this evaluation, not read from `coveragePercent`** — see §3.1 | Recomputed from `DraftQuestion.sectionKey` | **3.4%** (4 / 118 assessable) · **21.1%** (16 / 76) |
+| 7 | **Duplicate rate** | §6.4 | `GenerationJobRejection` reason `DUPLICATE`, `maxSimilarityScore` | **0%** both corpora; highest similarity 0.594 / 0.483 against a 0.750 flag threshold |
 | 8 | **Blind-stem answerability** | §6.1 | Manual | **Not yet measured — the §3.3 prerequisite** |
 | 9 | **SME quality score** | §6.2 rubric | Blind review sheet | Not yet measured |
 | 10 | **Approval rate** | Approved ÷ submitted, in the real queue | `QuestionApproval` | 3 of 3 (n too small to mean anything) |
-| 11 | **Cost per accepted question** | §6.6 | Job tokens × price config | 21,354 in / 1,084 out for 3 questions |
+| 11 | **Cost per accepted question** | §6.6 | Job tokens × price config | 21,561 in / 1,084 out for 4 (SOP) · 18,203 / 5,784 for 16 |
+| 11a | **Confidence components** | The six weighted values behind the composite | `DraftQuestion.confidenceComponents` | Composite **0.741** / **0.710**; `optionDistinctness` **0.256** / **0.168** — the measured §8.2 prediction |
 | 12 | **Reviewer time per accepted question** | Wall clock, recorded by the SME | Manual | Not measured |
 
 Metric 12 is not in the brief and matters commercially: a generator producing 40 questions of which 8
@@ -487,7 +614,7 @@ Iterating the prompt is legitimate. Iterating the decision rule is not.
 | # | Step | Blocked on T-29 |
 | --- | --- | --- |
 | 1 | Fix §3.1 coverage, §3.2 prompt version. Add the contract gates | No |
-| 2 | Measure the blind-stem baseline on the 3 published questions; aggregate `confidenceComponents` | No |
+| 2 | ~~Aggregate `confidenceComponents`~~ **DONE 2026-09-23** (§2.5). Blind-stem answerability on the published questions is still outstanding | No |
 | 3 | Pin the §4.3 scope. Record the resolved section keys | No |
 | 4 | Run Arm A on a clean database. Record every metric | No |
 | 5 | Implement the Anthropic generator (implementation plan §3–7), including budgets | **Yes** |

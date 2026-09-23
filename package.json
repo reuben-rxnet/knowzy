@@ -40,7 +40,9 @@
     "db:migrate:status": "prisma migrate status --schema packages/database/prisma/schema.prisma",
     "db:validate": "prisma validate --schema packages/database/prisma/schema.prisma",
     "test:packages": "turbo run test",
-    "assets:sync": "tsx scripts/sync-design-assets.ts"
+    "assets:sync": "tsx scripts/sync-design-assets.ts",
+    "test:e2e": "npm run test:e2e -w @knowzy/e2e",
+    "test:e2e:install": "npm run install:browser -w @knowzy/e2e"
   },
   "devDependencies": {
     "@knowzy/eslint-config": "*",

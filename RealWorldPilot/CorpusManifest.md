@@ -603,3 +603,35 @@ cumulative 4 came from earlier runs over the sections that contain a modal verb.
 
 **These figures supersede every coverage percentage recorded above §8** and are the control arm the
 Claude comparison will be measured against.
+
+---
+
+## 9. Re-measured baseline (2026-09-23)
+
+**The figures above are the 2026-09-22 capture and are superseded as the control arm** by
+[`Baseline/DeterministicBaseline.md`](Baseline/DeterministicBaseline.md), re-measured from a reset
+state so it records a run rather than accumulated state. The machine-readable form is
+[`Baseline/deterministic-baseline.json`](Baseline/deterministic-baseline.json), and
+`docs/integrations/LIVE_CLAUDE_EVALUATION_PLAN.md` §2.5 explains every delta.
+
+What changed, and why:
+
+|                                     |   2026-09-22 |                                                                          2026-09-23 | Why                                                                                                                                                  |
+| ----------------------------------- | -----------: | ----------------------------------------------------------------------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SOP documents                       |           28 |                                                                              **30** | Two question-bank files (a Word quiz and an XLSX template) were dropped into the mirrored SOP folder and are now synchronized. **They are not SOPs** |
+| SOP assessable sections             |          115 |                                                                             **118** | The same two files                                                                                                                                   |
+| SOP questions accepted, matched run |            0 |                                                                               **4** | The earlier run had already attempted every section in scope. From a reset state the honest comparison is 4 versus 16                                |
+| Evidence verification success       | not measured |                                                                     **100% / 100%** | New metric                                                                                                                                           |
+| Duplicate rate                      | not measured |        **0% / 0%**, highest similarity 0.594 / 0.483 against a 0.750 flag threshold | New metric                                                                                                                                           |
+| Confidence components               | not measured | `optionDistinctness` **0.256 / 0.168** against `evidenceMatchQuality` 0.936 / 0.945 | New metric, and the finding that matters                                                                                                             |
+
+### 9.1 Two corpus-hygiene actions this measurement produced
+
+1. **Move the two question-bank files out of the SOP mirror.** `VisionStar Support Knowledge
+Assessment Quiz.docx` and `Quiz_Question_Bank_Template.xlsx` live under `SOPs/SOPs/` and are
+   being counted as SOP material. They belong in the folder the `KNOWZY Imported Question Banks`
+   source reads. Until they move, SOP coverage is understated by their presence.
+2. **The credential-shaped string in a login SOP is still there.** Recorded in
+   `docs/integrations/T29_PRIVACY_LEGAL_REQUEST.md` §9.3 and open as **Q6** for Information
+   Security and Data Governance. It is in the platform's database today and in an imported answer
+   option, independent of any model.
