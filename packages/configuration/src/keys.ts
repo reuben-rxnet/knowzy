@@ -61,6 +61,51 @@ const positiveInt = z.number().int().positive();
  * reporting.md §7.
  */
 export const CONFIG_KEYS = {
+  // ------------------------------------------------- source administration
+  /**
+   * Directories a FILE_REPOSITORY source may be pointed at.
+   *
+   * PLATFORM_ONLY and empty by default, which is the whole point: registering
+   * a source names a path the service will read, so the set of legal paths is
+   * deployment configuration rather than something a form may widen. An empty
+   * list means no local source can be registered at all.
+   */
+  'sources.allowedLocalRoots': decl({
+    key: 'sources.allowedLocalRoots',
+    description:
+      'Absolute directories a file-repository source may read. Empty means none, which is the safe default.',
+    schema: z.array(z.string().min(1)).max(20),
+    defaultValue: [],
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  /**
+   * How often the scheduler looks for due synchronizations.
+   *
+   * The tick is not the schedule: a DAILY source runs once a day whatever this
+   * is. It bounds how late a due run can start, and 5 minutes keeps that
+   * visible without making the queue busy.
+   */
+  'sources.schedulerTickMinutes': decl({
+    key: 'sources.schedulerTickMinutes',
+    description:
+      'How often the scheduler checks for due synchronizations. Bounds lateness, not frequency.',
+    schema: z.number().int().min(1).max(60),
+    defaultValue: 5,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  /** Attempts a scheduled synchronization gets before it is left exhausted. */
+  'sources.scheduledSyncMaxAttempts': decl({
+    key: 'sources.scheduledSyncMaxAttempts',
+    description:
+      'Attempts for a scheduled synchronization before the job is exhausted and left for an operator.',
+    schema: z.number().int().min(1).max(10),
+    defaultValue: 3,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
   // ---------------------------------------------------------- generation
   'generation.maxDocumentsPerJob': decl({
     key: 'generation.maxDocumentsPerJob',

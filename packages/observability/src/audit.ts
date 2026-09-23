@@ -76,8 +76,36 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     // distinguish "something went wrong" from "the configuration excluded it".
     'skipped',
     'extractedChars',
+    // The scheduler's fields on a completed run, so a scheduled sync and a
+    // manual one are distinguishable years later.
+    'trigger',
+    'scheduleMode',
   ],
-  'ADMIN.SOURCE.SYNC_FAILED': ['mode', 'scanned', 'failed', 'skipped'],
+  // Source workflow administration (SYNC-M2). Every key here is configuration
+  // or a count -- never a credential, never a connection string. `changedFields`
+  // is what makes an UPDATED row readable years later, and `hadLineage` records
+  // why a DELETE was permitted at all.
+  'ADMIN.SOURCE.CREATED': ['sourceType', 'scheduleMode', 'isActive'],
+  'ADMIN.SOURCE.UPDATED': ['changedFields', 'scheduleMode', 'timezone'],
+  'ADMIN.SOURCE.ACTIVATED': ['isActive', 'connectionStatus'],
+  'ADMIN.SOURCE.DEACTIVATED': ['isActive', 'connectionStatus'],
+  'ADMIN.SOURCE.ARCHIVED': ['sourceType', 'documents', 'draftQuestions', 'publishedQuestions'],
+  'ADMIN.SOURCE.DELETED': ['sourceType', 'hadLineage'],
+  'ADMIN.SOURCE.PATH_MODIFIED': ['change', 'containerName', 'folderPath'],
+  'ADMIN.SOURCE.SYNC_STARTED': ['trigger', 'scheduleMode'],
+  'ADMIN.SOURCE.SYNC_FAILED': [
+    'mode',
+    'scanned',
+    'failed',
+    'skipped',
+    // The scheduler's own fields. `reaped` marks a run closed out because
+    // the process that owned it died -- see the reaper in apps/jobs.
+    'trigger',
+    'scheduleMode',
+    'exhaustedAfterAttempts',
+    'reaped',
+    'ageMinutes',
+  ],
   'ADMIN.FEATUREFLAG.ENABLED': ['key', 'environment', 'ceiling'],
   'ADMIN.FEATUREFLAG.DISABLED': ['key', 'environment'],
   'ADMIN.FEATUREFLAG.ROLLOUT_CHANGED': ['key', 'environment'],

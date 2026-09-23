@@ -245,3 +245,40 @@ export {
   type TaxonomyMappingChoice,
   type TaxonomyResolution,
 } from './taxonomy/import-mapping.js';
+
+export {
+  describeSchedule,
+  dueRunKey,
+  intervalMsOf,
+  isDue,
+  nextRunAt,
+  requireSchedule,
+  scheduleOf,
+  MANUAL_SCHEDULE,
+  ScheduleInvalidError,
+  SyncScheduleSchema,
+  SYNC_SCHEDULE_MODES,
+  type SyncSchedule,
+  type SyncScheduleMode,
+} from './sync/schedule.js';
+
+export {
+  addSourcePath,
+  createSource,
+  hasLineage,
+  isWithinRoot,
+  lineageOf,
+  modifySourcePath,
+  requireAllowedLocalRoot,
+  retireSource,
+  setSourceActive,
+  updateSource,
+  SourceAdminError,
+  type CreateSourceArgs,
+  type LineageCounts,
+  type PathArgs,
+  type SourceActor,
+  type SourceAdminDeps,
+  type SourceRow,
+  type UpdateSourceArgs,
+} from './sync/source-administration.js';

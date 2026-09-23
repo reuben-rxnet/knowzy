@@ -13,7 +13,9 @@ import { generationRoutes } from './generation.js';
 import { learningRoutes } from './learning.js';
 import { questionImportRoutes } from './question-import.js';
 import { reviewRoutes } from './review.js';
+import { sourceAdministrationRoutes } from './source-administration.js';
 import { sourceRoutes } from './sources.js';
+import { syncManagerRoutes } from './sync-manager.js';
 import { taxonomyRoutes } from './taxonomy.js';
 import { whoamiRoutes } from './whoami.js';
 
@@ -25,4 +27,6 @@ export const ALL_ROUTES: readonly KnowzyRoute[] = [
   ...reviewRoutes,
   ...learningRoutes,
   ...taxonomyRoutes,
+  ...sourceAdministrationRoutes,
+  ...syncManagerRoutes,
 ];

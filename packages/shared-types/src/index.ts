@@ -14,3 +14,4 @@ export * from './subject.js';
 export * from './envelope.js';
 export * from './normalize.js';
 export * from './question-bank-port.js';
+export * from './sync-schedule.js';
