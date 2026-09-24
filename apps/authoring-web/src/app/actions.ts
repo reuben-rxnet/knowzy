@@ -36,6 +36,13 @@ export interface ActionState {
   readonly ok: boolean;
   readonly problem?: ApiProblem;
   readonly data?: unknown;
+  /**
+   * True when a write REMOVED something rather than setting it — today, a
+   * provider's limit override. The screen has to say which happened: "saved"
+   * for an override that now applies and "cleared" for one that no longer
+   * does are different outcomes, and a single "done" hides the difference.
+   */
+  readonly removed?: boolean;
 }
 
 const failed = (problem: ApiProblem): ActionState => ({ ok: false, problem });
@@ -506,4 +513,44 @@ export const setTopicActiveAction = async (
   });
   revalidatePath('/administration/taxonomy');
   return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+// ------------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+/**
+ * Sets, or clears, a provider's token ceilings.
+ *
+ * An EMPTY field is omitted rather than sent as 0. That distinction is the
+ * whole interface: omitting a field leaves the platform ceiling in place, and
+ * sending 0 forbids generation for that provider. A form that coerced blanks to
+ * zero would silently switch a provider off.
+ */
+export const setProviderLimitsAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const providerId = String(formData.get('providerId') ?? '');
+  const numeric = (field: string): Record<string, number> => {
+    const raw = String(formData.get(field) ?? '').trim();
+    if (raw.length === 0) return {};
+    const value = Number(raw);
+    return Number.isFinite(value) ? { [field]: value } : {};
+  };
+
+  const body = {
+    ...numeric('perJobTokenBudget'),
+    ...numeric('dailyTokenBudget'),
+    ...numeric('weeklyTokenBudget'),
+    ...numeric('monthlyTokenBudget'),
+    ...numeric('concurrency'),
+  };
+
+  const result = await api<{ removed: boolean }>(
+    `/api/v1/authoring/governance/ai-usage/providers/${providerId}/limits`,
+    { method: 'PUT', body },
+  );
+  revalidatePath('/governance/ai-usage');
+  return result.ok
+    ? { ok: true, data: result.data, removed: result.data.removed }
+    : failed(result.problem);
 };

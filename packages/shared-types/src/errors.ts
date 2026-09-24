@@ -260,6 +260,29 @@ export const ERROR_REGISTRY = {
     message: 'The generation budget for this period has been used.',
     retryable: false,
   },
+  PROVIDER_NOT_APPROVED: {
+    category: 'VALIDATION',
+    status: 422,
+    // Separate from PROVIDER_CREDENTIAL_UNAVAILABLE because the remedy is
+    // completely different: one needs a key, this one needs a signature. A
+    // single "unavailable" would send an operator hunting for a credential
+    // that is already present.
+    message:
+      'No data-processing approval is recorded for that provider, so it cannot be used for generation.',
+    retryable: false,
+  },
+  GENERATION_CONCURRENCY_LIMIT: {
+    category: 'THROTTLED',
+    status: 429,
+    message: 'Too many generation jobs are already running. Try again when one finishes.',
+    retryable: true,
+  },
+  PROVIDER_RETRY_EXHAUSTED: {
+    category: 'UPSTREAM',
+    status: 503,
+    message: 'The provider kept failing and the retry limit was reached, so the job was stopped.',
+    retryable: true,
+  },
 
   // ------------------------------- validation — candidate rejection reasons
   SCHEMA_INVALID: {

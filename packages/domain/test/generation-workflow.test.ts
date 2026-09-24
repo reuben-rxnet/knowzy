@@ -31,6 +31,7 @@ import {
   runPreflight,
   type GenerationProfileSettings,
 } from '../src/index.js';
+import { testControl } from './control-layer-fixture.js';
 
 const DATABASE_URL = process.env['DATABASE_URL'];
 const describeDb = DATABASE_URL ? describe : describe.skip;
@@ -305,6 +306,7 @@ describeDb('generation workflow', () => {
       profile: created.profile,
       requestedQuestionCount: created.requestedQuestionCount,
       ...(generator === undefined ? {} : { generator }),
+      control: testControl(),
       context: {
         jobId: created.jobId,
         sourceId: created.sourceId,

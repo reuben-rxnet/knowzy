@@ -203,6 +203,9 @@ enum QuestionAcquisition {
 enum GenerationProviderId {
   DETERMINISTIC_LOCAL
   ANTHROPIC
+  /// Declared 2026-09-24. Declared is not registered: it carries capabilities
+  /// so the platform can state why it cannot be used yet.
+  OPENAI
   MICROSOFT_COPILOT
   AZURE_OPENAI
   GEMINI
@@ -302,9 +305,42 @@ enum JobState {
   SUCCEEDED
   PARTIAL
   FAILED
+  /// A control-layer DECISION, not a failure: a budget, a concurrency cap, an
+  /// unapproved provider, an exhausted retry. Distinct from FAILED so refusals
+  /// can be counted without counting outages.
+  REFUSED
   CANCELLED
 
   @@map("job_state")
+}
+
+/// Why the AI Generation Control Layer declined to run a job -- architecture.md
+/// §9.0. Closed: a refusal always names the control that fired.
+enum GenerationRefusalReason {
+  PROVIDER_NOT_REGISTERED
+  PROVIDER_BLOCKED_BY_CONFIGURATION
+  PROVIDER_BLOCKED_BY_APPROVAL
+  PROVIDER_BLOCKED_BY_CAPABILITY
+  PROVIDER_UNAVAILABLE
+  EXECUTION_MODE_UNSUPPORTED
+  PER_JOB_TOKEN_BUDGET_EXCEEDED
+  DAILY_TOKEN_BUDGET_EXHAUSTED
+  WEEKLY_TOKEN_BUDGET_EXHAUSTED
+  MONTHLY_TOKEN_BUDGET_EXHAUSTED
+  CONCURRENCY_LIMIT_REACHED
+  RETRY_LIMIT_EXHAUSTED
+
+  @@map("generation_refusal_reason")
+}
+
+/// One attempt against a provider. Retries produce more than one per job.
+enum GenerationCallOutcome {
+  SUCCEEDED
+  FAILED
+  RATE_LIMITED
+  REFUSED
+
+  @@map("generation_call_outcome")
 }
 
 enum RejectionReason {
@@ -1337,7 +1373,24 @@ model GenerationJob {
   status                 JobState             @default(QUEUED)
   inputTokens            Int                  @default(0) @map("input_tokens")
   outputTokens           Int                  @default(0) @map("output_tokens")
+  /// --- cost accounting ----------------------------------------------------
+  /// NULL means "no cost could be known", never "free". Written only where the
+  /// provider reports cost AND the run was platform-managed; the deterministic
+  /// provider is the one case where 0 is a measurement rather than a claim.
   estimatedCost          Decimal?             @map("estimated_cost") @db.Decimal(12, 6)
+  /// A cost the provider itself reported, where it does. Kept apart from the
+  /// estimate so a comparison can show the two diverging instead of one
+  /// quietly overwriting the other.
+  measuredCost           Decimal?             @map("measured_cost") @db.Decimal(12, 6)
+  /// Whether a cost was observable at all. A null cost with this false is an
+  /// honest absence; a null cost with this true would be a defect.
+  costObservable         Boolean              @default(false) @map("cost_observable")
+  /// Attempts made, including the first. 0 until a call is attempted.
+  attemptCount           Int                  @default(0) @map("attempt_count")
+  /// --- refusal ------------------------------------------------------------
+  /// Set only with status REFUSED, and then always set.
+  refusalReason          GenerationRefusalReason? @map("refusal_reason")
+  refusalDetail          String?              @map("refusal_detail")
   startedAt              DateTime?            @map("started_at") @db.Timestamptz(6)
   completedAt            DateTime?            @map("completed_at") @db.Timestamptz(6)
   durationMs             Int?                 @map("duration_ms")
@@ -1352,6 +1405,7 @@ model GenerationJob {
   promptVersion PromptVersion           @relation("GenerationJobPromptVersion", fields: [promptVersionId], references: [id], onDelete: Restrict)
   documents     GenerationJobDocument[] @relation("GenerationJobDocumentJob")
   rejections    GenerationJobRejection[] @relation("GenerationJobRejectionJob")
+  providerCalls GenerationProviderCall[] @relation("GenerationProviderCallJob")
   questions     DraftQuestion[]         @relation("DraftQuestionGenerationJob")
   questionSets  QuestionSet[]           @relation("QuestionSetOriginJob")
 
@@ -1383,6 +1437,51 @@ model GenerationJobDocument {
   @@unique([jobId, documentId])
   @@index([documentId])
   @@map("generation_job_document")
+}
+
+/// One row per ATTEMPT against a generation provider -- the unit of token and
+/// cost accounting, and the sample set for provider health and metrics.
+///
+/// Per attempt rather than per job, because a retry spends tokens too. A budget
+/// that ignored retries would not be a budget, and a health signal derived from
+/// job outcomes alone cannot see that a job succeeded on its third try.
+model GenerationProviderCall {
+  id                 String                @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  jobId              String                @map("job_id") @db.Uuid
+  providerId         GenerationProviderId  @map("provider_id")
+  /// The provider's own version string, where it reported one.
+  providerVersion    String?               @map("provider_version")
+  modelId            String                @map("model_id")
+  executionMode      GenerationExecutionMode @map("execution_mode")
+  /// 1 for the first call. Unique per job so a replay cannot double-count.
+  attempt            Int
+  outcome            GenerationCallOutcome
+  inputTokens        Int                   @default(0) @map("input_tokens")
+  outputTokens       Int                   @default(0) @map("output_tokens")
+  tokenUsageReported Boolean               @default(false) @map("token_usage_reported")
+  estimatedCost      Decimal?              @map("estimated_cost") @db.Decimal(12, 6)
+  measuredCost       Decimal?              @map("measured_cost") @db.Decimal(12, 6)
+  costObservable     Boolean               @default(false) @map("cost_observable")
+  /// Null when the attempt never started a timer -- a refusal before the call.
+  latencyMs          Int?                  @map("latency_ms")
+  /// The classified failure, never the provider's own error body (V5).
+  errorClass         String?               @map("error_class")
+  refusalReason      GenerationRefusalReason? @map("refusal_reason")
+  /// WHO ran it, and whose entitlement paid. The same person in practice, a
+  /// different fact in principle.
+  requestedByUserId  String?               @map("requested_by_user_id") @db.Uuid
+  onBehalfOfUserId   String?               @map("on_behalf_of_user_id") @db.Uuid
+  correlationId      String                @map("correlation_id")
+  startedAt          DateTime              @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt        DateTime?             @map("completed_at") @db.Timestamptz(6)
+
+  job GenerationJob @relation("GenerationProviderCallJob", fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, attempt])
+  @@index([providerId, startedAt(sort: Desc)])
+  @@index([startedAt(sort: Desc)])
+  @@index([outcome])
+  @@map("generation_provider_call")
 }
 
 /// Rejected candidates are NOT persisted as questions; this table is the
@@ -1575,6 +1674,12 @@ model DraftQuestion {
   @@index([generationJobId])
   @@index([domainId, topicId, status])
   @@index([similarityClusterId])
+  /// Declared 2026-09-24 to close pre-existing DRIFT: migration 0006 created
+  /// this index and the model never declared it, so `prisma migrate diff`
+  /// wanted to DROP it and the CI drift gate failed on every run. The index is
+  /// wanted -- the review queue filters imported from generated -- so the
+  /// model is corrected rather than the index dropped.
+  @@index([acquisition])
   /// Stage-2 duplicate candidate blocking (generation-governance.md §4.4), the
   /// trigram index migration 0003 creates. Same reason as above: the drift gate
   /// compares the migrations against this file.

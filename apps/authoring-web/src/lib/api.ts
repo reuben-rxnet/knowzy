@@ -46,7 +46,7 @@ export type ApiResult<T> =
   { readonly ok: true; readonly data: T } | { readonly ok: false; readonly problem: ApiProblem };
 
 interface CallOptions {
-  readonly method?: 'GET' | 'POST' | 'PATCH';
+  readonly method?: 'GET' | 'POST' | 'PATCH' | 'PUT';
   readonly body?: unknown;
   readonly idempotencyKey?: string;
 }

@@ -124,12 +124,27 @@ describe('provider selection cannot bypass governance', () => {
   });
 
   it('records the provider that actually ran, not the one configured', () => {
-    // `providerId` is destructured from the provider's RESULT, so a provider
-    // that returned a different identity than the profile requested is
-    // recorded honestly. The equality assertion belongs with the Anthropic
-    // client (implementation plan §3.1); this asserts the value's origin.
+    // `providerId` is destructured from the CALL'S RESULT, so a provider that
+    // returned a different identity than the profile requested is recorded
+    // honestly. The equality assertion belongs with the Anthropic client
+    // (implementation plan 3.1); this asserts the value's origin.
     expect(service).toMatch(/providerId,\s*\n/);
-    expect(service).toContain('await provider.generate(');
+    // Updated 2026-09-24: the call moved behind the control layer, so the
+    // provenance comes from `controlled.result` rather than from a direct
+    // `provider.generate(`. Same property, one indirection later.
+    expect(service).toContain('= controlled.result;');
+    expect(service).toContain('await invokeWithControls(');
+  });
+
+  it('puts EVERY generation call through the control layer', () => {
+    // A ceiling that applies only to the providers that cost money is a
+    // ceiling that has never run, so the service must have no direct provider
+    // call left...
+    expect(service).not.toContain('await provider.generate(');
+    // ...and the control layer must be a REQUIRED argument. `control?:` would
+    // make every budget optional, and the caller most likely to omit it is a
+    // future one wiring a provider that bills per token.
+    expect(service).toMatch(/readonly control:\s*\{/);
   });
 });
 

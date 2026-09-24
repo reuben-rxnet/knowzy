@@ -33,12 +33,33 @@ export type Identity = (typeof IDENTITY)[keyof typeof IDENTITY];
  * what is being tested.
  */
 export const actAs = async (page: Page, identity: Identity): Promise<void> => {
+  const label = new RegExp(identityLabel(identity), 'i');
   await page.goto('/');
-  await page.getByRole('radio', { name: new RegExp(identityLabel(identity), 'i') }).check();
-  await page.getByRole('button', { name: /switch identity/i }).click();
-  await expect(
-    page.getByRole('radio', { name: new RegExp(identityLabel(identity), 'i') }),
-  ).toBeChecked();
+
+  // STRENGTHENED 2026-09-24. This used to click and then assert the radio was
+  // checked -- which the click itself guarantees, so a switch that never
+  // reached the server still read as success. It was invisible while every
+  // spec switched only to identities whose pages look the same when the switch
+  // fails, and it surfaced the moment one asserted a REFUSAL: the page rendered
+  // as the administrator, the refusal never appeared, and the test blamed the
+  // page.
+  //
+  // The assertion is now on the SHELL's acting-as label, which is server state,
+  // with one retry -- the switch is a server action and a click landing before
+  // hydration does nothing and leaves no trace.
+  for (const attempt of [1, 2]) {
+    await page.getByRole('radio', { name: label }).check();
+    await page.getByRole('button', { name: /switch identity/i }).click();
+    try {
+      await expect(page.locator('header').getByText(label).first()).toBeVisible({
+        timeout: 10_000,
+      });
+      return;
+    } catch (error) {
+      if (attempt === 2) throw error;
+      await page.goto('/');
+    }
+  }
 };
 
 /** The label the picker shows for a UPN, matched loosely enough to survive a rename. */
@@ -49,7 +70,16 @@ const identityLabel = (identity: Identity): string => {
     case IDENTITY.secondAdministrator:
       return 'second approver';
     case IDENTITY.author:
-      return 'Quiz Author';
+      // The picker's label is 'Author', not 'Quiz Author' -- the role's display
+      // name and its seeded role key are different strings, and this helper had
+      // the role key. Nothing used this branch until 2026-09-24, so the drift
+      // was invisible. Anchored, because an unanchored 'Author' would also be
+      // matched by a future 'Co-Author'.
+      // Matched against TWO different strings: the picker's accessible name,
+      // which is the label plus its description ('Author Browse documents...'),
+      // and the shell's acting-as label, which is the bare word. Hence the
+      // alternation rather than a trailing space.
+      return '^Author( |$)';
     case IDENTITY.approver:
       return 'Approver';
     case IDENTITY.publisher:

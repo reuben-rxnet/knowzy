@@ -294,7 +294,9 @@ can prove which prompt version and which sections were used, not replay the exac
 
 ### 6.4 Which generator ran is an audited configuration decision
 
-The switch will be a declared configuration key (`generation.generatorKind`), resolved through the
+The switch is a declared configuration key (`llm.activeProvider` — renamed from
+`generation.generatorKind` on 2026-09-24 to keep one configuration family; same control,
+same audit record), resolved through the
 audited configuration layer — explicitly **not** "call Claude if a credential happens to be
 present", because that would make a key rotation or a vault misconfiguration silently change which
 generator produced a question.
@@ -452,7 +454,7 @@ milestone are **COMMITTED**.
 | M9 | **Spend controls.** Per-job input-token ceiling enforced *before* the call, a daily token budget across jobs, concurrency capped at 1 for the pilot, retries only on 429/5xx with jittered backoff counting against the budget | **COMMITTED** — currently absent, and required in the same milestone |
 | M10 | **Generator choice is audited configuration**, not credential presence (§6.4) | **COMMITTED** |
 | M11 | **Provenance integrity.** The recorded `PromptVersion.body` is derived from the framing code and hash-pinned; the model id is constructed from the generation profile, with a test asserting the recorded id equals the configured one | **BUILT** for the prompt hash, **COMMITTED** for the per-profile construction |
-| M12 | **Kill switch.** Setting `generation.generatorKind` back to `deterministic-local` stops all model calls without a deployment, and the change is audited | **COMMITTED** |
+| M12 | **Kill switch.** Setting `llm.activeProvider` back to `deterministic-local` stops all model calls without a deployment, and the change is audited | **COMMITTED** |
 | M13 | **Identical gate chain for both generators.** No per-provider thresholds, ever, so nothing is relaxed to accommodate model output | **BUILT** and asserted |
 
 ### 10.1 Residual risks that no control removes

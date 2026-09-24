@@ -67,9 +67,11 @@
     "AUTHORING.GENERATION.JOB_CANCELLED",
     "AUTHORING.GENERATION.JOB_COMPLETED",
     "AUTHORING.GENERATION.JOB_FAILED",
+    "AUTHORING.GENERATION.JOB_REFUSED",
     "AUTHORING.GENERATION.JOB_STARTED",
     "AUTHORING.GENERATION.PREFLIGHT_RUN",
     "AUTHORING.GENERATION.PREFLIGHT_VIEW",
+    "AUTHORING.GENERATION.PROVIDER_CALL_RETRIED",
     "AUTHORING.GENERATION.REGENERATION_REQUESTED",
     "AUTHORING.GENERATION.REQUESTED",
     "AUTHORING.OBJECTIVE.CREATED",
@@ -305,6 +307,11 @@
       "retryable": false,
       "status": 403
     },
+    "GENERATION_CONCURRENCY_LIMIT": {
+      "category": "THROTTLED",
+      "retryable": true,
+      "status": 429
+    },
     "GENERATION_JUSTIFICATION_REQUIRED": {
       "category": "VALIDATION",
       "retryable": false,
@@ -405,6 +412,11 @@
       "retryable": false,
       "status": 422
     },
+    "PROVIDER_NOT_APPROVED": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
+    },
     "PROVIDER_NOT_GROUNDING_SAFE": {
       "category": "VALIDATION",
       "retryable": false,
@@ -414,6 +426,11 @@
       "category": "VALIDATION",
       "retryable": false,
       "status": 422
+    },
+    "PROVIDER_RETRY_EXHAUSTED": {
+      "category": "UPSTREAM",
+      "retryable": true,
+      "status": 503
     },
     "QUESTIONBANK_INDEX_MISSING": {
       "category": "CONFIGURATION",

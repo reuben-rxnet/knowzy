@@ -1861,3 +1861,104 @@ image build, trivy, and the demonstration data restored.
 pipeline is wired, because there is no approved target and no credentials. The deployment document
 states what a real deployment needs and stops there.
 
+---
+
+## AI-CONTROL-M1 — the AI Generation Control Layer, and the page that shows it
+
+| | |
+| --- | --- |
+| **Dates** | 2026-09-24 |
+| **Screen** | Governance → AI Usage & Budgets (`/governance/ai-usage`) |
+| **Specification** | [architecture.md §9.0](../architecture.md), amended in this change |
+
+Token and cost accounting, four token budgets, a concurrency cap, a retry policy, a provider state
+model, provider health and provider metrics — all **provider-independent**, all enforced on every
+provider including the deterministic one, and all validated against it. **No external provider was
+implemented and no credential is required.**
+
+### Step 0 was amending the specification, not writing code
+
+`docs/architecture.md` was explicitly single-provider — §9, the technology table, the C4 diagram and
+boundary rule B4 — and `/docs` outranks the code. The multi-provider design document had said so
+since 2026-09-22 (§0.3). So §9 was rewritten as **§9.0 Provider independence** with six numbered
+rules, and the amendment is recorded as an amendment rather than quietly applied. No provider-layer
+code preceded that paragraph existing.
+
+### The controls landed BEFORE the provider, which is strictly better
+
+The implementation plan said the budgets "land with the generator, in the same milestone, not after
+it". They landed **before** it. The whole layer was built and proven against a generator that cannot
+send a request anywhere, so the day a credential arrives the ceilings are already enforced and
+already tested rather than being written in the same week the first invoice could appear.
+
+Eleven integration tests make a control refuse and then assert three things a weaker test would
+skip: the job is `REFUSED` **not** `FAILED`, **no draft question was created**, and the audit row
+carries **no `_droppedKeys`** — which is the only version of an audit assertion worth writing, since
+the writer silently discards undeclared detail keys.
+
+### Six decisions worth recording
+
+1. **`REFUSED` is a new job state.** A control decision recorded as `FAILED` would count every
+   working budget as a defect in the very metrics that exist to show the controls holding.
+2. **An unobservable cost is NULL, never 0.** Zero claims a measurement; null says it could not be
+   known. A per-seat licence has no per-call price at any granularity, a user-managed run bills an
+   account the platform cannot read, and a missing price is not a free provider. The deterministic
+   generator is the one case where 0 is a fact, because it runs in process.
+3. **An aggregate refuses to mislead.** If any contributing run has no observable cost, the total is
+   reported as not observable with a count, because summing only the observable part presents an
+   undercount as a total — every number in it real and the answer wrong.
+4. **The accounting unit is the ATTEMPT**, one `generation_provider_call` row per call. That is what
+   makes "retries count against the budget" true rather than aspirational, and it gives provider
+   health real latency and failure samples.
+5. **Provider state has five values and the ORDER of the checks is the policy** — capability, then
+   approval, then implementation, then credential, most-permanent first. Reversing the first two
+   would send somebody to get Copilot approved for a use it can never satisfy.
+6. **`BLOCKED_BY_APPROVAL` is how T-29 becomes a control.** A provider with a working credential and
+   no recorded approval is refused, by name, in those words.
+
+### Configuration naming was reconciled rather than duplicated
+
+Three ceilings were already declared as `llm.dailyTokenBudget`, `llm.perJobTokenBudget` and
+`llm.concurrency` and read by nothing. Two plans described the same ceilings under two other naming
+schemes — `generation.maxInputTokensPerJob` and `generation.provider.<id>.dailyTokenBudget`. The
+DECLARED keys won and both plans were corrected, because a second family of names for the same
+ceiling is how two budgets end up half-enforced with the unwatched one in force. Thirteen keys were
+added in the same family, and the per-provider part is a VALUE (`llm.providerLimits`) rather than 25
+key names.
+
+### An administrator can now set a ceiling without a deployment
+
+Configuration was read-only in this platform: every ceiling had a code default and no write path.
+Now a KNOWZY Administrator sets per-provider token and concurrency limits from the page, stored in
+`application_configuration`, logged in `configuration_change`, and audited with previous and new
+value. Clearing every field REMOVES the override; setting 0 forbids generation — two different
+gestures, kept distinct so there is a way back to the default.
+
+### Two defects found, one of them long-standing
+
+**The CI drift gate had been failing on `main` since 2026-09-22, and this change found out why.**
+Migration 0006 created `draft_question_acquisition_idx` and `schema.prisma` never declared it, so
+`prisma migrate diff` wanted to DROP it and the gate exited non-zero on every run. It reproduced
+nowhere locally because the gate needs a shadow database that only CI creates. The index is wanted,
+so the MODEL was corrected and no SQL was needed: the gate was right and the model was wrong. The
+drift gate now exits 0.
+
+**The retry classifier relabelled a provider's failure as the platform's.** The first version tested
+`attempt >= maxAttempts` to decide whether a failure was retry exhaustion, so with `maxAttempts = 1`
+every `400` became `RETRY_LIMIT_EXHAUSTED` — putting a provider defect in the refusal metrics and
+telling an operator the platform gave up when it had been rejected. It now tests the error CLASS.
+Caught by the integration test asserting a client error is *not* a refusal.
+
+### What the page will not do
+
+No trends or deltas (no KPI history is stored, so none is computable), no spend forecast, no
+per-user quota, no sorting or free-text search, and no provider enablement — registering a provider
+is a code change plus an approval. Full detail:
+[`docs/governance/AI_USAGE_AND_BUDGETS.md`](../governance/AI_USAGE_AND_BUDGETS.md).
+
+### Validated
+
+`npm run verify` green: typecheck 34/34, lint 22/22, boundaries 0 errors, codegen clean, format
+clean, and the suite at **876 passing + 12 todo across 42 files** (80 new: 68 unit, 12 integration).
+Browser-validated on the running stack.
+

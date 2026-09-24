@@ -404,3 +404,26 @@ counts above cover the two learning portals only** and are unchanged by this sec
 | Two-way sync · sync deletes · write metadata | `DISABLED_IN_CURRENT_RELEASE` | Same |
 | SharePoint Graph source | `REQUIRES_BACKEND_EXTENSION` | Roadmap Phase 7 |
 | Deployment to a hosting target | `PLANNED` | Deployable; no approved target exists |
+
+---
+
+## Governance → AI Usage & Budgets (2026-09-24)
+
+The first governance screen with a backend behind it. Full detail:
+[`../governance/AI_USAGE_AND_BUDGETS.md`](../governance/AI_USAGE_AND_BUDGETS.md). The counts above
+are unchanged by this section.
+
+| Feature | Classification | Backing |
+| --- | --- | --- |
+| Eight KPIs | `IMPLEMENTED` | Counts over a 30-day window. `Not Yet Recorded` where nothing has been written, never 0 |
+| Budget windows with HEALTHY / WARNING / EXHAUSTED | `IMPLEMENTED` | `generation_provider_call` sums against the declared `llm.*` ceilings |
+| Provider table with five states and the reason | `IMPLEMENTED` | The registry over `PROVIDER_CATALOGUE`; every declared provider, including the unusable |
+| Provider health | `IMPLEMENTED` | Assessed over a 15-minute window, separately from availability. A refusal is not a failure sample |
+| Usage timeline by day / week / month | `IMPLEMENTED` | `generation_job` rows grouped in memory |
+| Generation history including refusals | `IMPLEMENTED` | With the acting person, the mode, the tokens, the cost and the refusal reason |
+| Per-provider token and concurrency limits, set from the page | `IMPLEMENTED` | `platform.configure`; the platform's first configuration write path, audited with previous and new value |
+| Cost per provider | `IMPLEMENTED`, and honest | Written only where observable. `Not observable` with the reason otherwise — a per-seat licence, a user-managed run, or no configured price |
+| Sorting, filtering, free-text search | `PARTIALLY_IMPLEMENTED` | The tables are real; client-side sort and search are not built |
+| Trends, deltas, spend forecast | `DISABLED_IN_CURRENT_RELEASE` | No KPI history is stored, so none is computable. Nothing on the page implies one |
+| Per-user or per-team quotas | `PLANNED` | Budgets are per platform and per provider today |
+| Any external provider | `REQUIRES_BACKEND_EXTENSION` | OpenAI, Anthropic, Azure OpenAI and Gemini are declared and `UNAVAILABLE`; Copilot is `BLOCKED_BY_CAPABILITY` |

@@ -9,7 +9,15 @@
 // are safe-and-inert.
 
 import { z } from 'zod';
-import type { ConfigurationScope } from '@knowzy/shared-types';
+import {
+  GenerationProviderSchema,
+  ProviderLimitsSchema,
+  TokenPriceSchema,
+  type ConfigurationScope,
+  type GenerationProviderId,
+  type ProviderLimits,
+  type TokenPrice,
+} from '@knowzy/shared-types';
 
 /** The layers of environment-and-configuration.md §3, highest precedence first. */
 export const CONFIG_LAYERS = [
@@ -427,6 +435,134 @@ export const CONFIG_KEYS = {
     description: 'Concurrent model calls across the job runner.',
     schema: z.number().int().min(1).max(32),
     defaultValue: 4,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+
+  // ------------------------------------------- the generation control layer
+  //
+  // architecture.md §9.0. These are the keys the AI Generation Control Layer
+  // reads; three of them (dailyTokenBudget, perJobTokenBudget, concurrency)
+  // predate it and are used AS DECLARED rather than re-declared under a second
+  // name — see the reconciliation note in
+  // docs/integrations/LIVE_CLAUDE_IMPLEMENTATION_PLAN.md §6.
+  'llm.weeklyTokenBudget': decl({
+    key: 'llm.weeklyTokenBudget',
+    description: 'Per-tenant seven-day token ceiling across all generation.',
+    schema: z.number().int().min(0),
+    defaultValue: 10_000_000,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.monthlyTokenBudget': decl({
+    key: 'llm.monthlyTokenBudget',
+    description: 'Per-tenant thirty-day token ceiling across all generation.',
+    schema: z.number().int().min(0),
+    defaultValue: 40_000_000,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.budgetWarningRatio': decl({
+    key: 'llm.budgetWarningRatio',
+    description: 'Utilization at which a budget window reports WARNING rather than HEALTHY.',
+    schema: proportion,
+    defaultValue: 0.8,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.activeProvider': decl({
+    key: 'llm.activeProvider',
+    // The kill switch. Setting it back to DETERMINISTIC_LOCAL stops every
+    // model call without a deployment, and the change is audited like any
+    // other configuration write.
+    description: 'Which generation provider the registry resolves for a job.',
+    schema: GenerationProviderSchema,
+    defaultValue: 'DETERMINISTIC_LOCAL' as const,
+    layers: PLATFORM_OR_PROFILE,
+    scopes: ['PLATFORM', 'PROFILE'],
+  }),
+  'llm.approvedProviders': decl({
+    key: 'llm.approvedProviders',
+    // A provider absent from this list is BLOCKED_BY_APPROVAL even with a
+    // working credential. This is how a data-processing approval (T-29) is a
+    // control rather than a promise: the platform cannot be talked into a
+    // provider nobody signed off.
+    description: 'Providers with a recorded data-processing approval.',
+    schema: z.array(GenerationProviderSchema),
+    defaultValue: ['DETERMINISTIC_LOCAL'] as const,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.providerLimits': decl({
+    key: 'llm.providerLimits',
+    // Per-provider OVERRIDES of the ceilings above, keyed by provider id. An
+    // absent entry means the platform ceiling applies; it never means
+    // unlimited.
+    description: 'Per-provider overrides of the token budgets and the concurrency cap.',
+    schema: z.record(GenerationProviderSchema, ProviderLimitsSchema),
+    defaultValue: {} as Partial<Record<GenerationProviderId, ProviderLimits>>,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.tokenPrices': decl({
+    key: 'llm.tokenPrices',
+    // Keyed by provider id or `PROVIDER:modelId`, most specific winning. An
+    // absent price means cost is NOT COMPUTED, and an uncomputed cost is
+    // recorded as null rather than zero.
+    description: 'Token prices per million, keyed by provider id or PROVIDER:modelId.',
+    schema: z.record(z.string(), TokenPriceSchema),
+    defaultValue: {} as Record<string, TokenPrice>,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.maxAttempts': decl({
+    key: 'llm.maxAttempts',
+    description: 'Total attempts per generation call, including the first.',
+    schema: z.number().int().min(1).max(10),
+    defaultValue: 3,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.retryBaseDelayMs': decl({
+    key: 'llm.retryBaseDelayMs',
+    description: 'First retry delay before jitter; doubles per attempt.',
+    schema: z.number().int().min(0).max(60_000),
+    defaultValue: 500,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.retryMaxDelayMs': decl({
+    key: 'llm.retryMaxDelayMs',
+    description: 'Ceiling on a single retry delay after backoff and jitter.',
+    schema: z.number().int().min(0).max(600_000),
+    defaultValue: 30_000,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.retryJitterRatio': decl({
+    key: 'llm.retryJitterRatio',
+    // 1.0 is full jitter: the delay is uniform in [0, backoff]. Full jitter is
+    // the default because synchronized retries across a batch are how one 429
+    // becomes a thundering herd.
+    description: 'Proportion of the backoff delay that is randomized. 1 is full jitter.',
+    schema: proportion,
+    defaultValue: 1,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.healthFailureThreshold': decl({
+    key: 'llm.healthFailureThreshold',
+    description: 'Failed calls within the health window before a provider reports FAILING.',
+    schema: positiveInt,
+    defaultValue: 3,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.healthWindowMinutes': decl({
+    key: 'llm.healthWindowMinutes',
+    description: 'Window over which provider health is assessed.',
+    schema: positiveInt,
+    defaultValue: 15,
     layers: PLATFORM_ONLY,
     scopes: ['PLATFORM'],
   }),

@@ -50,6 +50,7 @@ import {
   type PublishTarget,
   type ReviewDeps,
 } from '../src/index.js';
+import { testControl } from './control-layer-fixture.js';
 
 const DATABASE_URL = process.env['DATABASE_URL'];
 const describeDb = DATABASE_URL ? describe : describe.skip;
@@ -196,6 +197,7 @@ describeDb('review, approval, and publishing pipeline', () => {
       scope: created.resolvedScope,
       profile: created.profile,
       requestedQuestionCount: 1,
+      control: testControl(),
       context: {
         jobId: created.jobId,
         sourceId: created.sourceId,

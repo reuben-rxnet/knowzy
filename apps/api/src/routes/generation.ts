@@ -16,9 +16,11 @@ import { z } from 'zod';
 import { GenerationExecutionModeSchema, GenerationProviderSchema } from '@knowzy/shared-types';
 import type { FastifyReply } from 'fastify';
 import type { ErrorCode } from '@knowzy/shared-types';
+import { loadControlLayer } from '../generation/control-layer.js';
 import {
   ContentDriftError,
   createGenerationJob,
+  GenerationRefusedError,
   GenerationPreconditionError,
   GenerationScopeEmptyError,
   GenerationSelectionRequiredError,
@@ -79,6 +81,12 @@ const replyFromGenerationError = (
   }
   if (error instanceof GenerationPreconditionError) {
     return problemReply(reply, ctx, instance, error.code as ErrorCode, error.message);
+  }
+  if (error instanceof GenerationRefusedError) {
+    // A control-layer DECISION, already recorded on the job as REFUSED with its
+    // reason. The detail carries the limit and the observed value, because an
+    // author told only "budget exhausted" cannot plan around it.
+    return problemReply(reply, ctx, instance, error.code, error.detail);
   }
   throw error;
 };
@@ -321,9 +329,14 @@ export const generationRoutes = [
           requestingUserId: ctx.subject.userId,
         });
 
+        // The control layer, resolved for this request: budgets, concurrency,
+        // the retry policy and the prices, all from the declared llm.* keys.
+        const control = await loadControlLayer(deps.prisma);
+
         const result = await runGenerationJob({
           prisma: deps.prisma,
           provider,
+          control: { registry: control.registry, settings: control.settings },
           executionMode: requestedMode,
           onBehalfOfUserId: requestedMode === 'USER_MANAGED' ? ctx.subject.userId : null,
           clock: systemClock,

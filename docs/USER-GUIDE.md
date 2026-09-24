@@ -1,9 +1,10 @@
 # Knowzy — User Guide
 
 **Applies to:** the local demonstration build with the Question Acquisition Framework
-(provider-based generation and question import), taxonomy administration and the SharePoint Sync
-Manager, including PILOT-T1, PILOT-T2, UI-M3 and SYNC-M1..M4
-**Last updated:** 2026-09-23
+(provider-based generation and question import), taxonomy administration, the SharePoint Sync
+Manager and the AI Generation Control Layer, including PILOT-T1, PILOT-T2, UI-M3, SYNC-M1..M4 and
+AI-CONTROL-M1
+**Last updated:** 2026-09-24
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -542,6 +543,82 @@ mapping profiles, badge definitions, the Question Bank target — has no backend
 exists in the data model, and the operation that rewrites every reference in one transaction does
 not. Deactivate the wrong one instead.
 
+### 4.3c AI Usage & Budgets — `/governance/ai-usage`
+
+**Governance → AI Usage & Budgets.** Who generation is costing, how close it is to a ceiling, which
+providers exist and whether they work. Open to anyone holding **report.read** — a Reporting User, a
+Report Publisher, a Manager, an Auditor or the KNOWZY Administrator.
+
+It works now, before any paid provider is connected, because the deterministic generator runs
+through exactly the same accounting. What you are looking at is real, small, and zero-cost.
+
+**The rule this screen follows and the reason it matters:** every figure is a count of records that
+exist. Where nothing has been recorded it says **Not Yet Recorded**. Where a cost cannot be known it
+says **Not observable** — never `0.00`, which would claim a measurement nobody took. And there are
+no trends anywhere, because no history of these numbers is stored to compare against.
+
+**Eight figures**, then four panels:
+
+- **Providers registered** and **available**. Available means four things at once: a client exists in
+  this build, a data-processing approval is recorded, the credential resolves, and the provider does
+  not do its own retrieval. Today that is one provider.
+- **Total generations**, **questions generated**, **estimated tokens**, **active authors** — counts
+  over the last 30 days.
+- **Remaining daily budget** and **budget utilization**, from the ceilings below.
+
+**Budget windows.** Daily, weekly and monthly, in **tokens** rather than money, each showing budget,
+used, remaining and a state: `HEALTHY`, `WARNING` (at 80%) or `EXHAUSTED`. Weekly and monthly are
+rolling 7- and 30-day spans, and the screen says so rather than implying a calendar month. One thing
+to know: these windows count what the control layer recorded **per attempt**, which starts on
+2026-09-24 — so a job generated before that appears in the figures above and not in these windows.
+The panel says this too.
+
+**Providers.** Every provider the platform declares, including the ones it will not use, each with
+its state and **the reason beside it**:
+
+| State | What it means for you |
+| --- | --- |
+| `AVAILABLE` | Usable now |
+| `BLOCKED_BY_CAPABILITY` | It retrieves its own context, so it cannot ground a question in the documents you selected. Nothing configurable changes this |
+| `BLOCKED_BY_APPROVAL` | No data-processing approval is recorded. A signature, not an engineering task |
+| `UNAVAILABLE` | No client for it exists in this build yet |
+| `BLOCKED_BY_CONFIGURATION` | Its credential does not resolve here |
+
+A provider that has never run shows **Not reported yet** for its version, because there is no
+version to claim.
+
+**Usage timeline.** Generation grouped by day, week or month — requests, questions, tokens and cost.
+
+**Generation history.** The most recent jobs with the person, the provider, the mode, the tokens, the
+cost and the outcome — **including the ones that were refused**, with the reason. A refusal is not a
+failure: it is the platform deciding, and it reads as `REFUSED` rather than `FAILED`.
+
+#### Setting a token limit for a provider
+
+If you hold **platform.configure** (the KNOWZY Administrator), each provider row has **Set limits**.
+You can cap, for that provider alone: the per-job ceiling, the daily, weekly and monthly ceilings,
+and how many jobs may run at once.
+
+Two things to get right:
+
+- **Leave a field empty to keep the platform ceiling.** An empty field is not zero.
+- **Clearing every field removes the override; setting 0 forbids generation** for that provider.
+  Those are deliberately different gestures, so there is always a way back to the default.
+
+A per-job ceiling above the daily ceiling is refused, because no job could ever run under it.
+
+The change takes effect on the **next job**, is recorded in the configuration change log with its
+previous and new value, and is audited.
+
+#### What you will see when a ceiling stops a job
+
+Generation refuses with the numbers in it — for example *"The daily budget is 2,000,000 tokens,
+1,980,400 are spent, and this job needs about 31,000 more. It resets at …"* — and the job is
+recorded as **REFUSED** with that reason. Nothing is silently trimmed: the platform does not quietly
+generate five questions because twenty would have breached a ceiling.
+
+---
+
 ### 4.4 Draft review queue — `/review`
 
 Five views of the same list, at five points in the question's life:
@@ -895,6 +972,11 @@ that failed. The ones you are most likely to meet:
 | `DOCUMENT_CONTENT_DRIFT` | The document changed after the scope was captured | Synchronize and run preflight again |
 | `STATE_TRANSITION_INVALID` | The question is not in a state that allows this | The message names the transitions that are available |
 | `SEPARATION_OF_DUTIES` (gate 13) | You are trying to approve your own work | Switch to the approver identity |
+| `BUDGET_EXCEEDED` | A per-job, daily, weekly or monthly token ceiling would be breached | The message names the ceiling, what is spent and when it resets (§4.3c) |
+| `GENERATION_CONCURRENCY_LIMIT` | Too many generation jobs are already running for that provider | Wait for one to finish |
+| `PROVIDER_NOT_APPROVED` | No data-processing approval is recorded for the provider | Not an engineering fix: the approval has to exist, then be recorded |
+| `PROVIDER_NOT_GROUNDING_SAFE` | The provider retrieves its own context | It cannot be used for grounded generation at all |
+| `PROVIDER_RETRY_EXHAUSTED` | The provider kept failing and the attempt cap was reached | The job stopped rather than looping |
 | `VALIDATION_FAILED` | A required field or comment is missing | The detail names the field |
 | `PORTAL_ACCESS_DENIED` | This identity has no access to this portal | Switch identity |
 | `NOT_FOUND` | It does not exist, or is outside your scope | Both read the same on purpose |
@@ -969,7 +1051,7 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | **SharePoint over Graph** | Not connected. Graph SharePoint calls return 403 until a tenant administrator consents, so the Graph adapter is still Phase 7. **A locally synchronized mirror of an approved SharePoint folder can be read today** through a file-repository source — real documents, but access is enforced by Knowzy rather than by SharePoint (§4.1) |
 | **The Question Bank** | A local JSON file behind the same port the SharePoint adapter will implement. Phase 8 |
 | **Claude** | Generation uses a deterministic local generator that quotes documents verbatim and passes through the same gates. Question *quality* has never been tested against a model |
-| **Dashboards and reporting** | Not built. They need the Phase 10 read models |
+| **Dashboards and reporting** | Not built, with ONE exception now real: **Governance → AI Usage & Budgets** (§4.3c) reports token usage, cost, budget consumption and provider health from records that exist. The rest of reporting needs the Phase 10 read models |
 | **Badges and certificates** | Not built |
 | **Refreshers** | Not built |
 | **The assessment builder** | One form on the Publish page, not the specified builder |
@@ -1005,5 +1087,6 @@ the log below.
 | 2026-09-22 | Import on real files | **The first two real question banks were fed in, and both were refused for reasons that were the platform’s fault rather than the files’.** Fixed, in §4.3a: a spreadsheet may leave its trailing columns blank (a fifteen-column template with twelve filled imported nothing before, and now imports every row); `OptionA`, `CorrectAnswer`, `AnswerKey`, `QuestionText`, `Justification` and `SourceDocument` are recognised as column names; a Word bank whose four options sit on one line is read; and a decoration in front of `Correct Answer:` — a tick, a bullet, a dash — no longer hides the answer. A Word bank with no explanation per question is still refused, and §4.3a now says so before you try. Also: a spreadsheet cell whose own text contains ` - ` is reported with the value it found rather than mis-split. On §4.1, **skipped** is now counted and listed apart from **failed**: a file outside this source’s configured folder is the configuration working, not an error |
 | 2026-09-22 | Decision panel | **A decision the lifecycle cannot reach is now disabled and says why** (§4.5), and the panel names the next step available from the current state. All five decisions used to be offered on every question, so pressing **Submit for approval** on a draft returned `STATE_TRANSITION_INVALID` — which reads as missing access and never was: a draft has to be claimed first. A state block and a permission block are now worded differently, because one is an order of operations and the other is an identity. Where gate 13 currently refuses an approval, a note beside **Approve** says so. §4.5 also states plainly what full access does and does not grant a KNOWZY Administrator |
 | 2026-09-22 | Taxonomy administration | **Domains and topics can now be created and edited** (§4.3b, **Administration → Knowledge Domains**), which is the first Administration screen with a backend behind it. Before this the platform held one seeded domain and one seeded topic and offered no way to add a second, so an imported VisionStar question bank was filed under Support Operations. A domain code is editable only while nothing references the domain and then shows as **Permanent** with the counts that locked it; a topic belongs to exactly one domain and is unique within it; nothing can be deleted, only deactivated. **Import now files each question where the FILE says it belongs** (§4.3a) and refuses a file naming taxonomy that does not exist, rather than creating it — a spreadsheet typo must never mint a permanent domain code |
+| 2026-09-24 | AI-CONTROL-M1 | **Generation now has ceilings, and a page that shows them** (§4.3c, **Governance → AI Usage & Budgets**). Every generation call — including the deterministic one — now passes through a provider-independent control layer: a per-job token ceiling checked from the prompt estimate **before** any call, daily, weekly and monthly token budgets that count retries, a concurrency cap, and a retry policy with jittered backoff and a hard attempt cap. A ceiling that stops a job produces a **refusal with the numbers in it** and a job recorded as `REFUSED` rather than `FAILED`, because a decision is not a failure. The new page reports usage, cost, budget consumption, provider states and provider health, and a **KNOWZY Administrator can set a token limit per provider from it**. Two things it deliberately will not do: show a zero for a metric nothing has recorded (it says **Not Yet Recorded**), and show a cost that cannot be known (it says **Not observable** with the reason — a per-seat licence and a user-managed run have no observable cost, and the deterministic generator's zero is the one case where 0 is a measurement). OpenAI is now a declared provider, visible on the page as `UNAVAILABLE` with its reason; nothing external is enabled and no credential exists |
 | 2026-09-23 | SYNC-M1..M4 | **A third application**, the **SharePoint Sync Manager** on http://localhost:3002 (§6), for whoever keeps the document sources healthy: connection health, five counted figures over a 30-day window, a workflow table with a derived status, and the last 25 runs with who or what started them. New capability behind it: a source can now be **created, edited, paused, resumed and archived** from a screen rather than only seeded, and it can be put on a **schedule** — manual, hourly, daily, weekly, monthly or cron — executed by the job runner. **Sync all** reports each source's outcome and names what it skipped and why. Four things it deliberately does not do, each on screen and disabled with "Requires Microsoft Graph write integration and tenant approval.": a destination, two-way sync, syncing deletions back, writing metadata back — this release synchronizes **into** Knowzy and has no destination model at all. A SharePoint Graph source is listed and disabled because the adapter is not written. A local root path is **typed, not browsed**, and validated server-side against an allow-list. Also fixed, found by the browser test: a dialog taller than the window could not be scrolled, so its buttons were unreachable at 720px — that affected the existing portals too |
 | 2026-09-23 | Acceptance automation | **Nothing about the screens changed.** What changed is that they are now driven by an automated browser suite — sources, generation, review, **gate 13**, publication, and a learner attempt including resume and scoring — so a broken screen is found by the build rather than by the next person to open it. Two things that suite is not: it does not cover refreshers, the revalidation queue or the audit surfaces, because those are not built; and it is not part of `npm run verify`, because it needs the stack running |

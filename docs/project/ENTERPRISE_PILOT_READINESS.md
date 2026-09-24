@@ -64,7 +64,7 @@ platform-side logic is complete and tested; only the external adapter is absent.
 | Component | Rating | What exists | What a pilot still needs |
 | --- | --- | --- | --- |
 | **Identity** | Partially built | `SubjectResolver` port; local stub issuer, which **throws if constructed outside `local`**; roles and scopes resolved from the database per request (ADR-011); account status re-checked per request | `createEntraResolver()` is a stub that throws. **Any non-local deployment fails every request today.** This is the single hardest gate in the workstream |
-| **Authorization** | Production-ready | Closed `PermissionKey` union (**47 keys**); seeded role matrix (14 roles); **55 API routes** each with a declared policy, asserted by a build-failing registry test; 13 approval gates re-evaluated server-side at every transition. **Taxonomy is now managed through the product** under `taxonomy.manage` — domains and topics were seed-only until 2026-09-22 | Nothing structural. Entra group → role *provisioning* is additive and never authorizes (ADR-011, T-06) |
+| **Authorization** | Production-ready | Closed `PermissionKey` union (**47 keys**); seeded role matrix (14 roles); ~~55~~ **68 API routes** each with a declared policy, asserted by a build-failing registry test; 13 approval gates re-evaluated server-side at every transition. **Taxonomy is now managed through the product** under `taxonomy.manage` — domains and topics were seed-only until 2026-09-22 | Nothing structural. Entra group → role *provisioning* is additive and never authorizes (ADR-011, T-06) |
 | **Knowledge Sources** | Ready behind a mock | `KnowledgeSourceAdapter` contract written for SharePoint: containers, folder hierarchy, delta via opaque `STATE_CHECKPOINT`, `getEffectiveAccess` with a first-class `UNKNOWN`, capability negotiation, both permission modes, `writeCapable: false` as the literal type. Mock adapter runs the **real extractors over real files** and satisfies a reusable conformance suite | `SharePointKnowledgeSourceAdapter` — zero lines exist. Roadmap Phase 7 |
 | **Question Bank** | Ready behind a mock | `QuestionBankAdapter` port with **required** `ifMatch`, `operationKey` idempotency, and **no delete method** — governance rule G7 enforced by the type system. Mock persists to JSON and is conformance-tested. `PublishedQuestionReference` projection populated | `SharePointQuestionBankAdapter`, field-mapping profile validation, list provisioning, reconciliation. Roadmap Phase 8 |
 | **Question Generation** | Ready behind a mock | The **entire gate chain is model-agnostic and built**: nonce-delimited untrusted framing with a zero tool grant, Zod output schema, evidence verification (STRICT exact / STANDARD ≥0.95 trigram), option integrity, six-component composite confidence, rejection taxonomy, prompt-version records on jobs and questions | A `QuestionGenerator` whose `kind` is `'anthropic'`. The port already declares that variant. No Anthropic SDK is a dependency of any workspace |
@@ -80,9 +80,13 @@ the same gates**, **taxonomy administration**, draft review, approval under sepa
 publication to a reusable bank with idempotency, assessment publication with a pinned pool, and a
 scored learner attempt with resume.
 
-`npm run verify` is green — typecheck 33/33, lint 21/21, boundaries 0 errors, codegen clean,
-**728 tests passed and 12 todo across 32 files**. `npm run test:e2e` is green — **10 browser
-acceptance tests** driving both portals against the running stack.
+`npm run verify` is green — typecheck 34/34, lint 22/22, boundaries 0 errors, codegen clean,
+**876 tests passed and 12 todo across 42 files**. `npm run test:e2e` is green — **24 browser acceptance tests** driving all three applications
+against the running stack: 23 pass and 1 skips for a stated precondition (no failed sync run is
+within the activity feed's last 25 rows).
+
+Re-counted 2026-09-24. The figures in §1.2 and §1.3 had drifted twice (55 routes, 728 tests, 10
+browser tests) and are corrected here rather than left for the next reader to trust.
 
 Figures re-counted on 2026-09-23;
 [STATUS_RECONCILIATION_2026-09-23.md](STATUS_RECONCILIATION_2026-09-23.md) records what was stale
@@ -102,9 +106,12 @@ and why.
   (32–33), the audit surfaces (35–36), the second-tab sequence conflict (26), and forcing
   `SOURCE_NOT_CONFIGURED` by removing a credential (3). Those are named exclusions rather than
   skipped tests, because a skipped test reads like coverage.
-- **The container image vulnerability scan has never executed.** CI's trivy step has not once run
-  against a built image, so a base-image CVE is an unknown, not an absence.
-- **Reporting does not exist.** See §1.2.
+- ~~**The container image vulnerability scan has never executed.**~~ **Corrected 2026-09-23.** It
+  ran against all five images: 16 HIGH/CRITICAL, reduced to 0 by removing `npm` from the runtime
+  stage, not by suppression. See §12.5.
+- **Reporting does not exist**, with one exception as of 2026-09-24: **Governance → AI Usage &
+  Budgets** reports token usage, cost accounting, budget consumption and provider health from
+  records that exist (§12.6). Everything else in §1.2's Reporting row is unchanged.
 
 ---
 
@@ -505,4 +512,44 @@ findings. The remaining two are the `postcss` advisories already classified as E
 
 The lesson for the pilot's security posture is not the count. It is that **a control which has never
 executed has produced no evidence**, and this one had been green on the dashboard for two days.
+
+### 12.6 The AI Generation Control Layer (2026-09-24)
+
+The pilot can now answer "what would this cost, and what stops it running away" **before** a paid
+provider exists.
+
+| | Status |
+| --- | --- |
+| Token accounting | **Built.** One row per ATTEMPT, so retries count against the budget |
+| Cost accounting | **Built**, and honest: a cost is written only where it can be known. Null, never 0, where it cannot |
+| Per-job / daily / weekly / monthly token budgets | **Built and enforced** on every provider, including the deterministic one |
+| Concurrency cap and retry policy | **Built.** Jittered backoff, hard attempt cap, retries counted against the budget |
+| Provider state model | **Built.** Five named states, each carrying its reason. `BLOCKED_BY_APPROVAL` is how T-29 becomes a control rather than a promise |
+| Provider health and metrics | **Built.** Health is assessed separately from availability, and a control-layer refusal is not counted as a provider failure |
+| Governance → AI Usage & Budgets | **Built.** Functional now, on deterministic activity |
+| Administrator-set per-provider limits | **Built.** The first configuration WRITE path in the platform |
+| Any external provider | **Not built, and not claimed.** OpenAI, Anthropic, Azure OpenAI and Gemini are declared and `UNAVAILABLE`; Copilot is `BLOCKED_BY_CAPABILITY` |
+
+**What the pilot may claim:** that generation cannot exceed a stated token ceiling, that every
+refusal is recorded with the control that fired and the numbers behind it, that cost is reported
+only where it is observable, and that an administrator can cap a provider without a deployment.
+
+**What it must not imply:** that any of this has been exercised against a real provider's rate
+limits or billing. It has been exercised against a generator that cannot make a network call. The
+arithmetic, the enforcement and the audit trail are proven; the provider's behaviour is not, because
+no provider exists yet.
+
+**No new tenant blockers.** T-29 is unchanged and now has a mechanism waiting for it: recording the
+approval in `llm.approvedProviders` is what moves a provider out of `BLOCKED_BY_APPROVAL`.
+
+### 12.7 G-11 note and a gate that was failing unnoticed
+
+While building §12.6, the CI **schema drift gate** turned out to have been failing on `main` since
+2026-09-22: migration 0006 created an index `schema.prisma` never declared, so `prisma migrate diff`
+wanted to drop it. It reproduced nowhere locally because the gate needs a shadow database that only
+CI creates. Fixed by declaring the index; the gate now exits 0.
+
+The lesson is the same one §12.5 records about trivy, and it is worth stating twice: **a gate whose
+output nobody reads is not a control.** Two CI runs were red for two days while every local check
+was green.
 

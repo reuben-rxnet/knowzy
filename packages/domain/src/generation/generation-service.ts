@@ -24,6 +24,7 @@ import {
   createDeterministicProvider,
   PROVIDER_CATALOGUE,
   verifyEvidence,
+  type GeneratorRegistry,
   type EvidenceSection,
   type GeneratedQuestion,
   type QuestionGenerator,
@@ -34,6 +35,7 @@ import type { Clock } from '@knowzy/observability';
 import type {
   EvidenceMode,
   GenerationExecutionMode,
+  GenerationProviderId,
   GenerationReasonCode,
   RejectionReason,
 } from '@knowzy/shared-types';
@@ -42,6 +44,12 @@ import {
   type ComparableQuestion,
   type DuplicateThresholds,
 } from './similarity.js';
+import {
+  GenerationRefusedError,
+  invokeWithControls,
+  type ControlSettings,
+  type RetryObservation,
+} from './control/runtime.js';
 import { scopeSectionKeys, type ResolvedGenerationScope } from './scope.js';
 
 export interface GenerationRunContext {
@@ -100,6 +108,21 @@ export interface RunGenerationArgs {
   readonly executionMode?: GenerationExecutionMode;
   /** Whose entitlement paid, when user-managed. */
   readonly onBehalfOfUserId?: string | null;
+  /**
+   * The AI Generation Control Layer. REQUIRED.
+   *
+   * Required rather than optional, and that is the point: an optional control
+   * layer is one a caller can forget, and the caller most likely to forget it
+   * is a future one adding a provider that actually costs money. A missing
+   * argument is now a compile error instead of an unbudgeted run.
+   */
+  readonly control: {
+    readonly registry: GeneratorRegistry;
+    readonly settings: ControlSettings;
+    /** Injected in tests so backoff is assertable and instant. */
+    readonly random?: () => number;
+    readonly sleep?: (ms: number) => Promise<void>;
+  };
 }
 
 export interface GenerationRejection {
@@ -228,6 +251,73 @@ const wrapGenerator = (generator: QuestionGenerator): GenerationProvider => ({
   },
 });
 
+/**
+ * Record a control-layer refusal on the job, then let it propagate.
+ *
+ * The job becomes REFUSED rather than FAILED, and the reason, the limit and the
+ * observed value are all stored: an author reading "the daily budget is
+ * 2,000,000 tokens, 1,980,400 are spent, and this job needs about 31,000 more"
+ * can act, where "budget exhausted" leaves them guessing.
+ *
+ * Written in its own transaction. The refusal is a FACT about what the platform
+ * decided, and it must survive whatever the caller does with the error.
+ */
+const recordJobRefusal = async (args: {
+  readonly prisma: PrismaClient;
+  readonly auditWriter: ReturnType<typeof createAuditWriter>;
+  readonly context: GenerationRunContext;
+  readonly requestedQuestionCount: number;
+  readonly executionMode: GenerationExecutionMode;
+  readonly providerId: GenerationProviderId;
+  readonly error: GenerationRefusedError;
+  readonly completedAt: Date;
+  readonly startedAt: Date;
+}): Promise<void> => {
+  const { context, error } = args;
+  await args.prisma.$transaction(async (tx) => {
+    await tx.generationJob.update({
+      where: { id: context.jobId },
+      data: {
+        status: 'REFUSED',
+        refusalReason: error.refusalReason,
+        refusalDetail: error.detail,
+        completedAt: args.completedAt,
+        durationMs: args.completedAt.getTime() - args.startedAt.getTime(),
+      },
+    });
+
+    await args.auditWriter.write(tx, {
+      action: 'AUTHORING.GENERATION.JOB_REFUSED',
+      // DENIED, not FAILURE. Nothing broke: the platform declined, and an
+      // auditor counting failures must not find this here.
+      outcome: 'DENIED',
+      actorType: 'USER',
+      actorUserId: context.actorUserId,
+      actorDisplayName: context.actorDisplayName,
+      actorRoles: [...context.actorRoles],
+      entityType: 'GenerationJob',
+      entityId: context.jobId,
+      entityLabel: context.jobId,
+      domainId: context.domainId,
+      sourceId: context.sourceId,
+      correlationId: context.correlationId,
+      requestId: context.requestId,
+      portal: 'AUTHORING',
+      detail: {
+        refusalReason: error.refusalReason,
+        refusalDetail: error.detail,
+        providerId: args.providerId,
+        executionMode: args.executionMode,
+        limitName: error.limitName,
+        limitValue: error.limitValue,
+        observedValue: error.observedValue,
+        budgetWindow: error.budgetWindow,
+        requestedQuestionCount: args.requestedQuestionCount,
+      },
+    });
+  });
+};
+
 export const runGenerationJob = async (args: RunGenerationArgs): Promise<GenerationRunResult> => {
   const { prisma, clock, scope, context, profile } = args;
   // A provider wins if one was resolved; otherwise the legacy generator port,
@@ -238,6 +328,10 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     args.provider ??
     (args.generator === undefined ? createDeterministicProvider() : wrapGenerator(args.generator));
   const startedAt = clock.now();
+  // One writer for the whole run. Declared here rather than beside the final
+  // transaction because a retry has to be audited as it happens -- a retry
+  // recorded only on completion is missing from every job that never completes.
+  const auditWriter = createAuditWriter({ clock });
 
   await prisma.generationJob.update({
     where: { id: context.jobId },
@@ -271,6 +365,93 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     startOffset: section.startOffset,
   }));
 
+  // EVERY generation call goes through the control layer, including this
+  // deterministic one. A ceiling that only applies to the providers that cost
+  // money is a ceiling nobody has ever seen fire.
+  const retryObservations: RetryObservation[] = [];
+  let controlled: Awaited<ReturnType<typeof invokeWithControls>>;
+  try {
+    controlled = await invokeWithControls({
+      db: prisma,
+      clock,
+      registry: args.control.registry,
+      settings: args.control.settings,
+      providerId: provider.providerId,
+      providerOverride: provider,
+      random: args.control.random,
+      sleep: args.control.sleep,
+      context: {
+        jobId: context.jobId,
+        correlationId: context.correlationId,
+        requestedByUserId: context.actorUserId,
+        onBehalfOfUserId: args.onBehalfOfUserId ?? null,
+        executionMode: args.executionMode ?? 'PLATFORM_MANAGED',
+        modelId: profile.modelId,
+        // The estimate is over the text actually going into the prompt, which is
+        // the section text: the only quantity available before a call.
+        promptCharacterCount: scope.sections.reduce(
+          (total, section) => total + section.text.length,
+          0,
+        ),
+      },
+      generateArgs: {
+        sections: scope.sections.map((section) => ({
+          sectionKey: section.sectionKey,
+          label: section.label,
+          text: section.text,
+        })),
+        doNotDuplicate,
+        requestedQuestionCount: args.requestedQuestionCount,
+        domainName: profile.domainName,
+        topicName: profile.topicName,
+      },
+      onRetry: async (observation) => {
+        retryObservations.push(observation);
+        await auditWriter.write(prisma, {
+          action: 'AUTHORING.GENERATION.PROVIDER_CALL_RETRIED',
+          outcome: 'FAILURE',
+          actorType: 'SYSTEM',
+          actorUserId: context.actorUserId,
+          actorDisplayName: context.actorDisplayName,
+          actorRoles: [...context.actorRoles],
+          entityType: 'GenerationJob',
+          entityId: context.jobId,
+          entityLabel: context.jobId,
+          domainId: context.domainId,
+          sourceId: context.sourceId,
+          correlationId: context.correlationId,
+          requestId: context.requestId,
+          portal: 'AUTHORING',
+          detail: {
+            providerId: provider.providerId,
+            attempt: observation.attempt,
+            maxAttempts: args.control.settings.retry.maxAttempts,
+            errorClass: observation.errorClass,
+            delayMs: observation.delayMs,
+          },
+        });
+      },
+    });
+  } catch (error) {
+    // A control DECISION is recorded and rethrown; a provider breaking is
+    // rethrown untouched. Flattening the two would make "did the controls
+    // hold?" unanswerable from the audit log.
+    if (error instanceof GenerationRefusedError) {
+      await recordJobRefusal({
+        prisma,
+        auditWriter,
+        context,
+        requestedQuestionCount: args.requestedQuestionCount,
+        executionMode: args.executionMode ?? 'PLATFORM_MANAGED',
+        providerId: provider.providerId,
+        error,
+        completedAt: clock.now(),
+        startedAt,
+      });
+    }
+    throw error;
+  }
+
   const {
     output,
     insufficientSections,
@@ -280,24 +461,7 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     providerId,
     providerVersion,
     tokenUsageReported,
-  } = await provider.generate(
-    {
-      sections: scope.sections.map((section) => ({
-        sectionKey: section.sectionKey,
-        label: section.label,
-        text: section.text,
-      })),
-      doNotDuplicate,
-      requestedQuestionCount: args.requestedQuestionCount,
-      domainName: profile.domainName,
-      topicName: profile.topicName,
-    },
-    {
-      mode: args.executionMode ?? 'PLATFORM_MANAGED',
-      onBehalfOfUserId: args.onBehalfOfUserId ?? null,
-      correlationId: context.correlationId,
-    },
-  );
+  } = controlled.result;
 
   const rejections: GenerationRejection[] = [];
   // §2.7: recorded PER SECTION, whether or not other sections succeeded.
@@ -539,7 +703,6 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
         : 'SUCCEEDED';
 
   const completedAt = clock.now();
-  const auditWriter = createAuditWriter({ clock });
 
   await prisma.$transaction(async (tx) => {
     for (const rejection of rejections) {
@@ -583,6 +746,11 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
         rejectionCounts,
         inputTokens,
         outputTokens,
+        // Null when no cost could be known -- a licence-based provider or a
+        // user-managed run. Never 0, which would claim a measurement.
+        estimatedCost: controlled.cost.amount,
+        costObservable: controlled.cost.observable,
+        attemptCount: controlled.attemptCount,
         completedAt,
         durationMs: completedAt.getTime() - startedAt.getTime(),
       },
@@ -721,6 +889,9 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
         providerVersion,
         executionMode: args.executionMode ?? 'PLATFORM_MANAGED',
         tokenUsageReported,
+        estimatedCost: controlled.cost.amount,
+        costObservable: controlled.cost.observable,
+        attemptCount: controlled.attemptCount,
       },
     });
   });

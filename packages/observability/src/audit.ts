@@ -59,7 +59,18 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   'ADMIN.ACCESS.ROLE_REVOKED': ['roleKey', 'targetUserId'],
   'ADMIN.ACCESS.SCOPE_CHANGED': ['dimension', 'targetUserId', 'added', 'removed'],
   'ADMIN.ACCESS.PORTAL_ACCESS_CHANGED': ['targetUserId', 'authoring', 'live'],
-  'ADMIN.CONFIGURATION.UPDATED': ['key', 'scope', 'scopeId', 'valueType'],
+  // `providerId` and `changedFields` added 2026-09-24 for the per-provider
+  // token limits an administrator sets from Governance -> AI Usage & Budgets:
+  // previousValue/newValue carry the whole record, and these two say which
+  // provider and which ceilings the person actually touched.
+  'ADMIN.CONFIGURATION.UPDATED': [
+    'key',
+    'scope',
+    'scopeId',
+    'valueType',
+    'providerId',
+    'changedFields',
+  ],
   // M2. Counts and outcomes only: no document name, no heading, no extracted
   // text. A sync row is kept for years, so it records HOW MUCH happened, never
   // WHAT the documents said.
@@ -153,6 +164,34 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'providerVersion',
     'executionMode',
     'tokenUsageReported',
+    // Cost, and whether a cost could be known at all. `costObservable: false`
+    // with a null amount is the honest record for a per-seat licence or a
+    // user-managed run; writing 0 there would fabricate a measurement.
+    'estimatedCost',
+    'measuredCost',
+    'costObservable',
+    'attemptCount',
+  ],
+  'AUTHORING.GENERATION.JOB_REFUSED': [
+    'refusalReason',
+    'refusalDetail',
+    'providerId',
+    'executionMode',
+    // The limit and what was observed against it, together: "budget exhausted"
+    // with no numbers is unactionable, and an author cannot plan around it.
+    'limitName',
+    'limitValue',
+    'observedValue',
+    'budgetWindow',
+    'requestedQuestionCount',
+    'attemptCount',
+  ],
+  'AUTHORING.GENERATION.PROVIDER_CALL_RETRIED': [
+    'providerId',
+    'attempt',
+    'maxAttempts',
+    'errorClass',
+    'delayMs',
   ],
   'AUTHORING.GENERATION.JOB_FAILED': [
     'jobStatus',
@@ -166,6 +205,15 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'providerVersion',
     'executionMode',
     'tokenUsageReported',
+    // The generation service writes ONE detail object for both JOB_COMPLETED
+    // and JOB_FAILED, so adding the cost keys to one list and not the other
+    // dropped them on every failed job -- found 2026-09-24 by reading the
+    // `_droppedKeys` column instead of trusting the tests, which had asserted
+    // the COMPLETED and REFUSED rows and not this one.
+    'estimatedCost',
+    'measuredCost',
+    'costObservable',
+    'attemptCount',
   ],
   // M4 review and approval. Counts, ids, hashes, decisions and field NAMES —
   // never question text, option text, evidence spans, or comment bodies. The

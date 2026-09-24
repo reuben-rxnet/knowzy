@@ -131,6 +131,20 @@ export const PROVIDER_CATALOGUE: Readonly<Record<GenerationProviderId, ProviderC
       grantsTools: false,
       maxInputTokens: 180_000,
     },
+    OPENAI: {
+      retrievalFree: true,
+      // PLATFORM_MANAGED only, for the same reason as Anthropic rather than a
+      // different one: there is no on-behalf-of flow, and the only
+      // "user-managed" form would be an author's personal API key, which
+      // architecture §4.4 refuses in v1 -- the platform will not become
+      // custodian of per-person credentials.
+      supportedExecutionModes: ['PLATFORM_MANAGED'],
+      reportsTokenUsage: true,
+      reportsCost: true,
+      supportsStructuredOutput: true,
+      grantsTools: false,
+      maxInputTokens: 128_000,
+    },
     MICROSOFT_COPILOT: {
       // FALSE, pending investigation, and therefore ineligible.
       //

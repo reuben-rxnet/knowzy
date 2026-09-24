@@ -382,13 +382,26 @@ does not exist at any granularity. Writing an inferred number would be exactly t
 `architecture.md` §9 requires a per-job token budget, a per-tenant daily budget, a concurrency cap
 and 429 backoff, and **none exists**. Multi-provider makes each **per provider and per mode**:
 
-| Key | Default | Scope |
-| --- | --- | --- |
-| `generation.provider.<id>.maxInputTokensPerJob` | 60,000 | Platform |
-| `generation.provider.<id>.dailyTokenBudget` | 500,000 | Platform |
-| `generation.provider.<id>.maxConcurrentCalls` | 1 | Platform |
-| `generation.provider.<id>.pricePerMillionInputTokens` | 0 | Platform |
-| `generation.provider.<id>.pricePerMillionOutputTokens` | 0 | Platform |
+**Reconciled 2026-09-24 and implemented.** This table proposed five keys *per provider id*, which
+would have been 25 declared keys for five providers and a second naming family beside the
+`llm.perJobTokenBudget`, `llm.dailyTokenBudget` and `llm.concurrency` keys `CONFIG_KEYS` already
+declared. What was built instead keeps one family and makes the per-provider part a value rather than
+a key name:
+
+| Key | Default | Scope | Purpose |
+| --- | --- | --- | --- |
+| `llm.activeProvider` | `DETERMINISTIC_LOCAL` | Platform, profile | Which provider the registry resolves. The kill switch: setting it back stops all model calls with no deployment, and the change is audited |
+| `llm.approvedProviders` | `['DETERMINISTIC_LOCAL']` | Platform | Providers with a recorded data-processing approval. A provider absent from this list is `BLOCKED_BY_APPROVAL` **even with a working credential** — which is how T-29 becomes a control rather than a promise |
+| `llm.perJobTokenBudget` | 250,000 | Platform, profile | §6.3 per-job ceiling, checked from the framed estimate **before** any call |
+| `llm.dailyTokenBudget` | 2,000,000 | Platform | §6.3 daily ceiling, summed across jobs and **including retries** |
+| `llm.concurrency` | 4 | Platform | Concurrent calls, counted from `RUNNING` jobs per provider |
+| `llm.providerLimits` | `{}` | Platform | Per-provider **overrides** of the three ceilings above, keyed by provider id. Absent means "the platform ceiling applies", which is the safe default — an unlisted provider is not unlimited |
+| `llm.tokenPrices` | `{}` | Platform | Prices per million tokens, keyed `PROVIDER` or `PROVIDER:modelId` (most specific wins). Absent means **cost is not computed**, and an uncomputed cost is recorded as null, never 0 |
+| `llm.maxAttempts` · `llm.retryBaseDelayMs` · `llm.retryMaxDelayMs` · `llm.retryJitterRatio` | 3 · 500 · 30,000 · 1.0 | Platform | The retry policy. Full jitter by default |
+| `llm.healthFailureThreshold` · `llm.healthWindowMinutes` | 3 · 15 | Platform | When consecutive failures in the window make a provider `FAILING` |
+
+The original per-id form is recorded here because the reasoning behind it was right — limits and
+prices **are** per provider — and only the encoding changed.
 
 **A user-managed run must still be budgeted.** It costs the platform nothing and it can still
 exhaust an author's quota, generate an unreviewable batch, or loop. The budget protects the author

@@ -165,7 +165,11 @@ graph TB
 1. Presentation never talks to Integration or Data directly. All access is through the API layer.
 2. Domain services never import a Graph or SharePoint type. They speak adapter interfaces only.
 3. Only the SharePoint adapter knows SharePoint internal field names (`field_1`, `field_4`, …).
-4. Only the Claude services package constructs model prompts, and it has no database access.
+4. Only the generation-provider package (`@knowzy/claude-services`, §9.0) constructs model
+   prompts, and it has no database access. **No provider package enforces a budget, a
+   concurrency cap, a retry policy or a cost calculation** — those are provider-independent and
+   live in the domain control layer, so a new provider cannot arrive with its own idea of a
+   ceiling.
 5. The policy engine is called on every request; there is no "trusted internal" path.
 6. Audit writes participate in the same database transaction as the state change they describe.
 
@@ -182,7 +186,7 @@ graph TB
 | ORM / database | Prisma 6, PostgreSQL 16 | `pgcrypto` for UUIDv7-style IDs, `pg_trgm` for similarity, `pgvector` reserved |
 | Jobs / scheduling | pg-boss (PostgreSQL-backed queue) | Avoids a Redis dependency in release 1 — see [ADR-007](risks-and-decisions.md#adr-007-postgresql-backed-job-queue-pg-boss-over-redisbullmq) |
 | MCP | `@modelcontextprotocol/sdk` — server in `@knowzy/mcp-server`, client in the API | Streamable HTTP transport in deployed environments, stdio for local development |
-| LLM | Claude via the Anthropic Messages API, server-side only | Default model `claude-sonnet-5` for generation and summarization; `claude-opus-5` available for difficult adjudication. Model IDs are configuration, never hardcoded |
+| Generation | A **provider port**, server-side only, with exactly one provider active per job (§9.0). The always-registered, zero-credential provider is the **deterministic local generator** | Candidate platform-managed providers are declared in the provider catalogue: Anthropic (Messages API), Azure OpenAI, Gemini; Microsoft Copilot is declared and **ineligible** (§9.0). Model IDs are configuration, never hardcoded (T-30) |
 | Identity | Microsoft Entra ID, OIDC authorization code + PKCE, MSAL | Two SPA/web app registrations + one API registration exposing scopes |
 | M365 integration | Microsoft Graph v1.0 | `Sites.Selected` app-only, and/or on-behalf-of delegated per source permission mode |
 | PDF | `pdf-lib` with embedded fonts | Deterministic, no headless browser in the container — see [ADR-009](risks-and-decisions.md#adr-009-pdf-lib-for-certificate-rendering) |
@@ -489,7 +493,65 @@ Rules:
 
 ---
 
-## 9. Claude integration architecture
+## 9. Generation provider architecture
+
+### 9.0 Provider independence — amended 2026-09-24
+
+**This section was single-provider until 2026-09-24 and is now provider-independent.** The amendment
+is recorded rather than quietly applied, because
+[MULTI_PROVIDER_GENERATION_ARCHITECTURE.md](integrations/MULTI_PROVIDER_GENERATION_ARCHITECTURE.md)
+§0.3 is explicit that multi-provider contradicted this document, and `/docs` outranks the code: no
+provider-layer code was written before this paragraph existed.
+
+**What changed:** generation sits behind a port with a catalogue of declared providers and a registry
+that resolves at most one of them per job. **What did not change:** everything below §9.1 — the
+framing, the zero tool grant, the schema, the evidence verification and the gate chain — applies
+identically to every provider, and no threshold moves to accommodate a model.
+
+Six rules govern it.
+
+1. **Exactly one provider is active per job, and the platform never substitutes.** An unregistered
+   or ineligible provider produces a **named refusal**, never a silent downgrade to another provider
+   or another execution mode. A substitution would make the job's recorded provenance false, which
+   is worse than a refusal an author can read.
+2. **Capabilities are declared, never inferred.** `retrievalFree` is the eligibility gate for
+   grounded generation: a provider that performs its own retrieval either quotes something the
+   platform cannot verify (safe — the candidate is refused) or writes a question shaped by content
+   the author never selected while quoting the supplied section (**not** safe — the span verifies,
+   scope enforcement passes, and nothing in the gate chain detects it). A provider that cannot
+   declare `retrievalFree` is ineligible, and Microsoft Copilot currently cannot.
+3. **A provider has exactly one of five states**, and each carries its reason:
+   `AVAILABLE`, `UNAVAILABLE`, `BLOCKED_BY_CONFIGURATION`, `BLOCKED_BY_APPROVAL`,
+   `BLOCKED_BY_CAPABILITY`. Approval is a **recorded configuration fact** (for example the T-29
+   processor approval), so a provider with a credential and no approval is blocked — by approval,
+   said in those words, not by a generic "unavailable".
+4. **The control layer is provider-independent and mandatory.** Token accounting, cost accounting,
+   per-job and daily token budgets, the concurrency cap, the retry policy with jittered backoff,
+   provider health and provider metrics are implemented once, outside every provider, and are
+   applied to **every** provider including the deterministic one. A provider cannot opt out, and the
+   first real provider therefore arrives with its ceilings already enforced and already tested.
+5. **The deterministic local generator stays registered in every environment, forever.** It is the
+   zero-credential path [environment-and-configuration.md](environment-and-configuration.md)
+   requires, the control arm in every quality comparison, and the reason the gate chain is known to
+   work. Multi-provider must not make it optional.
+6. **A user-managed run is still budgeted.** It costs the platform nothing and can still exhaust an
+   author's quota, produce an unreviewable batch, or loop. The budget protects the author and the
+   reviewer, not only the invoice.
+
+**Cost is not always observable, and an unobservable cost is recorded as null rather than zero.**
+Zero is a claim; null is an absence. A cost figure is written only where the provider declares
+`reportsCost` **and** the run is `PLATFORM_MANAGED` — so a per-seat licence (Copilot) and every
+user-managed run record no cost at all, and the screen says *"Not observable in this mode"* rather
+than `0.00`. The deterministic generator is the one provider whose zero is a fact.
+
+Boundary rule **B4** is unchanged in intent and now reads on the port: no package outside
+`@knowzy/claude-services` constructs a prompt or speaks to a model, and that package reaches no
+database.
+
+### 9.1 The platform-managed generation path
+
+The diagram shows the Anthropic path as the reference implementation of §9.0; substitute any
+`AVAILABLE` platform-managed provider and every box outside `CALL` is identical.
 
 ```mermaid
 graph TB
@@ -519,8 +581,8 @@ graph TB
 | Structured output | Responses must satisfy a Zod schema; malformed output triggers one bounded repair attempt and then fails the item. |
 | Insufficient evidence | The schema includes an `insufficientEvidence` result variant. Returning it is a success, not a failure. |
 | Evidence verification | `supportingEvidence` must match a normalized span of the supplied chunk text. See [workflows.md](workflows.md#25-evidence-verification-normative). |
-| Cost and rate control | Per-job token budget, per-tenant daily budget, concurrency cap, and 429 backoff. |
-| No authoritative decisions | Scoring, approval, publishing, badge and certificate eligibility never call Claude. |
+| Cost and rate control | Per-job token budget, per-tenant daily budget, concurrency cap, and 429 backoff with jittered exponential delay and a hard attempt cap — **provider-independent**, enforced in the domain control layer on every provider, and configured by the declared `llm.*` keys. A refusal is a terminal `REFUSED` job carrying its reason, never a failure and never a silent truncation of the request. |
+| No authoritative decisions | Scoring, approval, publishing, badge and certificate eligibility never call a model, whichever provider drafted the question. |
 
 ---
 

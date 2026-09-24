@@ -100,9 +100,15 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     status: 'REQUIRES_BACKEND_EXTENSION',
   },
   {
+    // PARTIALLY_IMPLEMENTED as of 2026-09-24: AI Usage & Budgets is real and
+    // the rest of the governance surface -- the revalidation queue, the audit
+    // explorer, reconciliation -- is not. The note names the part that works,
+    // so the link is not a promise the screen cannot keep.
     label: 'Governance',
+    href: '/governance/ai-usage',
     icon: <ShieldCheck className="size-5" />,
-    status: 'REQUIRES_BACKEND_EXTENSION',
+    status: 'PARTIALLY_IMPLEMENTED',
+    note: 'AI Usage & Budgets',
   },
   {
     // PARTIALLY_IMPLEMENTED, not IMPLEMENTED: taxonomy administration is real

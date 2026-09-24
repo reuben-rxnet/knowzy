@@ -141,7 +141,12 @@ export const registerRoutes = (
             detail: {
               route: route.url,
               policyName: decision.policyName,
-              reasonDetail: decision.reason,
+              // `reasonDetail` used to be here and was DROPPED by the
+              // allow-list on all 337 rows written since M1, because the
+              // reason is already a first-class field on the event
+              // (`denyReason`, persisted in its own column). Removed rather
+              // than allow-listed: storing it twice in a seven-year table to
+              // silence a warning is the wrong half of the fix.
             },
           });
 

@@ -61,6 +61,7 @@ import {
   type PublishTarget,
   type SnapshotQuestion,
 } from '../src/index.js';
+import { testControl } from './control-layer-fixture.js';
 
 const DATABASE_URL = process.env['DATABASE_URL'];
 const describeDb = DATABASE_URL ? describe : describe.skip;
@@ -708,6 +709,7 @@ describeDb('quiz session lifecycle', () => {
       scope: created.resolvedScope,
       profile: created.profile,
       requestedQuestionCount: count,
+      control: testControl(),
       context: {
         jobId: created.jobId,
         sourceId: created.sourceId,

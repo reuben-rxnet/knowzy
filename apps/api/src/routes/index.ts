@@ -9,6 +9,7 @@
 // Milestones add to this array; nothing else registers routes.
 
 import type { KnowzyRoute } from '../http/route.js';
+import { aiUsageRoutes } from './ai-usage.js';
 import { generationRoutes } from './generation.js';
 import { learningRoutes } from './learning.js';
 import { questionImportRoutes } from './question-import.js';
@@ -29,4 +30,5 @@ export const ALL_ROUTES: readonly KnowzyRoute[] = [
   ...taxonomyRoutes,
   ...sourceAdministrationRoutes,
   ...syncManagerRoutes,
+  ...aiUsageRoutes,
 ];

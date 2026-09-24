@@ -181,6 +181,27 @@ export const POLICIES = {
     description: 'Read the learner\u2019s own result.',
     ownScoped: true,
   },
+
+  // --------------------------------- governance: AI usage and budgets (2026-09-24)
+  //
+  // The READ reuses `report.read` rather than minting a `governance.read` key.
+  // That key already means "read platform reporting", it is already held by the
+  // Reporting User, the Report Publisher, the Manager, the Auditor and the
+  // KNOWZY Administrator, and a new key would have meant a role migration for a
+  // read the existing one already describes.
+  'governance.ai.read': {
+    permission: 'report.read',
+    portals: AUTHORING,
+    description: 'Read AI token usage, cost accounting, budget windows and provider health.',
+  },
+  // The WRITE is deliberately a different and much narrower grant. Reading what
+  // a provider has spent and RAISING what it may spend are not the same
+  // authority, and `platform.configure` is held by the administrator alone.
+  'governance.ai.manage': {
+    permission: 'platform.configure',
+    portals: AUTHORING,
+    description: 'Set the per-provider token and concurrency ceilings.',
+  },
 } as const satisfies Record<string, PolicyDefinition>;
 
 export type PolicyName = keyof typeof POLICIES;

@@ -221,11 +221,11 @@ by the configuration endpoints. Content rule **C3** already confines `process.en
 | `ANTHROPIC_API_KEY_REF` | env, **exists** | api, jobs | — | Key reference |
 | `ANTHROPIC_BASE_URL` | env, **new** | api, jobs | Anthropic default | Only for a tenant-mandated gateway or proxy. Declared rather than assumed, so a proxy is visible in configuration |
 | `ANTHROPIC_LOCAL_SECRET_FILE` | env, **new**, local only | api, jobs | unset | The §4.1 resolver. Absent ⇒ deterministic generator |
-| `generation.generatorKind` | config key, **new** | — | `deterministic-local` | Which generator runs. The switch is **configuration with an audit trail**, not a build flag, so a pilot can be turned off without a deploy |
-| `generation.maxInputTokensPerJob` | config key, **new** | — | 60000 | §6.1 |
+| `llm.activeProvider` | config key, **implemented** | — | `DETERMINISTIC_LOCAL` | Which generator runs. The switch is **configuration with an audit trail**, not a build flag, so a pilot can be turned off without a deploy |
+| `llm.perJobTokenBudget` | config key, **implemented** | — | 60000 | §6.1 |
 | `generation.maxOutputTokensPerJob` | config key, **new** | — | 8192 | §6.1 |
-| `generation.dailyTokenBudget` | config key, **new** | — | 500000 | §6.2 |
-| `generation.maxConcurrentModelCalls` | config key, **new** | — | 1 | §6.3 |
+| `llm.dailyTokenBudget` | config key, **implemented** | — | 500000 | §6.2 |
+| `llm.concurrency` | config key, **implemented** | — | 1 | §6.3 |
 | `generation.pricePerMillionInputTokens` | config key, **new** | — | 0 | §6.5 |
 | `generation.pricePerMillionOutputTokens` | config key, **new** | — | 0 | §6.5 |
 
@@ -234,7 +234,7 @@ All configuration keys go in the declared catalogue `CONFIG_KEYS`
 as the existing generation keys are — `PLATFORM_ONLY` for anything that bounds spend, so a profile
 cannot raise its own budget.
 
-**`generation.generatorKind` deserves emphasis.** The natural implementation is "if a key is present,
+**`llm.activeProvider` deserves emphasis.** The natural implementation is "if a key is present,
 call Claude". That makes the presence of a credential the switch, which means a key rotation or a Key
 Vault misconfiguration silently changes which generator produced a question. An explicit declared
 key, resolved through the audited configuration layer, keeps *which generator ran* a deliberate
@@ -292,32 +292,44 @@ supports all three shapes without change.
 
 ## 6. Cost controls
 
-`architecture.md` §9 requires a per-job token budget, a per-tenant daily budget, a concurrency cap and
-429 backoff. **None of it exists**, because the local generator costs nothing. `GenerateResult`
-already reports token counts, so the measurement is present and the enforcement is absent.
+> **Configuration naming reconciled 2026-09-24.** This section named four keys that did not exist
+> (`generation.generatorKind`, `generation.maxInputTokensPerJob`, `generation.dailyTokenBudget`,
+> `generation.maxConcurrentModelCalls`) while `CONFIG_KEYS` already declared
+> `llm.perJobTokenBudget`, `llm.dailyTokenBudget` and `llm.concurrency`. **The declared keys win and
+> the plan is corrected** — a second family of names for the same ceilings is how two budgets end up
+> half-enforced. The provider switch is `llm.activeProvider`, in the same family. All are implemented
+> and enforced as of the AI Generation Control Layer milestone.
 
-**These land with the generator, in the same milestone, not after it.** A pilot that can generate
-without a daily cap is one loop away from a surprising invoice, and the loop need not be malicious — a
-retry storm on a partially-failing batch is enough.
+`architecture.md` §9 requires a per-job token budget, a per-tenant daily budget, a concurrency cap and
+429 backoff. ~~**None of it exists**, because the local generator costs nothing.~~ **All of it exists
+as of 2026-09-24**, provider-independent, enforced on every provider including the deterministic one,
+and validated against it — so the first real provider inherits its ceilings rather than introducing
+them. What follows is the design as built; the sub-sections state where reality differs.
+
+~~**These land with the generator, in the same milestone, not after it.**~~ **They landed BEFORE it**,
+which is strictly better: the controls were validated against a provider that cannot send a request
+anywhere, so the day a credential arrives the ceilings are already proven rather than newly written.
+A pilot that can generate without a daily cap is one loop away from a surprising invoice, and the
+loop need not be malicious — a retry storm on a partially-failing batch is enough.
 
 ### 6.1 Per-job budget — enforced before the call
 
 Estimate input tokens from the framed prompt before sending (`framing.ts` already does this
 arithmetic for its token estimate) and refuse the job if it exceeds
-`generation.maxInputTokensPerJob`. **The refusal is recorded on the job like any other rejection**, so
+`llm.perJobTokenBudget`. **The refusal is recorded on the job like any other rejection**, so
 it appears on the generation screen with a reason instead of failing silently — the screen already
 renders rejection reasons and token usage, so this is visible with no UI work.
 
 ### 6.2 Daily budget — enforced across jobs
 
 Sum `inputTokens + outputTokens` over `GenerationJob` rows for the day; refuse beyond
-`generation.dailyTokenBudget`. The rows and the indexes (`[status]`, `[sourceId, createdAt desc]`)
+`llm.dailyTokenBudget`. The rows and the indexes (`[status]`, `[sourceId, createdAt desc]`)
 already exist. A refusal names the budget and the time it resets — an author who is told "budget
 exhausted" with no number cannot plan around it.
 
 ### 6.3 Concurrency
 
-`generation.maxConcurrentModelCalls`, default **1** for the pilot. Generation is already an
+`llm.concurrency`, default **1** for the pilot. Generation is already an
 asynchronous job with a state machine, so queueing is natural, and a serialized pilot is both cheaper
 and easier to reason about when reading audit rows.
 
@@ -338,10 +350,11 @@ the two price configuration keys, defaulting to **0** so an unconfigured price r
 than a fabricated number.
 
 **Gotcha, from CLAUDE.md and worth writing down before someone loses an hour to it:** audit `detail`
-keys are dropped unless declared in the allow-list in `packages/observability/src/audit.ts`. Today
-`AUTHORING.GENERATION.JOB_COMPLETED` declares `modelId`, `inputTokenCount`, `outputTokenCount` — and
-**not** cost. Recording cost in audit requires adding the key to the allow-list, or it silently
-becomes `_droppedKeys`.
+keys are dropped unless declared in the allow-list in `packages/observability/src/audit.ts`.
+`AUTHORING.GENERATION.JOB_COMPLETED` declared `modelId`, `inputTokenCount`, `outputTokenCount` — and
+**not** cost. **Done 2026-09-24:** `estimatedCost`, `measuredCost`, `costObservable` and
+`attemptCount` are declared there, and the new `AUTHORING.GENERATION.JOB_REFUSED` action declares its
+own. A test asserts no generation audit row carries `_droppedKeys`.
 
 ### 6.6 What this costs, roughly
 
@@ -472,7 +485,7 @@ Stated in full in the evaluation plan; the constraints the implementation must s
 | 2 | §3.2 prompt-version fix + contract gate | No | No |
 | 3 | Budget, concurrency and cost layer (§6), with the deterministic generator reporting into it | No | No |
 | 4 | Local secret resolver (§4.1) | No | No |
-| 5 | The Anthropic client + per-profile construction (§3.1) behind `generation.generatorKind` | **Yes** | **Yes** |
+| 5 | The Anthropic client + per-profile construction (§3.1) behind `llm.activeProvider` | **Yes** | **Yes** |
 | 6 | The blind comparison on the real corpus | **Yes** | **Yes** |
 
 **Steps 1–4 are the majority of the work and none of them is blocked.** Step 1 is a morning's work and
@@ -497,7 +510,7 @@ The live generator is done when **all** of these hold:
 - [ ] Repair is either absent or single, re-framed and asserted non-recursive
 - [ ] The entire existing gate chain passes **unmodified** — no threshold moved to accommodate model
       output
-- [ ] `generation.generatorKind` switches generators through configuration, with an audit record
+- [ ] `llm.activeProvider` switches generators through configuration, with an audit record
 - [ ] A real batch has been generated from the real corpus, reviewed by a human, approved by a second
       identity under gate 13, and published
 - [ ] The blind comparison has been run and recorded against the pre-registered decision rule

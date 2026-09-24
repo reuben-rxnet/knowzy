@@ -87,3 +87,34 @@ export {
   type ProviderCapabilities,
   type ProviderGenerateResult,
 } from './provider.js';
+
+export {
+  createGeneratorRegistry,
+  ProviderRefusedError,
+  type GeneratorRegistry,
+  type ProviderFactory,
+  type RegistryInput,
+} from './registry.js';
+
+export {
+  assessProviderHealth,
+  type HealthAssessment,
+  type HealthSample,
+  type HealthThresholds,
+} from './health.js';
+
+export {
+  CHARS_PER_TOKEN_ESTIMATE,
+  COST_SCALE,
+  PROMPT_OVERHEAD_TOKENS,
+  addTokens,
+  estimateInputTokens,
+  aggregateCost,
+  computeCost,
+  emptyTokenAccount,
+  observableCost,
+  resolvePrice,
+  tokenAccount,
+  unobservableCost,
+  type CostInput,
+} from './accounting.js';

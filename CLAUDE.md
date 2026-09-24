@@ -79,10 +79,10 @@ Current Status:
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
 - npm run verify passes: typecheck 34/34, lint 22/22,
-  tests 795 passing + 12 todo across 36 files, boundaries 0 errors,
-  codegen contract clean, format clean. Re-counted 2026-09-23; see
+  tests 876 passing + 12 todo across 42 files, boundaries 0 errors,
+  codegen contract clean, format clean. Re-counted 2026-09-24; see
   docs/project/STATUS_RECONCILIATION_2026-09-23.md for what was stale.
-- npm run test:e2e passes: 19 browser acceptance tests across three projects,
+- npm run test:e2e passes: 24 browser acceptance tests across three projects,
   driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
   as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
@@ -91,19 +91,21 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 8 migrations apply from empty; seed is idempotent. 0004 is PILOT-T2:
+- 9 migrations apply from empty; seed is idempotent. 0009 is the AI
+  Generation Control Layer: REFUSED as a job state, the refusal-reason enum,
+  cost columns, and generation_provider_call (one row per ATTEMPT). 0004 is PILOT-T2:
   section keys scoped per document, coverage split from generation outcome.
   0008 splits SKIPPED from FAILED on a sync. Taxonomy administration needed
   NO migration: Domain and Topic have carried every field since 0001.
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 66 API routes, every one with a declared
+- 19 of 36 MCP tools registered; 68 API routes, every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
-  administration 5, and the Sync Manager 11 (2 read/aggregate plus 9 source
-  administration).
+  administration 5, the Sync Manager 11 (2 read/aggregate plus 9 source
+  administration), and AI Usage & Budgets 2 (one read, one write).
 
 Environment:
 
@@ -119,14 +121,22 @@ Still Open:
   scoring. What it does NOT cover is named in tools/e2e/README.md —
   refreshers, the revalidation queue, the audit surfaces and the second-tab
   sequence conflict, because the platform does not implement them.
-- No live Claude call. Generation uses a deterministic local generator and
-  records modelId = knowzy-deterministic-local-1. Question QUALITY has never
-  been tested against Claude, which is the product's actual purpose.
-- CI first ran on 2026-09-21. Round 1 failed on `format:check`; round 2 passed
-  static gates and supply chain, and failed on the integration job (fixtures)
-  and all five image builds (an unresolvable action tag). Both fixed and
-  verified locally. The trivy SCAN itself has still never executed against an
-  image, so a base-image CVE could be the next red.
+- No live model call of any kind. Generation uses a deterministic local
+  generator and records modelId = knowzy-deterministic-local-1. Question
+  QUALITY has never been tested against a model, which is the product's actual
+  purpose. The CEILINGS around a model call now exist and are enforced (see
+  "AI Generation Control Layer"), so the day a credential arrives is a
+  configuration change and a comparison, not a scramble.
+- CI first ran on 2026-09-21. Runs #17 and #18 were RED, and 2026-09-24 found
+  why: the SCHEMA DRIFT GATE had been failing since 0006 created
+  draft_question_acquisition_idx that schema.prisma never declared, so
+  `prisma migrate diff --exit-code` wanted to drop it. It reproduced nowhere
+  locally because the gate needs a shadow database only CI creates. Fixed by
+  declaring the index. To run the gate by hand:
+  docker compose ... exec -T postgres psql -U knowzy -d postgres -c "CREATE DATABASE knowzy_shadow OWNER knowzy;"
+  then npx prisma migrate diff --from-migrations packages/database/prisma/migrations
+  --to-schema-datamodel packages/database/prisma/schema.prisma
+  --shadow-database-url postgresql://knowzy:knowzy@localhost:5432/knowzy_shadow --exit-code
 - 11 commits were pushed on 2026-09-23 and THE RESULT OF THAT RUN IS UNKNOWN
   from this machine: `gh` is not installed and the repository is private, so
   the Actions tab has to be read by a person. An unread run is not a pass.
@@ -279,6 +289,27 @@ Gotchas learned by execution (each of these cost real time):
   deliberately DELETE npm and npx (14 of the original 16 HIGH/CRITICAL were
   npm's, and no runtime stage invokes it) — fix the image, do not widen the
   register.
+- A MIGRATION PINS ITS OWN VERSION IN FOUR PLACES. `EXPECTED_MIGRATION` in
+  apps/api/src/startup.ts, `expectedMigrationVersion` in apps/jobs and
+  apps/mcp-server, and `MIGRATION` in packages/configuration/src/startup.test.ts.
+  Add a migration without updating all four and every service REFUSES TO START
+  with "The database is not at the expected migration version" -- which is the
+  control working, and costs ten minutes if you do not know where to look.
+- A SCHEMA CHANGE NEEDS PRISMA GENERATE INSIDE THE CONTAINER VOLUME, not just
+  on the host. Symptom: `PrismaClientValidationError: Unknown field X for
+select statement on model Y` from the api while the host typechecks clean.
+  Fix: docker compose ... up migrate, then restart api mcp jobs.
+- `\b` INSIDE A JAVASCRIPT STRING LITERAL IS A BACKSPACE, not a regex word
+  boundary. `new RegExp('^Author\b')` matches nothing and prints as
+  /^Author/ in the failure message, so the character is invisible in the log
+  too. This has now cost time twice (once via a Bash heredoc, once written
+  directly). Use an explicit alternation such as '^Author( |$)'.
+- A TEST HELPER CAN ASSERT NOTHING. `actAs` clicked the identity radio and then
+  asserted the radio was checked -- which the click itself guarantees, so a
+  switch that never reached the server read as success. It was invisible while
+  every spec switched to identities whose pages look the same either way, and
+  surfaced only when one asserted a REFUSAL. It now asserts the SHELL's
+  acting-as label, which is server state.
 - preflight.offeredActions is ALWAYS the four workflows.md 4.2 actions and
   never includes GENERATE_NEW, which is what a never-processed document
   recommends. Any UI listing the offered actions must union in the
@@ -383,6 +414,56 @@ their labels so `check()` toggles them OFF.
 - The learner specs PROVISION their precondition (publish questions, create
   and publish an assessment) rather than skipping. A skipped test reads like
   coverage in a summary.
+
+## AI Generation Control Layer
+
+BUILT 2026-09-24. Provider-independent, enforced on EVERY provider including
+the deterministic one, and validated against it with no credential anywhere.
+Specification: architecture.md 9.0 (amended in the same change, because 9 was
+explicitly single-provider and /docs outranks the code). Full detail:
+docs/governance/AI_USAGE_AND_BUDGETS.md.
+
+- `runGenerationJob` REQUIRES a `control` argument. Required, not optional: an
+  optional control layer is one a caller forgets, and the caller most likely to
+  forget it is a future one adding a provider that bills per token. A contract
+  test asserts the service contains no direct `provider.generate(` call.
+- REFUSED is a JobState. A control decision is not a failure; recording one as
+  FAILED would count every working budget as a defect in the metrics that exist
+  to show the controls holding. `refusalReason` is a closed enum and always set
+  with that state.
+- AN UNOBSERVABLE COST IS NULL, NEVER 0. Written only where the provider
+  declares `reportsCost` AND the run is PLATFORM_MANAGED. A per-seat licence, a
+  user-managed run and a missing price all record null with a reason. The
+  deterministic provider is the ONE case where 0 is a measurement.
+  `aggregateCost` refuses a total when any contributor is unobservable, because
+  summing only the observable part presents an undercount as a total.
+- THE ACCOUNTING UNIT IS THE ATTEMPT: one `generation_provider_call` row per
+  call. That is what makes "retries count against the budget" true, and it is
+  the sample set for provider health and metrics. Budget windows therefore read
+  call rows and start at this milestone, while activity figures read
+  generation_job and go back further -- the page says so rather than
+  back-filling rows nobody measured.
+- PROVIDER STATE HAS FIVE VALUES AND THE ORDER OF THE CHECKS IS THE POLICY:
+  capability, then approval, then implementation, then credential -- most
+  permanent first. Reversing the first two would tell somebody to get Copilot
+  approved for a use it can never satisfy. `BLOCKED_BY_APPROVAL` is how T-29
+  becomes a control: a credential is not enough.
+- Configuration is one family, `llm.*`, and the per-provider part is a VALUE
+  (`llm.providerLimits`) rather than five key names per provider. Two plans
+  named the same ceilings differently and were CORRECTED rather than duplicated
+  -- a second family of names is how two budgets end up half-enforced.
+- An administrator sets a per-provider ceiling from Governance -> AI Usage &
+  Budgets (`platform.configure`). It is the platform's FIRST configuration write
+  path: application_configuration + configuration_change + an audited
+  previous/new value. Clearing every field REMOVES the override; setting 0
+  forbids generation. Two different gestures, deliberately.
+- MALFORMED_OUTPUT is not retryable. A response that arrived and failed to parse
+  is the bounded single repair path -- the tokens are already spent, and
+  retrying could double-charge a partial success. Anything unrecognised is
+  treated as permanent.
+- OPENAI is DECLARED, not registered. No provider client exists in this build,
+  so every external provider reads UNAVAILABLE or BLOCKED_* with its reason on
+  the page. Do not register a stand-in.
 
 ## Taxonomy
 

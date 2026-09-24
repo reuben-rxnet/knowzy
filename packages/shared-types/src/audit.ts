@@ -97,8 +97,18 @@ export const AUDIT_FAMILIES = {
     'JOB_STARTED',
     'JOB_COMPLETED',
     'JOB_FAILED',
+    // A control-layer DECISION: a budget, a concurrency cap, an unapproved or
+    // unregistered provider, an exhausted retry. Distinct from JOB_FAILED
+    // because an auditor asking "did the controls hold?" must be able to count
+    // refusals without counting outages, and the detail names which control
+    // fired with the limit and the observed value beside it.
+    'JOB_REFUSED',
     'JOB_CANCELLED',
     'CANDIDATE_REJECTED',
+    // One row per retried attempt, carrying the class and the delay, so a
+    // retry storm is reconstructable after the fact rather than inferred from
+    // a token bill.
+    'PROVIDER_CALL_RETRIED',
   ],
   'AUTHORING.QUESTION': [
     'CREATED',

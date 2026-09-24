@@ -57,6 +57,65 @@ export {
   type RunGenerationArgs,
 } from './generation/generation-service.js';
 
+// ------------------------------- the AI Generation Control Layer (2026-09-24)
+//
+// architecture.md §9.0. Provider-independent, enforced on every provider
+// including the deterministic one, and validated against it.
+
+export {
+  invokeWithControls,
+  GenerationRefusedError,
+  type ControlContext,
+  type ControlSettings,
+  type ControlledCallResult,
+  type RetryObservation,
+} from './generation/control/runtime.js';
+
+export {
+  budgetState,
+  budgetStatus,
+  checkPerJobBudget,
+  checkWindowBudgets,
+  limitFor,
+  perJobLimitFor,
+  usedTokensIn,
+  utilizationPercent,
+  windowReset,
+  windowStart,
+  type BudgetRefusal,
+  type BudgetSettings,
+} from './generation/control/budget.js';
+
+export {
+  checkConcurrency,
+  concurrencyLimitFor,
+  type ConcurrencyRefusal,
+  type ConcurrencySettings,
+} from './generation/control/concurrency.js';
+
+export {
+  backoffDelayMs,
+  classifyError,
+  decideRetry,
+  isRetryable,
+  outcomeForError,
+  type RetryDecision,
+  type RetryPolicy,
+} from './generation/control/retry.js';
+
+export {
+  readAiUsage,
+  type ReadAiUsageArgs,
+  type UsageSettings,
+} from './generation/control/usage-read-model.js';
+
+export {
+  setProviderLimits,
+  ProviderLimitError,
+  type SetProviderLimitsArgs,
+  type SetProviderLimitsResult,
+} from './generation/control/provider-limits.js';
+
 // ------------------------------------------------------------ review (M4)
 
 export {

@@ -196,6 +196,11 @@ export type QuestionAcquisition = z.infer<typeof QuestionAcquisitionSchema>;
 export const GENERATION_PROVIDER = [
   'DETERMINISTIC_LOCAL',
   'ANTHROPIC',
+  // Declared 2026-09-24 as the preferred candidate provider. DECLARED is not
+  // REGISTERED: it appears in the catalogue with its capabilities so the
+  // platform can state exactly why it cannot be used yet, which is a more
+  // useful answer than its absence.
+  'OPENAI',
   'MICROSOFT_COPILOT',
   'AZURE_OPENAI',
   'GEMINI',
@@ -271,6 +276,11 @@ export const JOB_STATE = [
   'SUCCEEDED',
   'PARTIAL',
   'FAILED',
+  // A DECISION, not a failure: the control layer declined to run this job --
+  // a budget, a concurrency cap, an unapproved provider, an exhausted retry.
+  // Recording it as FAILED would count every deliberate refusal as a defect in
+  // the very metrics that exist to show the controls working.
+  'REFUSED',
   'CANCELLED',
 ] as const;
 export const JobStateSchema = z.enum(JOB_STATE);
