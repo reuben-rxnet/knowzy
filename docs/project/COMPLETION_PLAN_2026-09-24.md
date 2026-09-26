@@ -210,3 +210,45 @@ is grained by team. Until that is resolved, learner reporting ships **without a 
 topic accuracy is real and answers "which topics are weak", which is most of the value and none of
 the invention.
 
+---
+
+## 8. Addendum 2026-09-26 — Wave 1.1 R1 is done
+
+Phase 10 **R1** shipped: six read models, five reports, suppression, an audited export, snapshots,
+an on-demand refresh, and the `Reports` rail entry becoming a link.
+
+| Wave 1.1 item | State |
+| --- | --- |
+| Reporting schema and read models | **R1 done** for the five reports it names. `rm_learner_proficiency`, `rm_topic_gap`, `rm_recognition`, `rm_reuse_metrics`, `rm_governance_activity` are not built |
+| Refresh jobs | **Done.** 15-minute refresh, nightly reconciliation, and an on-demand route |
+| The report catalogue | **Five of thirty-five entries.** `reporting.md` §4 gained a **Filing coverage** entry, which the four-axis filing needed |
+| Dashboards and filters | **Done** for those five, with a window filter that prints the dates it resolved to |
+| Suppression | **Done, including complementary suppression** (S3), which is the half that makes S1 mean anything |
+| `asOf` on every response | **Done**, from a refresh ledger, with a failed refresh labelling rather than blanking |
+| Counter reconciliation | **Done.** Reports drift, corrects nothing, raises a `PlatformConsistencyFinding` per discrepancy |
+| Every metric displays its formula | **Done**, on the page and in the CSV header block |
+| CSV formula injection prevented; exports audited | **Done** |
+| The Audit Explorer | **Done** (2026-09-26, before R1) |
+| Complementary-suppression verification | **Done**, as a table test that fails when the S3 loop is removed |
+| Published reports, the publication lifecycle, standing reports | **Not built.** A snapshot is deliberately **not** a publication |
+| Proficiency semantics (§5) | **Not built.** Needs the learner models, and a decision about grouping |
+| Performance targets (§10) | **Not measured.** The dataset cache and the pre-aggregation are in place; no load test has been run |
+
+### What this changes about the estimate
+
+Wave 1.1 was sized at 10–15 days. R1 is roughly the first third, and it is the third everything else
+sits on: the schema, the refresh machinery, the suppression engine, the export renderer and the
+`asOf` discipline are all now in place and tested. The remaining thirty catalogue entries are mostly
+*more of the same shape* — a matview, a dataset definition with formulas, a screen — except for the
+five that need proficiency and recognition models, which are their own work.
+
+### Two things now blocking the next slice, and neither is engineering
+
+| # | Blocker | Owner |
+| --- | --- | --- |
+| **D-1** (restated, now consequential) | Learner reporting has **no person grouping**. `Team`/`UserTeam` still hold zero rows with no write path. Every §4.4 entry is grained by team | Product |
+| **R-1 (new)** | Two headline figures — section coverage and the source count — **can never have a delta** from anything stored. Either they lose it permanently, or a dated coverage snapshot becomes a schema requirement | Product |
+
+R-1 is worth deciding before the next reporting slice rather than after: retrofitting history is a
+migration, and removing a number from a mockup is a conversation.
+

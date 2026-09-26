@@ -2,8 +2,8 @@
 
 **Applies to:** the local demonstration build with the Question Acquisition Framework
 (provider-based generation and question import), taxonomy administration, the SharePoint Sync
-Manager, the AI Generation Control Layer and AI provider administration, including PILOT-T1,
-PILOT-T2, UI-M3, SYNC-M1..M4, AI-CONTROL-M1 and AI-PROVIDER-M1
+Manager, the AI Generation Control Layer, AI provider administration and Phase 10 R1 reporting,
+including PILOT-T1, PILOT-T2, UI-M3, SYNC-M1..M4, AI-CONTROL-M1, AI-PROVIDER-M1 and PHASE10-R1
 **Last updated:** 2026-09-26
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -750,6 +750,76 @@ a configuration read would be the sentence somebody quotes during an incident.
 
 ---
 
+### 4.3g Reports — `/reports`
+
+**Who can open it:** anyone with `report.read`. **Who can export:** `report.export`. **Who can
+snapshot:** `report.create`. **Who can refresh on demand:** the KNOWZY Administrator.
+
+Five reports over records the platform already holds, with a tab strip: **Dashboard**, **Question
+pipeline**, **Generation**, **Assessments**, **Filing**, **Sources**.
+
+| Report | Grain | Answers |
+| --- | --- | --- |
+| Question pipeline | domain × lifecycle state | Where every question in the bank currently sits |
+| Generation | provider × model × prompt version × day | How many jobs ran, what they yielded, what was refused |
+| Assessments | assessment version | Attempts, pass rate, mean and median score, band distribution |
+| Filing | domain × topic × department × role | How the bank is filed on all four axes, and how much is unfiled |
+| Sources | source × document | Sections, coverage, and how many questions each document produced |
+
+**Four things every report tells you that most reports do not.**
+
+**Data as of.** The moment the underlying data was true, taken from the read model's own refresh
+record and never from the clock. Five of the six models refresh every fifteen minutes; the question
+pipeline is maintained as questions move, so it is exact and instant. If a model has never
+refreshed, the report says **"This report has never been built"** rather than drawing zeros.
+
+**The resolved window.** Choose "Last 7 days" and the page prints the two absolute dates it resolved
+to, so a relative choice stays checkable. A report that describes *now* rather than a period says so
+and ignores the filter instead of pretending to apply it.
+
+**Every formula.** At the bottom of each report, one written definition per metric. "Yield" has at
+least three plausible meanings; the page states which one it used.
+
+**Suppression, when it applies.** The assessment report withholds any row covering fewer than five
+learners, because an average over three people names them. A withheld cell reads **Suppressed** — never
+a blank and never a zero — the header states how many were withheld and the threshold, and **a total
+that lost rows to suppression reads "Withheld" rather than 0**, because a zero there would say
+"nobody has taken it". There is no setting that turns this off.
+
+It applies to that one report. A question, a document and a section are not people, so question
+counts by department are shown in full — suppressing those would protect nobody and make the report
+useless.
+
+**Export** produces a CSV with a header block above the data: the report, who exported it, when, the
+effective scope, the as-of date, the minimum group size, how many cells were withheld, and every
+formula. A file that leaves the platform still says what it does and does not contain. Cells that
+begin with `=`, `+`, `-` or `@` are defused, because a document name containing `=HYPERLINK(...)`
+would otherwise become a live formula in your spreadsheet. The export is recorded in the audit trail.
+
+**Snapshot** stores what a report says right now, with all of that header block, under a label you
+give it. **It is not a published report**: a publication is a definition plus an audience,
+re-rendered for each viewer under their own entitlement. A snapshot is a fixed record of what *you*
+saw, and it stores withheld cells as withheld.
+
+**Refresh data** recomputes the read models instead of waiting for the schedule. It is an
+administrator action and it is audited, because "why was the number different at 14:05" usually has
+the answer "somebody refreshed it".
+
+**Two things this screen does not do, and says so.**
+
+- **No "vs previous period" comparisons.** The platform stores no history of these figures, so a
+  percentage change would be measured against a number nobody recorded. Two of the eight headline
+  figures could never have one — section coverage is a current state with no history. Rather than
+  show six and omit two, it shows none and explains why. Trends over time belong in the
+  day-grained reports, where the underlying records carry dates.
+- **No learner performance heatmap.** The approved design shows average scores by department and
+  topic. The panel is on the page, empty, with its reason: the two read models behind it are not
+  built, a learner has no department (department is a label on a *question*), and every cell would
+  be an average over a handful of people, so most cells would be withheld. Topic accuracy without a
+  person grouping is real and is the next honest step.
+
+---
+
 ### 4.4 Draft review queue — `/review`
 
 Five views of the same list, at five points in the question's life:
@@ -1218,7 +1288,9 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | **SharePoint over Graph** | Not connected. Graph SharePoint calls return 403 until a tenant administrator consents, so the Graph adapter is still Phase 7. **A locally synchronized mirror of an approved SharePoint folder can be read today** through a file-repository source — real documents, but access is enforced by Knowzy rather than by SharePoint (§4.1) |
 | **The Question Bank** | A local JSON file behind the same port the SharePoint adapter will implement. Phase 8 |
 | **Claude** | Generation uses a deterministic local generator that quotes documents verbatim and passes through the same gates. Question *quality* has never been tested against a model |
-| **Dashboards and reporting** | Not built, with TWO exceptions now real: **Governance → AI Usage & Budgets** (§4.3c) reports token usage, cost, budget consumption, concurrency and provider health from records that exist, and **Governance → Audit Explorer** (§4.3e) reads the audit trail. The rest of reporting needs the Phase 10 read models |
+| **Dashboards and reporting** | **Partly real.** **Reports** (§4.3g) has five reports on six read models, with suppression, export and snapshots; **Governance → AI Usage & Budgets** (§4.3c) reports token usage, cost, budgets, concurrency and provider health; **Governance → Audit Explorer** (§4.3e) reads the audit trail. Thirty of `reporting.md`'s thirty-five catalogue entries are still unbuilt, and everything needing proficiency, recognition or a learner grouping is among them |
+| **Trends and deltas** | Not real, and deliberately so (§4.3g). No history of any headline figure is stored, and two of them could never have one |
+| **The learner performance heatmap** | Not real. The panel is on the Reports dashboard with its three reasons stated (§4.3g) |
 | **AI provider configuration** | **Real** (§4.3f). A provider's endpoint, model, credential reference, ceilings, enablement and its recorded data-processing approval are all set from **Administration → AI Providers**, with no deployment. What remains a release is *writing a client* for a provider — see the Claude row above |
 | **A connection test against an AI provider** | Not real, and the screen says which parts it did and did not check (§4.3f). No client for an external provider exists in this build, so the live call is reported as NOT ATTEMPTED and authentication, endpoint reachability and model availability are stated as unverified |
 | **Badges and certificates** | Not built |
@@ -1256,6 +1328,7 @@ the log below.
 | 2026-09-22 | Import on real files | **The first two real question banks were fed in, and both were refused for reasons that were the platform’s fault rather than the files’.** Fixed, in §4.3a: a spreadsheet may leave its trailing columns blank (a fifteen-column template with twelve filled imported nothing before, and now imports every row); `OptionA`, `CorrectAnswer`, `AnswerKey`, `QuestionText`, `Justification` and `SourceDocument` are recognised as column names; a Word bank whose four options sit on one line is read; and a decoration in front of `Correct Answer:` — a tick, a bullet, a dash — no longer hides the answer. A Word bank with no explanation per question is still refused, and §4.3a now says so before you try. Also: a spreadsheet cell whose own text contains ` - ` is reported with the value it found rather than mis-split. On §4.1, **skipped** is now counted and listed apart from **failed**: a file outside this source’s configured folder is the configuration working, not an error |
 | 2026-09-22 | Decision panel | **A decision the lifecycle cannot reach is now disabled and says why** (§4.5), and the panel names the next step available from the current state. All five decisions used to be offered on every question, so pressing **Submit for approval** on a draft returned `STATE_TRANSITION_INVALID` — which reads as missing access and never was: a draft has to be claimed first. A state block and a permission block are now worded differently, because one is an order of operations and the other is an identity. Where gate 13 currently refuses an approval, a note beside **Approve** says so. §4.5 also states plainly what full access does and does not grant a KNOWZY Administrator |
 | 2026-09-22 | Taxonomy administration | **Domains and topics can now be created and edited** (§4.3b, **Administration → Knowledge Domains**), which is the first Administration screen with a backend behind it. Before this the platform held one seeded domain and one seeded topic and offered no way to add a second, so an imported VisionStar question bank was filed under Support Operations. A domain code is editable only while nothing references the domain and then shows as **Permanent** with the counts that locked it; a topic belongs to exactly one domain and is unique within it; nothing can be deleted, only deactivated. **Import now files each question where the FILE says it belongs** (§4.3a) and refuses a file naming taxonomy that does not exist, rather than creating it — a spreadsheet typo must never mint a permanent domain code |
+| 2026-09-26 | PHASE10-R1 | **Reporting exists** (§4.3g, **Reports**), which makes `Reports` the last dead entry in the navigation to become a link. Five reports over records the platform already held — the question pipeline, generation yield, assessment performance, how the bank is filed on all four axes, and source coverage — on six read models in their own database schema. Every report states **when its data was true** (from the model's own refresh record, never from the clock), **the absolute dates** a relative window resolved to, and **one written formula per metric**. The assessment report **withholds any row covering fewer than five learners**, including the second row needed so the first cannot be derived by subtraction, and **a total that lost rows to suppression reads "Withheld" rather than 0** — a zero there would have said "nobody has taken it". Export produces a CSV with a header block stating scope, as-of, threshold and withheld count, with formula-injection defused, and is audited; a snapshot stores the same header block under a label, and is **not** a published report. Two absences are stated rather than filled: **no "vs previous period" anywhere**, because no history of those figures is stored and two of them could never have one, and **no learner heatmap**, because its read models do not exist, a learner has no department, and most of its cells would be withheld |
 | 2026-09-26 | AI-PROVIDER-M1 | **A provider can now be configured through the product** (§4.3f, **Administration → AI Providers**), which is what makes the day a credential arrives a configuration change rather than a release. Every declared provider is listed — including the five that cannot be used — each with the reason and who can clear it, in order of permanence: capability, approval, implementation, credential. **Recording a data-processing approval is its own act and requires a reference** to where the approval is held, because a credential is not authorization and a checkbox beside "Enabled" would be one nobody stopped at. A credential is typed as a `keyvault://` **reference**, never a key: anything key-shaped is refused before storage, the field is write-only, and no read, screen or audit row ever returns it. **Validate** reports five checks with a sentence each and marks the live call **NOT ATTEMPTED** — because nothing in this build can make one, and a green tick here would be read as "authentication successful". A provider that is not AVAILABLE cannot be made active. Also on §4.3c: **Estimated cost** and **Daily budget** joined the KPIs, the provider table gained a **Questions** column, a **Concurrent generation** card shows jobs running against the cap and states that there is no queue, and a **usage heatmap** shades tokens by day, week or month with five labelled bands and an empty square for a period with no activity |
 | 2026-09-26 | Filing | **The question review page has a seventh tab, Filing** (§4.5), showing all four axes a question is filed under and letting **department and role be corrected** while the question is still with its author. Domain and topic are shown read-only with the reason: the domain code is inside the published identifier, and the topic is what the preflight authorized. After submission the whole filing is read-only, because a question is approved as filed. A change creates a new version and an audit entry carrying the previous and new value, and touches no text, so nothing is re-verified. Also fixed: the header badge printed the word "undefined" twice for a question with no filing, and now reads **"No department or role assigned"** — an absent value and a null value render identically |
 | 2026-09-26 | Identity switcher | **Identity switching moved into the header** (§3), on every page of both portals, from the card it used to occupy at the bottom of each home page. A refusal happens where you are, and switching identity is the usual fix, so it should not require navigating away and back |

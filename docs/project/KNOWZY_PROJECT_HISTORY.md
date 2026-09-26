@@ -2128,3 +2128,166 @@ refused, enabling an incomplete provider refused, an unavailable provider refuse
 an author refused with 403 — and the audit rows checked for `_droppedKeys` and for any trace of a
 credential reference. None.
 
+---
+
+## PHASE10-R1 — reporting, and five ways not to make a number up
+
+**2026-09-26.** Migration `0012_reporting_read_models`. Screen: Reports.
+Specification: [`reporting.md`](../reporting.md), design contract:
+[`REPORTING_AND_ANALYTICS_UI_SOURCE_OF_TRUTH.md`](../ui/REPORTING_AND_ANALYTICS_UI_SOURCE_OF_TRUTH.md).
+
+### The order this happened in, which is the part worth copying
+
+The approved dashboard image arrived first. It was documented as a design contract **before any
+code existed** — ten sections, every widget classified, four of them `BLOCKED` with a reason. Then
+`reporting.md` §4 was amended to add the **Filing coverage** entry it was missing, because the
+four-axis filing postdates that section and `/docs` outranks a mockup. Only then was anything built.
+
+That order is why this milestone has no "we shipped it and then found out we could not" entries. The
+four blocked widgets were known to be blocked on the first day, and the two product decisions were
+raised before they could be silently decided by an implementer.
+
+### What was built
+
+Six read models in their own PostgreSQL schema. Five reports. Suppression, a refresh ledger, a
+dataset cache, an audited CSV export, snapshots, and an on-demand refresh.
+
+| Read model | Kind | Refresh |
+| --- | --- | --- |
+| `rm_question_pipeline` | table | **on write, by trigger** |
+| `rm_question_activity` | materialized view | 15 min |
+| `rm_generation_yield` | materialized view | 15 min |
+| `rm_assessment_performance` | materialized view | 15 min |
+| `rm_filing_coverage` | materialized view | 15 min |
+| `rm_source_coverage` | materialized view | 15 min |
+
+### Six decisions, each with a reason that outlives it
+
+**1. A separate schema, invisible to Prisma.** `reporting` is its own PostgreSQL schema, and nothing
+in it is modelled in `schema.prisma`. That was not a workaround: four of the six are materialized
+views, which Prisma cannot express, and `reporting.md` §2 requires reporting to be unable to lock or
+mutate the transactional path — a schema is the unit a GRANT applies to. The happy consequence is
+that `prisma migrate diff` never sees it, so the drift gate passes with six models, three triggers
+and four functions it knows nothing about, **without enabling `multiSchema` and annotating 77
+models**.
+
+**2. The on-write counter is a TRIGGER, not a call site.** D1 wants the pipeline counters written in
+the same transaction as the transition they count. The obvious implementation is a function the
+transition service calls — and `draft_question` is created and moved by at least eight paths today,
+with a ninth to be added by somebody who has not read this file. Three statement-level triggers with
+transition tables call one function per affected domain. It cannot be forgotten, it rolls back with
+the transaction, and **an integration test disables the trigger and watches the test fail**, which is
+the only way to know the assertion was ever load-bearing.
+
+The UPDATE trigger reads **both** the old and new transition tables, because `domain_id` is not in
+the immutability trigger's list: a question that moves domain leaves two counters wrong, and
+recomputing only the new one fixes the half nobody notices.
+
+**3. It recomputes a domain; it does not increment.** A `+1/-1` counter is correct until somebody
+adds a lifecycle state, and then it is wrong forever with nothing on screen saying so. A `GROUP BY`
+over one domain's rows costs a few milliseconds and cannot drift. This is a recorded deviation from
+the literal wording of D1, with D7's reconciliation kept anyway — because reconciliation is what
+catches a *missing* hook, which no arithmetic scheme could.
+
+**4. Suppression is pure, and implements the rule everybody skips.** S1 — hide a cell covering fewer
+than five people — is easy. **S3 is the one that makes S1 mean anything**: with four teams at 12, 9,
+3 and 8 and a visible total of 32, hiding the 3 hides nothing. The smallest survivor goes too,
+iteratively. `applySuppression` takes rows and a threshold and returns rows and a count; the
+derivation attack is therefore a table test, and disabling the S3 loop fails three of them.
+
+It applies to **one** of the five reports. A question is not a person, and suppressing question
+counts by department would protect nobody while making the report useless. The threshold is clamped
+**upward only**, so a configured 2 becomes 5 — enforced in the engine as well as at configuration,
+because a privacy floor that exists in one place is one refactor from not existing.
+
+**5. `asOf` comes from a ledger, never from `now()`.** `reporting.refresh_state` carries the last
+successful refresh, the last failure and the failure streak. A model that has never refreshed
+reports null and the screen says "never refreshed" instead of drawing zeros. A **failed** refresh
+does not touch `refreshed_at`, so the age keeps rising and the panel is labelled — D4's requirement
+that a refresh failure never blanks a dashboard, asserted by a test that plants a failure and checks
+the rows are still there.
+
+**6. The cache key includes the caller's scope hash.** The read models are the pre-aggregation; what
+is cached is the resolved, scoped, suppressed response. A cache keyed on the report and its
+parameters alone would serve one caller's suppressed dataset to another — the worst bug this table
+could have, and one that looks like a performance win until an audit. The `asOf` is in the key too,
+so a refresh invalidates every entry by construction rather than by a sweep somebody forgets. A
+dataset from a never-refreshed model is **not** cached: its key would end `:never` and the first
+refresh would not displace it.
+
+### Five defects found, four of them by the database or a screenshot
+
+**`CONCURRENTLY` refuses an expression index.** `rm_filing_coverage` has nullable department and
+role, so its unique index used `COALESCE(..., nil uuid)` — and `REFRESH MATERIALIZED VIEW
+CONCURRENTLY` requires a unique index built from **column names only**. The refresh failed with
+`55000`, the ledger recorded it, the other four models refreshed, and the dataset honestly reported
+`asOf: null`. **D4 worked before the bug that exercised it was fixed.** The view now carries
+`department_key`/`job_role_key` columns for the index and the nullable ids for reading; the nil uuid
+is never displayed.
+
+**The published reference joins on the wrong key.** `published_question_reference.question_id` is
+the **bank** identifier — `KNZ-{CODE}-{YYYY}-{SEQ}`, a text column — and `internal_question_id` is
+the durable uuid. Joining on the first produced `uuid = text`, which is the one kindness in it: a
+type error rather than silently wrong data.
+
+**The ledger was seeded after the first build.** The migration's `INSERT` of the `refresh_state`
+rows sat at the end of the file, so the first build's `UPDATE` matched nothing and
+`rm_question_pipeline` held correct data while reading `PENDING`. Found by reading the ledger after
+the migration rather than assuming the order was fine.
+
+**A withheld total rendered as `0`.** Found in a screenshot: "Assessment attempts **0**" beside a
+caption saying ten cells were withheld. S4 was working perfectly — a suppressed row contributes to
+no total — and the result said "nobody has taken it" about an assessment that simply has too few
+learners to show. Every dataset now carries `totalsPartial` per metric, and the screens render
+**"Withheld"** or `≥ n`.
+
+**Raw SQL in the API.** Content rule C4 permits raw SQL in `@knowzy/reporting` and forbids it
+elsewhere; the first version of the reports route read `refresh_state` directly and lint refused it.
+`readFreshness` and `readAllFreshness` exist because of that, and the refactor removed a duplicated
+`asOf` derivation — the route had been computing the cache key's `asOf` a second way, which is how a
+cached response gets looked up under a key its writer never used.
+
+### Two test defects, and one skipped test made honest
+
+A **nav test encoded the old fact**: it asserted `/reports` highlighted nothing, which was true only
+while the rail entry had no href. The example moved to a route that is still genuinely unowned, and a
+new test asserts the entry now works — rather than the assertion being deleted.
+
+A **drift test depended on what other suites left behind.** It planted drift by incrementing the
+`DRAFT` counter, which affects zero rows when the domain has no drafts — exactly what another
+suite's teardown produces. It passed alone and failed in the suite. It now plants a counter row with
+nothing behind it, which cannot no-op and is the more interesting drift anyway: it is what a stale
+counter looks like after rows are deleted.
+
+And the **suppression browser test was skipping** when nothing happened to be below the threshold. A
+skipped test reads like coverage in a summary, which is how three vacuous suites went unnoticed in
+this codebase. It now provisions its precondition and refreshes the models — which is also why the
+on-demand refresh route exists, making the approved design's Refresh control real rather than
+decorative.
+
+### What R1 did not build, and said so on the screen
+
+The **learner performance heatmap** — the design's most prominent panel — is on the dashboard as a
+declared absence with its three reasons: its two read models are not built, a learner has no
+department (department is a label on a *question*), and most of its thirty cells would be withheld by
+suppression, so the design has to accept that before it is worth building. Decision **D-1** was taken
+as recommended: learner reporting ships with **no person grouping**.
+
+**No "vs previous period" anywhere**, and the dashboard carries a paragraph explaining why — including
+that two of the eight headline figures could never have one, because section coverage is a current
+state with no history. A browser test asserts the phrase appears exactly once on the page: in that
+explanation.
+
+### Validated
+
+`npm run verify` green: typecheck 35/35, lint 22/22, boundaries 0 errors, codegen clean, format
+clean, **939 passing + 12 todo across 47 files** (30 new: 17 suppression unit tests, 12 read-model
+integration tests, and the copy-key guard). The CI drift gate exits 0 against a shadow database.
+
+The five reports, the cache, the export, the snapshots and every refusal were additionally exercised
+**over HTTP as the portal makes them** — an unknown report refused by name, a non-windowed report
+refusing a window, an author refused the export with `report.export` named and the snapshot with
+`report.create`, a snapshot of a never-refreshed model refused rather than stored with a fabricated
+timestamp — and the screens were captured at 1920 and 1440 and checked for `undefined`, `NaN` and
+horizontal overflow.
+

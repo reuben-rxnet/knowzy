@@ -52,7 +52,9 @@ Implementation Order:
 7. SharePoint read integration NOT STARTED
 8. Question Bank write integration PORT + MOCK DONE; adapter NOT STARTED
 9. Refreshers and recognition NOT STARTED
-10. Reporting and audit surfaces NOT STARTED
+10. Reporting and audit surfaces R1 DONE (five reports, six read models,
+    suppression, export, snapshots); the remaining 30 catalogue entries,
+    proficiency and recognition models NOT STARTED
 11. Hardening and release NOT STARTED
 
 Phase 2 is Identity and access, not Knowledge Sources. Sources come in Phase 3
@@ -78,15 +80,15 @@ Current Status:
   EXPERT on the attempt answered correctly. Gate 13 failed for the author and
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
-- npm run verify passes: typecheck 34/34, lint 22/22,
-  tests 909 passing + 12 todo across 45 files, boundaries 0 errors,
+- npm run verify passes: typecheck 35/35, lint 22/22,
+  tests 939 passing + 12 todo across 47 files, boundaries 0 errors,
   codegen contract clean, format clean. Re-counted 2026-09-26; see
   docs/project/STATUS_RECONCILIATION_2026-09-23.md for what was stale.
 - `npm run verify`, `test`, `test:integration` and `db:reset` now WARN FIRST
   with the real row counts, what survives and what has to be redone
   (scripts/destructive-warning.ts). Interactive runs ask; CI prints and
   continues. They wiped a live walkthrough mid-click on 2026-09-26.
-- npm run test:e2e passes: 34 passing + 1 skipped across three projects,
+- npm run test:e2e passes: 47 passing + 1 skipped across three projects,
   driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
   as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
@@ -95,7 +97,9 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 11 migrations apply from empty; seed is idempotent. 0011 is AI provider
+- 12 migrations apply from empty; seed is idempotent. 0012 is the reporting
+  schema: six read models, a refresh ledger, a dataset cache, a snapshot store
+  and three triggers on draft_question. 0011 is AI provider
   administration: `generation_provider_validation` (one row per readiness
   check) plus the `generation_provider_state` and `provider_validation_outcome`
   enums. 0010 is departments and roles. 0009 is the AI
@@ -781,7 +785,11 @@ The image is the visual source of truth. The Markdown is the AI-readable source
 of truth. reporting.md is the authority on read models, the catalogue,
 suppression and the publication lifecycle, and it OUTRANKS the mockup.
 
-DESIGNED 2026-09-26, NOT BUILT. The specification's section 0 names four
+PHASE 10 R1 BUILT 2026-09-26: migration 0012, six read models, `/reports` with
+five reports, suppression, an audited export and snapshots. The specification's
+section 15 records what landed against each of the ten sections.
+
+The specification's section 0 names four
 widgets that cannot be built as drawn, and each one is a thing an implementer
 would otherwise ship and be believed about:
 
@@ -812,8 +820,77 @@ duplicated as reporting screens, and the eight sidebar entries should be a tab
 strip under one Reports rail entry, as Governance and Administration already
 are.
 
-Phase 10 R1 delivers sections 3 (partly), 4, 5, 6 and 8. The learner heatmap
+Phase 10 R1 delivered sections 3 (partly), 4, 5, 6 and 8. The learner heatmap
 and the activity feed need read models that do not exist.
+
+## Reporting read models (Phase 10 R1)
+
+BUILT 2026-09-26, migration 0012. Specification: docs/reporting.md, which
+OUTRANKS the mockup. Six read models in their OWN PostgreSQL schema,
+`reporting`, none of them modelled in Prisma.
+
+- THE SCHEMA IS INVISIBLE TO PRISMA, and that is what makes it work without the
+  `multiSchema` preview feature: `prisma migrate diff` only sees the schema its
+  connection string names, so the drift gate passes with six read models,
+  three triggers and four functions it knows nothing about. Four of the six are
+  MATERIALIZED VIEWS, which Prisma cannot express anyway.
+- `rm_question_pipeline` IS MAINTAINED BY A DATABASE TRIGGER, not by a call
+  site. D1 asks for the counter to be written in the transition's own
+  transaction; `draft_question` is moved by at least eight paths and a ninth
+  will be added by somebody who has not read this file. Three statement-level
+  triggers (INSERT/UPDATE/DELETE, with transition tables) call one function per
+  affected domain. The UPDATE trigger reads BOTH the old and new tables,
+  because `domain_id` is not in the immutability list and a question that moves
+  domain leaves two counters wrong.
+- IT RECOMPUTES A DOMAIN, IT DOES NOT INCREMENT. A +1/-1 counter is correct
+  until somebody adds a lifecycle state or a transaction half-rolls-back, and
+  then it is wrong forever with nothing on screen saying so. A GROUP BY over
+  one domain costs a few milliseconds and cannot drift.
+- `REFRESH MATERIALIZED VIEW CONCURRENTLY` REQUIRES A UNIQUE INDEX ON PLAIN
+  COLUMNS. `rm_filing_coverage` first used a COALESCE expression index over its
+  nullable department and role, and the refresh failed with
+  `55000: cannot refresh materialized view concurrently`. It now carries
+  `department_key`/`job_role_key` columns coalesced to the nil uuid for the
+  index, and the nullable ids for reading. THE NIL UUID IS NEVER DISPLAYED.
+- `asOf` COMES FROM `reporting.refresh_state`, NEVER FROM `now()`. A model that
+  has never refreshed reports null and the screen says "never refreshed" rather
+  than drawing zeros. A FAILED refresh does not touch `refreshed_at`, so the
+  age keeps rising and the panel is labelled -- it is never blanked.
+- SEED THE LEDGER BEFORE THE FIRST BUILD. The migration's first version
+  inserted the `refresh_state` rows at the END, so the first build's UPDATE
+  matched nothing and the model held correct data while reading PENDING.
+- SUPPRESSION IS PURE AND HAS NO OVERRIDE. `applySuppression` takes rows and a
+  threshold. It implements S1 and, unusually, S3 -- COMPLEMENTARY suppression:
+  hiding one cell while publishing the total that reveals it is not
+  suppression. `minimumGroupSize` is clamped UPWARD only, so a configured 2
+  becomes 5. It applies to ONE of the five reports, because a question is not a
+  person and suppressing question counts by department protects nobody.
+- A WITHHELD TOTAL IS NOT ZERO. S4 keeps a suppressed row out of every visible
+  total, so a report whose only row is suppressed has a total of 0 -- which
+  reads as "none". Every dataset carries `totalsPartial` per metric and the
+  screens render "Withheld" or `>= n`. Found in a screenshot, not in a test.
+- THE DATASET CACHE KEY INCLUDES THE CALLER'S SCOPE HASH AND THE MODEL'S asOf.
+  Scope, because a cache keyed on the report alone would serve one caller's
+  suppressed dataset to another. `asOf`, because a refresh then invalidates
+  every entry BY CONSTRUCTION rather than by a sweep somebody forgets. A
+  dataset whose model has never refreshed is NOT cached: its key would be
+  `...:never` and the first refresh would not displace it.
+- A SNAPSHOT IS NOT A PUBLICATION. reporting.md 8.2 U1: a publication is a
+  definition plus an audience, re-rendered per viewer under their own scope. A
+  snapshot is a fixed, audited capture, and it stores withheld cells AS
+  WITHHELD -- storing the pre-suppression rows "for someone with more access"
+  would make the table a way to read around S1.
+- DRIFT IS REPORTED, NEVER CORRECTED (D7). The nightly reconciler FULL OUTER
+  JOINs the counter against `draft_question` and raises one
+  PlatformConsistencyFinding per discrepancy. The outer join is the point: a
+  counter row with no questions behind it and a question group with no counter
+  row are both drift, and the second is what a dropped trigger looks like.
+- RAW SQL BELONGS IN @knowzy/reporting, NOT IN THE API. Content rule C4 is
+  relaxed for that package and enforced everywhere else; the first version of
+  the reports route read `refresh_state` directly and was refused by lint.
+  `readFreshness` and `readAllFreshness` exist for that reason.
+- ONE QUERY PATH. The screen, the CSV and a snapshot all call `runDataset`, so
+  scope, window and suppression cannot differ between them (B1/B2).
 
 ### SharePoint Sync Manager
 

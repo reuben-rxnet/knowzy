@@ -1,8 +1,10 @@
 # Reporting & Analytics UI Source of Truth
 
 **Approved visual reference:** `design/approved/reporting-and-analytics/KNOWZY-reporting-and-analytics-dashboard.png`
-**Status of this document:** planning and design artifact. **Nothing in this file is implemented.**
-**Created:** 2026-09-26, before Phase 10 implementation, so the design is official before code exists.
+**Status of this document:** the design contract. **Phase 10 R1 is now built** — see §15 for what
+landed and what did not.
+**Created:** 2026-09-26, before Phase 10 implementation, so the design was official before code
+existed. **R1 built the same day**, against this document rather than against the image.
 **Phase:** 10 — Reporting and audit surfaces ([implementation-roadmap.md](../implementation-roadmap.md))
 **Specified by:** [reporting.md](../reporting.md) is the authority on read models, the report
 catalogue, proficiency semantics, suppression and the publication lifecycle. Where this document and
@@ -396,8 +398,46 @@ Neither is an engineering choice, and both change what gets built.
 
 ---
 
+## 15. What R1 built, and what it refused to
+
+**Built 2026-09-26.** Migration `0012_reporting_read_models`, six read models, `/reports` with a tab
+strip and five report screens.
+
+| Section | Status after R1 |
+| --- | --- |
+| 1. Header | `PARTIALLY_IMPLEMENTED`. Title, Refresh and Export are real. **Refresh means a RECOMPUTE**, gated on `platform.configure` and audited — not a page reload. The date-range picker is a per-report window filter rather than a global control, and the resolved interval is printed beside it (D9). The notification bell stays `BLOCKED`: there is still no producer |
+| 2. Navigation | `PARTIALLY_IMPLEMENTED`. **One rail entry, six tabs** — not eight sidebar entries. AI Usage and the Audit Explorer are linked from the dashboard instead of duplicated, per §2 |
+| 3. KPI cards | `PARTIALLY_IMPLEMENTED`. Eight figures, **no deltas**, and the screen says why in a sentence a reader can check |
+| 4. Generation trend | `PARTIALLY_IMPLEMENTED`. The day-grained models exist and the generation report reads them; the 12-month **chart** is not drawn yet. The data behind it is real |
+| 5. Status distribution | `IMPLEMENTED` as a table, not a donut. The five-bucket grouping in §5 is **not** applied: the report shows all ten lifecycle states, because collapsing them would have hidden `RETIRED` and `ARCHIVED` from a figure labelled "total" |
+| 6. Department and role | `IMPLEMENTED`, as a table. "Not filed" is a value, not a blank |
+| 7. Learner heatmap | **`BLOCKED`, and now declared on screen** with its three reasons. Nothing was faked |
+| 8. Source health | `IMPLEMENTED` as source **coverage**, read-only. Operational source actions stay in the Sync Manager |
+| 9. AI usage | `IMPLEMENTED` elsewhere and **linked**, not restated |
+| 10. Activity feed | `PARTIALLY_IMPLEMENTED`. The Audit Explorer is the surface; the compact feed is not built |
+
+### The four `BLOCKED` widgets of §0, revisited
+
+| # | Outcome |
+| --- | --- |
+| **H1** deltas | **Not shown, and stated.** The dashboard carries a paragraph explaining that no figure has one, that two of the eight could never have one, and that trends live in the day-grained reports. A browser test asserts the phrase appears exactly once — in the explanation |
+| **H2** provider figures | **Not restated.** The dashboard links to the governance screen, which already reports "Not Yet Recorded" and "Not observable" honestly |
+| **H3** "connection verified" | **Not built.** No feed exists yet, and when one does it will carry the recorded validation outcome |
+| **H4** heatmap suppression | **Suppression is built and firing.** It is applied to the assessment report, including complementary suppression, and the heatmap itself stays unbuilt until the design accepts withheld cells |
+
+### One thing R1 added that the design did not ask for
+
+**A withheld total is never rendered as `0`.** S4 keeps a suppressed row out of every visible total,
+which is correct — and where every contributing row is withheld the total is zero, and a `0` in a
+KPI slot reads as "none". Found by looking at a screenshot: "Assessment attempts **0**" beside a
+caption saying ten cells were withheld. The dataset now carries a `totalsPartial` flag per metric and
+every surface renders a partial total as **"Withheld"** or `≥ n`.
+
+---
+
 ## 14. Change log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-26 | Created from the approved reference `KNOWZY-reporting-and-analytics-dashboard.png`, before any Phase 10 implementation. Ten sections documented; four widgets classified `BLOCKED` with the reason and the condition for unblocking; two decisions raised for the product owner. |
+| 2026-09-26 | **Phase 10 R1 built.** §15 added: five reports, six read models, suppression with complementary suppression, `asOf` from a refresh ledger, a dataset cache keyed on the caller's scope, audited CSV export and snapshots, and an on-demand refresh. Decision **D-1** taken as recommended — learner reporting ships with **no person grouping**, so the heatmap stays unbuilt. |
