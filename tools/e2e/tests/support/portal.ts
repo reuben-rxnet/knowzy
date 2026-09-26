@@ -81,7 +81,13 @@ export const actAs = async (page: Page, identity: Identity): Promise<void> => {
  */
 export const openIdentityMenu = async (page: Page): Promise<void> => {
   const trigger = page.locator('header button[aria-haspopup="menu"]');
-  await expect(trigger).toBeVisible();
+  // A GENEROUS timeout, because the first navigation into a route in this suite
+  // can land while `next dev` is still compiling it -- and then the header has
+  // not rendered, the trigger is genuinely absent, and the failure reads as a
+  // missing control rather than as a cold compile. 30s is the observed worst
+  // case for a cold route on this machine; the production build compiles
+  // nothing at request time and never needs it.
+  await expect(trigger).toBeVisible({ timeout: 30_000 });
   if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
 };
