@@ -1,4 +1,4 @@
-// The provider registry: five states, and the order they are decided in.
+// The provider registry: the states, and the order they are decided in.
 //
 // The order IS the policy (see `decideState`), so it is asserted directly: a
 // provider that can never ground a question must not be reported as merely
@@ -36,6 +36,7 @@ describe('state resolution', () => {
     // promise: a credential is not enough.
     const assessment = registry({
       factories: { OPENAI: (modelId) => ({ ...createDeterministicProvider(), modelId }) },
+      enabled: { OPENAI: true },
     }).assess('OPENAI');
     expect(assessment.state).toBe('BLOCKED_BY_APPROVAL');
     expect(assessment.approved).toBe(false);
@@ -56,13 +57,48 @@ describe('state resolution', () => {
   });
 
   it('a registered, approved provider with an unresolvable credential is BLOCKED_BY_CONFIGURATION', () => {
+    // `enabled` is set, because the administrator's own decision is checked
+    // FIRST within the configuration step: without it the reason would be
+    // "nobody enabled this", which is true but not what this test is about.
     const assessment = registry({
       approvedProviders: ['DETERMINISTIC_LOCAL', 'ANTHROPIC'],
       factories: { ANTHROPIC: (modelId) => ({ ...createDeterministicProvider(), modelId }) },
+      enabled: { ANTHROPIC: true },
       credentialPresent: { ANTHROPIC: false },
     }).assess('ANTHROPIC');
     expect(assessment.state).toBe('BLOCKED_BY_CONFIGURATION');
     expect(assessment.reason).toContain('credential');
+  });
+
+  it('a provider NOBODY ENABLED is BLOCKED_BY_CONFIGURATION, even fully credentialled', () => {
+    // The gate that exists so a credential appearing in the environment cannot
+    // start a provider billing. "Not decided" is not "on".
+    const assessment = registry({
+      approvedProviders: ['DETERMINISTIC_LOCAL', 'ANTHROPIC'],
+      factories: { ANTHROPIC: (modelId) => ({ ...createDeterministicProvider(), modelId }) },
+      credentialPresent: { ANTHROPIC: true },
+    }).assess('ANTHROPIC');
+    expect(assessment.state).toBe('BLOCKED_BY_CONFIGURATION');
+    expect(assessment.reason).toContain('not been enabled');
+  });
+
+  it('an EXPLICITLY disabled provider says so, rather than blaming its credential', () => {
+    const assessment = registry({
+      approvedProviders: ['DETERMINISTIC_LOCAL', 'ANTHROPIC'],
+      factories: { ANTHROPIC: (modelId) => ({ ...createDeterministicProvider(), modelId }) },
+      enabled: { ANTHROPIC: false },
+      credentialPresent: { ANTHROPIC: false },
+    }).assess('ANTHROPIC');
+    expect(assessment.state).toBe('BLOCKED_BY_CONFIGURATION');
+    expect(assessment.reason).toContain('disabled');
+  });
+
+  it('the deterministic provider CANNOT be disabled', () => {
+    // It is the floor: there is no configuration in which the platform has no
+    // generator at all, so `enabled: false` is ignored for this one alone.
+    expect(
+      registry({ enabled: { DETERMINISTIC_LOCAL: false } }).assess('DETERMINISTIC_LOCAL').state,
+    ).toBe('AVAILABLE');
   });
 
   it('describes EVERY declared provider, including the unusable ones', () => {

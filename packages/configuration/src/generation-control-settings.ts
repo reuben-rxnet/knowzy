@@ -29,6 +29,14 @@ export interface ResolvedControlSettings {
   readonly warningRatio: number;
   readonly concurrency: number;
   readonly providerLimits: Record<string, unknown>;
+  /**
+   * Per-provider settings, including which credential REFERENCE each one uses.
+   *
+   * `Record<string, unknown>` for the same reason `providerLimits` is: this
+   * package sits below the domain, so it describes the shape rather than
+   * importing the consumer's type.
+   */
+  readonly providerSettings: Record<string, unknown>;
   readonly prices: Record<string, unknown>;
   readonly retry: {
     readonly maxAttempts: number;
@@ -60,6 +68,7 @@ export const resolveControlSettings = (
     warningRatio: value<number>('llm.budgetWarningRatio'),
     concurrency: value<number>('llm.concurrency'),
     providerLimits: value<Record<string, unknown>>('llm.providerLimits'),
+    providerSettings: value<Record<string, unknown>>('llm.providerSettings'),
     prices: value<Record<string, unknown>>('llm.tokenPrices'),
     retry: {
       maxAttempts: value<number>('llm.maxAttempts'),
@@ -85,6 +94,7 @@ export const CONTROL_CONFIG_KEYS = [
   'llm.budgetWarningRatio',
   'llm.concurrency',
   'llm.providerLimits',
+  'llm.providerSettings',
   'llm.tokenPrices',
   'llm.maxAttempts',
   'llm.retryBaseDelayMs',

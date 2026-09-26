@@ -87,6 +87,23 @@ export const Select = ({
   </select>
 );
 
+/**
+ * A single-line text control.
+ *
+ * The prop list is an ALLOW-LIST rather than `...rest`, so every attribute a
+ * form can set is one somebody chose to expose. Four were added on 2026-09-26
+ * for the provider configuration form, and each earns its place:
+ *
+ *   `url`          a real input type, with the browser's own validation and
+ *                  the right mobile keyboard. A URL field typed as `text` asks
+ *                  every form to re-implement that.
+ *   `step`         a decimal field (a sampling temperature) is unusable
+ *                  without it: the default step of 1 rejects 0.2.
+ *   `maxLength`    the server's own limit, enforced where it can be seen
+ *                  rather than only in a refusal.
+ *   `autoComplete` the ONLY way to tell a browser not to offer to save, and
+ *                  not to fill, a credential-shaped field.
+ */
 export const TextInput = ({
   id,
   name,
@@ -94,15 +111,23 @@ export const TextInput = ({
   defaultValue,
   min,
   max,
+  step,
+  maxLength,
+  autoComplete,
   required = false,
   placeholder,
 }: {
   readonly id: string;
   readonly name: string;
-  readonly type?: 'text' | 'number';
+  readonly type?: 'text' | 'number' | 'url';
   readonly defaultValue?: string | number;
   readonly min?: number;
   readonly max?: number;
+  /** A number field's increment. `0.1` for a value like a temperature. */
+  readonly step?: number | string;
+  readonly maxLength?: number;
+  /** `off` for anything credential-shaped, so no browser offers to store it. */
+  readonly autoComplete?: 'off' | 'on';
   readonly required?: boolean;
   readonly placeholder?: string;
 }) => (
@@ -114,6 +139,9 @@ export const TextInput = ({
     {...(defaultValue === undefined ? {} : { defaultValue })}
     {...(min === undefined ? {} : { min })}
     {...(max === undefined ? {} : { max })}
+    {...(step === undefined ? {} : { step })}
+    {...(maxLength === undefined ? {} : { maxLength })}
+    {...(autoComplete === undefined ? {} : { autoComplete })}
     {...(placeholder === undefined ? {} : { placeholder })}
     className={`${controlBase} min-h-target`}
   />

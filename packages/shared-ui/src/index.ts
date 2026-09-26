@@ -155,6 +155,8 @@ export {
   type StackRow,
   type StackSeries,
   type TrendPoint,
+  ActivityHeatmap,
+  type HeatCell,
 } from './components/Charts.js';
 
 export { FilterBar, type FilterDefinition } from './components/FilterBar.js';

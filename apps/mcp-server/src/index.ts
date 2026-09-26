@@ -69,7 +69,7 @@ const main = async (): Promise<void> => {
   const report = await validateStartup({
     deployable: 'mcp-server',
     rawEnv,
-    expectedMigrationVersion: '0010_organizational_taxonomy',
+    expectedMigrationVersion: '0011_ai_provider_administration',
     probes: {
       database: () => probeDatabase(prisma),
       mockAdaptersRegistered: () => isLocal,

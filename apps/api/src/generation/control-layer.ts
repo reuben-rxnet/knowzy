@@ -13,7 +13,12 @@
 import { resolveControlSettings, CONTROL_CONFIG_KEYS } from '@knowzy/configuration';
 import { createGeneratorRegistry, type GeneratorRegistry } from '@knowzy/claude-services';
 import type { PrismaClient } from '@knowzy/database';
-import type { GenerationProviderId, ProviderLimits, TokenPrice } from '@knowzy/shared-types';
+import type {
+  GenerationProviderId,
+  ProviderLimits,
+  ProviderSettings,
+  TokenPrice,
+} from '@knowzy/shared-types';
 
 export interface ControlLayer {
   readonly registry: GeneratorRegistry;
@@ -36,15 +41,34 @@ export interface ControlLayer {
     readonly health: { readonly failureThreshold: number; readonly windowMinutes: number };
     readonly maxAttempts: number;
   };
+  /**
+   * What an administrator configured per provider, and when the value was last
+   * written.
+   *
+   * Carried on the control layer because both the administration screen and
+   * the registry need it: the registry needs `enabled`, and the screen needs
+   * everything except the credential reference, which never leaves the domain.
+   */
+  readonly providerSettings: Readonly<Partial<Record<GenerationProviderId, ProviderSettings>>>;
+  readonly providerSettingsUpdatedAt: string | null;
+  readonly activeProvider: GenerationProviderId;
+  readonly approvedProviders: readonly GenerationProviderId[];
 }
 
 export const loadControlLayer = async (prisma: PrismaClient): Promise<ControlLayer> => {
   const rows = await prisma.applicationConfiguration.findMany({
     where: { key: { in: [...CONTROL_CONFIG_KEYS] } },
-    select: { key: true, scope: true, scopeId: true, value: true },
+    select: { key: true, scope: true, scopeId: true, value: true, updatedAt: true },
   });
 
   const resolved = resolveControlSettings(rows);
+  const providerSettings = resolved.providerSettings as Readonly<
+    Partial<Record<GenerationProviderId, ProviderSettings>>
+  >;
+  // The row's own timestamp, so the screen can say when any provider's
+  // configuration last changed. Whole-key granularity, which is what the
+  // storage actually knows -- see `settingsUpdatedAt` in shared-types.
+  const settingsRow = rows.find((row) => row.key === 'llm.providerSettings');
 
   // Factories are NOT passed: no external provider client exists in this
   // build, so every provider except the deterministic one resolves to
@@ -53,6 +77,25 @@ export const loadControlLayer = async (prisma: PrismaClient): Promise<ControlLay
   const registry = createGeneratorRegistry({
     activeProvider: resolved.activeProvider as GenerationProviderId,
     approvedProviders: resolved.approvedProviders as readonly GenerationProviderId[],
+    // The administrator's on/off decision, which the registry treats as part
+    // of the configuration step. Absent means "not decided", and for an
+    // external provider that is treated as off -- a provider nobody enabled
+    // must not start billing because a credential appeared in the environment.
+    enabled: Object.fromEntries(
+      Object.entries(providerSettings).map(([providerId, settings]) => [
+        providerId,
+        settings?.enabled === true,
+      ]),
+    ) as Readonly<Partial<Record<GenerationProviderId, boolean>>>,
+    // Whether a credential REFERENCE is recorded. A boolean, never the
+    // reference: the registry may not hold one, and one that could read a
+    // secret would be worth attacking.
+    credentialPresent: Object.fromEntries(
+      Object.entries(providerSettings).map(([providerId, settings]) => [
+        providerId,
+        settings?.apiKeyRef !== undefined,
+      ]),
+    ) as Readonly<Partial<Record<GenerationProviderId, boolean>>>,
   });
 
   return {
@@ -72,5 +115,9 @@ export const loadControlLayer = async (prisma: PrismaClient): Promise<ControlLay
       health: resolved.health,
       maxAttempts: resolved.retry.maxAttempts,
     },
+    providerSettings,
+    providerSettingsUpdatedAt: settingsRow?.updatedAt?.toISOString() ?? null,
+    activeProvider: resolved.activeProvider as GenerationProviderId,
+    approvedProviders: resolved.approvedProviders as readonly GenerationProviderId[],
   };
 };

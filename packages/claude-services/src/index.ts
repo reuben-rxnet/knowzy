@@ -97,6 +97,12 @@ export {
 } from './registry.js';
 
 export {
+  validateProvider,
+  type ValidateProviderInput,
+  type ValidateProviderResult,
+} from './validation.js';
+
+export {
   assessProviderHealth,
   type HealthAssessment,
   type HealthSample,

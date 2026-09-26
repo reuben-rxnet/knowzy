@@ -63,6 +63,7 @@ const assertSane = (limits: ProviderLimits): void => {
     ['weeklyTokenBudget', limits.weeklyTokenBudget],
     ['monthlyTokenBudget', limits.monthlyTokenBudget],
     ['concurrency', limits.concurrency],
+    ['maxAttempts', limits.maxAttempts],
   ];
   for (const [name, value] of entries) {
     if (value === undefined) continue;
@@ -75,6 +76,15 @@ const assertSane = (limits: ProviderLimits): void => {
   }
   if (limits.concurrency !== undefined && (limits.concurrency < 1 || limits.concurrency > 32)) {
     throw new ProviderLimitError('VALIDATION_FAILED', 'concurrency must be between 1 and 32.');
+  }
+  // 1 is a legitimate value and means "do not retry" -- distinct from 0, which
+  // would mean "do not call at all" and is refused rather than silently read
+  // as a kill switch. Disabling a provider is its own gesture.
+  if (limits.maxAttempts !== undefined && (limits.maxAttempts < 1 || limits.maxAttempts > 10)) {
+    throw new ProviderLimitError(
+      'VALIDATION_FAILED',
+      'maxAttempts must be between 1 and 10. Use 1 for no retries; to stop a provider entirely, disable it in Administration -> AI Providers.',
+    );
   }
   // A per-job ceiling above the daily one is not an error the platform should
   // silently accept: it reads as a larger allowance than the day can fund, and

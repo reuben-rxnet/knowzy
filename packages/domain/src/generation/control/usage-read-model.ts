@@ -43,6 +43,7 @@ import {
   recorded,
   type AiUsageSummary,
   type BudgetWindow,
+  type BudgetWindowStatus,
   type CallErrorClass,
   type CostAccount,
   type GenerationHistoryRow,
@@ -53,7 +54,7 @@ import {
   type RecordedNumber,
   type UsageBucket,
 } from '@knowzy/shared-types';
-import { budgetStatus, perJobLimitFor, type BudgetSettings } from './budget.js';
+import { budgetStatus, limitFor, perJobLimitFor, type BudgetSettings } from './budget.js';
 import { concurrencyLimitFor, type ConcurrencySettings } from './concurrency.js';
 
 export interface UsageSettings extends BudgetSettings, ConcurrencySettings {
@@ -259,10 +260,21 @@ export const readAiUsage = async (args: ReadAiUsageArgs): Promise<AiUsageSummary
     );
 
   const windows: readonly BudgetWindow[] = ['DAILY', 'WEEKLY', 'MONTHLY'];
-  const budgets = [];
+  const budgets: BudgetWindowStatus[] = [];
   for (const window of windows) {
     budgets.push(await budgetStatus(db, window, settings, now, null));
   }
+
+  // Jobs RUNNING right now, per provider. The same count `checkConcurrency`
+  // makes when it refuses a job, so the number on the page is the number that
+  // is enforced -- not a second definition of "busy".
+  const running = await db.generationJob.groupBy({
+    by: ['providerId'],
+    where: { status: 'RUNNING' },
+    _count: { _all: true },
+  });
+  const activeFor = (providerId: string): number =>
+    running.find((row) => row.providerId === providerId)?._count._all ?? 0;
 
   const history = (await db.generationJob.findMany({
     take: args.historyLimit ?? 25,
@@ -318,6 +330,38 @@ export const readAiUsage = async (args: ReadAiUsageArgs): Promise<AiUsageSummary
 
   const hasActivity = jobs.length > 0;
   const daily = budgets.find((budget) => budget.window === 'DAILY');
+
+  /**
+   * OVER_BUDGET, overlaid on the registry's verdict.
+   *
+   * The registry cannot decide this: it has no database, by design (B4), and
+   * budget consumption is a query. So a provider the registry called AVAILABLE
+   * is re-labelled here when any window it is subject to is already spent.
+   *
+   * The test matches what `checkWindowBudgets` ENFORCES rather than inventing
+   * a second rule: that check compares TENANT-WIDE usage against the limit in
+   * force for the provider, so this does the same with the totals already
+   * computed above. No extra query, and no risk of the page disagreeing with
+   * the refusal.
+   */
+  const overBudgetWindow = (providerId: GenerationProviderId): BudgetWindow | null => {
+    for (const status of budgets) {
+      const limit = limitFor(status.window, settings, providerId);
+      if (status.usedTokens >= limit) return status.window;
+    }
+    return null;
+  };
+
+  const withBudgetState: readonly ProviderStateAssessment[] = providers.map((assessment) => {
+    if (assessment.state !== 'AVAILABLE') return assessment;
+    const window = overBudgetWindow(assessment.providerId);
+    if (window === null) return assessment;
+    return {
+      ...assessment,
+      state: 'OVER_BUDGET' as const,
+      reason: `The ${window.toLowerCase()} token budget in force for this provider is spent. Generation is refused until the window resets or the ceiling is raised.`,
+    };
+  });
   const available = providers.filter((provider) => provider.state === 'AVAILABLE').length;
   const registeredCount = providers.filter((provider) => provider.registered).length;
 
@@ -340,16 +384,32 @@ export const readAiUsage = async (args: ReadAiUsageArgs): Promise<AiUsageSummary
       // Budget figures are known from configuration even with no activity: a
       // full budget is a fact, not an absence.
       remainingDailyBudget: recorded(daily?.remainingTokens ?? 0),
+      dailyBudget: recorded(daily?.budgetTokens ?? 0),
       budgetUtilizationPercent: recorded(daily?.utilizationPercent ?? 0),
+      // The window's total spend. Unobservable as a whole if ANY contributor
+      // is, because summing only the observable part presents an undercount
+      // as a total.
+      estimatedCost: hasActivity
+        ? aggregateCost(jobs.map((job) => costOfJob(job, settings)))
+        : {
+            observable: false,
+            amount: null,
+            unobservableReason: 'No generation has been recorded in this window.',
+          },
       activeAuthors: countOrNotRecorded(
         new Set(jobs.map((job) => job.createdByUserId).filter((id) => id !== null)).size,
         hasActivity,
       ),
     },
     activeProvider: registry.activeProvider,
-    providers,
+    providers: withBudgetState,
     providerUsage,
     budgets,
+    concurrency: {
+      providerId: registry.activeProvider,
+      active: activeFor(registry.activeProvider),
+      limit: concurrencyLimitFor(settings, registry.activeProvider),
+    },
     timeline: {
       day: bucketize(jobs, 'day', settings),
       week: bucketize(jobs, 'week', settings),
@@ -359,7 +419,14 @@ export const readAiUsage = async (args: ReadAiUsageArgs): Promise<AiUsageSummary
     limits: {
       perJobTokenBudget: perJobLimitFor(settings, registry.activeProvider),
       concurrency: concurrencyLimitFor(settings, registry.activeProvider),
-      maxAttempts: settings.maxAttempts,
+      // The ceiling in force for the ACTIVE provider, which is what the rest
+      // of this block reports. A per-provider override wins, exactly as it
+      // does at call time -- a page showing the platform default while a
+      // different number is enforced is worse than no number.
+      maxAttempts:
+        (settings.providerLimits as Record<string, { maxAttempts?: number } | undefined>)[
+          registry.activeProvider
+        ]?.maxAttempts ?? settings.maxAttempts,
     },
   };
 };

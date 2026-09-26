@@ -21,6 +21,7 @@
 //   * no spend for a provider that reports none.
 
 import {
+  ActivityHeatmap,
   Badge,
   Card,
   CardBody,
@@ -130,6 +131,8 @@ interface AiUsage {
     readonly totalGenerations: RecordedNumber;
     readonly questionsGenerated: RecordedNumber;
     readonly estimatedTokens: RecordedNumber;
+    readonly estimatedCost: CostAccount;
+    readonly dailyBudget: RecordedNumber;
     readonly remainingDailyBudget: RecordedNumber;
     readonly budgetUtilizationPercent: RecordedNumber;
     readonly activeAuthors: RecordedNumber;
@@ -138,6 +141,11 @@ interface AiUsage {
   readonly providers: readonly ProviderState[];
   readonly providerUsage: readonly ProviderUsage[];
   readonly budgets: readonly BudgetWindowStatus[];
+  readonly concurrency: {
+    readonly providerId: string;
+    readonly active: number;
+    readonly limit: number;
+  };
   readonly timeline: {
     readonly day: readonly UsageBucket[];
     readonly week: readonly UsageBucket[];
@@ -205,6 +213,11 @@ const STATE_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> =
   BLOCKED_BY_CONFIGURATION: 'warning',
   BLOCKED_BY_APPROVAL: 'warning',
   BLOCKED_BY_CAPABILITY: 'danger',
+  // The sixth state, applied by the read model rather than the registry: a
+  // provider that is capable, approved, built and configured, and whose budget
+  // window is spent. WARNING and not DANGER -- it clears itself when the
+  // window rolls over, unlike the other four.
+  OVER_BUDGET: 'warning',
 };
 
 export const dynamic = 'force-dynamic';
@@ -295,6 +308,25 @@ export default async function AiUsagePage({
           icon={<Gauge className="size-5" />}
           tone="ai"
         />
+        {/* Spend, and the ceiling it is spent against. A remaining figure with
+            no budget beside it cannot be judged: 400,000 left is comfortable
+            against 2,000,000 and alarming against 450,000. */}
+        <KpiCard
+          label={t('ai.kpiCost')}
+          value={money(data.kpis.estimatedCost)}
+          caption={
+            data.kpis.estimatedCost.observable
+              ? t('ai.kpiCostNote')
+              : (data.kpis.estimatedCost.unobservableReason ?? t('ai.notObservable'))
+          }
+          icon={<Coins className="size-5" />}
+        />
+        <KpiCard
+          label={t('ai.kpiDailyBudget')}
+          value={figure(data.kpis.dailyBudget)}
+          caption={t('ai.kpiDailyBudgetNote')}
+          icon={<Coins className="size-5" />}
+        />
         <KpiCard
           label={t('ai.kpiRemainingDaily')}
           value={figure(data.kpis.remainingDailyBudget)}
@@ -311,6 +343,27 @@ export default async function AiUsagePage({
           icon={<Users className="size-5" />}
         />
       </div>
+
+      {/* ------------------------------------------------------- concurrency */}
+      <Card>
+        <CardHeader title={t('ai.concurrencyHeading')} description={t('ai.concurrencyNote')} />
+        <CardBody>
+          <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+            <p className="text-2xl font-semibold text-brand-navy-text">
+              {t('ai.concurrencyOf', {
+                active: String(data.concurrency.active),
+                limit: String(data.concurrency.limit),
+              })}
+            </p>
+            <p className="text-sm text-ink-muted">
+              {t('ai.concurrencyProvider', { provider: data.concurrency.providerId })}
+            </p>
+          </div>
+          {/* Said out loud, because the absence of a queue is the kind of thing
+              a reader assumes the other way round. */}
+          <p className="mt-2 max-w-prose text-2xs text-ink-muted">{t('ai.concurrencyNoQueue')}</p>
+        </CardBody>
+      </Card>
 
       {/* ------------------------------------------------------------ budgets */}
       <Card>
@@ -386,6 +439,9 @@ export default async function AiUsagePage({
                   {t('ai.generations')}
                 </Th>
                 <Th scope="col" align="end">
+                  {t('ai.questions')}
+                </Th>
+                <Th scope="col" align="end">
                   {t('ai.tokens')}
                 </Th>
                 <Th scope="col" align="end">
@@ -418,6 +474,9 @@ export default async function AiUsagePage({
                     </Td>
                     <Td align="end">
                       {usageRow === undefined ? '—' : number(usageRow.generations)}
+                    </Td>
+                    <Td align="end">
+                      {usageRow === undefined ? '—' : number(usageRow.questionsGenerated)}
                     </Td>
                     <Td align="end">
                       {usageRow === undefined ? '—' : number(usageRow.tokens.totalTokens)}
@@ -485,40 +544,67 @@ export default async function AiUsagePage({
           {buckets.length === 0 ? (
             <EmptyState title={t('ai.noActivity')} description={t('ai.noActivityNote')} />
           ) : (
-            <DataTable caption={t('ai.timelineHeading')} captionHidden>
-              <THead>
-                <Tr>
-                  <Th scope="col">{t('ai.period')}</Th>
-                  <Th scope="col" align="end">
-                    {t('ai.requests')}
-                  </Th>
-                  <Th scope="col" align="end">
-                    {t('ai.questions')}
-                  </Th>
-                  <Th scope="col" align="end">
-                    {t('ai.tokens')}
-                  </Th>
-                  <Th scope="col" align="end">
-                    {t('ai.cost')}
-                  </Th>
-                </Tr>
-              </THead>
-              <TBody>
-                {buckets.map((bucket) => (
-                  <Tr key={bucket.bucket}>
-                    <Th scope="row">{bucket.bucket}</Th>
-                    <Td align="end">{number(bucket.requests)}</Td>
-                    <Td align="end">{number(bucket.questionsGenerated)}</Td>
-                    <Td align="end">{number(bucket.tokens)}</Td>
-                    <Td align="end">
-                      <span title={bucket.cost.unobservableReason ?? undefined}>
-                        {money(bucket.cost)}
-                      </span>
-                    </Td>
+            <>
+              {/* The grid FIRST, the table under it. The grid answers "when has
+                  this platform been busy" in one look; the table answers "how
+                  much, exactly", and both are the same numbers -- the heatmap
+                  computes nothing.
+
+                  Oldest first, left to right, which is the only order a
+                  calendar reads in. The read model returns newest first
+                  because every other consumer wants that, so it is reversed
+                  here rather than there. */}
+              <div className="mb-5">
+                <ActivityHeatmap
+                  cells={[...buckets].reverse().map((bucket) => ({
+                    bucket: bucket.bucket,
+                    value: bucket.tokens,
+                    detail: [
+                      [t('ai.requests'), bucket.requests],
+                      [t('ai.questions'), bucket.questionsGenerated],
+                    ] as const,
+                  }))}
+                  caption={t('ai.heatmapCaption')}
+                  valueLabel={t('ai.tokens')}
+                  columns={grain === 'day' ? 14 : grain === 'week' ? 13 : 12}
+                  emptyLabel={t('ai.heatmapEmpty')}
+                />
+              </div>
+              <DataTable caption={t('ai.timelineHeading')} captionHidden>
+                <THead>
+                  <Tr>
+                    <Th scope="col">{t('ai.period')}</Th>
+                    <Th scope="col" align="end">
+                      {t('ai.requests')}
+                    </Th>
+                    <Th scope="col" align="end">
+                      {t('ai.questions')}
+                    </Th>
+                    <Th scope="col" align="end">
+                      {t('ai.tokens')}
+                    </Th>
+                    <Th scope="col" align="end">
+                      {t('ai.cost')}
+                    </Th>
                   </Tr>
-                ))}
-              </TBody>
-            </DataTable>
+                </THead>
+                <TBody>
+                  {buckets.map((bucket) => (
+                    <Tr key={bucket.bucket}>
+                      <Th scope="row">{bucket.bucket}</Th>
+                      <Td align="end">{number(bucket.requests)}</Td>
+                      <Td align="end">{number(bucket.questionsGenerated)}</Td>
+                      <Td align="end">{number(bucket.tokens)}</Td>
+                      <Td align="end">
+                        <span title={bucket.cost.unobservableReason ?? undefined}>
+                          {money(bucket.cost)}
+                        </span>
+                      </Td>
+                    </Tr>
+                  ))}
+                </TBody>
+              </DataTable>
+            </>
           )}
         </CardBody>
       </Card>

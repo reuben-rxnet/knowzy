@@ -334,6 +334,35 @@ enum GenerationRefusalReason {
 }
 
 /// One attempt against a provider. Retries produce more than one per job.
+/// The five states the REGISTRY can assign, and only those.
+///
+/// `OVER_BUDGET` is deliberately absent. It is the sixth state in the
+/// TypeScript union and is applied by the usage read model after a budget
+/// query, so persisting it here would store a value that is only true until the
+/// next window boundary.
+enum GenerationProviderState {
+  AVAILABLE
+  UNAVAILABLE
+  BLOCKED_BY_CONFIGURATION
+  BLOCKED_BY_APPROVAL
+  BLOCKED_BY_CAPABILITY
+
+  @@map("generation_provider_state")
+}
+
+/// Whether a readiness validation established usability.
+///
+/// INCOMPLETE is the normal result for an external provider in this build: no
+/// client exists, so the live call is not attempted and nothing may claim that
+/// authentication succeeded.
+enum ProviderValidationOutcome {
+  PASSED
+  FAILED
+  INCOMPLETE
+
+  @@map("provider_validation_outcome")
+}
+
 enum GenerationCallOutcome {
   SUCCEEDED
   FAILED
@@ -1549,6 +1578,42 @@ model GenerationProviderCall {
   @@index([startedAt(sort: Desc)])
   @@index([outcome])
   @@map("generation_provider_call")
+}
+
+/// One recorded provider READINESS VALIDATION -- what "Test connection"
+/// produced, and when.
+///
+/// A row per ATTEMPT, like `generation_provider_call`, for the same reason: the
+/// question an administrator asks is "what did it say last time, and has
+/// anybody checked since", and a single mutable "last validation" column cannot
+/// answer the second half. Append-only in practice; nothing updates a row.
+///
+/// The `steps` payload is the CHAIN -- capability, approval, implementation,
+/// credential, live call -- each with PASSED, FAILED or NOT_ATTEMPTED. It never
+/// contains a credential, an endpoint response or a model output; the whole
+/// record is a statement about configuration.
+model GenerationProviderValidation {
+  id           String                     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  providerId   GenerationProviderId       @map("provider_id")
+  /// The registry's state at the moment of validation. OVER_BUDGET is not a
+  /// member: it is derived per request from budget consumption and would be
+  /// stale the moment a window rolled over.
+  state        GenerationProviderState
+  outcome      ProviderValidationOutcome
+  /// `[{ check, result, detail }]`, in enforcement order.
+  steps        Json                       @db.JsonB
+  /// The single sentence a screen shows beside the outcome.
+  summary      String                     @db.VarChar(500)
+  validatedByUserId String?               @map("validated_by_user_id") @db.Uuid
+  validatedAt  DateTime                   @default(now()) @map("validated_at") @db.Timestamptz(6)
+  correlationId String                    @map("correlation_id") @db.VarChar(64)
+
+  /// `map:` because the migration names this index itself. Prisma would
+  /// otherwise expect `generation_provider_validation_provider_id_validated_at_idx`
+  /// and the CI drift gate would want to rename it on every run -- the same
+  /// class of drift that kept runs #17 and #18 red for three days.
+  @@index([providerId, validatedAt(sort: Desc)], map: "generation_provider_validation_provider_at_idx")
+  @@map("generation_provider_validation")
 }
 
 /// Rejected candidates are NOT persisted as questions; this table is the

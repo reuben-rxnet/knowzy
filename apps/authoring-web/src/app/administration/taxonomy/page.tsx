@@ -25,6 +25,7 @@ import {
   Field,
   KpiCard,
   PageHero,
+  TabNav,
   Select,
   StatusBadge,
   TBody,
@@ -49,6 +50,7 @@ import {
   OrgActiveToggle,
 } from '../../../components/TaxonomyForms';
 import { currentSubject } from '../../../lib/identity';
+import { ADMINISTRATION_TABS } from '../tabs';
 
 interface DomainRow {
   readonly domainId: string;
@@ -128,6 +130,11 @@ export default async function TaxonomyAdministrationPage({
     return (
       <div className="flex flex-col gap-6">
         <PageHero title={t('tax.heading')} purpose={t('tax.intro')} />
+        <TabNav
+          items={ADMINISTRATION_TABS.map((tab) => ({ href: tab.href, label: t(tab.labelKey) }))}
+          activeHref="/administration/taxonomy"
+          ariaLabel={t('prov.tabsLabel')}
+        />
         <Problem problem={catalogue.problem} actingAs={subject.label} />
       </div>
     );
@@ -141,6 +148,11 @@ export default async function TaxonomyAdministrationPage({
   return (
     <div className="flex flex-col gap-6">
       <PageHero title={t('tax.heading')} purpose={t('tax.intro')} />
+      <TabNav
+        items={ADMINISTRATION_TABS.map((tab) => ({ href: tab.href, label: t(tab.labelKey) }))}
+        activeHref="/administration/taxonomy"
+        ariaLabel={t('prov.tabsLabel')}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard

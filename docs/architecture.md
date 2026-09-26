@@ -495,7 +495,7 @@ Rules:
 
 ## 9. Generation provider architecture
 
-### 9.0 Provider independence — amended 2026-09-24
+### 9.0 Provider independence — amended 2026-09-24, extended 2026-09-26
 
 **This section was single-provider until 2026-09-24 and is now provider-independent.** The amendment
 is recorded rather than quietly applied, because
@@ -508,7 +508,7 @@ that resolves at most one of them per job. **What did not change:** everything b
 framing, the zero tool grant, the schema, the evidence verification and the gate chain — applies
 identically to every provider, and no threshold moves to accommodate a model.
 
-Six rules govern it.
+Eight rules govern it. Rules 7 and 8 were added on 2026-09-26 with provider administration.
 
 1. **Exactly one provider is active per job, and the platform never substitutes.** An unregistered
    or ineligible provider produces a **named refusal**, never a silent downgrade to another provider
@@ -520,11 +520,18 @@ Six rules govern it.
    the author never selected while quoting the supplied section (**not** safe — the span verifies,
    scope enforcement passes, and nothing in the gate chain detects it). A provider that cannot
    declare `retrievalFree` is ineligible, and Microsoft Copilot currently cannot.
-3. **A provider has exactly one of five states**, and each carries its reason:
+3. **A provider has exactly one of six states**, and each carries its reason:
    `AVAILABLE`, `UNAVAILABLE`, `BLOCKED_BY_CONFIGURATION`, `BLOCKED_BY_APPROVAL`,
-   `BLOCKED_BY_CAPABILITY`. Approval is a **recorded configuration fact** (for example the T-29
-   processor approval), so a provider with a credential and no approval is blocked — by approval,
-   said in those words, not by a generic "unavailable".
+   `BLOCKED_BY_CAPABILITY`, `OVER_BUDGET`. Approval is a **recorded configuration fact** (for
+   example the T-29 processor approval), so a provider with a credential and no approval is blocked
+   — by approval, said in those words, not by a generic "unavailable".
+
+   The first five are decided by the **registry**, which has no database and therefore no knowledge
+   of consumption. `OVER_BUDGET` (added 2026-09-26) is decided by the **usage read model** after the
+   registry has spoken, applies only to a provider the registry called `AVAILABLE`, and is **never
+   persisted** — a stored value would be false the moment a budget window rolled over. The
+   `generation_provider_state` database enum therefore has five members and the port's union has
+   six, which is deliberate rather than drift.
 4. **The control layer is provider-independent and mandatory.** Token accounting, cost accounting,
    per-job and daily token budgets, the concurrency cap, the retry policy with jittered backoff,
    provider health and provider metrics are implemented once, outside every provider, and are
@@ -537,6 +544,33 @@ Six rules govern it.
 6. **A user-managed run is still budgeted.** It costs the platform nothing and can still exhaust an
    author's quota, produce an unreviewable batch, or loop. The budget protects the author and the
    reviewer, not only the invoice.
+7. **A provider is CONFIGURED through the product, and APPROVED as a separate act.** Enablement, the
+   endpoint, the model, the credential reference, the ceilings and the retry cap are administrator
+   configuration (`platform.configure`), written to `application_configuration` with a
+   `configuration_change` row and an audit event carrying previous and new value. **Recording a
+   data-processing approval is a distinct action requiring a reference** to where the approval is
+   held. It is not a field on the settings form: `BLOCKED_BY_APPROVAL` is the control that makes an
+   approval real, and a checkbox beside "Enabled" is a checkbox nobody stops at. An approval for a
+   provider that is `BLOCKED_BY_CAPABILITY` is refused outright, because the record would assert
+   something untrue.
+
+   Corollary: **an undecided provider is disabled.** Absent enablement is not enablement — a
+   provider nobody turned on must not begin billing because a credential appeared in the
+   environment. The deterministic generator is exempt, per rule 5.
+8. **A readiness check reports what it checked, and never implies a call it did not make.** A
+   provider validation reports the enforcement chain — capability, approval, implementation,
+   credential, live call — with each step `PASSED`, `FAILED` or `NOT_ATTEMPTED`, and an outcome of
+   `PASSED`, `FAILED` or `INCOMPLETE`. There is no outcome meaning "probably fine". Where no client
+   exists, `LIVE_CALL` is `NOT_ATTEMPTED` and the result states that authentication, endpoint
+   reachability and model availability are **unverified**. A validation that reported success from a
+   configuration read would be the false assurance cited during an incident.
+
+**A credential is a reference, never a value.** Configuration stores
+`keyvault://{vault}/secrets/{name}`, validated as that shape at the schema, on the row
+(`is_secret_ref`) and on every write path. No read model, screen, audit row or
+`configuration_change` row may contain it: redaction happens at **write** time
+([audit-model.md §7](audit-model.md)), which is what makes an auditor's unscoped read safe by
+construction rather than by a filter that can be forgotten.
 
 **Cost is not always observable, and an unobservable cost is recorded as null rather than zero.**
 Zero is a claim; null is an absence. A cost figure is written only where the provider declares

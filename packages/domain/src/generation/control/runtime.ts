@@ -46,7 +46,13 @@ import type {
 } from '@knowzy/shared-types';
 import { checkPerJobBudget, checkWindowBudgets, type BudgetSettings } from './budget.js';
 import { checkConcurrency, type ConcurrencySettings } from './concurrency.js';
-import { decideRetry, isRetryable, outcomeForError, type RetryPolicy } from './retry.js';
+import {
+  decideRetry,
+  isRetryable,
+  outcomeForError,
+  retryPolicyFor,
+  type RetryPolicy,
+} from './retry.js';
 
 /**
  * A refusal by the control layer, carrying everything the caller must record.
@@ -192,6 +198,9 @@ const recordCall = async (args: {
 export const invokeWithControls = async (args: InvokeArgs): Promise<ControlledCallResult> => {
   const { db, clock, registry, settings, context } = args;
   const wanted = args.providerId ?? registry.activeProvider;
+  // The retry policy in force for THIS provider: the platform default with a
+  // per-provider attempt ceiling applied where one is configured.
+  const retry = retryPolicyFor(settings.retry, settings.providerLimits?.[wanted]);
   const random = args.random ?? Math.random;
   const sleep = args.sleep ?? defaultSleep;
 
@@ -311,7 +320,7 @@ export const invokeWithControls = async (args: InvokeArgs): Promise<ControlledCa
         retries,
       };
     } catch (error) {
-      const decision = decideRetry(error, attempt, settings.retry, random);
+      const decision = decideRetry(error, attempt, retry, random);
       await recordCall({
         db,
         context,
@@ -340,13 +349,18 @@ export const invokeWithControls = async (args: InvokeArgs): Promise<ControlledCa
         // rejecting our request into "the platform gave up", and putting a
         // provider defect in the refusal metrics. Caught by the integration
         // test that asserts a client error is NOT a refusal.
-        if (isRetryable(decision.errorClass) && attempt >= settings.retry.maxAttempts) {
+        if (isRetryable(decision.errorClass) && attempt >= retry.maxAttempts) {
           throw new GenerationRefusedError(
             'RETRY_LIMIT_EXHAUSTED',
             'PROVIDER_RETRY_EXHAUSTED',
             decision.reason,
-            'llm.maxAttempts',
-            settings.retry.maxAttempts,
+            // The limit NAME follows the limit that actually bound: naming the
+            // platform key when a per-provider override was what stopped the
+            // run would send an administrator to change the wrong setting.
+            settings.providerLimits?.[wanted]?.maxAttempts === undefined
+              ? 'llm.maxAttempts'
+              : `llm.providerLimits.${wanted}.maxAttempts`,
+            retry.maxAttempts,
             attempt,
             null,
           );

@@ -12,10 +12,12 @@ import { z } from 'zod';
 import {
   GenerationProviderSchema,
   ProviderLimitsSchema,
+  ProviderSettingsSchema,
   TokenPriceSchema,
   type ConfigurationScope,
   type GenerationProviderId,
   type ProviderLimits,
+  type ProviderSettings,
   type TokenPrice,
 } from '@knowzy/shared-types';
 
@@ -501,6 +503,23 @@ export const CONFIG_KEYS = {
     description: 'Per-provider overrides of the token budgets and the concurrency cap.',
     schema: z.record(GenerationProviderSchema, ProviderLimitsSchema),
     defaultValue: {} as Partial<Record<GenerationProviderId, ProviderLimits>>,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.providerSettings': decl({
+    key: 'llm.providerSettings',
+    // What an administrator configures about one provider: whether it is
+    // enabled, where it lives, which model, and WHICH KEY VAULT REFERENCE
+    // holds its credential. One VALUE keyed by provider id, not seven key
+    // names per provider -- a second family of names is how two settings end
+    // up half-applied, with the unread one in force.
+    //
+    // A secret never lands here. `ProviderSettingsSchema` validates
+    // `apiKeyRef` as a keyvault:// reference, so a pasted key is refused at
+    // the schema rather than stored in a table that appears in every backup.
+    description: 'Per-provider settings: enabled, endpoint, model, and a credential REFERENCE.',
+    schema: z.record(GenerationProviderSchema, ProviderSettingsSchema),
+    defaultValue: {} as Partial<Record<GenerationProviderId, ProviderSettings>>,
     layers: PLATFORM_ONLY,
     scopes: ['PLATFORM'],
   }),

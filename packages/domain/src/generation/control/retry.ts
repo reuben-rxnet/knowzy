@@ -80,6 +80,21 @@ export const backoffDelayMs = (
   return Math.round(fixed + jittered);
 };
 
+/**
+ * The policy in force for ONE provider.
+ *
+ * Retry economics are not uniform: a provider that bills per attempt and
+ * rate-limits hard wants fewer attempts than one that does neither, and a
+ * single platform-wide `llm.maxAttempts` forces one answer on all of them. An
+ * absent per-provider value means the platform default applies -- it never
+ * means unlimited.
+ */
+export const retryPolicyFor = (
+  policy: RetryPolicy,
+  limits: { readonly maxAttempts?: number } | undefined,
+): RetryPolicy =>
+  limits?.maxAttempts === undefined ? policy : { ...policy, maxAttempts: limits.maxAttempts };
+
 export interface RetryDecision {
   readonly retry: boolean;
   readonly delayMs: number;

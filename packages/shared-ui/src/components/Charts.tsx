@@ -515,6 +515,146 @@ export const DonutChart = ({
 // Ranked insight list — "Top skill gaps", "Upcoming learning"
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Activity heatmap — a contribution grid over recorded periods
+// ---------------------------------------------------------------------------
+
+export interface HeatCell {
+  /** The period label, e.g. `2026-09-24`, `2026-W39`, `2026-09`. */
+  readonly bucket: string;
+  /** The value being shaded. Absent periods are NOT passed as zero. */
+  readonly value: number;
+  /** Everything else about the period, for the tooltip and the hidden table. */
+  readonly detail: readonly (readonly [string, string | number])[];
+}
+
+/**
+ * A contribution-style grid.
+ *
+ * FIVE SHADES, not a continuous gradient, and the scale is printed as a legend
+ * with its own numbers on it (rule 1). A continuous ramp invites the reader to
+ * compare two squares by eye and conclude something the data does not support;
+ * five labelled bands say "this period was in the top fifth" and nothing more.
+ *
+ * A PERIOD WITH NO ACTIVITY IS DRAWN EMPTY AND SAYS SO, rather than being
+ * shaded as the lowest band. "Nothing was generated on the 22nd" and "a little
+ * was generated on the 22nd" are different facts, and a heatmap that renders
+ * them the same colour is a heatmap that cannot be read.
+ *
+ * Every square carries a `<title>`, which is what a pointer shows and what a
+ * screen reader reads for that node; the hidden table beneath carries the
+ * whole series regardless (rule 3).
+ *
+ * It computes NO totals and NO buckets (rule 4): the caller passes the periods
+ * it actually has, newest or oldest first as it likes, and this draws them in
+ * the order given.
+ */
+export const ActivityHeatmap = ({
+  cells,
+  caption,
+  valueLabel,
+  columns = 14,
+  emptyLabel = 'No activity recorded',
+}: {
+  readonly cells: readonly HeatCell[];
+  readonly caption: string;
+  /** What the shaded number IS. Printed in the legend, never left to a colour. */
+  readonly valueLabel: string;
+  readonly columns?: number;
+  readonly emptyLabel?: string;
+}) => {
+  if (cells.length === 0) return null;
+
+  const values = cells.map((cell) => cell.value).filter((value) => value > 0);
+  const max = values.length === 0 ? 0 : Math.max(...values);
+
+  // Band boundaries, in the units being shaded, so the legend can print them.
+  // Five bands over the observed maximum; with a maximum of zero there is
+  // nothing to band and every cell renders as empty.
+  const bands = [0.2, 0.4, 0.6, 0.8, 1].map((fraction) => Math.max(1, Math.ceil(max * fraction)));
+  const bandOf = (value: number): number => {
+    if (value <= 0) return -1;
+    return bands.findIndex((ceiling) => value <= ceiling);
+  };
+
+  const BAND_CLASS = [
+    'bg-info/20 ring-info/30',
+    'bg-info/40 ring-info/40',
+    'bg-info/60 ring-info/50',
+    'bg-info/80 ring-info/60',
+    'bg-info ring-info',
+  ];
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* A CAPPED cell, not a fractional one. With `1fr` a single-period series
+          stretched one square to 80px across a wide card, which read as a
+          block of colour rather than a calendar. A contribution grid's squares
+          are small and uniform however many there are, so the track has a
+          maximum and the grid sits left. */}
+      <div
+        className="grid w-fit gap-1"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0.75rem, 1.125rem))` }}
+      >
+        {cells.map((cell) => {
+          const band = bandOf(cell.value);
+          return (
+            <span
+              key={cell.bucket}
+              className={`aspect-square rounded-sm ring-1 ring-inset ${
+                band === -1 ? 'bg-surface-sunken ring-line' : (BAND_CLASS[band] ?? BAND_CLASS[0])
+              }`}
+              // `title` rather than a custom tooltip: it is what a pointer
+              // shows, what a keyboard user gets on focus in most browsers, and
+              // it needs no client JavaScript on a server-rendered page.
+              title={[
+                cell.bucket,
+                band === -1 ? emptyLabel : `${valueLabel}: ${cell.value.toLocaleString()}`,
+                ...cell.detail.map(([name, value]) => `${name}: ${value}`),
+              ].join(' · ')}
+            >
+              <span className="knowzy-sr-only">
+                {cell.bucket}: {band === -1 ? emptyLabel : `${cell.value} ${valueLabel}`}
+              </span>
+            </span>
+          );
+        })}
+      </div>
+
+      {/* The scale, with its numbers on it. Rule 1 and rule 2 together: the
+          bands are labelled, so the colour is a convenience rather than the
+          only carrier of the meaning. */}
+      <div className="flex flex-wrap items-center gap-2 text-2xs text-ink-muted">
+        <span>{emptyLabel}</span>
+        <span
+          aria-hidden="true"
+          className="size-3 rounded-sm bg-surface-sunken ring-1 ring-inset ring-line"
+        />
+        {bands.map((ceiling, index) => (
+          <span key={ceiling} className="flex items-center gap-1">
+            <span
+              aria-hidden="true"
+              className={`size-3 rounded-sm ring-1 ring-inset ${BAND_CLASS[index] ?? BAND_CLASS[0]}`}
+            />
+            <span>{`\u2264 ${ceiling.toLocaleString()}`}</span>
+          </span>
+        ))}
+        <span>{valueLabel}</span>
+      </div>
+
+      <DataAlternative
+        caption={caption}
+        head={['Period', valueLabel, ...(cells[0]?.detail.map(([name]) => name) ?? [])]}
+        rows={cells.map((cell) => [
+          cell.bucket,
+          cell.value,
+          ...cell.detail.map(([, value]) => value),
+        ])}
+      />
+    </div>
+  );
+};
+
 export interface InsightRow {
   readonly label: string;
   readonly figure: ReactNode;

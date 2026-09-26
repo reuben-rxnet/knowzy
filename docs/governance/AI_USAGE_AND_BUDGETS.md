@@ -1,7 +1,7 @@
 # AI Usage & Budgets
 
 **Screen:** Governance → AI Usage & Budgets (`/governance/ai-usage`, authoring portal)
-**Built:** 2026-09-24
+**Built:** 2026-09-24, extended 2026-09-26
 **Status:** Implemented and functional **before any external provider is enabled**, which is the
 point of it.
 **Authority:** [architecture.md §9.0](../architecture.md#90-provider-independence--amended-2026-09-24)
@@ -42,9 +42,20 @@ trend, because **no KPI history is stored anywhere** and a computed delta would 
 | Total generations | `generation_job` rows in the window | No job in the window |
 | Questions generated | Sum of `accepted_question_count` | No job in the window |
 | Estimated tokens | Sum of `input_tokens + output_tokens` on jobs | No job in the window |
+| Estimated cost | `aggregateCost` over the window's jobs | Never — it reports **Not observable** with a reason instead, which is a different statement |
+| Daily budget | The daily ceiling in force | Never — configuration is a fact |
 | Remaining daily budget | The daily ceiling minus tokens recorded today | Never — a full budget is a fact |
 | Budget utilization % | Today's usage over the daily ceiling | Never |
 | Active authors | Distinct `created_by_user_id` on jobs in the window | No job in the window |
+
+Ten cards, added to on 2026-09-26. **Estimated cost** and **Daily budget** were added together and
+for one reason: a remaining figure cannot be judged without the ceiling beside it — 400,000 left is
+comfortable against 2,000,000 and alarming against 450,000 — and spend was the one question the
+page could not answer at a glance.
+
+Estimated cost is a `CostAccount`, not a number, because there are three answers and not two: a
+measured figure, "nothing has been recorded", and "a contributor's cost cannot be observed at all".
+See §4.
 
 ### 2.2 Two sources, and why they differ
 
@@ -56,6 +67,34 @@ trend, because **no KPI history is stored anywhere** and a computed delta would 
 So a job generated before that date appears in the activity totals and **not** in the budget
 windows. The page says so under the budget cards. The alternative was back-filling per-attempt rows
 for jobs nobody measured that way, which would have been fabrication with a tidier shape.
+
+### 2.3 Concurrent generation
+
+A card, not a KPI: the number of generation jobs in `RUNNING` for the active provider, against the
+cap in force for it. It is the **same count** `checkConcurrency` makes when it refuses a job, so
+the figure on the page is the figure that is enforced rather than a second definition of "busy".
+
+The card also states, in one sentence, that **there is no queue** — a job over the cap is refused
+and can be retried, not parked. That is said out loud because the absence of a queue is exactly the
+kind of thing a reader assumes the other way round. The reasoning is in
+[../integrations/LIVE_AI_CONTROL_LAYER.md](../integrations/LIVE_AI_CONTROL_LAYER.md) §4.
+
+### 2.4 The usage heatmap
+
+A contribution-style grid over the recorded periods, at the same day/week/month grain as the table
+beneath it, shading **tokens** with requests and questions in each cell's title.
+
+Four properties make it honest rather than decorative:
+
+- **Five labelled bands, not a gradient.** Each band prints its own ceiling in the legend. A
+  continuous ramp invites a reader to compare two squares by eye and conclude something the data
+  does not support.
+- **A period with no activity is drawn EMPTY and says so**, rather than shaded as the lowest band.
+  "Nothing was generated on the 22nd" and "a little was generated on the 22nd" are different facts.
+- **It computes nothing.** The read model buckets; the component draws what it is given, and the
+  table below it carries the same numbers.
+- **A hidden data table** carries the whole series, so a screen reader is given the data rather
+  than the word "graphic".
 
 ---
 
@@ -146,19 +185,34 @@ would be refused by the daily budget with a confusing reason.
 
 ## 6. Provider model
 
-### 6.1 Five states, and the order they are decided in
+### 6.1 Six states, and where each is decided
 
 | State | Meaning | What changes it |
 | --- | --- | --- |
 | `AVAILABLE` | Registered, approved, configured, grounding-safe | — |
 | `BLOCKED_BY_CAPABILITY` | Performs its own retrieval, so it cannot ground a question in the selected sections | Nothing available today. Copilot is here |
-| `BLOCKED_BY_APPROVAL` | No data-processing approval recorded | A signature, then `llm.approvedProviders` |
+| `BLOCKED_BY_APPROVAL` | No data-processing approval recorded | An approval recorded with its reference, from Administration → AI Providers |
 | `UNAVAILABLE` | No client for it in this build | A milestone that writes one |
-| `BLOCKED_BY_CONFIGURATION` | Credential reference does not resolve | Configuration |
+| `BLOCKED_BY_CONFIGURATION` | Not enabled by an administrator, or the credential reference does not resolve | Configuration, from Administration → AI Providers |
+| `OVER_BUDGET` | Available in every permanent sense, and out of budget right now | The window rolling over, or a higher ceiling |
 
-**The order is the policy**, most-permanent first: capability, then approval, then implementation,
-then credential. Reversing the first two would send somebody to get Copilot approved for a use it
-can never satisfy.
+`OVER_BUDGET` was added 2026-09-26 and is **the only state the registry does not assign**. The
+registry has no database, by design (boundary rule B4), and budget consumption is a query — so this
+page's read model applies it after the registry has spoken, and only to a provider already called
+`AVAILABLE`. The test matches what `checkWindowBudgets` enforces rather than inventing a second
+rule, so the table cannot disagree with the refusal.
+
+It is deliberately **never persisted**. A stored `OVER_BUDGET` would be false the moment a window
+rolled over, and the `generation_provider_state` enum in migration 0011 therefore has five members.
+
+It is a sixth state rather than a flag beside the state because "why can I not generate" has one
+answer, and splitting it across two columns is how the budget half gets missed.
+
+**The order of the first five is the policy**, most-permanent first: capability, then approval, then
+implementation, then credential. Reversing the first two would send somebody to get Copilot approved
+for a use it can never satisfy. Within the configuration step the administrator's own `enabled`
+decision is checked before the credential, because "the owner turned this off" is the more useful
+sentence and the true one.
 
 `BLOCKED_BY_APPROVAL` is the one that exists for a legal reason rather than a technical one, and it
 is how **T-29 becomes a control rather than a promise**: a provider with a working credential and no
@@ -265,8 +319,22 @@ The API reports `canManageBudgets` in the payload, so the screen renders the con
 
 - **No trends or deltas.** No KPI history is stored, so none is computable.
 - **No spend forecast.** It would be a projection of an estimate of an unobservable quantity.
-- **No provider enablement.** Registering a provider is a code change plus an approval; this page
-  reports state and sets ceilings.
+- **No provider configuration.** Enabling a provider, recording its approval, setting its endpoint
+  or credential reference, and switching the active provider are all done at
+  **Administration → AI Providers** ([AI_PROVIDER_ADMINISTRATION.md](AI_PROVIDER_ADMINISTRATION.md)).
+  This page reports state and sets ceilings. *Registering* a provider — writing a client for it —
+  remains a release.
 - **No sorting or free-text search** on the tables yet.
 - **No per-user quotas.** Budgets are per platform and per provider. A per-author ceiling is a
   plausible next step and is not built.
+- **No queue.** The Concurrent generation card says so: a job over the cap is refused, not parked.
+  See §2.3.
+
+---
+
+## 11. Change log
+
+| Date | Change |
+| --- | --- |
+| 2026-09-24 | Built. Eight KPIs, budget windows, provider table, usage timeline, generation history, per-provider token limits. |
+| 2026-09-26 | Added the Estimated cost and Daily budget KPIs, a Questions column to the provider breakdown, the Concurrent generation card, and the usage heatmap. `OVER_BUDGET` became a sixth provider state. Provider *configuration* moved to its own screen. |

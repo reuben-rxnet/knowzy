@@ -79,6 +79,16 @@ export interface RegistryInput {
   readonly credentialPresent?: Readonly<Partial<Record<GenerationProviderId, boolean>>>;
   /** Versions observed on past runs, for display. Never invented. */
   readonly observedVersions?: Readonly<Partial<Record<GenerationProviderId, string | null>>>;
+  /**
+   * Whether an administrator has ENABLED each provider (`llm.providerSettings`).
+   *
+   * Absent means "not decided", which is NOT the same as enabled. A provider
+   * nobody turned on must not begin billing the day a credential appears in
+   * the environment, so an undecided external provider is treated as disabled.
+   * The deterministic provider is exempt: it is the floor the platform always
+   * has, it costs nothing, and disabling it would leave no generator at all.
+   */
+  readonly enabled?: Readonly<Partial<Record<GenerationProviderId, boolean>>>;
 }
 
 interface StateDecision {
@@ -135,6 +145,23 @@ const decideState = (
       reason: 'No client for this provider is implemented in this build.',
       refusalReason: 'PROVIDER_NOT_REGISTERED',
       code: 'PROVIDER_NOT_REGISTERED',
+    };
+  }
+
+  // WITHIN the configuration step, the administrator's explicit decision is
+  // checked BEFORE the credential: "the owner turned this off" is a more useful
+  // sentence than "its credential is missing", and it is the one that is true.
+  // A provider nobody has decided about is treated as off, except the
+  // deterministic one -- see `enabled` on RegistryInput.
+  if (providerId !== 'DETERMINISTIC_LOCAL' && input.enabled?.[providerId] !== true) {
+    return {
+      state: 'BLOCKED_BY_CONFIGURATION',
+      reason:
+        input.enabled?.[providerId] === false
+          ? 'An administrator has disabled this provider in Administration -> AI Providers.'
+          : 'This provider has not been enabled. Enable it in Administration -> AI Providers once its configuration is complete.',
+      refusalReason: 'PROVIDER_BLOCKED_BY_CONFIGURATION',
+      code: 'PROVIDER_CREDENTIAL_UNAVAILABLE',
     };
   }
 

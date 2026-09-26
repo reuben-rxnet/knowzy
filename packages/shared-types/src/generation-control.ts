@@ -40,6 +40,24 @@ export const PROVIDER_STATES = [
   'BLOCKED_BY_CONFIGURATION',
   'BLOCKED_BY_APPROVAL',
   'BLOCKED_BY_CAPABILITY',
+  /**
+   * Available in every permanent sense, and out of budget right now.
+   *
+   * THE ONLY STATE THE REGISTRY DOES NOT ASSIGN. The other five are properties
+   * of the build and the configuration -- a capability, an approval, a
+   * registration, a credential -- and the registry can decide them with no
+   * database at all, which is what keeps `@knowzy/claude-services` free of one
+   * (B4). Budget consumption is a query over `generation_provider_call`, so
+   * this state is applied by the usage read model AFTER the registry has
+   * spoken, and only to a provider the registry already called AVAILABLE.
+   *
+   * It is a sixth state rather than a flag beside the state because it is what
+   * a reader of the providers table needs in the same glance: "why can I not
+   * generate" has one answer, and splitting it across two columns is how the
+   * budget half gets missed. It is deliberately NOT persisted -- a stored
+   * OVER_BUDGET would be stale the moment a window rolled over.
+   */
+  'OVER_BUDGET',
 ] as const;
 export const ProviderStateSchema = z.enum(PROVIDER_STATES);
 export type ProviderState = z.infer<typeof ProviderStateSchema>;
@@ -186,6 +204,15 @@ export const ProviderLimitsSchema = z.object({
   weeklyTokenBudget: z.number().int().min(0).optional(),
   monthlyTokenBudget: z.number().int().min(0).optional(),
   concurrency: z.number().int().min(1).max(32).optional(),
+  /**
+   * Attempts per call, including the first.
+   *
+   * Per provider because retry economics are not uniform: a provider that
+   * bills per attempt and rate-limits aggressively wants fewer attempts than
+   * one that does neither, and `llm.maxAttempts` alone forces one answer on
+   * all of them. The platform-wide key remains the default.
+   */
+  maxAttempts: z.number().int().min(1).max(10).optional(),
 });
 export type ProviderLimits = z.infer<typeof ProviderLimitsSchema>;
 
@@ -200,6 +227,109 @@ export type ProviderLimits = z.infer<typeof ProviderLimitsSchema>;
  * nothing has ever written, which is the single most misleading thing an
  * executive dashboard can do.
  */
+/**
+ * A KEY VAULT REFERENCE, never a secret.
+ *
+ * The same shape `packages/configuration/src/env.ts` uses for every other
+ * credential, and validated here as well so a reference typed into a screen
+ * cannot be a key pasted into the wrong box. The three refusals that matter:
+ * an `sk-`-style literal, anything with whitespace, and anything long enough
+ * to be a token. A secret that reaches `application_configuration` is a secret
+ * in a database backup, a diagnostic export and an audit row.
+ */
+export const SecretReferenceSchema = z
+  .string()
+  .regex(
+    /^keyvault:\/\/[a-z0-9-]+\/secrets\/[A-Za-z0-9-]+$/,
+    'must be a keyvault://{vault}/secrets/{name} reference, never a secret value',
+  );
+
+/**
+ * What an administrator may configure about one provider.
+ *
+ * Every field is optional, and an absent field means "the platform default" --
+ * so a provider with no entry behaves exactly as it did before this existed.
+ * The ceilings live in `ProviderLimits` rather than here, because a budget is
+ * enforced on every provider including the deterministic one while these are
+ * the settings of a provider that makes a network call.
+ */
+export const ProviderSettingsSchema = z
+  .object({
+    /**
+     * The administrator's intent. Absent means "not decided", which is treated
+     * as disabled for every provider except the deterministic one -- a provider
+     * nobody has enabled must not start billing because a credential appeared.
+     */
+    enabled: z.boolean().optional(),
+    /** A label for the screens. It never changes which client is used. */
+    displayName: z.string().min(1).max(120).optional(),
+    baseUrl: z.string().url().optional(),
+    modelId: z.string().min(1).max(200).optional(),
+    apiKeyRef: SecretReferenceSchema.optional(),
+    temperature: z.number().min(0).max(2).optional(),
+    maxOutputTokens: z.number().int().min(1).max(200_000).optional(),
+  })
+  .strict();
+export type ProviderSettings = z.infer<typeof ProviderSettingsSchema>;
+
+// ---------------------------------------------------------------------------
+// Provider validation — "Test connection", and what it may honestly claim
+// ---------------------------------------------------------------------------
+
+/**
+ * The chain a provider must satisfy, in the order the platform checks it.
+ *
+ * The order IS the policy, and it is the registry's order extended at both
+ * ends: capability, approval, implementation, credential, then the live call.
+ * Most permanent first, so the reported failure is the one worth acting on --
+ * telling somebody to fetch a credential for a provider that can never ground
+ * a question would send them to do futile work.
+ *
+ * LIVE_CALL is in the list and is currently never attempted. That is the whole
+ * reason it is named: a validation that stopped at CREDENTIAL and reported
+ * "passed" would read as "authentication successful", which no check in this
+ * build has established. It reports NOT_ATTEMPTED with the reason instead.
+ */
+export const PROVIDER_VALIDATION_CHECKS = [
+  'CAPABILITY',
+  'APPROVAL',
+  'IMPLEMENTATION',
+  'CREDENTIAL',
+  'LIVE_CALL',
+] as const;
+export const ProviderValidationCheckSchema = z.enum(PROVIDER_VALIDATION_CHECKS);
+export type ProviderValidationCheck = z.infer<typeof ProviderValidationCheckSchema>;
+
+export const VALIDATION_CHECK_RESULTS = ['PASSED', 'FAILED', 'NOT_ATTEMPTED'] as const;
+export const ValidationCheckResultSchema = z.enum(VALIDATION_CHECK_RESULTS);
+export type ValidationCheckResult = z.infer<typeof ValidationCheckResultSchema>;
+
+/**
+ * Whether the provider as a whole is usable.
+ *
+ * `INCOMPLETE` rather than `PASSED` when every attempted check passed but the
+ * live call was not attempted. There is no outcome that means "probably fine".
+ */
+export const PROVIDER_VALIDATION_OUTCOMES = ['PASSED', 'FAILED', 'INCOMPLETE'] as const;
+export const ProviderValidationOutcomeSchema = z.enum(PROVIDER_VALIDATION_OUTCOMES);
+export type ProviderValidationOutcome = z.infer<typeof ProviderValidationOutcomeSchema>;
+
+export interface ProviderValidationStep {
+  readonly check: ProviderValidationCheck;
+  readonly result: ValidationCheckResult;
+  /** Always present, including on a pass. "Why did this pass" is a fair question. */
+  readonly detail: string;
+}
+
+export interface ProviderValidationReport {
+  readonly providerId: string;
+  readonly outcome: ProviderValidationOutcome;
+  readonly state: ProviderState;
+  readonly steps: readonly ProviderValidationStep[];
+  readonly validatedAt: string;
+  readonly validatedByDisplayName: string | null;
+}
+
 export type RecordedNumber =
   { readonly recorded: true; readonly value: number } | { readonly recorded: false };
 
@@ -270,6 +400,64 @@ export interface GenerationHistoryRow {
   readonly attemptCount: number;
 }
 
+/**
+ * One row of Administration -> AI Providers.
+ *
+ * It carries the assessment, the settings an administrator typed, and the
+ * LAST VALIDATION as recorded -- not a fresh one. A row that re-validated on
+ * every page load would make a read of the screen indistinguishable from a
+ * deliberate test, and in a build with a live client it would make opening a
+ * page cost money.
+ */
+export interface ProviderAdminRow {
+  readonly providerId: string;
+  readonly displayName: string;
+  readonly state: ProviderState;
+  readonly stateReason: string;
+  readonly enabled: boolean;
+  readonly registered: boolean;
+  readonly approved: boolean;
+  readonly groundingSafe: boolean;
+  readonly supportedExecutionModes: readonly string[];
+  readonly providerVersion: string | null;
+  /** Whether a REFERENCE is recorded. Never the reference's value. */
+  readonly credentialConfigured: boolean;
+  /**
+   * When `llm.providerSettings` was last written -- the whole value, not this
+   * provider's credential.
+   *
+   * Named for what it is. A `credentialUpdatedAt` would be a fabricated fact:
+   * nothing records when an individual reference changed, and a rotation date
+   * inferred from a shared row would be wrong the first time two providers
+   * were configured in the same week.
+   */
+  readonly settingsUpdatedAt: string | null;
+  readonly baseUrl: string | null;
+  readonly modelId: string | null;
+  readonly temperature: number | null;
+  readonly maxOutputTokens: number | null;
+  readonly limits: ProviderLimits;
+  readonly health: ProviderHealthState;
+  readonly healthReason: string;
+  readonly lastValidation: ProviderValidationReport | null;
+}
+
+export interface ProviderAdministration {
+  readonly asOf: string;
+  readonly activeProvider: string;
+  readonly providers: readonly ProviderAdminRow[];
+  /** The platform-wide defaults an empty per-provider field falls back to. */
+  readonly defaults: {
+    readonly perJobTokenBudget: number;
+    readonly dailyTokenBudget: number;
+    readonly weeklyTokenBudget: number;
+    readonly monthlyTokenBudget: number;
+    readonly concurrency: number;
+    readonly maxAttempts: number;
+  };
+  readonly canManage: boolean;
+}
+
 export interface AiUsageSummary {
   readonly asOf: string;
   readonly windowDays: number;
@@ -279,6 +467,19 @@ export interface AiUsageSummary {
     readonly totalGenerations: RecordedNumber;
     readonly questionsGenerated: RecordedNumber;
     readonly estimatedTokens: RecordedNumber;
+    /**
+     * Spend over the window, as a fixed-point string, or NOT observable.
+     *
+     * A `CostAccount` rather than a `RecordedNumber` because there are three
+     * answers here, not two: a measured figure, "nothing has been recorded",
+     * and "a contributor's cost cannot be observed at all" -- a per-seat
+     * licence or a user-managed run. `aggregateCost` refuses a total that
+     * would present an undercount as the whole, and the KPI says so rather
+     * than showing the observable part as if it were everything.
+     */
+    readonly estimatedCost: CostAccount;
+    /** The ceiling for the current daily window. Configuration, always known. */
+    readonly dailyBudget: RecordedNumber;
     readonly remainingDailyBudget: RecordedNumber;
     readonly budgetUtilizationPercent: RecordedNumber;
     readonly activeAuthors: RecordedNumber;
@@ -287,6 +488,24 @@ export interface AiUsageSummary {
   readonly providers: readonly ProviderStateAssessment[];
   readonly providerUsage: readonly ProviderUsage[];
   readonly budgets: readonly BudgetWindowStatus[];
+  /**
+   * Concurrency, as it is actually enforced.
+   *
+   * `active` counts generation jobs in RUNNING for the active provider, which
+   * is exactly what `checkConcurrency` counts when it refuses one. Reported so
+   * an administrator can see a cap being approached instead of learning about
+   * it from a refusal.
+   *
+   * THERE IS NO QUEUE. A job over the cap is REFUSED with
+   * `CONCURRENCY_LIMIT_REACHED`, not parked -- generation runs inside the
+   * request that asked for it. A "queued" figure would therefore be zero
+   * forever, which is why this object does not have one.
+   */
+  readonly concurrency: {
+    readonly providerId: string;
+    readonly active: number;
+    readonly limit: number;
+  };
   readonly timeline: {
     readonly day: readonly UsageBucket[];
     readonly week: readonly UsageBucket[];

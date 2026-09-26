@@ -142,6 +142,37 @@ export const ENV_VARS: readonly EnvVarDeclaration[] = [
     requiredIn: DEPLOYED,
     description: 'A Key Vault reference. With it absent, local uses a recorded-response stub.',
   },
+  // The other providers' credential references, added 2026-09-26 with
+  // Administration -> AI Providers. OPTIONAL IN EVERY ENVIRONMENT, unlike
+  // ANTHROPIC_API_KEY_REF: no client for any of them exists in this build, so
+  // requiring one in a deployed environment would block a deployment on a
+  // credential nothing can spend. They are declared now so the reference is
+  // validated as a reference the day one arrives -- an undeclared variable is
+  // one somebody sets to a raw key.
+  {
+    name: 'OPENAI_API_KEY_REF',
+    deployables: ['api', 'jobs'],
+    schema: secretRef,
+    requiredIn: [],
+    description:
+      'A Key Vault reference for OpenAI (Codex). Optional: no OpenAI client exists in this build, and generation is refused with BLOCKED_BY_APPROVAL until a data-processing approval is recorded.',
+  },
+  {
+    name: 'AZURE_OPENAI_KEY_REF',
+    deployables: ['api', 'jobs'],
+    schema: secretRef,
+    requiredIn: [],
+    description:
+      'A Key Vault reference for Azure OpenAI. Optional: no client exists in this build.',
+  },
+  {
+    name: 'COPILOT_CLIENT_ID_REF',
+    deployables: ['api', 'jobs'],
+    schema: secretRef,
+    requiredIn: [],
+    description:
+      'A Key Vault reference for a Microsoft Copilot app registration. Optional, and Copilot cannot be used for grounded generation at all: it performs its own retrieval, so it is BLOCKED_BY_CAPABILITY regardless of credential.',
+  },
   {
     name: 'GRAPH_CREDENTIAL_REF',
     deployables: ['mcp-server'],

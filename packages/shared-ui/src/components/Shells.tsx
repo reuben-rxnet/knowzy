@@ -111,15 +111,16 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     note: 'AI Usage & Budgets',
   },
   {
-    // PARTIALLY_IMPLEMENTED, not IMPLEMENTED: taxonomy administration is real
-    // and the rest of authoring-portal.md §11 -- profiles, thresholds, field
-    // mappings, badge definitions -- is not. The note says which part works,
-    // so the link is not a promise the screen cannot keep.
+    // PARTIALLY_IMPLEMENTED, not IMPLEMENTED: taxonomy administration and AI
+    // provider administration are real, and the rest of
+    // authoring-portal.md §11 -- profiles, thresholds, field mappings, badge
+    // definitions -- is not. The note says which parts work, so the link is
+    // not a promise the section cannot keep.
     label: 'Administration',
     href: '/administration/taxonomy',
     icon: <Settings className="size-5" />,
     status: 'PARTIALLY_IMPLEMENTED',
-    note: 'Knowledge Domains',
+    note: 'Domains · AI Providers',
   },
 ] as const;
 
