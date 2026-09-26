@@ -175,3 +175,38 @@ produces five untested providers and no answer to the question the pilot exists 
   the blind-stem half needs a person reading stems with the options hidden.
 - **The CI result**, which is not a measurement anybody has taken yet. An unread run is not a pass,
   and two of them are outstanding.
+
+---
+
+## 7. Addendum 2026-09-26 — the Reporting & Analytics dashboard is now an approved design
+
+`design/approved/reporting-and-analytics/KNOWZY-reporting-and-analytics-dashboard.png` was approved
+and documented at [../ui/REPORTING_AND_ANALYTICS_UI_SOURCE_OF_TRUTH.md](../ui/REPORTING_AND_ANALYTICS_UI_SOURCE_OF_TRUTH.md)
+**before** any Phase 10 code was written, which is the right order and worth noting because it is not
+the order the last three UI milestones happened in.
+
+It changes Wave 1.1 in four ways.
+
+| # | Change | Effect on the estimate |
+| --- | --- | --- |
+| 1 | **`reporting.md` §4 needs a new catalogue entry: Filing coverage.** The four-axis filing postdates that section, and the dashboard makes it a first-class panel. `/docs` outranks the code, so amending §4 is step 0 | S — half a day, and it must come first |
+| 2 | **The learner heatmap is out of R1.** It needs `rm_topic_gap` and `rm_learner_proficiency`, neither of which R1 builds, and it needs a decision about how learners are grouped | Removes ~2 days from R1; adds them to a later slice |
+| 3 | **Suppression is on the critical path, not a polish item.** The heatmap made that obvious, but the assessment panel needs it in R1 regardless: an assessment taken by three people is an identifying aggregate, and complementary suppression (S3) is the part a plausible implementation gets wrong | No change to the estimate; changes the order. Build suppression before the panels, not after |
+| 4 | **Nothing is duplicated.** AI Usage & Budgets and the Audit Explorer already exist under Governance and the mockup lists them under Reports. One screen, two entry points | Saves ~2 days of rebuilding two working screens |
+
+**A fifth item that is not engineering.** The dashboard shows a "vs previous period" delta on all
+eight KPI cards. Two of the eight — Coverage, and the source count — cannot be given one from
+anything the platform stores, and no amount of Phase 10 changes that: `coverage_status` is a
+current-state column with no history. Either those two cards lose their delta, or a dated coverage
+snapshot becomes a requirement. **That is a product decision and it should be taken before the KPI
+strip is built**, because retrofitting history is a migration and removing a number from a mockup is
+a conversation.
+
+### Decision D-1, restated because it blocks a panel
+
+`Team` and `UserTeam` have existed since migration 0001 with **zero rows and no write path** — the
+same shape the taxonomy had before it was fixed. Every learner-grouped report in `reporting.md` §4.4
+is grained by team. Until that is resolved, learner reporting ships **without a person grouping**:
+topic accuracy is real and answers "which topics are weak", which is most of the value and none of
+the invention.
+

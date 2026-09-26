@@ -767,6 +767,54 @@ Runtime assets must be installed using the strategy documented during implementa
 
 Interactive controls must remain semantic HTML or React controls.
 
+### Reporting & Analytics (Phase 10)
+
+UI Specification:
+
+- docs/ui/REPORTING_AND_ANALYTICS_UI_SOURCE_OF_TRUTH.md
+
+Approved Design:
+
+- design/approved/reporting-and-analytics/KNOWZY-reporting-and-analytics-dashboard.png
+
+The image is the visual source of truth. The Markdown is the AI-readable source
+of truth. reporting.md is the authority on read models, the catalogue,
+suppression and the publication lifecycle, and it OUTRANKS the mockup.
+
+DESIGNED 2026-09-26, NOT BUILT. The specification's section 0 names four
+widgets that cannot be built as drawn, and each one is a thing an implementer
+would otherwise ship and be believed about:
+
+- "VS PREVIOUS PERIOD" ON EVERY KPI CARD. No KPI history is stored. Phase 10's
+  day-grained read models make a delta honest for metrics derived from DATED
+  rows (generations, publications, attempts) and still impossible for
+  point-in-time state: COVERAGE HAS NO HISTORY and neither does a source count.
+  The spec marks each of the eight cards individually.
+- PROVIDER FIGURES FOR CODEX, CLAUDE AND COPILOT. No client exists for any of
+  them, so the honest values are "Not Yet Recorded"; Copilot is a per-seat
+  licence whose cost is "Not observable" by design; and the deterministic
+  provider's cost is 0.000000, not $12.54. All four read "Healthy" in the
+  mockup where the truth is UNKNOWN -- and UNKNOWN is not healthy.
+- "AI PROVIDER VALIDATED -- CLAUDE CONNECTION VERIFIED" in the activity feed.
+  Nothing in this build can verify a connection; a validation marks the live
+  call NOT_ATTEMPTED.
+- THE LEARNER PERFORMANCE HEATMAP, 30 cells of learner averages with no
+  suppression anywhere. That is the identifying aggregate reporting.md 7 S1
+  governs, so some cells WILL read SUPPRESSED and the design has to accept that
+  before it is built. It is also blocked twice more: a learner has no
+  department (department is a label on a QUESTION), and the person-grouping
+  model Team/UserTeam has existed since 0001 with ZERO ROWS AND NO WRITE PATH --
+  the same shape taxonomy had.
+
+Two navigation decisions the mockup forces, both recorded in the spec: AI Usage
+& Budgets and the Audit Explorer ALREADY EXIST under Governance and must not be
+duplicated as reporting screens, and the eight sidebar entries should be a tab
+strip under one Reports rail entry, as Governance and Administration already
+are.
+
+Phase 10 R1 delivers sections 3 (partly), 4, 5, 6 and 8. The learner heatmap
+and the activity feed need read models that do not exist.
+
 ### SharePoint Sync Manager
 
 UI Specification:
