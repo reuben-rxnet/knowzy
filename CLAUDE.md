@@ -107,12 +107,14 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 68 API routes, every one with a declared
+- 19 of 36 MCP tools registered; 79 API routes, every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
   administration 5, the Sync Manager 11 (2 read/aggregate plus 9 source
-  administration), and AI Usage & Budgets 2 (one read, one write).
+  administration), AI Usage & Budgets 2 (one read, one write), the four-axis
+  filing 1 (PUT a question's filing), and AI Providers 5 (one read plus
+  settings, approval, active provider and validate).
 
 Environment:
 
