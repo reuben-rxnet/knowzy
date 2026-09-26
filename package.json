@@ -18,10 +18,10 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "lint:boundaries": "depcruise --config .dependency-cruiser.cjs apps packages",
-    "test": "vitest run",
+    "test": "npm run warn:destructive -- \"npm run test\" && vitest run",
     "test:unit": "vitest run --project unit",
     "test:contract": "vitest run --project contract",
-    "test:integration": "vitest run --project integration",
+    "test:integration": "npm run warn:destructive -- \"npm run test:integration\" && vitest run --project integration",
     "format": "prettier --write \"**/*.{ts,tsx,mjs,cjs,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,mjs,cjs,json,md,yml,yaml}\"",
     "codegen": "npm run -w @knowzy/shared-types codegen",
@@ -31,7 +31,7 @@
     "db:migrate": "prisma migrate deploy --schema packages/database/prisma/schema.prisma",
     "db:migrate:dev": "prisma migrate dev --schema packages/database/prisma/schema.prisma",
     "db:seed": "tsx packages/database/prisma/seed.ts",
-    "db:reset": "prisma migrate reset --force --skip-seed --schema packages/database/prisma/schema.prisma && npm run db:migrate && npm run db:seed",
+    "db:reset": "npm run warn:destructive -- \"npm run db:reset\" && prisma migrate reset --force --skip-seed --schema packages/database/prisma/schema.prisma && npm run db:migrate && npm run db:seed",
     "verify": "npm run typecheck && npm run lint && npm run lint:boundaries && npm run codegen:check && npm run test",
     "dev": "turbo run dev --parallel",
     "compose:up": "docker compose -f infrastructure/compose/docker-compose.yml up -d",
@@ -42,7 +42,8 @@
     "test:packages": "turbo run test",
     "assets:sync": "tsx scripts/sync-design-assets.ts",
     "test:e2e": "npm run test:e2e -w @knowzy/e2e",
-    "test:e2e:install": "npm run install:browser -w @knowzy/e2e"
+    "test:e2e:install": "npm run install:browser -w @knowzy/e2e",
+    "warn:destructive": "tsx scripts/destructive-warning.ts"
   },
   "devDependencies": {
     "@knowzy/eslint-config": "*",
