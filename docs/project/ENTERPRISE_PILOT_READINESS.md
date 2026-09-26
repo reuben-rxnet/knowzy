@@ -436,12 +436,15 @@ Three findings change this readiness assessment:
 | **P-1** | Amend `architecture.md` §9 and the technology table to describe a provider registry | Architecture |
 | **P-2** | Document whether Microsoft 365 Copilot can be invoked retrieval-free | Platform + Microsoft |
 | **P-3** | Data-processing assessment **per provider**. T-29 covers Anthropic only; Copilot and Azure OpenAI need their own | Privacy + legal |
-| **P-4** | Rename `BankItemWrite.claudeModel` before the SharePoint bank adapter ships | Engineering, **time-boxed** |
+| **P-4** | ~~Rename `BankItemWrite.claudeModel` before the SharePoint bank adapter ships~~ | **CLOSED 2026-09-26** |
 
-**P-4 has a deadline the others do not.** The Question Bank is still a mock, so nothing has been
-written to a tenant list. A Copilot-generated question published today would land in a field called
-`claudeModel`, in the customer's Question Bank, mapped to a real SharePoint column. Renaming now is
-a port change and five call sites; renaming after Phase 8 is tenant data migration.
+**P-4 had a deadline the others do not, and it was met.** The Question Bank was still a mock, so
+nothing had been written to a tenant list: a Copilot-generated question published then would have
+landed in a field called `claudeModel`, in the customer's Question Bank, mapped to a real SharePoint
+column. The field is `generatorModel` as of 2026-09-26, while the rename was still a port change
+and five call sites rather than tenant data migration. `docs/sharepoint-question-bank.md` §3.4
+records the old name and the date, because a column that was renamed before anyone saw it still
+needs to be findable by the name in the older design documents.
 
 **Recommendation carried from the architecture:** register two providers, declare the rest. Six
 integrations before one measurement produces five untested providers and no answer to the question
@@ -552,4 +555,52 @@ CI creates. Fixed by declaring the index; the gate now exits 0.
 The lesson is the same one §12.5 records about trivy, and it is worth stating twice: **a gate whose
 output nobody reads is not a control.** Two CI runs were red for two days while every local check
 was green.
+
+---
+
+### 12.8 AI provider administration (2026-09-26)
+
+The control layer of §12.6 could measure and refuse. It could not turn anything on.
+
+| | Status |
+| --- | --- |
+| Provider configuration through the UI | **Built.** Administration → AI Providers: enablement, endpoint, model, credential reference, sampling, ceilings, retry cap |
+| Data-processing approval as a recorded act | **Built.** Its own dialog, its own audit action, and a **required reference** to where the approval is held |
+| Switching the active provider | **Built**, and refused for any provider that is not `AVAILABLE` |
+| Readiness validation | **Built.** Five checks, three outcomes, one row per attempt in `generation_provider_validation` |
+| A live connection test | **Not built, and stated as not built** on the screen. No client exists to call |
+| Credential storage | **References only.** A pasted key is refused; no read, screen, audit row or configuration-change row can reconstruct one |
+
+**What this changes for the pilot.** The day a credential and an approval arrive, enabling a
+provider is a configuration change made by an administrator in a browser, audited with previous and
+new value — not a code change written under time pressure by whoever is available. What remains a
+release is *writing a client* for a provider, which is honest: that is engineering work and the
+screen says so, per provider, in words.
+
+**It also makes T-29 harder to bypass rather than easier.** Before this, `llm.approvedProviders`
+was a configuration value editable by anyone who could edit configuration. Now recording an approval
+is a distinct, audited act that **requires a reference** to the record — and the question asked in
+nine months, "who cleared this and on the strength of what", has an answer in the audit trail.
+
+**Blockers, restated:**
+
+| # | Blocker | Status |
+| --- | --- | --- |
+| **T-29** | Anthropic data-processing approval | **OPEN, and unchanged.** Still the longest lead time on the critical path, and still not an engineering action. The request is drafted at `docs/integrations/T29_PRIVACY_LEGAL_REQUEST.md` and nobody in Privacy, Legal, InfoSec or Data Governance has seen it |
+| **P-1** | Amend `architecture.md` for a provider registry | **CLOSED 2026-09-24** — §9.0 |
+| **P-2** | Whether Copilot can be invoked retrieval-free | **OPEN.** It is declared `BLOCKED_BY_CAPABILITY` in the meantime, and the screen refuses to record an approval for it, so the uncertainty cannot be resolved by accident |
+| **P-3** | Data-processing assessment **per provider** | **OPEN**, and now enforced per provider: each one carries its own approval record with its own reference |
+| **P-4** | `claudeModel` rename | **CLOSED 2026-09-26** — see §12.2 |
+
+**One new blocker, and it is not engineering:**
+
+| # | Blocker | Owner |
+| --- | --- | --- |
+| **P-5** | A **secret store**. The platform records a `keyvault://` reference and has no client to resolve one, so a validation reports "recorded, unresolvable here" rather than confirming a credential exists | Platform + InfoSec |
+
+P-5 is deliberately small and deliberately not faked. Resolving a reference needs a Key Vault (or
+equivalent) and a managed identity with read access to it — both listed in §7 — and until they
+exist the honest report is that the reference is recorded and unverified. The alternative, treating
+"a reference is recorded" as "a credential works", is the failure this whole screen is built to
+avoid.
 

@@ -2,9 +2,9 @@
 
 **Applies to:** the local demonstration build with the Question Acquisition Framework
 (provider-based generation and question import), taxonomy administration, the SharePoint Sync
-Manager and the AI Generation Control Layer, including PILOT-T1, PILOT-T2, UI-M3, SYNC-M1..M4 and
-AI-CONTROL-M1
-**Last updated:** 2026-09-24
+Manager, the AI Generation Control Layer and AI provider administration, including PILOT-T1,
+PILOT-T2, UI-M3, SYNC-M1..M4, AI-CONTROL-M1 and AI-PROVIDER-M1
+**Last updated:** 2026-09-26
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -132,8 +132,16 @@ navigation to the page itself. Everything focusable shows a visible blue outline
 ## 3. Identities, and why you keep switching
 
 The header of every page says who you are acting as, with your initials, your role, and — because
-this is a demonstration build — the words "Local Development Identity". Change it from the Authoring
-Portal's home page, or from the learner portal's home page for the learner side.
+this is a demonstration build — the words "Local Development Identity".
+
+**Change it from the header, on any page.** Press **Change**, beside your name, and pick an
+identity from the list; each one says what it can do. The menu closes when you choose, and the
+header's label updates to the identity the server is now using — that label, not the menu, is the
+proof the switch took effect.
+
+It moved here on 2026-09-26. It used to be a card at the bottom of each portal's home page, which
+meant that hitting a refusal on the Publish screen required navigating away, switching, and
+navigating back. A refusal happens where you are, so the control is where you are.
 
 | **KNOWZY Administrator** *(default)* | Full Platform Access — every capability the platform has |
 | **KNOWZY Administrator (second approver)** | Full Platform Access — use it to approve what the first administrator wrote |
@@ -686,6 +694,62 @@ Two things worth knowing about what you are reading:
 
 ---
 
+### 4.3f AI Providers — `/administration/providers`
+
+**Who can open it:** anyone with `report.read`. **Who can change anything:** the KNOWZY
+Administrator (`platform.configure`).
+
+Every generation provider the platform declares, whether it can run a job, and what to do about it
+if not. Reached from **Administration → AI Providers**, beside Knowledge Domains.
+
+**The providers you cannot use are listed too.** Five of the six are unusable today, and each row
+carries the reason rather than being hidden. That matters because the reasons need four different
+people:
+
+| It says | What it means | Who fixes it |
+| --- | --- | --- |
+| `BLOCKED_BY_CAPABILITY` | The provider retrieves its own context, so a question it drafts cannot be grounded in the sections you chose | Nobody. It is permanent. Microsoft Copilot is here |
+| `BLOCKED_BY_APPROVAL` | No data-processing approval is recorded | Privacy, Legal, InfoSec — then record it here |
+| `UNAVAILABLE` | No client for this provider exists in this build | A release |
+| `BLOCKED_BY_CONFIGURATION` | Nobody has enabled it, or its credential reference does not resolve | An administrator, here |
+| `OVER_BUDGET` | Usable, and out of tokens for the current window | Wait for the window, or raise the ceiling |
+| `AVAILABLE` | It can run a job now | — |
+
+The checks run in that order, **most permanent first**, so the reason you read is the one you can
+least easily change. It would be a waste of a week to be sent to get Copilot approved for something
+it can never do.
+
+**Four things you can do per provider:**
+
+- **Configure** — its display name, endpoint, model, credential reference, temperature and maximum
+  output tokens, and whether it is **Enabled**. Enabling one needs its endpoint, model and
+  credential reference set first: an incomplete provider is refused at generation time, where the
+  reason is much harder to find.
+- **Record approval** — a separate dialog, on purpose, and it **requires a reference** to where the
+  approval is held: a document id, a ticket, a signed decision. A credential is not authorization,
+  and an approval nobody can trace is not one. Withdrawing needs no reference.
+- **Set limits** — the per-provider token ceilings, concurrency and retry cap.
+- **Validate** — see below.
+
+**About the credential field.** You type a **reference**, never a key:
+`keyvault://{vault}/secrets/{name}`. Anything that looks like a key is refused before it is stored.
+The box is write-only — an existing reference is never shown back, never returned by any read, and
+never written into an audit row. The row tells you only whether one is recorded.
+
+**Validate does not call the provider, and says so.** It reports five checks — capability, approval,
+implementation, credential, live call — each PASSED, FAILED or NOT ATTEMPTED, with a sentence each.
+For every external provider the live call reads **NOT ATTEMPTED**, because this build implements no
+client for one, and the detail says that authentication, endpoint reachability and model
+availability are therefore **unverified**. The overall result is `INCOMPLETE` rather than `PASSED`.
+
+That is deliberate and it is the most important thing on the screen: a green "Model reachable" from
+a configuration read would be the sentence somebody quotes during an incident.
+
+**Make active** switches the provider generation uses. It is refused for any provider that is not
+`AVAILABLE` — generation would be refused for every job, so the switch is refused instead.
+
+---
+
 ### 4.4 Draft review queue — `/review`
 
 Five views of the same list, at five points in the question's life:
@@ -709,7 +773,7 @@ duplicate was flagged and nobody has decided about it yet.
 
 ### 4.5 Question approval — `/review/<id>`
 
-Everything needed to judge one question, on one page, arranged in six tabs.
+Everything needed to judge one question, on one page, arranged in seven tabs.
 
 **Above the tabs: how far this question has got.** A five-stage strip reads Knowledge → Evidence
 → Review → Approval → Publication. A stage is ticked only where the platform holds the record for
@@ -735,6 +799,7 @@ should not be one click away.
 | **Evidence** | The quoted span, verbatim, with its verification mode, character offsets, and similarity. Read the question against this text: the only thing being asked is whether the question is answerable from it |
 | **Source** | The document, the section key, the document version at the time of generation, and which model generated it |
 | **Governance** | All 13 gates, passing and failing, each with the detail that says how to fix it; the confidence score with every component that produced it; and the duplicate disposition |
+| **Filing** | The four axes this question is filed under — domain, topic, department, role — and the form to correct the last two. See below |
 | **Review history** | Every review and every approval, with the version each decision was made against |
 | **Version history** | Each version, what changed, and whether the evidence was re-verified |
 
@@ -788,6 +853,39 @@ for it. Everything before and after that step is the same identity.
 
 If a duplicate was flagged, a disposition section appears. Say whether it is `DISTINCT` or a
 `DUPLICATE`, with a note. Until someone does, approval stays blocked.
+
+#### The Filing tab
+
+A question is filed on **four** axes. Two of them say what it is about, and two say who it is for:
+
+| Axis | Editable? | Why |
+| --- | --- | --- |
+| **Domain** | No — fixed at generation | Its code is inside the published identifier `KNZ-{CODE}-{YYYY}-{NNNNNN}`, which lives in the Question Bank outside this platform. A question whose id says `SUPPORT_OPS` while its domain says `RX_NET` is a record that disagrees with itself |
+| **Topic** | No — fixed at generation | It is what the preflight authorized, and what section coverage is measured against |
+| **Department** | Yes, until submitted | A label for filing and reporting. Not in any identifier |
+| **Role** | Yes, until submitted | The same |
+
+**Why department and role are editable and the other two are not.** The Generate screen chooses all
+four for a whole **job**, so one wrong choice there files a whole batch the same way — and that is
+exactly the mistake a reviewer notices. Department and role can be corrected per question;
+re-pointing a question at a different domain would mean a new question, which the platform does not
+shortcut.
+
+**The window closes at submission.** Once a question is submitted for approval the tab shows the
+current filing and the reason it is read-only: a question is approved **as filed**, and the gates
+and the approval record are taken at that moment. Letting the filing move underneath an approved
+question would make the approval a statement about something else.
+
+Saving a change creates a **new version** and an audit entry carrying the previous and the new
+value. It does not touch the question text, the options or the evidence span, so nothing is
+re-verified — and the version row says `evidenceReverified: false` rather than claiming a check
+that never ran.
+
+If the question carries no filing at all — every question drafted before 2026-09-26 does — the
+header badge reads **"No department or role assigned"** and the tab says "Not assigned". Empty is
+never dressed up as a placeholder value.
+
+---
 
 ### 4.6 Publish — `/publish`
 
@@ -1041,7 +1139,9 @@ that failed. The ones you are most likely to meet:
 | `SEPARATION_OF_DUTIES` (gate 13) | You are trying to approve your own work | Switch to the approver identity |
 | `BUDGET_EXCEEDED` | A per-job, daily, weekly or monthly token ceiling would be breached | The message names the ceiling, what is spent and when it resets (§4.3c) |
 | `GENERATION_CONCURRENCY_LIMIT` | Too many generation jobs are already running for that provider | Wait for one to finish |
-| `PROVIDER_NOT_APPROVED` | No data-processing approval is recorded for the provider | Not an engineering fix: the approval has to exist, then be recorded |
+| `PROVIDER_NOT_APPROVED` | No data-processing approval is recorded for the provider | Not an engineering fix: the approval has to exist, then be recorded on Administration → AI Providers with a reference (§4.3f) |
+| `PROVIDER_CREDENTIAL_UNAVAILABLE` | Nobody has enabled the provider, or its credential reference does not resolve | Enable and configure it on Administration → AI Providers (§4.3f) |
+| `TAXONOMY_INACTIVE` | The department or role you filed against has been deactivated | Pick another, or reactivate it on Administration → Knowledge Domains |
 | `PROVIDER_NOT_GROUNDING_SAFE` | The provider retrieves its own context | It cannot be used for grounded generation at all |
 | `PROVIDER_RETRY_EXHAUSTED` | The provider kept failing and the attempt cap was reached | The job stopped rather than looping |
 | `VALIDATION_FAILED` | A required field or comment is missing | The detail names the field |
@@ -1118,7 +1218,9 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | **SharePoint over Graph** | Not connected. Graph SharePoint calls return 403 until a tenant administrator consents, so the Graph adapter is still Phase 7. **A locally synchronized mirror of an approved SharePoint folder can be read today** through a file-repository source — real documents, but access is enforced by Knowzy rather than by SharePoint (§4.1) |
 | **The Question Bank** | A local JSON file behind the same port the SharePoint adapter will implement. Phase 8 |
 | **Claude** | Generation uses a deterministic local generator that quotes documents verbatim and passes through the same gates. Question *quality* has never been tested against a model |
-| **Dashboards and reporting** | Not built, with ONE exception now real: **Governance → AI Usage & Budgets** (§4.3c) reports token usage, cost, budget consumption and provider health from records that exist. The rest of reporting needs the Phase 10 read models |
+| **Dashboards and reporting** | Not built, with TWO exceptions now real: **Governance → AI Usage & Budgets** (§4.3c) reports token usage, cost, budget consumption, concurrency and provider health from records that exist, and **Governance → Audit Explorer** (§4.3e) reads the audit trail. The rest of reporting needs the Phase 10 read models |
+| **AI provider configuration** | **Real** (§4.3f). A provider's endpoint, model, credential reference, ceilings, enablement and its recorded data-processing approval are all set from **Administration → AI Providers**, with no deployment. What remains a release is *writing a client* for a provider — see the Claude row above |
+| **A connection test against an AI provider** | Not real, and the screen says which parts it did and did not check (§4.3f). No client for an external provider exists in this build, so the live call is reported as NOT ATTEMPTED and authentication, endpoint reachability and model availability are stated as unverified |
 | **Badges and certificates** | Not built |
 | **Refreshers** | Not built |
 | **The assessment builder** | One form on the Publish page, not the specified builder |
@@ -1154,6 +1256,9 @@ the log below.
 | 2026-09-22 | Import on real files | **The first two real question banks were fed in, and both were refused for reasons that were the platform’s fault rather than the files’.** Fixed, in §4.3a: a spreadsheet may leave its trailing columns blank (a fifteen-column template with twelve filled imported nothing before, and now imports every row); `OptionA`, `CorrectAnswer`, `AnswerKey`, `QuestionText`, `Justification` and `SourceDocument` are recognised as column names; a Word bank whose four options sit on one line is read; and a decoration in front of `Correct Answer:` — a tick, a bullet, a dash — no longer hides the answer. A Word bank with no explanation per question is still refused, and §4.3a now says so before you try. Also: a spreadsheet cell whose own text contains ` - ` is reported with the value it found rather than mis-split. On §4.1, **skipped** is now counted and listed apart from **failed**: a file outside this source’s configured folder is the configuration working, not an error |
 | 2026-09-22 | Decision panel | **A decision the lifecycle cannot reach is now disabled and says why** (§4.5), and the panel names the next step available from the current state. All five decisions used to be offered on every question, so pressing **Submit for approval** on a draft returned `STATE_TRANSITION_INVALID` — which reads as missing access and never was: a draft has to be claimed first. A state block and a permission block are now worded differently, because one is an order of operations and the other is an identity. Where gate 13 currently refuses an approval, a note beside **Approve** says so. §4.5 also states plainly what full access does and does not grant a KNOWZY Administrator |
 | 2026-09-22 | Taxonomy administration | **Domains and topics can now be created and edited** (§4.3b, **Administration → Knowledge Domains**), which is the first Administration screen with a backend behind it. Before this the platform held one seeded domain and one seeded topic and offered no way to add a second, so an imported VisionStar question bank was filed under Support Operations. A domain code is editable only while nothing references the domain and then shows as **Permanent** with the counts that locked it; a topic belongs to exactly one domain and is unique within it; nothing can be deleted, only deactivated. **Import now files each question where the FILE says it belongs** (§4.3a) and refuses a file naming taxonomy that does not exist, rather than creating it — a spreadsheet typo must never mint a permanent domain code |
+| 2026-09-26 | AI-PROVIDER-M1 | **A provider can now be configured through the product** (§4.3f, **Administration → AI Providers**), which is what makes the day a credential arrives a configuration change rather than a release. Every declared provider is listed — including the five that cannot be used — each with the reason and who can clear it, in order of permanence: capability, approval, implementation, credential. **Recording a data-processing approval is its own act and requires a reference** to where the approval is held, because a credential is not authorization and a checkbox beside "Enabled" would be one nobody stopped at. A credential is typed as a `keyvault://` **reference**, never a key: anything key-shaped is refused before storage, the field is write-only, and no read, screen or audit row ever returns it. **Validate** reports five checks with a sentence each and marks the live call **NOT ATTEMPTED** — because nothing in this build can make one, and a green tick here would be read as "authentication successful". A provider that is not AVAILABLE cannot be made active. Also on §4.3c: **Estimated cost** and **Daily budget** joined the KPIs, the provider table gained a **Questions** column, a **Concurrent generation** card shows jobs running against the cap and states that there is no queue, and a **usage heatmap** shades tokens by day, week or month with five labelled bands and an empty square for a period with no activity |
+| 2026-09-26 | Filing | **The question review page has a seventh tab, Filing** (§4.5), showing all four axes a question is filed under and letting **department and role be corrected** while the question is still with its author. Domain and topic are shown read-only with the reason: the domain code is inside the published identifier, and the topic is what the preflight authorized. After submission the whole filing is read-only, because a question is approved as filed. A change creates a new version and an audit entry carrying the previous and new value, and touches no text, so nothing is re-verified. Also fixed: the header badge printed the word "undefined" twice for a question with no filing, and now reads **"No department or role assigned"** — an absent value and a null value render identically |
+| 2026-09-26 | Identity switcher | **Identity switching moved into the header** (§3), on every page of both portals, from the card it used to occupy at the bottom of each home page. A refusal happens where you are, and switching identity is the usual fix, so it should not require navigating away and back |
 | 2026-09-26 | Departments and Roles | **Two more managed catalogues on Administration → Knowledge Domains** (§4.3d), on request: a question is now filed under **Department, Role, Domain and Topic**. Same rules as a domain — a normalized code, a code that becomes permanent once anything references it, a display name that never does, and deactivation instead of deletion, with a refusal if something tries to file against a deactivated entry. A role is deliberately independent of a department. Questions drafted before today carry neither, and the screens say so rather than guessing. Also new: **Governance → Audit Explorer** (§4.3e), which reads the 64,479 audit events the platform had already written and could not show anybody — filter by actor, action, family, entity, outcome, correlation id and date, open any event to see its **correlated trace** (every event from the same click, across the API, MCP and the job runner), and export the filtered set as CSV, with the export itself audited |
 | 2026-09-24 | AI-CONTROL-M1 | **Generation now has ceilings, and a page that shows them** (§4.3c, **Governance → AI Usage & Budgets**). Every generation call — including the deterministic one — now passes through a provider-independent control layer: a per-job token ceiling checked from the prompt estimate **before** any call, daily, weekly and monthly token budgets that count retries, a concurrency cap, and a retry policy with jittered backoff and a hard attempt cap. A ceiling that stops a job produces a **refusal with the numbers in it** and a job recorded as `REFUSED` rather than `FAILED`, because a decision is not a failure. The new page reports usage, cost, budget consumption, provider states and provider health, and a **KNOWZY Administrator can set a token limit per provider from it**. Two things it deliberately will not do: show a zero for a metric nothing has recorded (it says **Not Yet Recorded**), and show a cost that cannot be known (it says **Not observable** with the reason — a per-seat licence and a user-managed run have no observable cost, and the deterministic generator's zero is the one case where 0 is a measurement). OpenAI is now a declared provider, visible on the page as `UNAVAILABLE` with its reason; nothing external is enabled and no credential exists |
 | 2026-09-23 | SYNC-M1..M4 | **A third application**, the **SharePoint Sync Manager** on http://localhost:3002 (§6), for whoever keeps the document sources healthy: connection health, five counted figures over a 30-day window, a workflow table with a derived status, and the last 25 runs with who or what started them. New capability behind it: a source can now be **created, edited, paused, resumed and archived** from a screen rather than only seeded, and it can be put on a **schedule** — manual, hourly, daily, weekly, monthly or cron — executed by the job runner. **Sync all** reports each source's outcome and names what it skipped and why. Four things it deliberately does not do, each on screen and disabled with "Requires Microsoft Graph write integration and tenant approval.": a destination, two-way sync, syncing deletions back, writing metadata back — this release synchronizes **into** Knowzy and has no destination model at all. A SharePoint Graph source is listed and disabled because the adapter is not written. A local root path is **typed, not browsed**, and validated server-side against an allow-list. Also fixed, found by the browser test: a dialog taller than the window could not be scrolled, so its buttons were unreachable at 720px — that affected the existing portals too |

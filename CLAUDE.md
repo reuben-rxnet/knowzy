@@ -79,10 +79,14 @@ Current Status:
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
 - npm run verify passes: typecheck 34/34, lint 22/22,
-  tests 876 passing + 12 todo across 42 files, boundaries 0 errors,
-  codegen contract clean, format clean. Re-counted 2026-09-24; see
+  tests 909 passing + 12 todo across 45 files, boundaries 0 errors,
+  codegen contract clean, format clean. Re-counted 2026-09-26; see
   docs/project/STATUS_RECONCILIATION_2026-09-23.md for what was stale.
-- npm run test:e2e passes: 24 browser acceptance tests across three projects,
+- `npm run verify`, `test`, `test:integration` and `db:reset` now WARN FIRST
+  with the real row counts, what survives and what has to be redone
+  (scripts/destructive-warning.ts). Interactive runs ask; CI prints and
+  continues. They wiped a live walkthrough mid-click on 2026-09-26.
+- npm run test:e2e passes: 23 passing + 1 skipped across three projects,
   driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
   as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
@@ -91,7 +95,10 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 9 migrations apply from empty; seed is idempotent. 0009 is the AI
+- 11 migrations apply from empty; seed is idempotent. 0011 is AI provider
+  administration: `generation_provider_validation` (one row per readiness
+  check) plus the `generation_provider_state` and `provider_validation_outcome`
+  enums. 0010 is departments and roles. 0009 is the AI
   Generation Control Layer: REFUSED as a job state, the refusal-reason enum,
   cost columns, and generation_provider_call (one row per ATTEMPT). 0004 is PILOT-T2:
   section keys scoped per document, coverage split from generation outcome.
@@ -165,12 +172,15 @@ Next Immediate Task:
    confidence-component half of this is DONE and recorded in
    docs/integrations/LIVE_CLAUDE_EVALUATION_PLAN.md section 2.5; the
    blind-stem half needs a person and no credential.
-4. Build the budget and cost layer (LIVE_CLAUDE_IMPLEMENTATION_PLAN.md
-   section 6). It must ship WITH the Claude client, not after it, and it can
-   be built now against the deterministic generator.
+4. Build the budget and cost layer -- DONE 2026-09-24 (AI-CONTROL-M1), with
+   provider administration on top of it 2026-09-26 (AI-PROVIDER-M1). What
+   remains of it is P-5: a SECRET RESOLVER, so a recorded `keyvault://`
+   reference can be confirmed rather than reported as unresolvable.
 5. Wire the live Claude generator behind the existing QuestionGenerator port
    (packages/claude-services/src/generator.ts) and run the recorded
-   comparison. Blocked on T-29 and T-28.
+   comparison. Blocked on T-29 and T-28. Everything around it is now in place:
+   enabling it is a configuration change made in a browser and audited, not a
+   release.
 
 Working Commands:
 
@@ -330,6 +340,14 @@ authored. Gate 13 refuses it. A second seeded identity,
 `knowzy-administrator-2@local.invalid`, exists so a pilot run completes with one
 deliberate switch at the approval step rather than a weakened gate.
 
+IDENTITY SWITCHING IS IN THE HEADER on every page of both portals since
+2026-09-26 (`components/IdentityMenu.tsx`), not on the home page. Three things
+learned building it: a `<details>` menu produces a HYDRATION MISMATCH because
+the browser owns `open`, so it is a controlled client component with
+`aria-expanded`; a client component MAY NOT import `lib/identity`, which reads
+`next/headers`, so the layout passes the list in as data; and the e2e helper
+asserts the SHELL's acting-as label, which is server state.
+
 `knowzy-administrator@local.invalid` is the DEFAULT identity in both portals'
 local selectors. Validate the whole workflow as that role with:
 
@@ -464,6 +482,62 @@ docs/governance/AI_USAGE_AND_BUDGETS.md.
 - OPENAI is DECLARED, not registered. No provider client exists in this build,
   so every external provider reads UNAVAILABLE or BLOCKED_* with its reason on
   the page. Do not register a stand-in.
+- PROVIDER STATE HAS SIX VALUES SINCE 2026-09-26, and the sixth is different in
+  kind. `OVER_BUDGET` is assigned by the USAGE READ MODEL, never by the
+  registry: the registry has no database (B4) and budget consumption is a
+  query. It applies only to a provider the registry already called AVAILABLE,
+  its test matches what `checkWindowBudgets` enforces so the page cannot
+  disagree with the refusal, and it is NEVER PERSISTED -- a stored OVER_BUDGET
+  is false the moment a window rolls over. The DB enum has five members and the
+  TS union has six, deliberately.
+- THERE IS NO QUEUE for a job over the concurrency cap, and the page says so.
+  Generation runs inside the request that asks for it, so a "queued" figure
+  would be zero forever -- a number that can only be zero implies a mechanism
+  that does not exist. What IS shown is the ACTIVE count, from the same query
+  the refusal makes. Real queueing means a job runner consuming JobState.QUEUED
+  and a different Generate screen; it is its own milestone.
+
+## AI Providers administration
+
+BUILT 2026-09-26, AI-PROVIDER-M1. Administration -> AI Providers
+(`/administration/providers`), migration 0011. Full detail:
+docs/governance/AI_PROVIDER_ADMINISTRATION.md. Specification: architecture.md
+9.0 rules 7 and 8, added in the same change.
+
+- FOUR SEPARATE WRITES, and the split that matters is SETTINGS vs APPROVAL.
+  `llm.providerSettings` (enabled, endpoint, model, credential REFERENCE,
+  sampling), `llm.approvedProviders` (its own dialog, REQUIRES a reference to
+  where the approval is held), `llm.activeProvider` (refused unless the
+  provider is AVAILABLE), and a recorded validation. An "Approved" checkbox
+  beside "Enabled" is one somebody ticks on the way past, and
+  BLOCKED_BY_APPROVAL is the control that makes T-29 real.
+- A CREDENTIAL IS A REFERENCE, NEVER A VALUE. `keyvault://{vault}/secrets/{name}`,
+  validated by `SecretReferenceSchema`; a pasted key is refused at the schema.
+  `redact()` in provider-administration.ts strips `apiKeyRef` before any audit
+  or configuration_change row is written -- at WRITE time (audit-model.md 7).
+  Verified: zero rows in either table contain `keyvault://`. The form field is
+  write-only and starts empty.
+- AN UNDECIDED PROVIDER IS DISABLED. Absent `enabled` is not enablement: a
+  provider nobody turned on must not start billing because a credential
+  appeared. DETERMINISTIC_LOCAL is exempt and cannot be disabled -- it is the
+  floor, and a test asserts it.
+- VALIDATE DOES NOT CALL A PROVIDER, and the result says so per check.
+  Capability, approval, implementation, credential, live call; each PASSED,
+  FAILED or NOT_ATTEMPTED; outcome PASSED, FAILED or INCOMPLETE. LIVE_CALL is
+  always NOT_ATTEMPTED for an external provider and its detail says
+  authentication, reachability and model availability are UNVERIFIED. Never add
+  an outcome meaning "probably fine", and never report a pass from a
+  configuration read -- that is the sentence somebody quotes in an incident.
+- ONE VALIDATION ROW PER ATTEMPT (`generation_provider_validation`), not a
+  mutable last-validation column: the question is "what did it say, and has
+  anybody checked since". The history survives a settings reset.
+- THREE NEW SECRET-REF ENV VARS are declared and OPTIONAL IN EVERY ENVIRONMENT:
+  OPENAI_API_KEY_REF, AZURE_OPENAI_KEY_REF, COPILOT_CLIENT_ID_REF. Nothing can
+  spend them, so requiring one would block a deployment; declaring them means
+  the day one arrives it is validated AS A REFERENCE.
+- P-5 IS A NEW BLOCKER AND IT IS NOT ENGINEERING: there is no secret resolver,
+  so a recorded reference reports "recorded, unresolvable here". Do not treat
+  "a reference is recorded" as "a credential works".
 
 ## Taxonomy
 
@@ -496,6 +570,21 @@ arrived 2026-09-26 (migration 0010) on request; things to know:
   dropdown keep filing for months.
 - A department is NOT a security boundary. Authorization is roles and DataScope;
   these are labels for filing and reporting.
+- THE FILING TAB (`/review/<id>?tab=filing`, built 2026-09-26) shows all four
+  axes and edits only two. Domain and topic have NO CONTROL at all: the domain
+  code is inside the published `KNZ-{CODE}-{YYYY}-{SEQ}` and the topic is what
+  the preflight authorized. Department and role are editable in DRAFT,
+  AUTHOR_REVIEW and CHANGES_REQUESTED and READ-ONLY after, because a question is
+  approved AS FILED -- the gates and the approval record are taken at that
+  moment. `setQuestionFiling` writes a new version with
+  `evidenceReverified: false` (re-filing touches no text, and claiming a check
+  that never ran in an append-only table is a permanent lie) and audits
+  previous/new BY CODE, never by id.
+- ABSENT IS NOT THE SAME AS NULL IN A UI, and this cost a screenshot. The
+  filing badge tested `=== null` while the API response had no such key, so it
+  printed the word "undefined" twice on screen. `filingOf()` normalizes both to
+  null before any rendering decision. Any optional object from an API needs the
+  same treatment.
 
 - NO SCHEMA MIGRATION was needed: `Domain` and `Topic` have carried every field
   since 0001 (`code` unique, `Topic` unique on `[domainId, slug]`). What was

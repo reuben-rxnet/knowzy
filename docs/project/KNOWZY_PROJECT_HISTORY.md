@@ -1962,3 +1962,169 @@ is a code change plus an approval. Full detail:
 clean, and the suite at **876 passing + 12 todo across 42 files** (80 new: 68 unit, 12 integration).
 Browser-validated on the running stack.
 
+---
+
+## AI-PROVIDER-M1 — configuring a provider through the product
+
+**2026-09-26.** Migration `0011_ai_provider_administration`. Screen: Administration → AI Providers.
+Documents: [`AI_PROVIDER_ADMINISTRATION.md`](../governance/AI_PROVIDER_ADMINISTRATION.md),
+[`LIVE_AI_CONTROL_LAYER.md`](../integrations/LIVE_AI_CONTROL_LAYER.md).
+
+### The problem
+
+The control layer built two days earlier could measure and refuse, and **nothing could be turned
+on**. Every `llm.*` value except the per-provider ceilings was read-only: a provider could be
+declared, priced and budgeted, and enabling one still meant a code change, a review and a release.
+
+That is the shape of a problem that only bites once, badly. The first external provider would have
+arrived as a configuration commit written in the same hour a credential appeared, under whatever
+pressure came with it — and the approval control would have been a line in a file that the same
+commit could quietly edit.
+
+### The decision that mattered: four writes, not one form
+
+| Write | Key | Why it is separate |
+| --- | --- | --- |
+| Settings | `llm.providerSettings` | Endpoint, model, credential reference, sampling, on/off |
+| Approval | `llm.approvedProviders` | See below |
+| Active provider | `llm.activeProvider` | Refused unless the provider is `AVAILABLE` |
+| Validation | *(its own table)* | A record, not a setting |
+
+**Collapsing settings and approval into one form was the mistake available here.**
+`BLOCKED_BY_APPROVAL` is what makes T-29 a control rather than a promise: a credential is not
+authorization. A checkbox labelled "Approved" beside one labelled "Enabled" is a checkbox somebody
+ticks on the way past, and the control would then exist in the code and not in the organization.
+
+So recording an approval is its own dialog, **requires a reference** to where the approval is held —
+a document id, a ticket, a signed decision — is audited with previous and new value, and can be
+withdrawn without one, because withdrawal must never be the harder action. Approving a provider
+that is `BLOCKED_BY_CAPABILITY` is refused outright: it would create a durable record asserting
+something untrue.
+
+### Test connection, and the sentence it refuses to print
+
+No client for any external provider exists in this build, so a connection test cannot establish a
+connection. The options were: no button, a button that lies, or a button that reports exactly what
+it checked.
+
+It reports a **chain** — capability, approval, implementation, credential, live call — each `PASSED`,
+`FAILED` or `NOT_ATTEMPTED` with a sentence, and an outcome with **three** values so that
+`INCOMPLETE` exists. `LIVE_CALL` is always `NOT_ATTEMPTED` for an external provider and its detail
+says: *"authentication, endpoint reachability and model availability are UNVERIFIED — this result
+does not claim them."*
+
+A result that stopped at `CREDENTIAL` and reported a pass would read as "authentication successful",
+and that is the sentence somebody quotes back during an incident. `CREDENTIAL` itself reports
+`NOT_ATTEMPTED` rather than `FAILED` when a reference is recorded, because this build has no secret
+resolver: unknown is not known-bad, and the difference is what an administrator goes to check.
+
+The result is recorded **one row per attempt** in `generation_provider_validation`, not in a mutable
+"last validation" column — the question is "what did it say, and has anybody checked since", and one
+column answers half of it. The same reasoning made `generation_provider_call` an attempt log in 0009.
+
+### A credential reference is not a credential, and neither is stored carelessly
+
+The platform stores `keyvault://{vault}/secrets/{name}`. A pasted key is refused by the schema
+before storage; the field is write-only and starts empty; no read model returns it; and `redact()`
+strips it before any audit or configuration-change row is written — at **write** time, per
+audit-model.md §7, which is what makes an auditor's unscoped read safe by construction.
+
+Verified rather than asserted: after configuring a reference through the product, zero rows in
+`audit_event` and zero in `configuration_change` contain the string `keyvault://`.
+
+`OPENAI_API_KEY_REF`, `AZURE_OPENAI_KEY_REF` and `COPILOT_CLIENT_ID_REF` were declared as
+environment variables, **optional in every environment**, unlike `ANTHROPIC_API_KEY_REF`. Nothing
+can spend them, so requiring one would block a deployment; declaring them means the day one arrives
+it is validated as a reference, because an undeclared variable is one somebody sets to a raw key.
+
+### `OVER_BUDGET` — a sixth state, and the one the registry cannot assign
+
+A provider that is capable, approved, built, configured and out of tokens was reading `AVAILABLE`
+while every job it ran was refused. So the union gained a sixth member.
+
+It is applied by the **usage read model**, not the registry: the registry has no database by design
+(boundary rule B4), and budget consumption is a query. The test matches what `checkWindowBudgets`
+enforces rather than inventing a second rule, so the table cannot disagree with the refusal. And it
+is **never persisted** — a stored `OVER_BUDGET` is false the moment a window rolls over — which is
+why the `generation_provider_state` enum in 0011 has five members and the TypeScript union has six.
+
+### The queue that was not built, and is now said out loud
+
+The brief asked for concurrency queueing. What exists is a **refusal**: a job over the cap gets
+`CONCURRENCY_LIMIT_REACHED` and can be retried. Generation runs inside the request that asks for
+it, so there is nothing to park, and a "queued" figure would be **zero forever** — a dashboard
+number that can only ever be zero implies a mechanism that does not exist.
+
+So the built half was built: the **active count** is now on the page, taken from the same query the
+refusal makes, so the figure shown is the figure enforced. And the absent half is stated on the card
+in one sentence, because the absence of a queue is exactly the thing a reader assumes the other way
+round. Real queueing means moving generation to a job runner consuming `JobState.QUEUED`, which
+changes what the Generate screen can show; that is a product decision and its own milestone.
+
+### Three defects found by looking at the screen rather than the code
+
+**The Actions column was off the right-hand edge at 1440px.** Eight columns, and one row's
+validation chain — five checks with a sentence each — was 800px tall and 43px too wide. Fixed by
+folding execution mode into the provider cell and collapsing the chain behind a disclosure that
+still names the FAILING checks while closed. Caught by a screenshot pass that measures
+`scrollWidth - clientWidth`, not by a person squinting.
+
+**`DETERMINISTIC_LOCAL` was clipped in a KPI card.** That component is built for a figure, and a
+19-character identifier is not one. It became a monospace badge on its own line.
+
+**The header identity menu caused a hydration error.** The first version was a bare
+`<details>`/`<summary>`, chosen so the menu needed no JavaScript. `open` is DOM state owned by the
+browser, so leaving the menu open and navigating produced *"A tree hydrated but some attributes of
+the server rendered HTML didn't match"*. It is a controlled client component now — which also fixed
+the two faults the error revealed: the menu stayed open across a navigation, and stayed open after
+a switch it had just performed. Then it failed to build at all, because a client component may not
+import the module that reads the subject cookie: the list is passed in as data.
+
+### Two test defects found in the process
+
+**A learner test scored an attempt that was two-thirds unanswered.** Its answer loop exited on
+`if (finish.isVisible()) break` — and "Finish and score" is on every question, because §4.6 lets a
+learner finish early. It answered one of four, finished, and read a score. It is driven by the
+progress count now, and asserts that every question was answered before finishing.
+
+**The same test asserted a restored answer on the wrong question.** Saving advances the cursor
+(§4.5), so a reload presents the NEXT question; the assertion looked for the chosen option's letter
+on that page and either found a different question's option of the same letter or found nothing and
+passed on a guard. The resume assertion now runs when every question is answered, where the cursor
+clamps to the last question and the presented question is one the server holds a response for.
+
+### Also in this change
+
+- **The Filing tab** on question approval: four axes shown, department and role editable while the
+  question is with its author, domain and topic read-only with the reason. A change writes a new
+  version and an audit row carrying previous and new value, and `evidenceReverified: false` —
+  re-filing touches no text, and claiming a check that never ran in an append-only table would be a
+  permanent lie.
+- **The filing badge printed "undefined" twice.** It tested `=== null` where the API response had
+  no such key at all. Absent and null now collapse to null before any rendering decision, and the
+  badge reads "No department or role assigned".
+- **Identity switching moved into the header** on every page of both portals.
+- **Per-provider retry caps** (`llm.providerLimits.{id}.maxAttempts`), with the refusal naming
+  whichever limit actually bound — naming the platform key when an override stopped the run sends an
+  administrator to change the wrong setting.
+- **`npm run verify`, `npm run test`, `npm run test:integration` and `npm run db:reset` now warn
+  before they empty the demonstration data**, with the actual row counts, what survives, and what
+  has to be redone. They wiped a walkthrough mid-click on 2026-09-26. Interactive runs ask; CI
+  prints and continues, because a prompt that blocks a build is a prompt somebody deletes.
+- **A `copy.ts` duplicate-key test.** The file has been duplicated three times by non-idempotent
+  edits, and TypeScript's answer — four hundred `TS1117` lines with no key names — is technically a
+  failure and practically unreadable.
+
+### Validated
+
+`npm run verify` green: typecheck 34/34, lint 22/22, boundaries 0 errors, codegen clean, format
+clean, **909 passing + 12 todo across 45 files**. The CI drift gate exits 0 against a shadow
+database. `npm run test:e2e` green: **23 passing, 1 skipped**, including 11 new browser tests over
+AI Providers, the header identity menu and the Filing tab.
+
+The four writes were additionally exercised over HTTP as the portal makes them — a pasted key
+refused, an approval without a reference refused, an approval for a non-grounding-safe provider
+refused, enabling an incomplete provider refused, an unavailable provider refused as the active one,
+an author refused with 403 — and the audit rows checked for `_droppedKeys` and for any trace of a
+credential reference. None.
+
