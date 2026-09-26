@@ -13,6 +13,9 @@ export const copy = {
   'shell.nav': 'Portal sections',
   'shell.actingAs': 'Acting as',
   'shell.change': 'Change',
+  'identity.inForce': 'In force',
+  'identity.menuNote':
+    'These identities are selected, not authenticated. The local stub issuer runs only in the local environment, and the API re-resolves roles and data scope from the database on every request.',
   'shell.environment': 'Environment',
   'shell.localOnly':
     'Local demonstration build. Identities are selected, not authenticated — the stub issuer runs only in the local environment.',
@@ -210,6 +213,84 @@ export const copy = {
   'tax.orgCodeHint':
     'Letters, numbers and underscores. Normalized to upper case, so support-ng and Support NG are one code.',
 
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  'ai.kpiCost': 'Estimated cost',
+  'ai.kpiCostNote':
+    'Summed over the window. A total is withheld if any contributor is unobservable.',
+  'ai.kpiDailyBudget': 'Daily budget',
+  'ai.kpiDailyBudgetNote': 'The ceiling the remaining figure is measured against',
+  'ai.concurrencyHeading': 'Concurrent generation',
+  'ai.concurrencyNote':
+    'Jobs running right now against the cap in force for the active provider — the same count the control layer makes when it refuses one.',
+  'ai.concurrencyOf': '{active} of {limit} running',
+  'ai.concurrencyProvider': 'Active provider: {provider}',
+  'ai.concurrencyNoQueue':
+    'There is no queue. A job that would exceed the cap is REFUSED with CONCURRENCY_LIMIT_REACHED and can be retried when one finishes — generation runs inside the request that asks for it, so nothing is parked for later.',
+  'ai.heatmapCaption': 'Tokens by period, with requests and questions for each',
+  'ai.heatmapEmpty': 'No activity',
+  'ai.close': 'Close',
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // The organizational axes on the generate form (2026-09-26)
+  'generate.departmentLabel': 'Department (optional)',
+  'generate.roleLabel': 'Role (optional)',
+  'generate.orgUnspecified': 'Not specified',
+  'generate.orgHint':
+    'Files every question this job creates under a department and role, alongside the domain and topic. Leave unspecified and the questions carry neither.',
+
+  'import.departmentLabel': 'Department (optional)',
+  'import.roleLabel': 'Role (optional)',
+  'import.orgUnspecified': 'Not specified',
+  'import.orgHint':
+    'Files every question in this file under a department and role. No bank format carries them, so the choice applies to the whole batch — unlike domain and topic, which are read from the file where it names them.',
+  'review.notFiled': 'No department or role assigned',
+
+  // ------------------------------------------- the Filing tab (2026-09-26)
+  'question.tabFiling': 'Filing',
+  'filing.heading': 'How this question is filed',
+  'filing.intro':
+    'Four axes. Domain and topic say what the question is about and cannot be changed after generation; department and role say who it is for and can be corrected while the question is still with its author.',
+  'filing.domainLabel': 'Domain',
+  'filing.topicLabel': 'Topic',
+  'filing.departmentLabel': 'Department',
+  'filing.roleLabel': 'Role',
+  'filing.readOnly': 'Fixed at generation',
+  'filing.editable': 'Editable until submitted',
+  'filing.unassigned': 'Not assigned',
+  'filing.unspecified': 'Not specified',
+  'filing.immutableNote':
+    'The domain code is inside the published identifier KNZ-{code}-YYYY-NNNNNN, which lives in the Question Bank outside this platform, and the topic is what the preflight authorized. Neither can be changed on an existing question — generate a new one instead.',
+  'filing.editHeading': 'Change the department and role',
+  'filing.editIntro':
+    'Applies to this question only. The generation screen chooses these for a whole job, so one wrong choice there files a whole batch the same way.',
+  'filing.versionNote':
+    'A change creates a new version and an audit entry carrying the previous and the new value. It does not touch the question text, the options or the evidence span, so nothing is re-verified.',
+  'filing.save': 'Save filing',
+  'filing.saving': 'Saving…',
+  'filing.saved': 'Saved as version {version}.',
+  'filing.unchanged': 'Nothing changed, so no version was created.',
+  'filing.lockedHeading': 'The filing is now read-only',
+  'filing.lockedBody':
+    'A question is approved as filed: the gates and the approval record are taken at that moment. Department and role are editable only while the question is in Draft, Author review, or Changes requested.',
+  'review.noDepartment': 'No department',
+  'review.noRole': 'No role',
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
   'nav.home': 'Home',
   'nav.sources': 'Knowledge sources',
   'nav.generate': 'Generate questions',
@@ -219,11 +300,6 @@ export const copy = {
   'home.heading': 'Authoring and Administration',
   'home.intro':
     'The question pipeline, end to end: configure a source, select documents, generate grounded drafts, review and approve them, then publish to the Question Bank.',
-  'home.identityHeading': 'Choose an identity',
-  'home.identityIntro':
-    'The role catalogue separates authoring from approval, so no single identity can carry a question from draft to published. Switch identity as the workflow moves.',
-  'home.identityLabel': 'Act as',
-  'home.identitySubmit': 'Switch identity',
   'home.stepsHeading': 'The workflow',
   'home.step1': 'Knowledge sources — test the connection, then synchronize',
   'home.step2': 'Document browser — see what was indexed and what is selectable',
@@ -791,6 +867,114 @@ export const copy = {
     'You recorded {action}, which is a decision not to generate. Nothing was refused and nothing was lost — record a different action if you want to generate, or look at what already exists.',
   'publish.assessmentDomainLabel': 'Domain',
   'publish.assessmentTopicLabel': 'Topic',
+
+  // ------------------------ Administration -> AI Providers (2026-09-26)
+  'admin.tabTaxonomy': 'Knowledge Domains',
+  'admin.tabProviders': 'AI Providers',
+  'prov.tabsLabel': 'Administration sections',
+  'prov.heading': 'AI Providers',
+  'prov.intro':
+    'Every generation provider the platform declares, whether it can run a job, and why not. Configure one here rather than in a deployment: endpoint, model, credential reference, ceilings and the data-processing approval.',
+  'prov.kpiActive': 'Active provider',
+  'prov.kpiActiveCaption': 'Every generation job uses this one unless a job names another',
+  'prov.kpiDeclared': 'Providers declared',
+  'prov.kpiAvailable': 'Providers available',
+  'prov.kpiAvailableCaption': 'Capable, approved, built and configured',
+  'prov.kpiCredentialled': 'Credential references recorded',
+  'prov.kpiCredentialledCaption':
+    'A reference is recorded; the secret behind it is never read here',
+  'prov.defaultsNote':
+    'Platform defaults, in force wherever a provider sets no override: {perJob} tokens per job, {daily} per day, {concurrency} concurrent jobs, {attempts} attempts per call.',
+
+  'prov.tableHeading': 'Declared providers',
+  'prov.tableIntro':
+    'Unusable providers are listed rather than hidden: the state and its reason are what say whether the next step is a legal approval, a release, or a vault entry. Checks run in order of permanence — capability, approval, implementation, credential.',
+  'prov.colProvider': 'Provider',
+  'prov.colState': 'State',
+  'prov.colMode': 'Execution mode',
+  'prov.colModel': 'Model and endpoint',
+  'prov.colCredential': 'Credential',
+  'prov.colHealth': 'Health',
+  'prov.colValidation': 'Last validation',
+  'prov.colActions': 'Actions',
+  'prov.isActive': 'Active',
+  'prov.on': 'Enabled',
+  'prov.off': 'Disabled',
+  'prov.approvedShort': 'Approved',
+  'prov.unapprovedShort': 'No approval',
+  'prov.built': 'Client built',
+  'prov.notBuilt': 'No client',
+  'prov.platform': 'Platform managed',
+  'prov.user': 'User managed',
+  'prov.noEndpoint': 'No endpoint configured',
+  'prov.noVersion': 'No version reported yet',
+  'prov.version': 'Version {version}',
+  'prov.refConfigured': 'Reference configured',
+  'prov.refMissing': 'No reference',
+  'prov.neverConfigured': 'Never configured',
+  'prov.settingsUpdated': 'Provider settings last changed {at} UTC',
+  'prov.neverValidated': 'Never validated',
+  'prov.validatedAt': '{at} UTC by {by}',
+  'prov.unknownActor': 'an identity no longer recorded',
+  'prov.readOnly': 'Read only — changing a provider requires platform.configure',
+  'prov.showChain': 'Show every check',
+
+  'prov.configure': 'Configure',
+  'prov.configureTitle': 'Configure {provider}',
+  'prov.configureIntro':
+    'Empty fields keep the platform default. Clearing every field removes this provider’s settings entirely, which is not the same as disabling it.',
+  'prov.enabled': 'Enabled',
+  'prov.enabledHint':
+    'An enabled provider may be selected for generation. Enabling one needs its endpoint, model and credential reference set first — an incomplete provider is refused at generation time, where the reason is harder to find.',
+  'prov.displayName': 'Display name',
+  'prov.baseUrl': 'Base URL',
+  'prov.baseUrlHint': 'The API endpoint. HTTPS in every deployed environment.',
+  'prov.modelId': 'Model',
+  'prov.modelIdHint':
+    'Recorded on every question this provider drafts, so a yield comparison can tell two models apart.',
+  'prov.apiKeyRef': 'Credential reference',
+  'prov.apiKeyRefHint':
+    'A keyvault://{vault}/secrets/{name} REFERENCE, never the key. A pasted key is refused. The box is write-only: an existing reference is never shown back.',
+  'prov.temperature': 'Temperature',
+  'prov.maxOutputTokens': 'Maximum output tokens',
+  'prov.save': 'Save provider',
+  'prov.saving': 'Saving…',
+  'prov.settingsSaved': 'Saved. The next generation job uses these settings.',
+
+  'prov.approvalRecord': 'Record approval',
+  'prov.approvalManage': 'Manage approval',
+  'prov.approvalTitle': 'Data-processing approval — {provider}',
+  'prov.approvalIntro':
+    'A credential is not authorization. Until an approval is recorded the provider reads BLOCKED_BY_APPROVAL and every generation request for it is refused.',
+  'prov.approvalHeld': 'Approval recorded',
+  'prov.approvalAbsent': 'No approval recorded',
+  'prov.approvalReference': 'Where the approval is held',
+  'prov.approvalReferenceHint':
+    'A document id, a ticket, or a signed decision. Required, and retained in the audit trail: the question asked in nine months is “who cleared this, and on the strength of what”.',
+  'prov.approvalRecorded': 'Approval recorded.',
+  'prov.withdrawBody':
+    'Withdrawing returns the provider to BLOCKED_BY_APPROVAL. Questions already generated are unaffected; new requests for this provider are refused.',
+  'prov.withdraw': 'Withdraw approval',
+  'prov.approvalWithdrawn': 'Approval withdrawn.',
+
+  'prov.activate': 'Make active',
+  'prov.activateBlocked':
+    'Only an AVAILABLE provider can be made active. Generation would be refused for every job, so the switch is refused instead.',
+  'prov.activated': 'Active provider changed.',
+
+  'prov.validate': 'Validate',
+  'prov.validating': 'Validating…',
+  'prov.validationRecorded': 'Recorded. The result is in the row.',
+
+  'prov.secretsHeading': 'How credentials are handled',
+  'prov.secretsBody':
+    'The platform stores a REFERENCE to a secret, never a secret. That is why the field asks for a vault path and refuses anything that looks like a key.',
+  'prov.secretsRefShape':
+    'The shape is keyvault://{vault}/secrets/{name} — the same convention every other credential in this platform uses.',
+  'prov.secretsNeverShown':
+    'A recorded reference is never returned by any read, shown in any screen, or written into an audit row. Every surface reports only whether one exists.',
+  'prov.secretsNoResolver':
+    'This build has no secret resolver, so whether a reference RESOLVES cannot be checked here — a validation reports that honestly rather than reporting a pass.',
 
   'form.select': 'Select',
   'form.cancel': 'Cancel',

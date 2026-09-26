@@ -131,14 +131,29 @@ export const learningRoutes = [
     portal: 'AUTHORING',
     summary: 'The active domain and topic catalogue, for selection by name.',
     handler: async (ctx, _request, _reply, deps) => {
-      const domains = await deps.prisma.domain.findMany({
-        where: {
-          isActive: true,
-          ...(ctx.scope.domainIds.length > 0 ? { id: { in: [...ctx.scope.domainIds] } } : {}),
-        },
-        orderBy: { name: 'asc' },
-        include: { topics: { where: { isActive: true }, orderBy: { name: 'asc' } } },
-      });
+      const [domains, departments, jobRoles] = await Promise.all([
+        deps.prisma.domain.findMany({
+          where: {
+            isActive: true,
+            ...(ctx.scope.domainIds.length > 0 ? { id: { in: [...ctx.scope.domainIds] } } : {}),
+          },
+          orderBy: { name: 'asc' },
+          include: { topics: { where: { isActive: true }, orderBy: { name: 'asc' } } },
+        }),
+        // NOT scoped by DataScope: a department is a filing label, not a
+        // security boundary. Scoping it would silently hide half an
+        // organization's filing options and look like a bug.
+        deps.prisma.department.findMany({
+          where: { isActive: true },
+          orderBy: { name: 'asc' },
+          select: { id: true, code: true, name: true },
+        }),
+        deps.prisma.jobRole.findMany({
+          where: { isActive: true },
+          orderBy: { name: 'asc' },
+          select: { id: true, code: true, name: true },
+        }),
+      ]);
 
       return {
         domains: domains.map((domain) => ({
@@ -151,6 +166,19 @@ export const learningRoutes = [
             name: topic.name,
             slug: topic.slug,
           })),
+        })),
+        // The organizational axes, ACTIVE ONLY, for the same reason the domains
+        // above are: a selection surface that offers a deactivated entry lets
+        // somebody file against it, which is what deactivation exists to stop.
+        departments: departments.map((row) => ({
+          departmentId: row.id,
+          code: row.code,
+          name: row.name,
+        })),
+        jobRoles: jobRoles.map((row) => ({
+          jobRoleId: row.id,
+          code: row.code,
+          name: row.name,
         })),
       };
     },

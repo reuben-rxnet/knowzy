@@ -59,7 +59,11 @@ const loadDocuments = async (): Promise<{
 const Page = async (): Promise<React.JSX.Element> => {
   const [{ documents, problem }, taxonomy] = await Promise.all([
     loadDocuments(),
-    api<{ domains: readonly ImportDomain[] }>('/api/v1/authoring/taxonomy'),
+    api<{
+      domains: readonly ImportDomain[];
+      departments: readonly { departmentId: string; name: string }[];
+      jobRoles: readonly { jobRoleId: string; name: string }[];
+    }>('/api/v1/authoring/taxonomy'),
   ]);
 
   return (
@@ -67,7 +71,18 @@ const Page = async (): Promise<React.JSX.Element> => {
       <PageHero title={t('import.title')} purpose={t('import.lead')} />
       {problem === null ? null : <Problem problem={problem} />}
       {taxonomy.ok ? (
-        <ImportPanel documents={documents} domains={taxonomy.data.domains} />
+        <ImportPanel
+          documents={documents}
+          domains={taxonomy.data.domains}
+          departments={taxonomy.data.departments.map((row) => ({
+            id: row.departmentId,
+            name: row.name,
+          }))}
+          jobRoles={taxonomy.data.jobRoles.map((row) => ({
+            id: row.jobRoleId,
+            name: row.name,
+          }))}
+        />
       ) : (
         <Problem problem={taxonomy.problem} />
       )}

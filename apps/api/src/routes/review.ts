@@ -28,14 +28,17 @@ import {
   editDraftQuestion,
   evaluateGatesForQuestion,
   readVersionHistory,
+  setQuestionFiling,
   transitionQuestion,
   BreakGlassNotPermittedError,
   CommentRequiredError,
   EvidenceBrokenByEditError,
+  FilingNotPermittedError,
   GatesFailedError,
   NotEditableError,
   PermissionRequiredError,
   QuestionNotFoundError,
+  TaxonomyError,
   TransitionNotPermittedError,
 } from '@knowzy/domain';
 import { systemClock } from '@knowzy/observability';
@@ -122,6 +125,14 @@ const replyFromReviewError = (
   if (error instanceof BreakGlassNotPermittedError) {
     return problemReply(reply, ctx, instance, 'FORBIDDEN', error.message);
   }
+  if (error instanceof FilingNotPermittedError) {
+    return problemReply(reply, ctx, instance, 'FORBIDDEN', error.message);
+  }
+  if (error instanceof TaxonomyError) {
+    // A deactivated department and an unknown id are both refusals the caller
+    // can act on, and each already carries its own registry code.
+    return problemReply(reply, ctx, instance, error.code as ErrorCode, error.message);
+  }
   throw error;
 };
 
@@ -168,6 +179,11 @@ export const reviewRoutes = [
         include: {
           domain: { select: { code: true, name: true } },
           topic: { select: { name: true } },
+          // The id travels with the code and the name because the Filing tab
+          // has to pre-select a dropdown, and matching a select option by
+          // display name is how two departments with the same label become one.
+          department: { select: { id: true, code: true, name: true } },
+          jobRole: { select: { id: true, code: true, name: true } },
           reviews: { orderBy: { createdAt: 'asc' } },
           approvals: { orderBy: { decidedAt: 'asc' } },
           publishedRef: { select: { questionId: true, publishedVersion: true, status: true } },
@@ -202,6 +218,21 @@ export const reviewRoutes = [
         explanation: question.explanation,
         domain: { code: question.domain.code, name: question.domain.name },
         topic: question.topic.name,
+        // Null where the question carries no filing, which is every question
+        // drafted before the catalogues existed. A reviewer sees "Not filed"
+        // rather than a blank that could mean either.
+        department:
+          question.department === null
+            ? null
+            : {
+                id: question.department.id,
+                code: question.department.code,
+                name: question.department.name,
+              },
+        jobRole:
+          question.jobRole === null
+            ? null
+            : { id: question.jobRole.id, code: question.jobRole.code, name: question.jobRole.name },
         createdByUserId: question.createdByUserId,
         needsRevalidation: question.needsRevalidation,
         revalidationReason: question.revalidationReason,
@@ -413,6 +444,47 @@ export const reviewRoutes = [
         questionId: params.data.questionId,
         versions: await readVersionHistory(deps.prisma, params.data.questionId),
       };
+    },
+  }),
+
+  defineRoute({
+    method: 'PUT',
+    url: '/api/v1/authoring/questions/:questionId/filing',
+    policy: 'question.edit',
+    portal: 'AUTHORING',
+    summary: 'Re-files a draft under a department and role. Domain and topic are immutable.',
+    handler: async (ctx, request, reply, deps) => {
+      const params = QuestionParams.safeParse(request.params);
+      // `null` CLEARS an axis and an absent key leaves it alone -- two
+      // different gestures, so the schema must admit null explicitly rather
+      // than treating a missing field as an instruction.
+      const body = z
+        .object({
+          departmentId: z.string().uuid().nullable().optional(),
+          jobRoleId: z.string().uuid().nullable().optional(),
+        })
+        .strict()
+        .safeParse(request.body ?? {});
+      if (!params.success || !body.success) {
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A question id is required, and each of departmentId and jobRoleId must be a uuid or null.',
+        );
+      }
+      try {
+        return await setQuestionFiling({
+          prisma: deps.prisma,
+          clock: systemClock,
+          questionId: params.data.questionId,
+          actor: actorFrom(ctx),
+          filing: body.data,
+        });
+      } catch (error) {
+        return replyFromReviewError(error, ctx, reply, request.url);
+      }
     },
   }),
 

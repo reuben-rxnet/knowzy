@@ -69,7 +69,11 @@ export default async function GeneratePage() {
     api<{ containers: readonly Container[] }>(
       `/api/v1/authoring/sources/${source.sourceId}/containers`,
     ),
-    api<{ domains: readonly WizardDomain[] }>('/api/v1/authoring/taxonomy'),
+    api<{
+      domains: readonly WizardDomain[];
+      departments: readonly { departmentId: string; code: string; name: string }[];
+      jobRoles: readonly { jobRoleId: string; code: string; name: string }[];
+    }>('/api/v1/authoring/taxonomy'),
   ]);
 
   const documents: WizardDocument[] = [];
@@ -117,6 +121,16 @@ export default async function GeneratePage() {
           sourceId={source.sourceId}
           documents={documents}
           domains={taxonomy.data.domains}
+          departments={taxonomy.data.departments.map((row) => ({
+            id: row.departmentId,
+            code: row.code,
+            name: row.name,
+          }))}
+          jobRoles={taxonomy.data.jobRoles.map((row) => ({
+            id: row.jobRoleId,
+            code: row.code,
+            name: row.name,
+          }))}
         />
       ) : null}
     </div>

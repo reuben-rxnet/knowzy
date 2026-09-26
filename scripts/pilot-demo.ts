@@ -218,10 +218,24 @@ const main = async (): Promise<void> => {
   step('6. Generate');
   const taxonomy = await call<{
     domains: { domainId: string; code: string; topics: { topicId: string }[] }[];
+    departments: { departmentId: string; code: string; name: string }[];
+    jobRoles: { jobRoleId: string; code: string; name: string }[];
   }>(SUBJECTS.author, '/api/v1/authoring/taxonomy');
   const domain = taxonomy.domains[0];
   const topic = domain?.topics[0];
   if (domain === undefined || topic === undefined) throw new Error('No seeded taxonomy.');
+
+  // The organizational axes, where the tenant has created any. Taken from the
+  // catalogue rather than from constants: the seed ships none of these on
+  // purpose (taxonomy beyond one domain is a tenant decision), so a demo that
+  // hard-coded a department would fail on a fresh database.
+  const department = taxonomy.departments[0];
+  const jobRole = taxonomy.jobRoles[0];
+  if (department !== undefined && jobRole !== undefined) {
+    console.log(`   filing under ${department.name} / ${jobRole.name}`);
+  } else {
+    console.log('   no department or role exists yet, so the questions carry neither');
+  }
 
   interface Job {
     readonly acceptedQuestionCount: number;
@@ -245,6 +259,8 @@ const main = async (): Promise<void> => {
         scope: 'ENTIRE_DOCUMENT',
         domainId: domain.domainId,
         topicId: topic.topicId,
+        ...(department === undefined ? {} : { departmentId: department.departmentId }),
+        ...(jobRole === undefined ? {} : { jobRoleId: jobRole.jobRoleId }),
         reasonCode: 'NEW_KNOWLEDGE',
         requestedQuestionCount: 6,
       },

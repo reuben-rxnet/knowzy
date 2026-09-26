@@ -145,6 +145,14 @@ export const runGeneration = async (
       scope: String(formData.get('scope') ?? 'ENTIRE_DOCUMENT'),
       domainId: String(formData.get('domainId') ?? ''),
       topicId: String(formData.get('topicId') ?? ''),
+      // Omitted entirely when unspecified rather than sent as an empty string:
+      // "" is not an id, and the server would have to guess what it meant.
+      ...(String(formData.get('departmentId') ?? '').length === 0
+        ? {}
+        : { departmentId: String(formData.get('departmentId')) }),
+      ...(String(formData.get('jobRoleId') ?? '').length === 0
+        ? {}
+        : { jobRoleId: String(formData.get('jobRoleId')) }),
       reasonCode: String(formData.get('reasonCode') ?? 'NEW_KNOWLEDGE'),
       requestedQuestionCount: Number(formData.get('requestedQuestionCount') ?? 5),
       providerId: String(formData.get('providerId') ?? 'DETERMINISTIC_LOCAL'),
@@ -169,6 +177,31 @@ const transition = async (
   revalidatePath('/review');
   revalidatePath(`/review/${questionId}`);
   revalidatePath('/publish');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+/**
+ * Re-files a question under a department and role.
+ *
+ * An empty select sends `null`, which CLEARS the axis. That is not the same as
+ * omitting the field, which would mean "leave it alone" -- and the form always
+ * submits both, because it always shows both.
+ */
+export const setQuestionFilingAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const questionId = String(formData.get('questionId') ?? '');
+  const value = (field: string): string | null => {
+    const raw = String(formData.get(field) ?? '');
+    return raw.length === 0 ? null : raw;
+  };
+  const result = await api<unknown>(`/api/v1/authoring/questions/${questionId}/filing`, {
+    method: 'PUT',
+    body: { departmentId: value('departmentId'), jobRoleId: value('jobRoleId') },
+  });
+  revalidatePath('/review');
+  revalidatePath(`/review/${questionId}`);
   return result.ok ? { ok: true, data: result.data } : failed(result.problem);
 };
 
@@ -390,6 +423,14 @@ export const importQuestions = async (
     documentId: String(formData.get('documentId') ?? ''),
     domainId: String(formData.get('domainId') ?? ''),
     topicId: String(formData.get('topicId') ?? ''),
+    // Batch-level, and omitted when unspecified for the same reason the
+    // generation action omits them: "" is not an id.
+    ...(String(formData.get('departmentId') ?? '').length === 0
+      ? {}
+      : { departmentId: String(formData.get('departmentId')) }),
+    ...(String(formData.get('jobRoleId') ?? '').length === 0
+      ? {}
+      : { jobRoleId: String(formData.get('jobRoleId')) }),
   };
   const path =
     intent === 'import'
@@ -512,6 +553,124 @@ export const setTopicActiveAction = async (
     body: { isActive: String(formData.get('isActive') ?? 'false') === 'true' },
   });
   revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+// --------------------------- Administration -> AI Providers (2026-09-26)
+
+/**
+ * Sets a provider's settings.
+ *
+ * Empty fields are OMITTED, never sent as empty strings. Omitting every field
+ * removes the provider's entry and returns it to its declared defaults --
+ * which is a different act from `enabled: false`, an administrator saying
+ * "off". The API refuses an empty string for a url or a model anyway; sending
+ * one would turn a blank box into a validation error the person did not cause.
+ *
+ * `apiKeyRef` is a keyvault:// REFERENCE. The server validates it as one, so a
+ * key pasted into that box is refused rather than stored. This action never
+ * echoes it back, and no read model returns it.
+ */
+export const setProviderSettingsAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const providerId = String(formData.get('providerId') ?? '');
+  const text = (field: string): Record<string, string> => {
+    const raw = String(formData.get(field) ?? '').trim();
+    return raw.length === 0 ? {} : { [field]: raw };
+  };
+  const numeric = (field: string): Record<string, number> => {
+    const raw = String(formData.get(field) ?? '').trim();
+    if (raw.length === 0) return {};
+    const value = Number(raw);
+    return Number.isFinite(value) ? { [field]: value } : {};
+  };
+
+  const body = {
+    // A checkbox is ABSENT when unchecked, so "off" is the absence of the
+    // field rather than a value -- and it must still be SENT as false, or
+    // unchecking the box would read as "leave it as it was".
+    enabled: formData.get('enabled') !== null,
+    ...text('displayName'),
+    ...text('baseUrl'),
+    ...text('modelId'),
+    ...text('apiKeyRef'),
+    ...numeric('temperature'),
+    ...numeric('maxOutputTokens'),
+  };
+
+  const result = await api<unknown>(
+    `/api/v1/authoring/administration/providers/${providerId}/settings`,
+    { method: 'PUT', body },
+  );
+  revalidatePath('/administration/providers');
+  revalidatePath('/governance/ai-usage');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+/**
+ * Records or withdraws a data-processing approval.
+ *
+ * Separate from the settings form on purpose. `BLOCKED_BY_APPROVAL` is what
+ * makes T-29 a control rather than a promise, and an approval that was a
+ * checkbox beside "enabled" would be one nobody stopped at. Granting requires
+ * a reference to where the approval is held; withdrawing does not, because
+ * withdrawal must never be the harder action.
+ */
+export const setProviderApprovalAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const providerId = String(formData.get('providerId') ?? '');
+  const approved = String(formData.get('approved') ?? '') === 'true';
+  const reference = String(formData.get('approvalReference') ?? '').trim();
+  const result = await api<unknown>(
+    `/api/v1/authoring/administration/providers/${providerId}/approval`,
+    {
+      method: 'PUT',
+      body: { approved, ...(reference.length === 0 ? {} : { approvalReference: reference }) },
+    },
+  );
+  revalidatePath('/administration/providers');
+  revalidatePath('/governance/ai-usage');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+/** Switches the provider generation uses. Refused unless it is AVAILABLE. */
+export const setActiveProviderAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const result = await api<unknown>('/api/v1/authoring/administration/active-provider', {
+    method: 'PUT',
+    body: { providerId: String(formData.get('providerId') ?? '') },
+  });
+  revalidatePath('/administration/providers');
+  revalidatePath('/governance/ai-usage');
+  revalidatePath('/generate');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+/**
+ * Records a readiness validation.
+ *
+ * It does NOT call the provider: no client for any external provider exists in
+ * this build. The response is the configuration chain with each check marked
+ * PASSED, FAILED or NOT_ATTEMPTED, and the screen shows it verbatim rather
+ * than reducing it to a tick -- a green tick here would be read as
+ * "authentication succeeded", which nothing has established.
+ */
+export const validateProviderAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const providerId = String(formData.get('providerId') ?? '');
+  const result = await api<unknown>(
+    `/api/v1/authoring/administration/providers/${providerId}/validate`,
+    { method: 'POST' },
+  );
+  revalidatePath('/administration/providers');
   return result.ok ? { ok: true, data: result.data } : failed(result.problem);
 };
 

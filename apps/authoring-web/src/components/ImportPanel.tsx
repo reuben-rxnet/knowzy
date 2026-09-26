@@ -41,6 +41,12 @@ export interface ImportDocument {
   readonly sourceName: string;
 }
 
+/** A department or a role. Both carry the same three fields. */
+export interface ImportOrgOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 export interface ImportDomain {
   readonly domainId: string;
   readonly name: string;
@@ -98,9 +104,13 @@ const asResponse = (state: ActionState | null): ImportResponse | null =>
 export const ImportPanel = ({
   documents,
   domains,
+  departments,
+  jobRoles,
 }: {
   readonly documents: readonly ImportDocument[];
   readonly domains: readonly ImportDomain[];
+  readonly departments: readonly ImportOrgOption[];
+  readonly jobRoles: readonly ImportOrgOption[];
 }): React.JSX.Element => {
   const [state, submit, pending] = useActionState(importQuestions, null);
 
@@ -143,6 +153,32 @@ export const ImportPanel = ({
                     {topics.map((topic) => (
                       <option key={topic.topicId} value={topic.topicId}>
                         {topic.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field
+                  id="import-departmentId"
+                  label={t('import.departmentLabel')}
+                  hint={t('import.orgHint')}
+                >
+                  <Select id="import-departmentId" name="departmentId" defaultValue="">
+                    <option value="">{t('import.orgUnspecified')}</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="import-jobRoleId" label={t('import.roleLabel')}>
+                  <Select id="import-jobRoleId" name="jobRoleId" defaultValue="">
+                    <option value="">{t('import.orgUnspecified')}</option>
+                    {jobRoles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
                       </option>
                     ))}
                   </Select>

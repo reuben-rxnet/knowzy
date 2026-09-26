@@ -47,6 +47,18 @@ export interface BankItemWrite {
   readonly domain: string;
   readonly domainCode: string;
   readonly topic: string;
+  /**
+   * The organizational axes: which department and role the question was filed
+   * under. Null where it carries none.
+   *
+   * Nullable rather than empty-string, because "not filed" and "filed under
+   * something with an empty name" are different facts, and a report that cannot
+   * tell them apart counts one as the other.
+   */
+  readonly department: string | null;
+  readonly departmentCode: string | null;
+  readonly jobRole: string | null;
+  readonly jobRoleCode: string | null;
   readonly sourceDocumentName: string;
   readonly sourceUrl: string;
   readonly sourceDocumentId: string;

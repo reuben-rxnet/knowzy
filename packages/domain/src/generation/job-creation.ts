@@ -8,6 +8,7 @@
 // Scope resolution happens here too, and its output is PINNED on the job, so
 // the exact input to a run is reproducible afterwards (§7).
 
+import { resolveOrgFiling } from '../taxonomy/org-taxonomy-service.js';
 import { createAuditWriter, type PrismaClient } from '@knowzy/database';
 import type { Clock } from '@knowzy/observability';
 import type { GenerationReasonCode, GenerationScope } from '@knowzy/shared-types';
@@ -44,6 +45,17 @@ export interface CreateJobArgs {
   readonly scope: GenerationScope;
   readonly domainId: string;
   readonly topicId: string;
+  /**
+   * The organizational axes, both OPTIONAL.
+   *
+   * Chosen once here and stamped onto every draft the run creates, so a batch
+   * cannot end up half-filed. Validated against the catalogues -- an id that is
+   * supplied must exist and be active, because filing new questions under a
+   * department somebody deactivated last week is exactly the drift
+   * deactivation exists to prevent.
+   */
+  readonly departmentId?: string | null;
+  readonly jobRoleId?: string | null;
   readonly reasonCode: GenerationReasonCode;
   readonly requestedQuestionCount: number;
   readonly justification?: string;
@@ -202,6 +214,20 @@ export const createGenerationJob = async (args: CreateJobArgs): Promise<CreatedJ
     );
   }
 
+  // --- precondition 7b: the organizational axes, where supplied
+  //
+  // Both optional, and both validated: an id that arrives must exist and be
+  // ACTIVE. Accepting a deactivated department here would let a stale dropdown
+  // keep filing against it for months, which is the one thing deactivation is
+  // for. `resolveOrgFiling` owns the refusal and its wording.
+  const filing = await resolveOrgFiling(
+    { prisma, clock: args.clock },
+    {
+      ...(args.departmentId === undefined ? {} : { departmentId: args.departmentId }),
+      ...(args.jobRoleId === undefined ? {} : { jobRoleId: args.jobRoleId }),
+    },
+  );
+
   // --- precondition 8: a profile
   const profileRow = await prisma.generationProfile.findFirst({
     where: { name: 'Default' },
@@ -312,6 +338,8 @@ export const createGenerationJob = async (args: CreateJobArgs): Promise<CreatedJ
         modelId: profileRow.modelId,
         domainId: args.domainId,
         topicId: args.topicId,
+        departmentId: filing.departmentId,
+        jobRoleId: filing.jobRoleId,
         scope: args.scope,
         objectiveIds: [...(args.objectiveIds ?? [])],
         // The pinned, reproducible input.

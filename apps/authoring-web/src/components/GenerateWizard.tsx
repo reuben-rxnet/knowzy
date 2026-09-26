@@ -236,14 +236,31 @@ const Step = ({ n }: { readonly n: number }) => (
   </span>
 );
 
+export interface OrgOption {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+}
+
+export interface OrgOption {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+}
+
 export const GenerateWizard = ({
   sourceId,
   documents,
   domains,
+  departments,
+  jobRoles,
 }: {
   sourceId: string;
   documents: readonly WizardDocument[];
   domains: readonly WizardDomain[];
+  /** Active departments and roles. Both are optional on a job. */
+  departments: readonly OrgOption[];
+  jobRoles: readonly OrgOption[];
 }) => {
   // Third argument: the permalink. See SourceActions on what it does and does
   // not buy.
@@ -662,6 +679,30 @@ export const GenerateWizard = ({
                     {topics.map((topic) => (
                       <option key={topic.topicId} value={topic.topicId}>
                         {topic.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field
+                  id="departmentId"
+                  label={t('generate.departmentLabel')}
+                  hint={t('generate.orgHint')}
+                >
+                  <Select id="departmentId" name="departmentId" defaultValue="">
+                    <option value="">{t('generate.orgUnspecified')}</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field id="jobRoleId" label={t('generate.roleLabel')}>
+                  <Select id="jobRoleId" name="jobRoleId" defaultValue="">
+                    <option value="">{t('generate.orgUnspecified')}</option>
+                    {jobRoles.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
                       </option>
                     ))}
                   </Select>

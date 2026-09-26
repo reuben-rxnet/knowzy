@@ -99,6 +99,14 @@ runBankConformanceSuite({
     confidenceIndicator: 0.77,
     generationJobId: null,
     generatorModel: null,
+    // The organizational axes, null here: a conformance fixture asserts the
+    // ADAPTER's behaviour, and a question filed under nothing is the case the
+    // adapter must handle for every question drafted before the catalogues
+    // existed.
+    department: null,
+    departmentCode: null,
+    jobRole: null,
+    jobRoleCode: null,
     promptVersion: null,
     status: 'Approved',
     isActive: true,

@@ -60,11 +60,17 @@ renames, and they match the field names in
 | Identity | `title` · `questionId` · `internalQuestionId` · `questionType` |
 | Content | `questionText` · `optionA` · `optionB` · `optionC` · `optionD` · `correctAnswer` · `explanation` |
 | Taxonomy | `domain` · `domainCode` · `topic` · `learningObjective` · `cognitiveLevel` · `targetAudience` |
+| Organization | `department` · `departmentCode` · `jobRole` · `jobRoleCode` |
 | Lineage | `sourceId` · `sourceName` · `sourceType` · `sourceSite` · `sourceLibrary` · `sourceFolderPath` · `sourceDocumentId` · `sourceDocumentName` · `sourceUrl` · `sourceVersion` · `sourceSectionKey` · `sourceSectionLocation` · `supportingEvidence` · `sourceContentHash` · `sourceSectionHash` |
 | Provenance | `generationJobId` · `generatorModel` · `promptVersion` · `generationTimestamp` · `confidenceIndicator` · `generatedBy` |
 | Governance | `status` · `isActive` · `isPublished` · `version` · `approvedBy` · `approvalDate` · `approvalComment` · `publishedBy` · `publishedDate` · `retiredBy` · `retiredDate` · `retireComment` · `reviewComments` · `correlationId` · `needsRevalidation` |
 
-Fifty keys. Adding a key is a schema change to the profile model and is versioned (§7).
+Fifty-four keys. Adding a key is a schema change to the profile model and is versioned (§7).
+
+The four `Organization` keys are **nullable**, unlike every `Taxonomy` key. A profile must still map
+them — an unmapped key is a validation failure, not a silent skip — but the adapter writes null when a
+question carries no filing. See [sharepoint-question-bank.md §3.2](sharepoint-question-bank.md#32-taxonomy)
+for why an empty column beats a placeholder label.
 
 ---
 

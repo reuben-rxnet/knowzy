@@ -213,6 +213,8 @@ const publishOne = async (args: PublishOneArgs): Promise<PublishItemOutcome> => 
     include: {
       domain: { select: { code: true, name: true } },
       topic: { select: { name: true } },
+      department: { select: { code: true, name: true } },
+      jobRole: { select: { code: true, name: true } },
       approvals: { orderBy: { decidedAt: 'desc' }, take: 1 },
       publishedRef: true,
     },
@@ -361,6 +363,14 @@ const publishOne = async (args: PublishOneArgs): Promise<PublishItemOutcome> => 
     domain: question.domain.name,
     domainCode: question.domain.code,
     topic: question.topic.name,
+    // The organizational axes, as NAMES and CODES, exactly as the domain is
+    // carried. Null where the question carries none -- which is every question
+    // drafted before the catalogues existed, and an empty string would make
+    // "not filed" indistinguishable from "filed under nothing".
+    department: question.department?.name ?? null,
+    departmentCode: question.department?.code ?? null,
+    jobRole: question.jobRole?.name ?? null,
+    jobRoleCode: question.jobRole?.code ?? null,
     sourceDocumentName: question.sourceDocumentName,
     sourceUrl: question.sourceUrl,
     sourceDocumentId: question.sourceDocumentId,
@@ -469,6 +479,10 @@ const publishOne = async (args: PublishOneArgs): Promise<PublishItemOutcome> => 
           isPublished: true,
           domainId: question.domainId,
           topicId: question.topicId,
+          // Copied, not joined: re-filing the draft next year must not
+          // silently restate what was published this year.
+          departmentId: question.departmentId,
+          jobRoleId: question.jobRoleId,
           questionTextHash: createHash('sha256')
             .update(question.questionText, 'utf8')
             .digest('hex'),

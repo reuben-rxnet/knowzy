@@ -63,6 +63,47 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   // token limits an administrator sets from Governance -> AI Usage & Budgets:
   // previousValue/newValue carry the whole record, and these two say which
   // provider and which ceilings the person actually touched.
+  // NEVER a credential reference. `credentialConfigured` is a boolean saying
+  // whether one is recorded, which is all any screen shows and all an auditor
+  // needs -- the reference names a secret, and a seven-year store is the last
+  // place it should be reconstructable from.
+  'ADMIN.CONFIGURATION.PROVIDER_UPDATED': [
+    'key',
+    'scope',
+    'valueType',
+    'providerId',
+    'changedFields',
+    'enabled',
+    'credentialConfigured',
+  ],
+  'ADMIN.CONFIGURATION.PROVIDER_APPROVAL_CHANGED': [
+    'key',
+    'scope',
+    'valueType',
+    'providerId',
+    'approved',
+    // WHERE the approval is recorded -- a document id or a ticket. Retained on
+    // purpose: the question asked in nine months is "who cleared this, and on
+    // the strength of what", and a boolean cannot answer the second half.
+    'approvalReference',
+  ],
+  'ADMIN.CONFIGURATION.PROVIDER_ACTIVATED': [
+    'key',
+    'scope',
+    'valueType',
+    'providerId',
+    'previousProviderId',
+  ],
+  'ADMIN.CONFIGURATION.PROVIDER_VALIDATED': [
+    'providerId',
+    // `validationOutcome`, not `outcome`: the event already HAS an outcome
+    // column, and two different meanings under one name in one row is how a
+    // query returns the wrong thing quietly.
+    'validationOutcome',
+    'providerState',
+    'failedChecks',
+    'notAttemptedChecks',
+  ],
   'ADMIN.CONFIGURATION.UPDATED': [
     'key',
     'scope',
@@ -246,6 +287,14 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'reviewKind',
     'reviewOutcome',
   ],
+  // CODES, never ids: a uuid cannot be resolved against a catalogue that has
+  // since been re-curated, and the code is what a past report grouped by.
+  'AUTHORING.QUESTION.FILING_CHANGED': [
+    'version',
+    'changedFields',
+    'departmentCode',
+    'jobRoleCode',
+  ],
   'AUTHORING.QUESTION.SUBMITTED': ['version', 'gatesPassed', 'evaluatedGateCount'],
   'AUTHORING.QUESTION.APPROVED': ['version', 'gatesPassed', 'evaluatedGateCount', 'breakGlass'],
   'AUTHORING.QUESTION.APPROVAL_OVERRIDE': [
@@ -359,6 +408,12 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
 /** Actions for which previousValue/newValue are populated — H2. */
 const VALUE_DIFF_ACTIONS: ReadonlySet<string> = new Set<string>([
   'ADMIN.CONFIGURATION.UPDATED',
+  // All three provider WRITES carry previous and new value. PROVIDER_VALIDATED
+  // does not: a validation changes nothing, so a diff would be two copies of
+  // the same state pretending something moved.
+  'ADMIN.CONFIGURATION.PROVIDER_UPDATED',
+  'ADMIN.CONFIGURATION.PROVIDER_APPROVAL_CHANGED',
+  'ADMIN.CONFIGURATION.PROVIDER_ACTIVATED',
   'ADMIN.FEATUREFLAG.ENABLED',
   'ADMIN.FEATUREFLAG.DISABLED',
   'ADMIN.FEATUREFLAG.ROLLOUT_CHANGED',
@@ -372,6 +427,9 @@ const VALUE_DIFF_ACTIONS: ReadonlySet<string> = new Set<string>([
   'ADMIN.ACCESS.PORTAL_ACCESS_CHANGED',
   'ADMIN.ACCESS.SOURCE_ACCESS_CHANGED',
   'ADMIN.TAXONOMY.DOMAIN_UPDATED',
+  // A question's filing is what a past report grouped by, so previous AND new
+  // must both be present for the grouping to be reconstructable.
+  'AUTHORING.QUESTION.FILING_CHANGED',
   'ADMIN.TAXONOMY.TOPIC_MERGED',
   'ADMIN.TAXONOMY.TOPIC_RENAMED',
   'ADMIN.TAXONOMY.TOPIC_UPDATED',

@@ -43,6 +43,9 @@ const Body = z
     // not recognised.
     domainId: z.string().uuid(),
     topicId: z.string().uuid(),
+    /** The organizational axes for the batch. Both optional. */
+    departmentId: z.string().uuid().optional(),
+    jobRoleId: z.string().uuid().optional(),
     /**
      * The importer's decisions about the names inside the file.
      *
@@ -390,6 +393,10 @@ export const questionImportRoutes = [
         questions: outcome.valid,
         domainId: body.data.domainId,
         topicId: body.data.topicId,
+        // The organizational axes, for the whole batch. A file of questions is
+        // typically one team's bank, so the choice is made once per import.
+        ...(body.data.departmentId === undefined ? {} : { departmentId: body.data.departmentId }),
+        ...(body.data.jobRoleId === undefined ? {} : { jobRoleId: body.data.jobRoleId }),
         resolveTaxonomy: taxonomyResolver(mapping),
         evidenceMode: profile.evidenceStrictness,
         thresholds: {

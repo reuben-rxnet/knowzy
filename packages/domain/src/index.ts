@@ -110,6 +110,21 @@ export {
 } from './generation/control/usage-read-model.js';
 
 export {
+  readProviderAdministration,
+  recordProviderValidation,
+  setActiveProvider,
+  setProviderApproval,
+  setProviderSettings,
+  ProviderAdminError,
+  type AdminActor,
+  type ReadProviderAdministrationArgs,
+  type RecordValidationArgs,
+  type SetActiveProviderArgs,
+  type SetProviderApprovalArgs,
+  type SetProviderSettingsArgs,
+} from './generation/control/provider-administration.js';
+
+export {
   setProviderLimits,
   ProviderLimitError,
   type SetProviderLimitsArgs,
@@ -174,6 +189,13 @@ export {
   type QuestionEdit,
   type VersionHistoryEntry,
 } from './review/versioning.js';
+
+export {
+  setQuestionFiling,
+  FilingNotPermittedError,
+  type SetFilingArgs,
+  type SetFilingResult,
+} from './review/filing.js';
 
 export {
   operationKeyFor,

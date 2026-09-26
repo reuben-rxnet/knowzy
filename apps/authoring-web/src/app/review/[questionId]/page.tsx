@@ -25,9 +25,11 @@ import type { TraceStage } from '@knowzy/shared-ui';
 import { ArrowLeft, Check, Route } from 'lucide-react';
 import { t, type CopyKey } from '../../../copy';
 import { api } from '../../../lib/api';
+import { currentSubject } from '../../../lib/identity';
 import { Problem } from '../../../components/Problem';
 import { DecisionForm } from '../../../components/DecisionForm';
 import { DispositionForm, EditExplanationForm } from '../../../components/QuestionForms';
+import { FilingForm } from '../../../components/FilingForm';
 import {
   approveQuestion,
   claimQuestion,
@@ -45,6 +47,19 @@ interface QuestionDetail {
   readonly proposedCorrectOption: string;
   readonly explanation: string;
   readonly domain: { readonly code: string; readonly name: string };
+  /**
+   * The organizational filing, ABSENT or null where the question carries none.
+   *
+   * Optional as well as nullable on purpose. A question filed under nothing, a
+   * response from an API that predates the two fields, and a response from one
+   * that has not been restarted are three different causes with one correct
+   * rendering -- and the first version of this shipped `=== null`, which let a
+   * missing key fall through to an interpolation and print the word
+   * "undefined" on screen twice. `filingOf` normalizes both to null before any
+   * rendering decision is made.
+   */
+  readonly department?: OrgRef | null;
+  readonly jobRole?: OrgRef | null;
   readonly topic: string;
   readonly createdByUserId: string | null;
   readonly needsRevalidation: boolean;
@@ -121,7 +136,44 @@ interface VersionEntry {
   readonly evidenceReverified: boolean;
 }
 
-const TABS = ['question', 'evidence', 'source', 'governance', 'reviews', 'versions'] as const;
+interface OrgRef {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+}
+
+interface TaxonomyCatalogues {
+  readonly departments: readonly { readonly departmentId: string; readonly name: string }[];
+  readonly jobRoles: readonly { readonly jobRoleId: string; readonly name: string }[];
+}
+
+/**
+ * The window in which the filing may be corrected.
+ *
+ * The same three statuses an edit has, restated here rather than imported: the
+ * server decides, and this only decides whether to render a form or the reason
+ * there is none. If the two ever disagree the server wins and the form's submit
+ * is refused with the reason on screen.
+ */
+const REFILEABLE = new Set(['DRAFT', 'AUTHOR_REVIEW', 'CHANGES_REQUESTED']);
+
+/** Absent and null collapse to null. Nothing downstream sees `undefined`. */
+const filingOf = (
+  detail: QuestionDetail,
+): { readonly department: OrgRef | null; readonly jobRole: OrgRef | null } => ({
+  department: detail.department ?? null,
+  jobRole: detail.jobRole ?? null,
+});
+
+const TABS = [
+  'question',
+  'evidence',
+  'source',
+  'governance',
+  'filing',
+  'reviews',
+  'versions',
+] as const;
 type Tab = (typeof TABS)[number];
 
 const isTab = (value: string | undefined): value is Tab =>
@@ -132,6 +184,7 @@ const TAB_LABEL: Record<Tab, CopyKey> = {
   evidence: 'question.tabEvidence',
   source: 'question.tabSource',
   governance: 'question.tabGovernance',
+  filing: 'question.tabFiling',
   reviews: 'question.tabReviews',
   versions: 'question.tabVersions',
 };
@@ -185,7 +238,7 @@ export default async function QuestionPage({
   const { questionId } = await params;
   const tab: Tab = isTab((await searchParams).tab) ? ((await searchParams).tab as Tab) : 'question';
 
-  const [question, gates, versions] = await Promise.all([
+  const [question, gates, versions, taxonomy, subject] = await Promise.all([
     api<QuestionDetail>(`/api/v1/authoring/questions/${questionId}`),
     api<{ passed: boolean; gates: readonly GateResult[]; advisory: string }>(
       `/api/v1/authoring/questions/${questionId}/gates`,
@@ -193,6 +246,11 @@ export default async function QuestionPage({
     api<{ versions: readonly VersionEntry[] }>(
       `/api/v1/authoring/questions/${questionId}/versions`,
     ),
+    // The catalogues the Filing tab offers. Read on every tab rather than
+    // only on `?tab=filing`, because it is one read and a conditional fetch
+    // would make the filing tab the only slow one.
+    api<TaxonomyCatalogues>('/api/v1/authoring/taxonomy'),
+    currentSubject(),
   ]);
 
   const backToQueue = (
@@ -212,6 +270,7 @@ export default async function QuestionPage({
   }
 
   const detail = question.data;
+  const filing = filingOf(detail);
 
   /**
    * Which decisions the state machine can reach from here, and why not.
@@ -378,6 +437,21 @@ export default async function QuestionPage({
             <VersionBadge version={detail.version} />
             <Badge tone="neutral" withIcon={false}>
               {detail.domain.name} · {detail.topic}
+            </Badge>
+            {/* The organizational filing, beside the knowledge taxonomy: four
+                axes, and a reviewer needs to see all four to judge whether a
+                question is aimed at the right people. "Not filed" is said out
+                loud rather than left as an absent badge, because an absent
+                badge reads as a rendering bug. */}
+            <Badge
+              tone={filing.department === null && filing.jobRole === null ? 'neutral' : 'info'}
+              withIcon={false}
+            >
+              {filing.department === null && filing.jobRole === null
+                ? t('review.notFiled')
+                : `${filing.department?.name ?? t('review.noDepartment')} · ${
+                    filing.jobRole?.name ?? t('review.noRole')
+                  }`}
             </Badge>
             {detail.published === null ? null : (
               <Badge tone="success">
@@ -658,6 +732,83 @@ export default async function QuestionPage({
       )}
 
       {/* ------------------------------------------------------------- reviews */}
+      {/* ------------------------------------------------------------- filing */}
+      {tab !== 'filing' ? null : (
+        <>
+          <Card>
+            <CardHeader title={t('filing.heading')} description={t('filing.intro')} />
+            <CardBody>
+              <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  {
+                    label: t('filing.domainLabel'),
+                    value: `${detail.domain.name} (${detail.domain.code})`,
+                    note: t('filing.readOnly'),
+                  },
+                  {
+                    label: t('filing.topicLabel'),
+                    value: detail.topic,
+                    note: t('filing.readOnly'),
+                  },
+                  {
+                    label: t('filing.departmentLabel'),
+                    value: filing.department?.name ?? t('filing.unassigned'),
+                    note: REFILEABLE.has(detail.status)
+                      ? t('filing.editable')
+                      : t('filing.readOnly'),
+                  },
+                  {
+                    label: t('filing.roleLabel'),
+                    value: filing.jobRole?.name ?? t('filing.unassigned'),
+                    note: REFILEABLE.has(detail.status)
+                      ? t('filing.editable')
+                      : t('filing.readOnly'),
+                  },
+                ].map((axis) => (
+                  <div key={axis.label} className="flex flex-col gap-1">
+                    <dt className="text-2xs font-bold uppercase tracking-wider text-ink-subtle">
+                      {axis.label}
+                    </dt>
+                    <dd className="text-md font-semibold text-brand-navy-text">{axis.value}</dd>
+                    <dd className="text-2xs text-ink-muted">{axis.note}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-4 max-w-prose text-2xs text-ink-muted">
+                {t('filing.immutableNote', { code: detail.domain.code })}
+              </p>
+            </CardBody>
+          </Card>
+
+          {!taxonomy.ok ? (
+            <Problem problem={taxonomy.problem} />
+          ) : REFILEABLE.has(detail.status) ? (
+            <FilingForm
+              questionId={detail.questionId}
+              departments={taxonomy.data.departments.map((row) => ({
+                id: row.departmentId,
+                name: row.name,
+              }))}
+              jobRoles={taxonomy.data.jobRoles.map((row) => ({
+                id: row.jobRoleId,
+                name: row.name,
+              }))}
+              currentDepartmentId={filing.department?.id ?? null}
+              currentJobRoleId={filing.jobRole?.id ?? null}
+              actingAs={subject.label}
+            />
+          ) : (
+            /* The reason, not an absence. A missing form reads as a bug. */
+            <Card>
+              <CardHeader title={t('filing.lockedHeading')} />
+              <CardBody>
+                <p className="max-w-prose text-base text-ink-muted">{t('filing.lockedBody')}</p>
+              </CardBody>
+            </Card>
+          )}
+        </>
+      )}
+
       {tab !== 'reviews' ? null : (
         <Card>
           <CardHeader title={t('question.reviewsHeading')} />

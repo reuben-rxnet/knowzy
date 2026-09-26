@@ -116,6 +116,18 @@ Only the adapter ever sees an internal name ([sharepoint-field-mapping.md](share
 | `LearningObjective` | Single line | No | — |
 | `CognitiveLevel` | Choice (`RECALL`,`APPLICATION`,`ANALYSIS`) | No | — |
 | `TargetAudience` | Single line | No | — |
+| `Department` | Single line | No | **Yes** |
+| `DepartmentCode` | Single line (32) | No | Yes |
+| `JobRole` | Single line | No | **Yes** |
+| `JobRoleCode` | Single line (32) | No | Yes |
+
+A question is filed on **four axes**: domain and topic say what it is about, department and job role
+say who it is for. All four are written as resolved labels plus a stable code, for the same reason.
+
+Department and role are **not required**, and that is deliberate: a tenant that has not decided its
+organizational model publishes questions with both columns empty rather than being forced to invent a
+department. Empty means unfiled — it is never written as a placeholder string, because a bank full of
+`"Unassigned"` cannot be distinguished from a bank somebody actually filed that way.
 
 Taxonomy is written as **text, not lookup columns**. Lookups add throttling cost, break on list
 recreation, and would make the bank depend on a second SharePoint list whose lifecycle Knowzy does not

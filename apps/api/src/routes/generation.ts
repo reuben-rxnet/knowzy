@@ -124,6 +124,17 @@ const JobBody = z
     ]),
     domainId: z.string().uuid(),
     topicId: z.string().uuid(),
+    /**
+     * The organizational axes, both optional.
+     *
+     * They were silently DROPPED before this existed: the schema did not
+     * declare them, the screen sent them, generation succeeded, and every
+     * draft came out unfiled. The demo even printed "filing under
+     * Development-NG / Developer" while writing nulls. A schema that quietly
+     * discards a field the UI sends is worse than one that refuses it.
+     */
+    departmentId: z.string().uuid().optional(),
+    jobRoleId: z.string().uuid().optional(),
     reasonCode: z.enum([
       'NEW_KNOWLEDGE',
       'CONTENT_CHANGED',
@@ -300,6 +311,8 @@ export const generationRoutes = [
           scope: body.data.scope,
           domainId: body.data.domainId,
           topicId: body.data.topicId,
+          ...(body.data.departmentId === undefined ? {} : { departmentId: body.data.departmentId }),
+          ...(body.data.jobRoleId === undefined ? {} : { jobRoleId: body.data.jobRoleId }),
           reasonCode: body.data.reasonCode,
           requestedQuestionCount: body.data.requestedQuestionCount,
           ...(body.data.justification === undefined

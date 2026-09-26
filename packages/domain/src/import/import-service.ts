@@ -76,6 +76,18 @@ export interface RunImportArgs {
   readonly domainId: string;
   readonly topicId: string;
   /**
+   * The organizational axes for the whole batch, both optional.
+   *
+   * Batch-level rather than per-question, and deliberately so for now: a file
+   * of questions is typically one team's bank, and per-question Department and
+   * Role columns would need the same refuse-on-mismatch treatment the domain
+   * and topic columns get. Until a real file arrives carrying them, offering
+   * the choice once per import is honest; inventing a column format nobody
+   * writes is not.
+   */
+  readonly departmentId?: string | null;
+  readonly jobRoleId?: string | null;
+  /**
    * Per-question taxonomy, from the file's own Domain and Topic columns.
    *
    * Returning null REFUSES the question rather than filing it under the batch
@@ -273,6 +285,8 @@ export const runQuestionImport = async (args: RunImportArgs): Promise<ImportRunR
           importLocator: question.locator,
           domainId: placement.domainId,
           topicId: placement.topicId,
+          departmentId: args.departmentId ?? null,
+          jobRoleId: args.jobRoleId ?? null,
           questionText: question.questionText,
           answerPayload: {
             kind: 'MULTIPLE_CHOICE_4',

@@ -57,6 +57,15 @@ export interface GenerationRunContext {
   readonly sourceId: string;
   readonly domainId: string;
   readonly topicId: string;
+  /**
+   * The org axes the JOB was created with, stamped onto every draft it creates.
+   *
+   * Read from the job rather than passed again by the caller: the job is the
+   * record of what was asked for, and a second source for the same fact is how
+   * a batch ends up half-filed.
+   */
+  readonly departmentId?: string | null;
+  readonly jobRoleId?: string | null;
   readonly correlationId: string;
   readonly requestId: string;
   readonly actorUserId: string;
@@ -338,6 +347,15 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     data: { status: 'RUNNING', startedAt },
   });
 
+  // The organizational axes come from the JOB rather than from the caller. The
+  // job is the record of what was asked for; taking them from an argument as
+  // well would give two sources for one fact, and the first disagreement would
+  // be a batch half-filed under a department nobody chose.
+  const filing = await prisma.generationJob.findUniqueOrThrow({
+    where: { id: context.jobId },
+    select: { departmentId: true, jobRoleId: true },
+  });
+
   // Retrieval-time freshness. workflows.md §2.3 verifies the hash at retrieval
   // so a job cannot ground questions in text that has since changed; here the
   // pinned scope was read from the index, so the check is that the index still
@@ -569,6 +587,8 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
             status: 'DRAFT',
             domainId: context.domainId,
             topicId: context.topicId,
+            departmentId: filing.departmentId,
+            jobRoleId: filing.jobRoleId,
             questionText: candidate.questionText,
             answerPayload: {
               kind: 'MULTIPLE_CHOICE_4',

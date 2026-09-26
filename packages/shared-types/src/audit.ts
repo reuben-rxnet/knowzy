@@ -61,7 +61,24 @@ export const AUDIT_FAMILIES = {
     'DEPROVISIONED',
     'PSEUDONYMIZED',
   ],
-  'ADMIN.CONFIGURATION': ['UPDATED'],
+  'ADMIN.CONFIGURATION': [
+    'UPDATED',
+    // AI provider administration, 2026-09-26. Four acts, kept apart because
+    // they answer different questions and carry different risk:
+    //
+    //   PROVIDER_UPDATED           endpoint, model, credential reference, on/off
+    //   PROVIDER_APPROVAL_CHANGED  the data-processing approval, with its reference
+    //   PROVIDER_ACTIVATED         which provider generation actually uses
+    //   PROVIDER_VALIDATED         a recorded readiness check
+    //
+    // Collapsing the approval into PROVIDER_UPDATED would bury the one act a
+    // reviewer needs to find by itself: "who decided this provider was legally
+    // cleared, and on the strength of what record".
+    'PROVIDER_UPDATED',
+    'PROVIDER_APPROVAL_CHANGED',
+    'PROVIDER_ACTIVATED',
+    'PROVIDER_VALIDATED',
+  ],
   'ADMIN.FIELDMAPPING': ['CREATED', 'UPDATED', 'VALIDATED', 'ACTIVATED', 'RETIRED'],
   'ADMIN.QUESTIONBANK': ['PROVISIONED', 'VERIFIED', 'RECONCILED', 'RECONCILE_DECISION_APPLIED'],
   'ADMIN.TAXONOMY': [
@@ -123,6 +140,12 @@ export const AUDIT_FAMILIES = {
     'IMPORTED',
     'IMPORT_RUN',
     'EDITED',
+    // A change of DEPARTMENT or ROLE, added 2026-09-26. Distinct from EDITED
+    // because EDITED means the question's CONTENT moved and carries an
+    // evidence re-verification with it; re-filing touches no text and
+    // re-verifies nothing, and an auditor counting content edits must not have
+    // to subtract the re-filings.
+    'FILING_CHANGED',
     'SUBMITTED',
     'APPROVED',
     'REJECTED',
