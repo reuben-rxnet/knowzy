@@ -10,6 +10,9 @@ export const copy = {
   'shell.skipToContent': 'Skip to content',
   'shell.actingAs': 'Signed in as',
   'shell.change': 'Change',
+  'identity.inForce': 'In force',
+  'identity.menuNote':
+    'These identities are selected, not authenticated. The local stub issuer runs only in the local environment, and the API re-resolves the learner from the database on every request.',
   'shell.environment': 'Environment',
   'shell.localOnly':
     'Local demonstration build. Identities are selected, not authenticated — the stub issuer runs only in the local environment.',
@@ -17,16 +20,11 @@ export const copy = {
   'home.heading': 'Your assessments',
   'home.intro':
     'Only published assessments appear here, and only the questions that were published at the moment the assessment was published.',
-  'home.identityHeading': 'Choose an identity',
-  'home.identityLabel': 'Sign in as',
-  'home.identitySubmit': 'Switch identity',
   'home.empty':
     'No assessment is available to you yet. Publish questions and an assessment in the Authoring Portal first.',
   'home.countLabel': '{count} available to you',
   'home.emptyBody':
     'An assessment appears here once it has been published. Nothing is hidden from you — there is nothing yet.',
-  'home.identityIntro':
-    'Switch identity to see what a different person is allowed to do. Refusals are part of the demonstration.',
   'home.progressLabel': 'Answered',
   'home.progressHeading': 'Your progress over time',
   'home.progressNote':

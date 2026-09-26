@@ -1,15 +1,12 @@
 import {
   Badge,
-  Button,
   Card,
   CardBody,
   CardFooter,
   CardHeader,
   EmptyState,
-  Fieldset,
   KpiCard,
   PageHero,
-  RadioRow,
   StatusBadge,
   TextLink,
   VersionBadge,
@@ -31,8 +28,6 @@ import {
 import { publicEnvironmentName } from '@knowzy/configuration';
 import { t } from '../copy';
 import { api } from '../lib/api';
-import { switchSubject } from './actions';
-import { currentSubject, DEMO_SUBJECTS } from '../lib/identity';
 
 const DASH = '—';
 
@@ -90,7 +85,6 @@ export default async function Page() {
   // The public subset, never process.env (C3). It cannot return a server-only
   // variable, which is what keeps the browser bundle inside B1.
   const environment = publicEnvironmentName();
-  const subject = await currentSubject();
 
   const queue = (name: string) =>
     api<{ count: number; items: readonly QueueRow[] }>(
@@ -498,32 +492,10 @@ export default async function Page() {
         </Card>
       ) : null}
 
-      {/* ----------------------------------------------------------- identity */}
-      <Card>
-        <CardHeader title={t('home.identityHeading')} description={t('home.identityIntro')} />
-        <form action={switchSubject}>
-          <CardBody>
-            <Fieldset legend={t('home.identityLabel')}>
-              <div className="divide-y divide-line rounded-md border border-line">
-                {DEMO_SUBJECTS.map((option) => (
-                  <RadioRow
-                    key={option.upn}
-                    name="subject"
-                    value={option.upn}
-                    defaultChecked={option.upn === subject.upn}
-                    description={option.can}
-                  >
-                    {option.label}
-                  </RadioRow>
-                ))}
-              </div>
-            </Fieldset>
-          </CardBody>
-          <CardFooter>
-            <Button>{t('home.identitySubmit')}</Button>
-          </CardFooter>
-        </form>
-      </Card>
+      {/* The identity picker MOVED to the header's profile menu (2026-09-26),
+          so it is reachable from every screen rather than only from here. This
+          card is not replaced by a link to itself: the control is two clicks
+          away in the header on this page too. */}
 
       <Card>
         <CardHeader title={t('home.liveHeading')} description={t('home.liveBody')} />

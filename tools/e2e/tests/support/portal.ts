@@ -44,13 +44,22 @@ export const actAs = async (page: Page, identity: Identity): Promise<void> => {
   // as the administrator, the refusal never appeared, and the test blamed the
   // page.
   //
-  // The assertion is now on the SHELL's acting-as label, which is server state,
-  // with one retry -- the switch is a server action and a click landing before
-  // hydration does nothing and leaves no trace.
+  // The assertion is still on the SHELL's acting-as label, which is server
+  // state, with one retry -- the switch is a server action and a click landing
+  // before hydration does nothing and leaves no trace.
+  //
+  // REWORKED 2026-09-26: the picker moved from a card on the home page to the
+  // header's profile menu, which holds one submit button per identity. The menu
+  // is opened first, because its contents are not in the DOM until then -- and
+  // Playwright reporting a button as "not visible" rather than "not there" is
+  // the confusing half of that.
   for (const attempt of [1, 2]) {
-    await page.getByRole('radio', { name: label }).check();
-    await page.getByRole('button', { name: /switch identity/i }).click();
+    await openIdentityMenu(page);
+    await page.locator('header').getByRole('button', { name: label }).first().click();
     try {
+      // `.first()` is the acting-as label rather than the menu's own copy of
+      // the same name: the label precedes `identityAction` in the header's DOM
+      // order, and the menu is closed again after the action re-renders.
       await expect(page.locator('header').getByText(label).first()).toBeVisible({
         timeout: 10_000,
       });
@@ -60,6 +69,21 @@ export const actAs = async (page: Page, identity: Identity): Promise<void> => {
       await page.goto('/');
     }
   }
+};
+
+/**
+ * Opens the header's identity menu, and leaves it open if it already was.
+ *
+ * The trigger TOGGLES, so clicking unconditionally closes a menu that a retry
+ * had already opened -- and the failure then reads as a missing button rather
+ * than as a closed menu. `aria-expanded` is the state to test: it is the same
+ * fact a screen reader is given.
+ */
+export const openIdentityMenu = async (page: Page): Promise<void> => {
+  const trigger = page.locator('header button[aria-haspopup="menu"]');
+  await expect(trigger).toBeVisible();
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
 };
 
 /** The label the picker shows for a UPN, matched loosely enough to survive a rename. */

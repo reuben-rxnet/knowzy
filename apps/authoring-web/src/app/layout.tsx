@@ -9,7 +9,8 @@ import {
   WorkflowRibbon,
 } from '@knowzy/shared-ui';
 import { t } from '../copy';
-import { currentSubject } from '../lib/identity';
+import { IdentityMenu } from '../components/IdentityMenu';
+import { currentSubject, DEMO_SUBJECTS } from '../lib/identity';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -83,6 +84,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               // §34: a selected persona is never presented as a real employee.
               isLocalDevelopmentIdentity: environment === 'local',
             },
+            // The switcher, in the header on every page rather than in a card
+            // on the home page. A refusal is the most common reason to change
+            // identity, and a refusal happens where you are.
+            identityAction: (
+              <IdentityMenu
+                current={subject}
+                subjects={DEMO_SUBJECTS}
+                isLocalDevelopmentIdentity={environment === 'local'}
+              />
+            ),
           }}
           {...(stage === null
             ? {}

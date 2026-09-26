@@ -1,25 +1,20 @@
 import {
   Badge,
-  Button,
   ButtonLink,
   Card,
   CardBody,
   CardFooter,
   CardHeader,
   EmptyState,
-  Fieldset,
   Meter,
   PageHero,
   PlannedState,
-  RadioRow,
   RefusalState,
 } from '@knowzy/shared-ui';
 import { ArrowRight, CheckCircle2, Clock, PlayCircle } from 'lucide-react';
 import { t } from '../copy';
 import { api } from '../lib/api';
 import { Problem } from '../components/Problem';
-import { switchLearner } from './actions';
-import { currentSubject, DEMO_SUBJECTS } from '../lib/identity';
 
 interface AssessmentCardData {
   readonly assessmentId: string;
@@ -80,7 +75,6 @@ const answeredPercent = (answeredOf: string): number | null => {
  * the gap.
  */
 export default async function AssessmentListPage() {
-  const subject = await currentSubject();
   const result = await api<{ count: number; assessments: readonly AssessmentCardData[] }>(
     '/api/v1/learning/assessments',
   );
@@ -249,31 +243,9 @@ export default async function AssessmentListPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader title={t('home.identityHeading')} description={t('home.identityIntro')} />
-        <form action={switchLearner}>
-          <CardBody>
-            <Fieldset legend={t('home.identityLabel')}>
-              <div className="divide-y divide-line rounded-md border border-line">
-                {DEMO_SUBJECTS.map((option) => (
-                  <RadioRow
-                    key={option.upn}
-                    name="subject"
-                    value={option.upn}
-                    defaultChecked={option.upn === subject.upn}
-                    description={option.can}
-                  >
-                    {option.label}
-                  </RadioRow>
-                ))}
-              </div>
-            </Fieldset>
-          </CardBody>
-          <CardFooter>
-            <Button>{t('home.identitySubmit')}</Button>
-          </CardFooter>
-        </form>
-      </Card>
+      {/* The identity picker MOVED to the header's profile menu (2026-09-26),
+          so a learner can be switched from the quiz, the results page or
+          anywhere else rather than only from here. */}
 
       {/* A declared absence, not a footnote.
           

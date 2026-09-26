@@ -4,7 +4,8 @@ import { headers } from 'next/headers';
 import { publicEnvironmentName } from '@knowzy/configuration';
 import { KNOWZY_TAGLINE, LearnerShell } from '@knowzy/shared-ui';
 import { t } from '../copy';
-import { currentSubject } from '../lib/identity';
+import { IdentityMenu } from '../components/IdentityMenu';
+import { currentSubject, DEMO_SUBJECTS } from '../lib/identity';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -57,6 +58,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               // as a real employee.
               isLocalDevelopmentIdentity: environment === 'local',
             },
+            identityAction: (
+              <IdentityMenu
+                current={subject}
+                subjects={DEMO_SUBJECTS}
+                isLocalDevelopmentIdentity={environment === 'local'}
+              />
+            ),
           }}
           footerNote={
             <>
