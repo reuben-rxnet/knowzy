@@ -29,7 +29,7 @@ import {
 // Baseline: a deployed API environment that passes every check.
 // ---------------------------------------------------------------------------
 
-const MIGRATION = '0011_ai_provider_administration';
+const MIGRATION = '0012_reporting_read_models';
 
 const validEnv: RawEnv = {
   KNOWZY_ENV: 'test',

@@ -27,6 +27,12 @@ import {
   type SchedulerDeps,
   type SourceSyncJob,
 } from './source-sync-scheduler.js';
+import {
+  runReportingReconcile,
+  runReportingRefresh,
+  QUEUE_REPORTING_RECONCILE,
+  QUEUE_REPORTING_REFRESH,
+} from './reporting-refresh.js';
 
 export const QUEUE_AUDIT_PARTITION_MAINTENANCE = 'audit.partition.maintenance';
 
@@ -49,7 +55,7 @@ const main = async (): Promise<void> => {
   const report = await validateStartup({
     deployable: 'jobs',
     rawEnv,
-    expectedMigrationVersion: '0011_ai_provider_administration',
+    expectedMigrationVersion: '0012_reporting_read_models',
     probes: {
       database: () => probeDatabase(prisma),
       mockAdaptersRegistered: () => isLocal,
@@ -292,15 +298,127 @@ const main = async (): Promise<void> => {
   // The tick interval bounds how LATE a due run can start; it is not the
   // schedule. A daily source runs once a day whatever this is.
   const tickMinutes = Number(rawEnv['SOURCE_SYNC_TICK_MINUTES'] ?? '5');
+  // ------------------------------------------------- reporting (Phase 10 R1)
+  //
+  // A refresh failure is NOT a job failure. One view that cannot refresh must
+  // not leave the other four stale, so the worker reports how many succeeded
+  // and throws only if every model failed -- which is an outage, not a bad
+  // view.
+  await boss.createQueue(QUEUE_REPORTING_REFRESH);
+  await boss.createQueue(QUEUE_REPORTING_RECONCILE);
+
+  await boss.work(QUEUE_REPORTING_REFRESH, async () => {
+    const correlation = startSystemCorrelation();
+    const jobRun = await prisma.jobRun.create({
+      data: {
+        jobType: QUEUE_REPORTING_REFRESH,
+        state: 'RUNNING',
+        startedAt: systemClock.now(),
+        attemptCount: 1,
+        correlationId: correlation.correlationId,
+      },
+    });
+
+    const summary = await runReportingRefresh(prisma);
+    const everyModelFailed = summary.refreshed === 0 && summary.failed > 0;
+
+    await prisma.jobRun.update({
+      where: { id: jobRun.id },
+      data: {
+        state: everyModelFailed ? 'FAILED' : 'SUCCEEDED',
+        completedAt: systemClock.now(),
+        ...(everyModelFailed
+          ? { lastError: { name: 'ReportingRefreshFailed', failed: summary.failed } }
+          : {}),
+      },
+    });
+
+    await auditWriter.write(prisma, {
+      action: everyModelFailed ? 'PLATFORM.JOB.FAILED' : 'PLATFORM.JOB.SUCCEEDED',
+      entityType: 'JobRun',
+      entityId: jobRun.id,
+      correlationId: correlation.correlationId,
+      actorType: 'SYSTEM',
+      ...(everyModelFailed ? { outcome: 'FAILURE' as const } : {}),
+      detail: {
+        jobType: QUEUE_REPORTING_REFRESH,
+        jobRunId: jobRun.id,
+        itemsProcessed: summary.refreshed,
+        itemsFailed: summary.failed,
+      },
+    });
+
+    logger.info('reporting refresh complete', {
+      correlationId: correlation.correlationId,
+      refreshed: summary.refreshed,
+      failed: summary.failed,
+      cacheEntriesPruned: summary.cacheEntriesPruned,
+    });
+  });
+
+  await boss.work(QUEUE_REPORTING_RECONCILE, async () => {
+    const correlation = startSystemCorrelation();
+    const jobRun = await prisma.jobRun.create({
+      data: {
+        jobType: QUEUE_REPORTING_RECONCILE,
+        state: 'RUNNING',
+        startedAt: systemClock.now(),
+        attemptCount: 1,
+        correlationId: correlation.correlationId,
+      },
+    });
+
+    const summary = await runReportingReconcile(prisma);
+
+    await prisma.jobRun.update({
+      where: { id: jobRun.id },
+      data: { state: 'SUCCEEDED', completedAt: systemClock.now() },
+    });
+
+    // D7: drift is REPORTED, never corrected. The job succeeds even when it
+    // finds drift -- the finding is the output, and failing the job would make
+    // an operator chase a broken job instead of a broken counter.
+    await auditWriter.write(prisma, {
+      action: 'PLATFORM.JOB.SUCCEEDED',
+      entityType: 'JobRun',
+      entityId: jobRun.id,
+      correlationId: correlation.correlationId,
+      actorType: 'SYSTEM',
+      detail: {
+        jobType: QUEUE_REPORTING_RECONCILE,
+        jobRunId: jobRun.id,
+        itemsProcessed: summary.driftCount,
+      },
+    });
+
+    if (summary.driftCount > 0) {
+      logger.warn('reporting counter drift detected and reported, NOT corrected', {
+        correlationId: correlation.correlationId,
+        driftCount: summary.driftCount,
+      });
+    }
+  });
+
   await boss.schedule(QUEUE_SOURCE_SYNC_TICK, `*/${tickMinutes} * * * *`, undefined, {
     tz: 'UTC',
   });
 
   // Daily at 03:00 UTC, well ahead of any partition boundary.
   await boss.schedule(QUEUE_AUDIT_PARTITION_MAINTENANCE, '0 3 * * *', undefined, { tz: 'UTC' });
+  // Every 15 minutes: the latency target the read models declare.
+  await boss.schedule(QUEUE_REPORTING_REFRESH, '*/15 * * * *', undefined, { tz: 'UTC' });
+  // Nightly, and deliberately AFTER the partition maintenance rather than
+  // alongside it: two jobs contending on the same tables at 03:00 makes each
+  // one's duration a function of the other's.
+  await boss.schedule(QUEUE_REPORTING_RECONCILE, '30 3 * * *', undefined, { tz: 'UTC' });
 
   // Run once at start so a fresh environment has its runway immediately.
   await boss.send(QUEUE_AUDIT_PARTITION_MAINTENANCE, {});
+  // Once at startup, so a fresh database has populated read models before
+  // anybody opens the Reports screen. Five views that have never refreshed
+  // render as "not yet built", which is honest and also unhelpful on the first
+  // run of the day.
+  await boss.send(QUEUE_REPORTING_REFRESH, {});
 
   logger.info('job runner started', {
     queues: [QUEUE_AUDIT_PARTITION_MAINTENANCE, QUEUE_SOURCE_SYNC_TICK, QUEUE_SOURCE_SYNC_RUN],
