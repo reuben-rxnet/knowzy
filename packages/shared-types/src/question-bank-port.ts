@@ -56,7 +56,21 @@ export interface BankItemWrite {
   readonly sourceVersion: string;
   readonly confidenceIndicator: number;
   readonly generationJobId: string | null;
-  readonly claudeModel: string | null;
+  /**
+   * The model the GENERATOR used, whichever provider that was.
+   *
+   * Renamed from `claudeModel` on 2026-09-26 (blocker P-4). A
+   * provider-specific name in a provider-agnostic port would have become false
+   * the day a second provider ran -- and this value is written into the
+   * PUBLISHED record, so the rename had to happen before the SharePoint bank
+   * adapter exists. It cost a port change and five call sites today; after
+   * Phase 8 it would have been a data migration on a tenant's list.
+   *
+   * The SharePoint column is `GeneratorModel`
+   * (sharepoint-question-bank.md §4). No tenant list exists yet, so the
+   * column rename is free at this moment and never again.
+   */
+  readonly generatorModel: string | null;
   readonly promptVersion: string | null;
   readonly status: string;
   readonly isActive: boolean;

@@ -98,7 +98,7 @@ runBankConformanceSuite({
     sourceVersion: '3.0',
     confidenceIndicator: 0.77,
     generationJobId: null,
-    claudeModel: null,
+    generatorModel: null,
     promptVersion: null,
     status: 'Approved',
     isActive: true,

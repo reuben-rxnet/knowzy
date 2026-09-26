@@ -370,7 +370,7 @@ const publishOne = async (args: PublishOneArgs): Promise<PublishItemOutcome> => 
     sourceVersion: question.sourceVersionAtGeneration,
     confidenceIndicator: Number(question.confidenceScore),
     generationJobId: question.generationJobId,
-    claudeModel: question.modelId,
+    generatorModel: question.modelId,
     promptVersion: question.promptVersionId,
     status: 'Approved',
     isActive: true,

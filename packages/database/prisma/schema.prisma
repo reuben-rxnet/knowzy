@@ -905,6 +905,67 @@ model Domain {
   @@map("domain")
 }
 
+/// An organizational DEPARTMENT — a managed catalogue, curated at
+/// Administration -> Knowledge Domains alongside domains and topics.
+///
+/// Why this is not `User.department` (a free-text string): a question is filed
+/// under a department, reports group by it, and the Learning & Skillset
+/// dashboard compares across it. A free-text string cannot be renamed once
+/// something references it, cannot be deactivated, and spells itself three ways
+/// by the end of the first month.
+///
+/// NOT a security boundary. Authorization is roles and DataScope; a department
+/// is a label for filing and reporting, and nothing here grants access.
+model Department {
+  id               String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  /// Stable, upper-case, and written into the published record. Editable only
+  /// while nothing references it.
+  code             String   @unique
+  name             String
+  description      String?
+  isActive         Boolean  @default(true) @map("is_active")
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
+
+  questions          DraftQuestion[]              @relation("DraftQuestionDepartment")
+  publishedQuestions PublishedQuestionReference[] @relation("PublishedQuestionDepartment")
+  generationJobs     GenerationJob[]              @relation("GenerationJobDepartment")
+
+  @@index([isActive])
+  @@map("department")
+}
+
+/// An organizational ROLE — Intern, Developer, Senior Developer and so on.
+///
+/// Named `JobRole` rather than `Role` because `Role` is already the RBAC role
+/// (`role`, with `role_permission` and `user_role`). Two different concepts
+/// sharing one name in one schema is how a permission check ends up reading an
+/// org chart. The UI labels it simply "Role", which is what a person calls it.
+model JobRole {
+  id               String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  code             String   @unique
+  name             String
+  description      String?
+  isActive         Boolean  @default(true) @map("is_active")
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
+
+  questions          DraftQuestion[]              @relation("DraftQuestionJobRole")
+  publishedQuestions PublishedQuestionReference[] @relation("PublishedQuestionJobRole")
+  generationJobs     GenerationJob[]              @relation("GenerationJobJobRole")
+
+  @@index([isActive])
+  @@map("job_role")
+}
+
 model Topic {
   id                String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   domainId          String   @map("domain_id") @db.Uuid
@@ -1359,6 +1420,10 @@ model GenerationJob {
   tokenUsageReported     Boolean              @default(false) @map("token_usage_reported")
   domainId               String               @map("domain_id") @db.Uuid
   topicId                String               @map("topic_id") @db.Uuid
+  /// Chosen once on the generate screen; stamped onto every draft the job
+  /// creates, so a batch cannot be half-filed.
+  departmentId           String?              @map("department_id") @db.Uuid
+  jobRoleId              String?              @map("job_role_id") @db.Uuid
   targetAudience         String?              @map("target_audience")
   scope                  GenerationScope
   objectiveIds           String[]             @default([]) @map("objective_ids") @db.Uuid
@@ -1402,6 +1467,8 @@ model GenerationJob {
   preflight     GenerationPreflight     @relation("GenerationJobPreflight", fields: [preflightId], references: [id], onDelete: Restrict)
   source        KnowledgeSource         @relation("GenerationJobSource", fields: [sourceId], references: [id], onDelete: Restrict)
   profile       GenerationProfile       @relation("GenerationJobProfile", fields: [profileId], references: [id], onDelete: Restrict)
+  department    Department?             @relation("GenerationJobDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
+  jobRole       JobRole?                @relation("GenerationJobJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
   promptVersion PromptVersion           @relation("GenerationJobPromptVersion", fields: [promptVersionId], references: [id], onDelete: Restrict)
   documents     GenerationJobDocument[] @relation("GenerationJobDocumentJob")
   rejections    GenerationJobRejection[] @relation("GenerationJobRejectionJob")
@@ -1584,6 +1651,13 @@ model DraftQuestion {
   version                   Int                   @default(1)
   domainId                  String                @map("domain_id") @db.Uuid
   topicId                   String                @map("topic_id") @db.Uuid
+  /// --- organizational mapping (2026-09-26) ---------------------------------
+  /// NULLABLE, deliberately: every question drafted before this existed has no
+  /// department or role, and a NOT NULL column would have meant either
+  /// inventing a value for them or refusing to migrate. A question carries the
+  /// axes it was filed under, or honestly carries none.
+  departmentId              String?               @map("department_id") @db.Uuid
+  jobRoleId                 String?               @map("job_role_id") @db.Uuid
   learningObjectiveId       String?               @map("learning_objective_id") @db.Uuid
   questionText              String                @map("question_text")
   /// Discriminated by questionType. For MULTIPLE_CHOICE_4:
@@ -1659,6 +1733,8 @@ model DraftQuestion {
 
   domain            Domain                     @relation("DraftQuestionDomain", fields: [domainId], references: [id], onDelete: Restrict)
   topic             Topic                      @relation("DraftQuestionTopic", fields: [topicId], references: [id], onDelete: Restrict)
+  department        Department?                @relation("DraftQuestionDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
+  jobRole           JobRole?                   @relation("DraftQuestionJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
   objective         LearningObjective?         @relation("DraftQuestionObjective", fields: [learningObjectiveId], references: [id], onDelete: Restrict)
   generationJob     GenerationJob?             @relation("DraftQuestionGenerationJob", fields: [generationJobId], references: [id], onDelete: Restrict)
   similarityCluster SimilarityCluster?         @relation("SimilarityClusterMember", fields: [similarityClusterId], references: [id], onDelete: SetNull)
@@ -1803,6 +1879,11 @@ model PublishedQuestionReference {
   isPublished         Boolean                  @default(true) @map("is_published")
   domainId            String                   @map("domain_id") @db.Uuid
   topicId             String                   @map("topic_id") @db.Uuid
+  /// The org axes as they were AT PUBLICATION. Copied rather than joined, for
+  /// the same reason the section hash is copied: a later re-filing of the draft
+  /// must not silently restate what was published.
+  departmentId        String?                  @map("department_id") @db.Uuid
+  jobRoleId           String?                  @map("job_role_id") @db.Uuid
   learningObjectiveId String?                  @map("learning_objective_id") @db.Uuid
   /// Drift detection without storing content (§8.2 of sharepoint-question-bank.md).
   questionTextHash    String                   @map("question_text_hash") @db.Char(64)
@@ -1824,6 +1905,8 @@ model PublishedQuestionReference {
   version             Int                      @default(1)
 
   question DraftQuestion @relation("PublishedQuestionReferenceQuestion", fields: [internalQuestionId], references: [internalQuestionId], onDelete: Restrict)
+  department Department? @relation("PublishedQuestionDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
+  jobRole    JobRole?    @relation("PublishedQuestionJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
 
   @@index([domainId, topicId, isActive, isPublished])
   @@index([sourceDocumentId])

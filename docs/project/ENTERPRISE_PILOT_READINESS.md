@@ -209,7 +209,7 @@ a degraded request. This table consolidates what that contract implies; it does 
 | Resource | Purpose | Enforced by | Per |
 | --- | --- | --- | --- |
 | Azure subscription + resource group + region | A-16, T-31 | — | environment |
-| Azure Container Apps (×5) | `api`, `mcp-server`, `jobs`, `authoring-web`, `live-web` — the five declared deployables | `DEPLOYABLES` | environment |
+| Azure Container Apps (×6) | `api`, `mcp-server`, `jobs`, `authoring-web`, `live-web`, `sync-web` — the six declared deployables (`sync-web` added 2026-09-26) | `DEPLOYABLES` | environment |
 | PostgreSQL Flexible Server | Authoritative store for everything except approved question content | `DATABASE_URL`, managed identity in deployed environments | environment |
 | Key Vault | Every secret. Configuration holds only `keyvault://{vault}/secrets/{name}` **references**, validated by regex — a literal secret in config fails schema validation | `KEY_VAULT_URI`, required in deployed, **forbidden in local** | environment |
 | Blob Storage (private container) | Certificates and report exports. No public URL exists | `BLOB_ACCOUNT_URL`, `BLOB_CONTAINER` | environment |

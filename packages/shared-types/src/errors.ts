@@ -178,6 +178,12 @@ export const ERROR_REGISTRY = {
    * (`KNZ-{DOMAIN_CODE}-{YYYY}-{SEQ}`), so changing it would orphan published
    * identifiers that live in the Question Bank outside this platform.
    */
+  TAXONOMY_INACTIVE: {
+    category: 'VALIDATION',
+    status: 422,
+    message: 'That department or role is deactivated, so a new question cannot be filed under it.',
+    retryable: false,
+  },
   TAXONOMY_CODE_IMMUTABLE: {
     category: 'CONFLICT',
     status: 409,

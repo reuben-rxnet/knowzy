@@ -61,7 +61,7 @@ renames, and they match the field names in
 | Content | `questionText` · `optionA` · `optionB` · `optionC` · `optionD` · `correctAnswer` · `explanation` |
 | Taxonomy | `domain` · `domainCode` · `topic` · `learningObjective` · `cognitiveLevel` · `targetAudience` |
 | Lineage | `sourceId` · `sourceName` · `sourceType` · `sourceSite` · `sourceLibrary` · `sourceFolderPath` · `sourceDocumentId` · `sourceDocumentName` · `sourceUrl` · `sourceVersion` · `sourceSectionKey` · `sourceSectionLocation` · `supportingEvidence` · `sourceContentHash` · `sourceSectionHash` |
-| Provenance | `generationJobId` · `claudeModel` · `promptVersion` · `generationTimestamp` · `confidenceIndicator` · `generatedBy` |
+| Provenance | `generationJobId` · `generatorModel` · `promptVersion` · `generationTimestamp` · `confidenceIndicator` · `generatedBy` |
 | Governance | `status` · `isActive` · `isPublished` · `version` · `approvedBy` · `approvalDate` · `approvalComment` · `publishedBy` · `publishedDate` · `retiredBy` · `retiredDate` · `retireComment` · `reviewComments` · `correlationId` · `needsRevalidation` |
 
 Fifty keys. Adding a key is a schema change to the profile model and is versioned (§7).

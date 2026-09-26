@@ -467,9 +467,35 @@ docs/governance/AI_USAGE_AND_BUDGETS.md.
 
 ## Taxonomy
 
-Domains and topics are managed at Administration -> Knowledge Domains
-(`/administration/taxonomy`), `taxonomy.manage`. Notes:
-docs/migrations/TAXONOMY_ADMINISTRATION_NOTES.md
+FOUR catalogues are managed at Administration -> Knowledge Domains
+(`/administration/taxonomy`), `taxonomy.manage`: domains, topics, DEPARTMENTS
+and ROLES. Notes: docs/migrations/TAXONOMY_ADMINISTRATION_NOTES.md
+
+A question is filed under Department, Role, Domain and Topic. The first two
+arrived 2026-09-26 (migration 0010) on request; things to know:
+
+- The model is `JobRole` (table `job_role`), NOT `Role`. `Role` is the RBAC role,
+  with `role_permission` and `user_role` beside it. Two concepts sharing one
+  name in one schema is how a permission check ends up reading an org chart.
+  The UI says "Role", which is what a person calls it.
+- `departmentId` and `jobRoleId` are NULLABLE on draft_question,
+  published_question_reference and generation_job. Every question drafted before
+  0010 has neither, and a NOT NULL column would have meant inventing values or
+  refusing to migrate.
+- A ROLE IS INDEPENDENT OF A DEPARTMENT. No FK between them: an organization
+  files by both axes, and a hierarchy would make every role of one department
+  unusable by another. A test asserts it, so reintroducing the hierarchy means
+  deleting that test on purpose.
+- Both codes are normalized by the SAME `normalizeDomainCode`, so `support-ng`
+  and `Support NG` are one code. A code is editable only while nothing
+  references it, then refused with `TAXONOMY_CODE_IMMUTABLE` -- it is copied
+  into the published record and is what past reports grouped by. Display names
+  stay editable forever.
+- Filing against a DEACTIVATED department or role is refused with
+  `TAXONOMY_INACTIVE`. Deactivation that only hid the row would let a stale
+  dropdown keep filing for months.
+- A department is NOT a security boundary. Authorization is roles and DataScope;
+  these are labels for filing and reporting.
 
 - NO SCHEMA MIGRATION was needed: `Domain` and `Topic` have carried every field
   since 0001 (`code` unique, `Topic` unique on `[domainId, slug]`). What was

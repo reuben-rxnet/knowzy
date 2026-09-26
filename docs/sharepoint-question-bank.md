@@ -147,7 +147,7 @@ control. PostgreSQL holds the referential integrity; the bank holds the resolved
 | Display name | Type | Notes |
 | --- | --- | --- |
 | `GenerationJobID` | Single line (36) | |
-| `ClaudeModel` | Single line (64) | Configuration value in force at run time, e.g. `claude-sonnet-5` (example) |
+| `GeneratorModel` | Single line (64) | The model the generator used, whichever provider ran. Renamed from `ClaudeModel` on 2026-09-26 (P-4) while NO TENANT LIST EXISTS, which is the only moment the rename is free. Configuration value in force at run time |
 | `PromptVersion` | Single line (32) | Immutable prompt version |
 | `GenerationTimestamp` | Date and time | UTC |
 | `ConfidenceIndicator` | Number (3 dp) | Platform-computed composite, advisory only |

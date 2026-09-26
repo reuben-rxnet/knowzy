@@ -202,6 +202,22 @@ export const POLICIES = {
     portals: AUTHORING,
     description: 'Set the per-provider token and concurrency ceilings.',
   },
+
+  // ------------------------------------- governance: the Audit Explorer (2026-09-26)
+  //
+  // Read and EXPORT are separate grants. Looking at a seven-year store and
+  // taking a copy of it off the platform are different acts, and audit-model.md
+  // §7 requires the export itself to be audited.
+  'governance.audit.read': {
+    permission: 'audit.read',
+    portals: AUTHORING,
+    description: 'Read audit events, their detail and their correlated trace.',
+  },
+  'governance.audit.export': {
+    permission: 'audit.export',
+    portals: AUTHORING,
+    description: 'Export a filtered set of audit events as CSV.',
+  },
 } as const satisfies Record<string, PolicyDefinition>;
 
 export type PolicyName = keyof typeof POLICIES;

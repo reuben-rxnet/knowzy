@@ -34,16 +34,19 @@ import {
   TextInput,
   Tr,
 } from '@knowzy/shared-ui';
-import { FolderTree, Layers, Tags } from 'lucide-react';
+import { Building2, FolderTree, Layers, Tags, UserCog } from 'lucide-react';
 import { t } from '../../../copy';
 import { api } from '../../../lib/api';
 import { Problem } from '../../../components/Problem';
 import {
   ActiveToggle,
   EditDomainButton,
+  EditOrgEntryButton,
   EditTopicButton,
   NewDomainButton,
+  NewOrgEntryButton,
   NewTopicButton,
+  OrgActiveToggle,
 } from '../../../components/TaxonomyForms';
 import { currentSubject } from '../../../lib/identity';
 
@@ -72,14 +75,33 @@ interface TopicRow {
   readonly questionCount: number;
 }
 
+/** A department or a role: the two catalogues share one row shape. */
+interface OrgRow {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly isActive: boolean;
+  readonly questionCount: number;
+  readonly publishedQuestionCount: number;
+  readonly generationJobCount: number;
+  readonly codeLocked: boolean;
+}
+
 interface Catalogue {
   readonly domains: readonly DomainRow[];
   readonly topics: readonly TopicRow[];
+  readonly departments: readonly OrgRow[];
+  readonly roles: readonly OrgRow[];
   readonly counts: {
     readonly domains: number;
     readonly activeDomains: number;
     readonly topics: number;
     readonly activeTopics: number;
+    readonly departments: number;
+    readonly activeDepartments: number;
+    readonly roles: number;
+    readonly activeRoles: number;
   };
 }
 
@@ -111,7 +133,7 @@ export default async function TaxonomyAdministrationPage({
     );
   }
 
-  const { domains, topics, counts } = catalogue.data;
+  const { domains, topics, departments, roles, counts } = catalogue.data;
   const domainOptions = domains
     .filter((domain) => domain.isActive)
     .map((domain) => ({ domainId: domain.domainId, code: domain.code, name: domain.name }));
@@ -140,6 +162,18 @@ export default async function TaxonomyAdministrationPage({
           label={t('tax.activeTopicCount')}
           value={counts.activeTopics}
           icon={<FolderTree className="size-5" />}
+        />
+        <KpiCard
+          label={t('tax.departmentCount')}
+          value={counts.departments}
+          caption={t('tax.activeDepartmentCount')}
+          icon={<Building2 className="size-5" />}
+        />
+        <KpiCard
+          label={t('tax.roleCount')}
+          value={counts.roles}
+          caption={t('tax.activeRoleCount')}
+          icon={<UserCog className="size-5" />}
         />
       </div>
 
@@ -334,6 +368,115 @@ export default async function TaxonomyAdministrationPage({
           )}
         </CardBody>
       </Card>
+
+      {/* The organizational axes. Two tables rather than one, for the same
+          reason domains and topics are two: they are edited with different
+          rules and merging them would hide which code is still editable. */}
+      {(
+        [
+          {
+            kind: 'department' as const,
+            rows: departments,
+            heading: t('tax.orgHeading'),
+            note: t('tax.orgNote'),
+            empty: t('tax.noDepartments'),
+            emptyNote: t('tax.noDepartmentsNote'),
+          },
+          {
+            kind: 'role' as const,
+            rows: roles,
+            heading: t('tax.rolesHeading'),
+            note: t('tax.rolesNote'),
+            empty: t('tax.noRoles'),
+            emptyNote: t('tax.noRolesNote'),
+          },
+        ] as const
+      ).map((table) => (
+        <Card key={table.kind}>
+          <CardHeader
+            title={table.heading}
+            description={table.note}
+            actions={<NewOrgEntryButton kind={table.kind} actingAs={subject.label} />}
+          />
+          <CardBody>
+            {table.rows.length === 0 ? (
+              <EmptyState title={table.empty} description={table.emptyNote} />
+            ) : (
+              <DataTable caption={table.heading} captionHidden>
+                <THead>
+                  <Tr>
+                    <Th scope="col">{t('tax.code')}</Th>
+                    <Th scope="col">{t('tax.name')}</Th>
+                    <Th scope="col">{t('tax.active')}</Th>
+                    <Th scope="col" align="end">
+                      {t('tax.questionsColumn')}
+                    </Th>
+                    <Th scope="col" align="end">
+                      {t('tax.publishedColumn')}
+                    </Th>
+                    <Th scope="col">{t('tax.actions')}</Th>
+                  </Tr>
+                </THead>
+                <TBody>
+                  {table.rows.map((row) => (
+                    <Tr key={row.id}>
+                      <Th scope="row">
+                        <span className="flex flex-col gap-1">
+                          <span className="font-mono text-base">{row.code}</span>
+                          {/* Permanence is shown WITH the counts that caused
+                              it, so "why can I not edit this?" is answered
+                              where the question is asked. */}
+                          {row.codeLocked ? (
+                            <Badge tone="neutral">{t('tax.codeLocked')}</Badge>
+                          ) : null}
+                        </span>
+                      </Th>
+                      <Td>
+                        <span className="flex flex-col gap-0.5">
+                          <span className="font-semibold text-ink">{row.name}</span>
+                          <span className="text-2xs text-ink-muted">
+                            {row.description ?? t('tax.nothingYet')}
+                          </span>
+                        </span>
+                      </Td>
+                      <Td>
+                        <StatusBadge
+                          status={row.isActive ? t('browser.yes') : t('browser.no')}
+                          tone={row.isActive ? 'success' : 'neutral'}
+                        />
+                      </Td>
+                      <Td numeric>{row.questionCount}</Td>
+                      <Td numeric>{row.publishedQuestionCount}</Td>
+                      <Td>
+                        <span className="flex flex-wrap items-start gap-2">
+                          <EditOrgEntryButton
+                            kind={table.kind}
+                            entry={{
+                              id: row.id,
+                              code: row.code,
+                              name: row.name,
+                              description: row.description,
+                              isActive: row.isActive,
+                              codeLocked: row.codeLocked,
+                            }}
+                            actingAs={subject.label}
+                          />
+                          <OrgActiveToggle
+                            kind={table.kind}
+                            id={row.id}
+                            isActive={row.isActive}
+                            actingAs={subject.label}
+                          />
+                        </span>
+                      </Td>
+                    </Tr>
+                  ))}
+                </TBody>
+              </DataTable>
+            )}
+          </CardBody>
+        </Card>
+      ))}
     </div>
   );
 }

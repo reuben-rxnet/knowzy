@@ -24,10 +24,13 @@ import { Pencil, Plus } from 'lucide-react';
 import { t } from '../copy';
 import {
   createDomainAction,
+  createOrgEntryAction,
   createTopicAction,
   setDomainActiveAction,
+  setOrgEntryActiveAction,
   setTopicActiveAction,
   updateDomainAction,
+  updateOrgEntryAction,
   updateTopicAction,
 } from '../app/actions';
 import { Problem } from './Problem';
@@ -346,6 +349,158 @@ export const ActiveToggle = ({
     <div className="flex flex-col gap-1">
       <form action={submit}>
         <input type="hidden" name={kind === 'domain' ? 'domainId' : 'topicId'} value={id} />
+        <input type="hidden" name="isActive" value={isActive ? 'false' : 'true'} />
+        <Button
+          tone="secondary"
+          size="sm"
+          disabled={pending}
+          {...(pending ? { disabledReason: t('sources.working') } : {})}
+        >
+          {isActive ? t('tax.deactivate') : t('tax.activate')}
+        </Button>
+      </form>
+      {state?.ok === false && state.problem !== undefined ? (
+        <Problem problem={state.problem} actingAs={actingAs} />
+      ) : null}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// The organizational axes — departments and roles (2026-09-26)
+//
+// ONE pair of components for both catalogues. A department and a role differ in
+// their noun and nothing else, and two copies of this form would drift the
+// first time one of them gained a field.
+//
+// The code input is rendered only while the server says the code is still
+// editable (`codeLocked: false`), and the server refuses it again on submit.
+// The screen never becomes the authority — it only declines to offer a control
+// that would be refused.
+
+export type OrgKind = 'department' | 'role';
+
+export interface OrgFormValues {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly isActive: boolean;
+  readonly codeLocked: boolean;
+}
+
+export const NewOrgEntryButton = ({
+  kind,
+  actingAs,
+}: {
+  readonly kind: OrgKind;
+  readonly actingAs: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button onClick={() => setOpen(true)}>
+        <Plus aria-hidden="true" className="size-4" />
+        {kind === 'department' ? t('tax.newDepartment') : t('tax.newRole')}
+      </Button>
+      <DialogForm
+        open={open}
+        onClose={() => setOpen(false)}
+        title={kind === 'department' ? t('tax.createDepartmentTitle') : t('tax.createRoleTitle')}
+        action={createOrgEntryAction as never}
+        actingAs={actingAs}
+      >
+        <input type="hidden" name="kind" value={kind} />
+        <Field id={`new-${kind}-code`} label={t('tax.code')} hint={t('tax.orgCodeHint')}>
+          <TextInput id={`new-${kind}-code`} name="code" required />
+        </Field>
+        <Field id={`new-${kind}-name`} label={t('tax.name')}>
+          <TextInput id={`new-${kind}-name`} name="name" required />
+        </Field>
+        <Field id={`new-${kind}-description`} label={t('tax.description')}>
+          <Textarea id={`new-${kind}-description`} name="description" rows={2} />
+        </Field>
+        <CheckboxRow name="isActive" value="true" defaultChecked>
+          {t('tax.activeField')}
+        </CheckboxRow>
+      </DialogForm>
+    </>
+  );
+};
+
+export const EditOrgEntryButton = ({
+  kind,
+  entry,
+  actingAs,
+}: {
+  readonly kind: OrgKind;
+  readonly entry: OrgFormValues;
+  readonly actingAs: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button tone="secondary" size="sm" onClick={() => setOpen(true)}>
+        <Pencil aria-hidden="true" className="size-4" />
+        {t('tax.edit')}
+      </Button>
+      <DialogForm
+        open={open}
+        onClose={() => setOpen(false)}
+        title={kind === 'department' ? t('tax.editDepartmentTitle') : t('tax.editRoleTitle')}
+        action={updateOrgEntryAction as never}
+        actingAs={actingAs}
+      >
+        <input type="hidden" name="kind" value={kind} />
+        <input type="hidden" name="entryId" value={entry.id} />
+        {entry.codeLocked ? (
+          <p className="text-sm text-ink-muted">{t('tax.codePermanent', { code: entry.code })}</p>
+        ) : (
+          <Field id={`edit-${kind}-code`} label={t('tax.code')} hint={t('tax.orgCodeHint')}>
+            <TextInput id={`edit-${kind}-code`} name="code" defaultValue={entry.code} required />
+          </Field>
+        )}
+        <Field id={`edit-${kind}-name`} label={t('tax.name')}>
+          <TextInput id={`edit-${kind}-name`} name="name" defaultValue={entry.name} required />
+        </Field>
+        <Field id={`edit-${kind}-description`} label={t('tax.description')}>
+          <Textarea
+            id={`edit-${kind}-description`}
+            name="description"
+            rows={2}
+            defaultValue={entry.description ?? ''}
+          />
+        </Field>
+        <CheckboxRow name="isActive" value="true" defaultChecked={entry.isActive}>
+          {t('tax.activeField')}
+        </CheckboxRow>
+      </DialogForm>
+    </>
+  );
+};
+
+export const OrgActiveToggle = ({
+  kind,
+  id,
+  isActive,
+  actingAs,
+}: {
+  readonly kind: OrgKind;
+  readonly id: string;
+  readonly isActive: boolean;
+  readonly actingAs: string;
+}) => {
+  const [state, submit, pending] = useActionState(
+    setOrgEntryActiveAction,
+    null,
+    '/administration/taxonomy',
+  );
+
+  return (
+    <div className="flex flex-col gap-1">
+      <form action={submit}>
+        <input type="hidden" name="kind" value={kind} />
+        <input type="hidden" name="entryId" value={id} />
         <input type="hidden" name="isActive" value={isActive ? 'false' : 'true'} />
         <Button
           tone="secondary"

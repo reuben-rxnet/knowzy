@@ -10,7 +10,19 @@
 import { z } from 'zod';
 import { KnowzyEnvSchema, type KnowzyEnv } from '@knowzy/shared-types';
 
-export const DEPLOYABLES = ['authoring-web', 'live-web', 'api', 'mcp-server', 'jobs'] as const;
+// SIX deployables. `sync-web` was added on 2026-09-26: the SharePoint Sync
+// Manager shipped on 2026-09-23 as a third web application and the environment
+// contract did not know it existed, so it had no per-deployable variable
+// targeting and no distinct OTEL service name. It worked locally only because
+// compose hands it its environment directly.
+export const DEPLOYABLES = [
+  'authoring-web',
+  'live-web',
+  'sync-web',
+  'api',
+  'mcp-server',
+  'jobs',
+] as const;
 export type Deployable = (typeof DEPLOYABLES)[number];
 
 /** A Key Vault reference, never a value. */
@@ -42,7 +54,7 @@ const LOCAL: readonly KnowzyEnv[] = ['local'];
 const NON_LOCAL: readonly KnowzyEnv[] = ['dev', 'test', 'prod'];
 
 const SERVICES: readonly Deployable[] = ['api', 'mcp-server', 'jobs'];
-const WEB: readonly Deployable[] = ['authoring-web', 'live-web'];
+const WEB: readonly Deployable[] = ['authoring-web', 'live-web', 'sync-web'];
 
 export const ENV_VARS: readonly EnvVarDeclaration[] = [
   {

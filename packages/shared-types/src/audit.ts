@@ -76,6 +76,14 @@ export const AUDIT_FAMILIES = {
     'TOPIC_UPDATED',
     'TOPIC_MERGED',
     'TOPIC_RENAMED',
+    // The organizational axes, added 2026-09-26. Same family as domains and
+    // topics because they are the same KIND of act -- an administrator curating
+    // a catalogue questions are filed under -- and an auditor asking "who
+    // changed the taxonomy" should not have to know there are two families.
+    'DEPARTMENT_CREATED',
+    'DEPARTMENT_UPDATED',
+    'ROLE_CREATED',
+    'ROLE_UPDATED',
     'RETIRED',
   ],
   'ADMIN.RETENTION': ['EXECUTED'],

@@ -120,6 +120,26 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   'ADMIN.FEATUREFLAG.ENABLED': ['key', 'environment', 'ceiling'],
   'ADMIN.FEATUREFLAG.DISABLED': ['key', 'environment'],
   'ADMIN.FEATUREFLAG.ROLLOUT_CHANGED': ['key', 'environment'],
+  // REPORT.RUN.EXPORTED — the audited export (audit-model.md §7). Counts and
+  // the window, never the exported CONTENT: an export of audit rows recorded
+  // inside an audit row would double the store every time somebody pressed the
+  // button.
+  'REPORT.RUN.EXPORTED': [
+    'reportKey',
+    'format',
+    'rowCount',
+    'matchedCount',
+    'truncated',
+    'windowFrom',
+    'windowTo',
+  ],
+  // The organizational catalogues. Same keys as the domain and topic actions:
+  // the code, the name, the activation state and WHICH FIELDS changed -- never
+  // a description body, which is prose an administrator can rewrite freely.
+  'ADMIN.TAXONOMY.DEPARTMENT_CREATED': ['code', 'name', 'isActive'],
+  'ADMIN.TAXONOMY.DEPARTMENT_UPDATED': ['code', 'name', 'isActive', 'changedFields'],
+  'ADMIN.TAXONOMY.ROLE_CREATED': ['code', 'name', 'isActive'],
+  'ADMIN.TAXONOMY.ROLE_UPDATED': ['code', 'name', 'isActive', 'changedFields'],
   'ADMIN.RETENTION.EXECUTED': ['target', 'removedCount', 'evaluatedAt', 'cutoff'],
   // Taxonomy administration. `code` is declared because it is the one field
   // that becomes permanent -- it appears in every published QuestionID -- so
@@ -355,6 +375,11 @@ const VALUE_DIFF_ACTIONS: ReadonlySet<string> = new Set<string>([
   'ADMIN.TAXONOMY.TOPIC_MERGED',
   'ADMIN.TAXONOMY.TOPIC_RENAMED',
   'ADMIN.TAXONOMY.TOPIC_UPDATED',
+  // H2: an update to an org catalogue carries previous and new value, exactly
+  // as a domain update does. A code change is the one edit that can invalidate
+  // a historical grouping, so it must be reconstructable.
+  'ADMIN.TAXONOMY.DEPARTMENT_UPDATED',
+  'ADMIN.TAXONOMY.ROLE_UPDATED',
   'ADMIN.SOURCE.UPDATED',
   'ADMIN.SOURCE.RESTRICTIONS_CHANGED',
   'ADMIN.SOURCE.PATH_MODIFIED',

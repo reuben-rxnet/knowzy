@@ -18,6 +18,10 @@
 
 import { z } from 'zod';
 import {
+  createOrgEntry,
+  readOrgCatalogue,
+  updateOrgEntry,
+  type OrgCatalogue,
   createDomain,
   createTopic,
   readTaxonomy,
@@ -119,6 +123,27 @@ const UpdateTopicBody = z
   })
   .strict();
 
+// The org catalogues take the same shape as a domain minus `requireSmeSignoff`,
+// which is a knowledge-governance setting and means nothing for a department.
+const CreateOrgBody = z
+  .object({
+    code: z.string().min(1).max(60),
+    name: z.string().min(1).max(200),
+    description: z.string().max(2_000).nullish(),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
+
+const UpdateOrgBody = z
+  .object({
+    // Accepted, and refused by the service once anything references the entry.
+    code: z.string().min(1).max(60).optional(),
+    name: z.string().min(1).max(200).optional(),
+    description: z.string().max(2_000).nullish(),
+    isActive: z.boolean().optional(),
+  })
+  .strict();
+
 const invalidField = (issuePath: readonly (string | number)[]): string =>
   issuePath.length === 0 ? 'body' : issuePath.join('.');
 
@@ -147,14 +172,34 @@ export const taxonomyRoutes = [
         ...(query.data.domainId === undefined ? {} : { domainId: query.data.domainId }),
       });
 
+      // One request feeds the whole screen: four catalogues, and the counts
+      // beneath each. Four round trips for one page would show the reader four
+      // different moments in time.
+      const [departments, roles] = await Promise.all([
+        readOrgCatalogue(depsFrom(deps), 'DEPARTMENT', {
+          ...(query.data.query === undefined ? {} : { query: query.data.query }),
+          ...(query.data.active === undefined ? {} : { active: query.data.active === 'true' }),
+        }),
+        readOrgCatalogue(depsFrom(deps), 'ROLE', {
+          ...(query.data.query === undefined ? {} : { query: query.data.query }),
+          ...(query.data.active === undefined ? {} : { active: query.data.active === 'true' }),
+        }),
+      ]);
+
       return {
         domains: catalogue.domains,
         topics: catalogue.topics,
+        departments,
+        roles,
         counts: {
           domains: catalogue.domains.length,
           activeDomains: catalogue.domains.filter((domain) => domain.isActive).length,
           topics: catalogue.topics.length,
           activeTopics: catalogue.topics.filter((topic) => topic.isActive).length,
+          departments: departments.length,
+          activeDepartments: departments.filter((row) => row.isActive).length,
+          roles: roles.length,
+          activeRoles: roles.filter((row) => row.isActive).length,
         },
       };
     },
@@ -295,5 +340,89 @@ export const taxonomyRoutes = [
         return taxonomyProblem(reply, ctx, request.url, error);
       }
     },
+  }),
+  // ------------------------------- the organizational axes (2026-09-26)
+  //
+  // Two catalogues, one pair of handlers: a department and a role differ in
+  // nothing but their noun, and two copies of the same handler would drift
+  // the first time one of them gained a rule.
+  ...(['DEPARTMENT', 'ROLE'] as const).flatMap((catalogue: OrgCatalogue) => {
+    const segment = catalogue === 'DEPARTMENT' ? 'departments' : 'roles';
+    const noun = catalogue === 'DEPARTMENT' ? 'department' : 'role';
+
+    return [
+      defineRoute({
+        method: 'POST',
+        url: `/api/v1/authoring/taxonomy/${segment}`,
+        policy: 'taxonomy.manage',
+        portal: 'AUTHORING',
+        summary: `Creates a ${noun}. The code is permanent once anything references it.`,
+        handler: async (ctx, request, reply, deps) => {
+          const body = CreateOrgBody.safeParse(request.body ?? {});
+          if (!body.success) {
+            return problemReply(
+              reply,
+              ctx,
+              request.url,
+              'VALIDATION_FAILED',
+              `The field "${invalidField(body.error.issues[0]?.path ?? [])}" is invalid.`,
+            );
+          }
+
+          try {
+            const row = await createOrgEntry(depsFrom(deps), actorFrom(ctx), catalogue, {
+              code: body.data.code,
+              name: body.data.name,
+              ...(body.data.description === undefined
+                ? {}
+                : { description: body.data.description }),
+              ...(body.data.isActive === undefined ? {} : { isActive: body.data.isActive }),
+            });
+            return { [noun]: row };
+          } catch (error) {
+            return taxonomyProblem(reply, ctx, request.url, error);
+          }
+        },
+      }),
+
+      defineRoute({
+        method: 'PATCH',
+        url: `/api/v1/authoring/taxonomy/${segment}/:entryId`,
+        policy: 'taxonomy.manage',
+        portal: 'AUTHORING',
+        summary: `Edits a ${noun}. The display name is always editable; the code is not.`,
+        handler: async (ctx, request, reply, deps) => {
+          const params = z.object({ entryId: z.string().uuid() }).safeParse(request.params);
+          if (!params.success) {
+            return problemReply(reply, ctx, request.url, 'VALIDATION_FAILED', 'An id is required.');
+          }
+          const body = UpdateOrgBody.safeParse(request.body ?? {});
+          if (!body.success) {
+            return problemReply(
+              reply,
+              ctx,
+              request.url,
+              'VALIDATION_FAILED',
+              `The field "${invalidField(body.error.issues[0]?.path ?? [])}" is invalid.`,
+            );
+          }
+
+          try {
+            const row = await updateOrgEntry(depsFrom(deps), actorFrom(ctx), catalogue, {
+              id: params.data.entryId,
+              ...(body.data.name === undefined ? {} : { name: body.data.name }),
+              ...(body.data.description === undefined
+                ? {}
+                : { description: body.data.description }),
+              ...(body.data.isActive === undefined ? {} : { isActive: body.data.isActive }),
+              ...(body.data.code === undefined ? {} : { code: body.data.code }),
+            });
+            return { [noun]: row };
+          } catch (error) {
+            return taxonomyProblem(reply, ctx, request.url, error);
+          }
+        },
+      }),
+    ];
   }),
 ];

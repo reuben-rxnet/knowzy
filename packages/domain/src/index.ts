@@ -293,6 +293,24 @@ export {
   type UpdateTopicArgs,
 } from './taxonomy/taxonomy-service.js';
 
+// ---------------------------- the organizational axes (2026-09-26)
+//
+// Departments and roles, so a question can be filed under Department, Role,
+// Domain and Topic. Same screen, same rules, same audit family as domains and
+// topics.
+
+export {
+  createOrgEntry,
+  readOrgCatalogue,
+  resolveOrgFiling,
+  updateOrgEntry,
+  type CreateOrgArgs,
+  type OrgCatalogue,
+  type OrgRow,
+  type ReadOrgQuery,
+  type UpdateOrgArgs,
+} from './taxonomy/org-taxonomy-service.js';
+
 export {
   resolveImportTaxonomy,
   taxonomyResolver,

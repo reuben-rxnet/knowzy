@@ -292,10 +292,10 @@ export const readTaxonomy = async (
 // ---------------------------------------------------------------------------
 // Writes
 
-const writer = (deps: TaxonomyDeps): AuditWriter =>
+export const taxonomyWriter = (deps: TaxonomyDeps): AuditWriter =>
   deps.auditWriter ?? createAuditWriter({ clock: deps.clock });
 
-const actorFields = (actor: TaxonomyActor) => ({
+export const taxonomyActorFields = (actor: TaxonomyActor) => ({
   actorUserId: actor.userId,
   actorDisplayName: actor.displayName,
   actorRoles: [...actor.roles],
@@ -334,7 +334,7 @@ export const createDomain = async (
 
   const created = await transactWithAudit({
     prisma: deps.prisma,
-    auditWriter: writer(deps),
+    auditWriter: taxonomyWriter(deps),
     action: 'ADMIN.TAXONOMY.DOMAIN_CREATED',
     work: async (tx: TransactionClient) =>
       tx.domain.create({
@@ -350,7 +350,7 @@ export const createDomain = async (
         select: { id: true, code: true, name: true, isActive: true, version: true },
       }),
     audit: (domain) => ({
-      ...actorFields(actor),
+      ...taxonomyActorFields(actor),
       action: 'ADMIN.TAXONOMY.DOMAIN_CREATED' as const,
       outcome: 'SUCCESS' as const,
       entityType: 'Domain',
@@ -467,7 +467,7 @@ export const updateDomain = async (
 
   await transactWithAudit({
     prisma: deps.prisma,
-    auditWriter: writer(deps),
+    auditWriter: taxonomyWriter(deps),
     action: 'ADMIN.TAXONOMY.DOMAIN_UPDATED',
     work: async (tx: TransactionClient) =>
       tx.domain.update({
@@ -476,7 +476,7 @@ export const updateDomain = async (
         select: { id: true, code: true, name: true, isActive: true },
       }),
     audit: (domain) => ({
-      ...actorFields(actor),
+      ...taxonomyActorFields(actor),
       action: 'ADMIN.TAXONOMY.DOMAIN_UPDATED' as const,
       outcome: 'SUCCESS' as const,
       entityType: 'Domain',
@@ -557,7 +557,7 @@ export const createTopic = async (
 
   const created = await transactWithAudit({
     prisma: deps.prisma,
-    auditWriter: writer(deps),
+    auditWriter: taxonomyWriter(deps),
     action: 'ADMIN.TAXONOMY.TOPIC_CREATED',
     work: async (tx: TransactionClient) =>
       tx.topic.create({
@@ -573,7 +573,7 @@ export const createTopic = async (
         select: { id: true, name: true, slug: true, isActive: true },
       }),
     audit: (topic) => ({
-      ...actorFields(actor),
+      ...taxonomyActorFields(actor),
       action: 'ADMIN.TAXONOMY.TOPIC_CREATED' as const,
       outcome: 'SUCCESS' as const,
       entityType: 'Topic',
@@ -676,7 +676,7 @@ export const updateTopic = async (
 
   await transactWithAudit({
     prisma: deps.prisma,
-    auditWriter: writer(deps),
+    auditWriter: taxonomyWriter(deps),
     action,
     work: async (tx: TransactionClient) =>
       tx.topic.update({
@@ -685,7 +685,7 @@ export const updateTopic = async (
         select: { id: true, name: true, slug: true, isActive: true },
       }),
     audit: (topic) => ({
-      ...actorFields(actor),
+      ...taxonomyActorFields(actor),
       action,
       outcome: 'SUCCESS' as const,
       entityType: 'Topic',

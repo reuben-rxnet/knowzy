@@ -554,3 +554,100 @@ export const setProviderLimitsAction = async (
     ? { ok: true, data: result.data, removed: result.data.removed }
     : failed(result.problem);
 };
+
+// --------------------------------------- Governance -> Audit Explorer (2026-09-26)
+
+/** One event with its correlated trace, fetched when the drawer opens. */
+export const auditDetailAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const eventId = String(formData.get('eventId') ?? '');
+  const result = await api<unknown>(`/api/v1/authoring/governance/audit/${eventId}`);
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+/**
+ * The filtered set as CSV.
+ *
+ * The filters travel as the SCREEN'S OWN query string, so the export is exactly
+ * what the reader is looking at. Sending the filters again by hand is how an
+ * export quietly stops matching the view above it.
+ */
+export const auditExportAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const query = String(formData.get('query') ?? '');
+  const body = Object.fromEntries(new URLSearchParams(query).entries());
+  const result = await api<unknown>('/api/v1/authoring/governance/audit/export', {
+    method: 'POST',
+    body,
+  });
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+// ------------------------- the organizational axes (2026-09-26)
+//
+// Departments and roles. One pair of actions for both catalogues: the only
+// difference is the path segment, and two copies would drift the first time one
+// gained a field.
+
+const orgSegment = (kind: string): string => (kind === 'department' ? 'departments' : 'roles');
+
+export const createOrgEntryAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const kind = String(formData.get('kind') ?? 'department');
+  const result = await api<unknown>(`/api/v1/authoring/taxonomy/${orgSegment(kind)}`, {
+    method: 'POST',
+    body: {
+      code: String(formData.get('code') ?? ''),
+      name: String(formData.get('name') ?? ''),
+      description: String(formData.get('description') ?? ''),
+      isActive: checked(formData, 'isActive'),
+    },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+export const updateOrgEntryAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const kind = String(formData.get('kind') ?? 'department');
+  const id = String(formData.get('entryId') ?? '');
+  // The code is sent ONLY when the form offered it, which it does only while
+  // nothing references the entry. Sending a code the screen did not show would
+  // be the screen claiming an authority it does not have.
+  const code = formData.get('code');
+  const result = await api<unknown>(`/api/v1/authoring/taxonomy/${orgSegment(kind)}/${id}`, {
+    method: 'PATCH',
+    body: {
+      name: String(formData.get('name') ?? ''),
+      description: String(formData.get('description') ?? ''),
+      isActive: checked(formData, 'isActive'),
+      ...(code === null ? {} : { code: String(code) }),
+    },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+/** Activation is its own action, so a toggle posts one field and not a form. */
+export const setOrgEntryActiveAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const kind = String(formData.get('kind') ?? 'department');
+  const id = String(formData.get('entryId') ?? '');
+  const isActive = String(formData.get('isActive') ?? 'false') === 'true';
+  const result = await api<unknown>(`/api/v1/authoring/taxonomy/${orgSegment(kind)}/${id}`, {
+    method: 'PATCH',
+    body: { isActive },
+  });
+  revalidatePath('/administration/taxonomy');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};

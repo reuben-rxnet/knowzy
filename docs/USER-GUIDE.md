@@ -619,6 +619,73 @@ generate five questions because twenty would have breached a ceiling.
 
 ---
 
+### 4.3d Departments and Roles — `/administration/taxonomy`
+
+On the same screen as Knowledge Domains, two more catalogues: **Departments** and
+**Roles**. Together with the domain and the topic, they are the four axes a
+question is filed under — so a report can ask "how is Support-RXNET doing on
+RxNet troubleshooting, for Senior Developers".
+
+**Add one** with **New department** or **New role**: a code, a display name, an
+optional description. The code is normalized to upper case with underscores, so
+`support-ng`, `Support NG` and `SUPPORT_NG` are the same code rather than three
+departments that look identical in a dropdown.
+
+**What is permanent and what is not**, exactly as for a domain:
+
+- the **display name** is editable forever;
+- the **code** is editable only while nothing references the entry. Once a
+  question, a published question or a generation job refers to it, the field is
+  replaced by the sentence "The code … is now permanent", because the code is
+  copied into the published record and is what past reports grouped by;
+- **nothing is ever deleted.** Deactivate instead: the entry disappears from
+  every selection surface, existing filings keep it, and filing something NEW
+  against it is refused with a reason rather than silently accepted.
+
+**A role does not belong to a department.** Intern, Developer and Senior
+Developer apply across the organization, so the two lists are independent and a
+question can combine any department with any role.
+
+**Questions that already existed carry neither.** That is deliberate: they were
+drafted before these catalogues existed, and the platform records what it knows
+rather than guessing. New generation and new imports can file under both.
+
+---
+
+### 4.3e Audit Explorer — `/governance/audit`
+
+**Governance → Audit Explorer.** Everything the platform has recorded about
+itself: who did what, to what, with what outcome. Open to anyone holding
+**audit.read** — the Auditor and the KNOWZY Administrator.
+
+There are **64,479 events** on this machine already, written by every milestone
+since the first one. Until this screen existed, nothing could read them.
+
+- **Four figures**: events in the window, and how many succeeded, failed or were
+  **denied**. A spike in denials usually means a misconfigured scope rather than
+  an attack — and either is worth knowing.
+- **Filters**: family, action, actor, entity type, outcome, a date range, and a
+  correlation id. The filter options are read from the events that **exist**, so
+  the screen never offers a value that could only return nothing.
+- **Busiest actions** in the window, each a link that narrows to itself.
+- **View details** on any row opens the event as recorded — its detail keys, its
+  previous and new value where it changed something, the policy, the IP address
+  and the request id — plus the **correlated trace**: every event that shared
+  the same request, in order. One click of Approve produces several events, and
+  this is where you see them as one story.
+- **Export CSV** takes the filtered set, up to 200 rows, and says how many of
+  the matched total it contains. The export is itself audited.
+
+Two things worth knowing about what you are reading:
+
+- **Nothing is hidden on this screen, and nothing needs to be.** No secret,
+  token or document body is ever written to audit, so an auditor reads it
+  unscoped — an auditor with partial visibility cannot audit.
+- **Question text and answer keys are not in audit**, by design. They live in
+  the question's own version history, where they belong.
+
+---
+
 ### 4.4 Draft review queue — `/review`
 
 Five views of the same list, at five points in the question's life:
@@ -1087,6 +1154,7 @@ the log below.
 | 2026-09-22 | Import on real files | **The first two real question banks were fed in, and both were refused for reasons that were the platform’s fault rather than the files’.** Fixed, in §4.3a: a spreadsheet may leave its trailing columns blank (a fifteen-column template with twelve filled imported nothing before, and now imports every row); `OptionA`, `CorrectAnswer`, `AnswerKey`, `QuestionText`, `Justification` and `SourceDocument` are recognised as column names; a Word bank whose four options sit on one line is read; and a decoration in front of `Correct Answer:` — a tick, a bullet, a dash — no longer hides the answer. A Word bank with no explanation per question is still refused, and §4.3a now says so before you try. Also: a spreadsheet cell whose own text contains ` - ` is reported with the value it found rather than mis-split. On §4.1, **skipped** is now counted and listed apart from **failed**: a file outside this source’s configured folder is the configuration working, not an error |
 | 2026-09-22 | Decision panel | **A decision the lifecycle cannot reach is now disabled and says why** (§4.5), and the panel names the next step available from the current state. All five decisions used to be offered on every question, so pressing **Submit for approval** on a draft returned `STATE_TRANSITION_INVALID` — which reads as missing access and never was: a draft has to be claimed first. A state block and a permission block are now worded differently, because one is an order of operations and the other is an identity. Where gate 13 currently refuses an approval, a note beside **Approve** says so. §4.5 also states plainly what full access does and does not grant a KNOWZY Administrator |
 | 2026-09-22 | Taxonomy administration | **Domains and topics can now be created and edited** (§4.3b, **Administration → Knowledge Domains**), which is the first Administration screen with a backend behind it. Before this the platform held one seeded domain and one seeded topic and offered no way to add a second, so an imported VisionStar question bank was filed under Support Operations. A domain code is editable only while nothing references the domain and then shows as **Permanent** with the counts that locked it; a topic belongs to exactly one domain and is unique within it; nothing can be deleted, only deactivated. **Import now files each question where the FILE says it belongs** (§4.3a) and refuses a file naming taxonomy that does not exist, rather than creating it — a spreadsheet typo must never mint a permanent domain code |
+| 2026-09-26 | Departments and Roles | **Two more managed catalogues on Administration → Knowledge Domains** (§4.3d), on request: a question is now filed under **Department, Role, Domain and Topic**. Same rules as a domain — a normalized code, a code that becomes permanent once anything references it, a display name that never does, and deactivation instead of deletion, with a refusal if something tries to file against a deactivated entry. A role is deliberately independent of a department. Questions drafted before today carry neither, and the screens say so rather than guessing. Also new: **Governance → Audit Explorer** (§4.3e), which reads the 64,479 audit events the platform had already written and could not show anybody — filter by actor, action, family, entity, outcome, correlation id and date, open any event to see its **correlated trace** (every event from the same click, across the API, MCP and the job runner), and export the filtered set as CSV, with the export itself audited |
 | 2026-09-24 | AI-CONTROL-M1 | **Generation now has ceilings, and a page that shows them** (§4.3c, **Governance → AI Usage & Budgets**). Every generation call — including the deterministic one — now passes through a provider-independent control layer: a per-job token ceiling checked from the prompt estimate **before** any call, daily, weekly and monthly token budgets that count retries, a concurrency cap, and a retry policy with jittered backoff and a hard attempt cap. A ceiling that stops a job produces a **refusal with the numbers in it** and a job recorded as `REFUSED` rather than `FAILED`, because a decision is not a failure. The new page reports usage, cost, budget consumption, provider states and provider health, and a **KNOWZY Administrator can set a token limit per provider from it**. Two things it deliberately will not do: show a zero for a metric nothing has recorded (it says **Not Yet Recorded**), and show a cost that cannot be known (it says **Not observable** with the reason — a per-seat licence and a user-managed run have no observable cost, and the deterministic generator's zero is the one case where 0 is a measurement). OpenAI is now a declared provider, visible on the page as `UNAVAILABLE` with its reason; nothing external is enabled and no credential exists |
 | 2026-09-23 | SYNC-M1..M4 | **A third application**, the **SharePoint Sync Manager** on http://localhost:3002 (§6), for whoever keeps the document sources healthy: connection health, five counted figures over a 30-day window, a workflow table with a derived status, and the last 25 runs with who or what started them. New capability behind it: a source can now be **created, edited, paused, resumed and archived** from a screen rather than only seeded, and it can be put on a **schedule** — manual, hourly, daily, weekly, monthly or cron — executed by the job runner. **Sync all** reports each source's outcome and names what it skipped and why. Four things it deliberately does not do, each on screen and disabled with "Requires Microsoft Graph write integration and tenant approval.": a destination, two-way sync, syncing deletions back, writing metadata back — this release synchronizes **into** Knowzy and has no destination model at all. A SharePoint Graph source is listed and disabled because the adapter is not written. A local root path is **typed, not browsed**, and validated server-side against an allow-list. Also fixed, found by the browser test: a dialog taller than the window could not be scrolled, so its buttons were unreachable at 720px — that affected the existing portals too |
 | 2026-09-23 | Acceptance automation | **Nothing about the screens changed.** What changed is that they are now driven by an automated browser suite — sources, generation, review, **gate 13**, publication, and a learner attempt including resume and scoring — so a broken screen is found by the build rather than by the next person to open it. Two things that suite is not: it does not cover refreshers, the revalidation queue or the audit surfaces, because those are not built; and it is not part of `npm run verify`, because it needs the stack running |

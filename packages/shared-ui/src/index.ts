@@ -136,3 +136,25 @@ export {
   SkeletonText,
   StaleDataNotice,
 } from './components/States.js';
+
+// ------------------------------------------- analytics primitives (2026-09-26)
+//
+// SVG over numbers the caller computed. No charting library: see the header of
+// Charts.tsx for why, and for the four accessibility rules each one enforces.
+
+export {
+  BarChart,
+  DonutChart,
+  InsightList,
+  StackedBarChart,
+  TrendChart,
+  type BarDatum,
+  type DonutSlice,
+  type InsightRow,
+  type SeriesTone,
+  type StackRow,
+  type StackSeries,
+  type TrendPoint,
+} from './components/Charts.js';
+
+export { FilterBar, type FilterDefinition } from './components/FilterBar.js';
