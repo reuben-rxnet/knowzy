@@ -16,6 +16,7 @@
     "@knowzy/database": "*",
     "@knowzy/domain": "*",
     "@knowzy/observability": "*",
+    "@knowzy/reporting": "*",
     "@knowzy/shared-types": "*",
     "pg-boss": "^10.1.5"
   },

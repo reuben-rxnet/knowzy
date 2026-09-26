@@ -18,6 +18,7 @@
     "@knowzy/database": "*",
     "@knowzy/domain": "*",
     "@knowzy/observability": "*",
+    "@knowzy/reporting": "*",
     "@knowzy/shared-types": "*",
     "fastify": "^5.0.0",
     "zod": "^3.23.8"

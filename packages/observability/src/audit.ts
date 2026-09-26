@@ -173,6 +173,13 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'truncated',
     'windowFrom',
     'windowTo',
+    // Added by Phase 10 R1, for a DATASET export. The Audit Explorer's export
+    // and a report dataset's export are the same action, so they share one
+    // allow-list: two entries under one key means the second silently wins and
+    // the first one's keys start being dropped as `_droppedKeys`.
+    'suppressedCellCount',
+    'minimumGroupSize',
+    'asOf',
   ],
   // The organizational catalogues. Same keys as the domain and topic actions:
   // the code, the name, the activation state and WHICH FIELDS changed -- never
@@ -289,6 +296,17 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   ],
   // CODES, never ids: a uuid cannot be resolved against a catalogue that has
   // since been re-curated, and the code is what a past report grouped by.
+  // A snapshot's SUPPRESSION FIGURES are retained on purpose: a capture that
+  // withheld cells and one that withheld none are different artifacts, and a
+  // year later this row is the only record of which was taken.
+  'REPORT.RUN.MODELS_REFRESHED': ['refreshed', 'failed', 'models', 'durationMs'],
+  'REPORT.RUN.SNAPSHOT_CAPTURED': [
+    'reportKey',
+    'rowCount',
+    'suppressedCellCount',
+    'minimumGroupSize',
+    'asOf',
+  ],
   'AUTHORING.QUESTION.FILING_CHANGED': [
     'version',
     'changedFields',

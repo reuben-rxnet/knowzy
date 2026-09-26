@@ -199,7 +199,20 @@ export const AUDIT_FAMILIES = {
 
   // ------------------------------------------------ REPORT — 3 families
   'REPORT.DEFINITION': ['CREATED', 'UPDATED', 'DELETED'],
-  'REPORT.RUN': ['EXECUTED', 'EXPORTED', 'EXPORT_DOWNLOADED'],
+  'REPORT.RUN': [
+    'EXECUTED',
+    'EXPORTED',
+    'EXPORT_DOWNLOADED',
+    // A deliberate, named capture of what a report said at a moment (Phase 10
+    // R1). Distinct from EXPORTED, which sends a copy off the platform, and
+    // distinct from a PUBLICATION, which is a definition plus an audience
+    // re-rendered per viewer (reporting.md 8.2 U1).
+    'SNAPSHOT_CAPTURED',
+    // An on-demand read-model refresh. Audited because it is work somebody
+    // asked for out of schedule, and because "why was the data different at
+    // 14:05" is a question the answer to is usually "somebody refreshed it".
+    'MODELS_REFRESHED',
+  ],
   'REPORT.PUBLICATION': [
     'SUBMITTED',
     'APPROVED',

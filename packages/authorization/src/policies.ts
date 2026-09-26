@@ -218,6 +218,42 @@ export const POLICIES = {
     portals: AUTHORING,
     description: 'Export a filtered set of audit events as CSV.',
   },
+
+  // ------------------------------------------- reporting (Phase 10 R1, 2026-09-26)
+  //
+  // THREE grants for three different acts, and the split follows the Audit
+  // Explorer's: looking at a dataset, taking a copy of it off the platform, and
+  // writing a durable record others will read are not the same authority.
+  //
+  // No new permission KEYS were minted. `report.read`, `report.export` and
+  // `report.create` have existed in the registry since the first migration and
+  // are already distributed across the Reporting User, the Report Publisher,
+  // the Manager, the Auditor and the administrator.
+  'reporting.dataset.read': {
+    permission: 'report.read',
+    portals: AUTHORING,
+    description: 'Read a report dataset, scoped and suppressed inside the read model.',
+  },
+  'reporting.export': {
+    permission: 'report.export',
+    portals: AUTHORING,
+    description: 'Export a report dataset as CSV, with its header block. Audited.',
+  },
+  'reporting.snapshot': {
+    permission: 'report.create',
+    portals: AUTHORING,
+    description: 'Capture a dataset as a durable, audited snapshot. Not a publication.',
+  },
+  // A RECOMPUTE, not a re-read. Refreshing five materialized views is work with
+  // a cost, so it is `platform.configure` -- the same authority that sets a
+  // token ceiling -- rather than the read permission. A reader who wants newer
+  // numbers waits for the schedule; an administrator who needs them now can
+  // ask, and the asking is audited.
+  'reporting.refresh': {
+    permission: 'platform.configure',
+    portals: AUTHORING,
+    description: 'Refresh the reporting read models on demand. Audited.',
+  },
 } as const satisfies Record<string, PolicyDefinition>;
 
 export type PolicyName = keyof typeof POLICIES;

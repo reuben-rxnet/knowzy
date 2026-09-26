@@ -10,6 +10,7 @@
 
 import type { KnowzyRoute } from '../http/route.js';
 import { aiProviderRoutes } from './ai-providers.js';
+import { reportRoutes } from './reports.js';
 import { aiUsageRoutes } from './ai-usage.js';
 import { auditRoutes } from './audit.js';
 import { generationRoutes } from './generation.js';
@@ -33,6 +34,7 @@ export const ALL_ROUTES: readonly KnowzyRoute[] = [
   ...sourceAdministrationRoutes,
   ...syncManagerRoutes,
   ...aiProviderRoutes,
+  ...reportRoutes,
   ...aiUsageRoutes,
   ...auditRoutes,
 ];
