@@ -221,6 +221,16 @@ describe('exactly one navigation item is ever active', () => {
 
   it('highlights nothing on a route no destination owns', () => {
     expect(activeNavLabel(LEARNER_NAV, '/badges')).toBeUndefined();
-    expect(activeNavLabel(AUTHORING_NAV, '/reports')).toBeUndefined();
+    // `/reports` USED to be the example here, because the rail entry had no
+    // href. Phase 10 R1 gave it one, so the example moved to a route that is
+    // still genuinely unowned rather than the assertion being deleted.
+    expect(activeNavLabel(AUTHORING_NAV, '/certificates')).toBeUndefined();
+  });
+
+  it('gives /reports to Reports, now that the entry is a link', () => {
+    expect(activeNavLabel(AUTHORING_NAV, '/reports')).toBe('Reports');
+    // And a report inside the section keeps the section highlighted, which is
+    // what the tab strip beneath it relies on.
+    expect(activeNavLabel(AUTHORING_NAV, '/reports/filing')).toBe('Reports');
   });
 });

@@ -746,6 +746,72 @@ export const auditExportAction = async (
   return result.ok ? { ok: true, data: result.data } : failed(result.problem);
 };
 
+// ------------------------------------- Reports (Phase 10 R1, 2026-09-26)
+
+/**
+ * Exports one report dataset as CSV.
+ *
+ * The API returns the file as a string and the button turns it into a download,
+ * so the export is audited server-side before any bytes exist. The window is
+ * whatever the screen is currently showing -- an export that silently used a
+ * different window from the table above it would be the first thing to erode
+ * trust in both.
+ */
+export const reportExportAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const dataset = String(formData.get('dataset') ?? '');
+  const windowDays = String(formData.get('windowDays') ?? '').trim();
+  const result = await api<unknown>(`/api/v1/authoring/reports/${dataset}/export`, {
+    method: 'POST',
+    body: windowDays.length === 0 ? {} : { windowDays: Number(windowDays) },
+  });
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+/**
+ * Refreshes the read models now.
+ *
+ * A RECOMPUTE, gated on `platform.configure` rather than the read permission,
+ * because it is work with a cost. The screen's Refresh control means this and
+ * not "re-read what is already there" -- which is what a browser reload does.
+ */
+export const reportRefreshAction = async (
+  _previous: ActionState | null,
+  _formData: FormData,
+): Promise<ActionState> => {
+  const result = await api<unknown>('/api/v1/authoring/reports/refresh', { method: 'POST' });
+  revalidatePath('/reports');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
+/**
+ * Captures a snapshot.
+ *
+ * A label is required and the server refuses a short one: a snapshot nobody can
+ * identify in a list of thirty is a snapshot nobody will ever open.
+ */
+export const reportSnapshotAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const dataset = String(formData.get('dataset') ?? '');
+  const label = String(formData.get('label') ?? '').trim();
+  const reason = String(formData.get('reason') ?? '').trim();
+  const windowDays = String(formData.get('windowDays') ?? '').trim();
+  const result = await api<unknown>(`/api/v1/authoring/reports/${dataset}/snapshots`, {
+    method: 'POST',
+    body: {
+      label,
+      ...(reason.length === 0 ? {} : { reason }),
+      ...(windowDays.length === 0 ? {} : { windowDays: Number(windowDays) }),
+    },
+  });
+  revalidatePath(`/reports/${dataset}`);
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
+
 // ------------------------- the organizational axes (2026-09-26)
 //
 // Departments and roles. One pair of actions for both catalogues: the only

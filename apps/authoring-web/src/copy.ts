@@ -291,6 +291,14 @@ export const copy = {
 
   // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
 
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
+  // ---------------------------- Governance -> AI Usage & Budgets (2026-09-24)
+
   'nav.home': 'Home',
   'nav.sources': 'Knowledge sources',
   'nav.generate': 'Generate questions',
@@ -975,6 +983,154 @@ export const copy = {
     'A recorded reference is never returned by any read, shown in any screen, or written into an audit row. Every surface reports only whether one exists.',
   'prov.secretsNoResolver':
     'This build has no secret resolver, so whether a reference RESOLVES cannot be checked here — a validation reports that honestly rather than reporting a pass.',
+
+  // -------------------------------------- Reports (Phase 10 R1, 2026-09-26)
+  'nav.reports': 'Reports',
+  'rep.tabsLabel': 'Report sections',
+  'rep.tabDashboard': 'Dashboard',
+  'rep.tabPipeline': 'Question pipeline',
+  'rep.tabGeneration': 'Generation',
+  'rep.tabAssessments': 'Assessments',
+  'rep.tabFiling': 'Filing',
+  'rep.tabSources': 'Sources',
+  'rep.heading': 'Reporting & Analytics',
+  'rep.intro':
+    'Five reports over the platform\u2019s own records: the question pipeline, generation yield, assessment performance, how the bank is filed, and source coverage. Every figure carries the moment it was true and the formula that produced it.',
+
+  'rep.kpiQuestions': 'Questions',
+  'rep.kpiQuestionsNote': 'Every lifecycle state, counted exactly and in real time',
+  'rep.kpiPublished': 'Published',
+  'rep.kpiAttempts': 'Assessment attempts',
+  'rep.kpiAttemptsNote': 'Scored attempts; a superseded result is not one',
+  'rep.kpiSuppressedNote':
+    '{count} cells withheld \u2014 an assessment below the minimum group size identifies its learners',
+  'rep.kpiGenerationJobs': 'Generation jobs',
+  'rep.kpiGenerationJobsNote': 'Including the ones the control layer refused',
+  'rep.kpiAccepted': 'Questions accepted',
+  'rep.kpiDocuments': 'Documents',
+  'rep.kpiDocumentsNote': 'Active documents across every configured source',
+  'rep.kpiCovered': 'Section coverage',
+  'rep.kpiCoveredNote': '{covered} of {assessable} assessable sections cite a question',
+  'rep.kpiUnfiled': 'Missing an axis',
+  'rep.kpiUnfiledNote': 'Questions with no department or no role',
+
+  'rep.noDeltaNote':
+    'No figure on this page carries a \u201cvs previous period\u201d comparison, and that is deliberate rather than unfinished. The approved design shows one on every card; two of those could never be honest \u2014 section coverage is current state with no history, so there is no earlier value to compare against. Showing six comparisons and omitting two would invite the question, and the answer would be that they were invented. Trends over time live in the day-grained reports, where the underlying rows carry dates.',
+
+  'rep.staleHeading': 'Some data is older than it should be',
+  'rep.staleBody':
+    '{count} read model(s) failed to refresh. The figures below are the last good ones rather than blanks \u2014 a failed refresh raises the age of the data, it never empties a dashboard.',
+  'rep.staleSince': 'last good refresh {at} UTC, {failures} consecutive failure(s)',
+
+  'rep.freshnessHeading': 'Where each figure comes from, and when it was true',
+  'rep.freshnessIntro':
+    'Six read models. Five are materialized views refreshed every fifteen minutes; the question pipeline is maintained on write, inside the same transaction as the transition it counts, so it is exact and instant.',
+  'rep.colModel': 'Read model',
+  'rep.colStatus': 'Status',
+  'rep.colRefreshed': 'Data as of',
+  'rep.colRows': 'Rows',
+  'rep.colDetail': 'Detail',
+  'rep.neverRefreshed': 'Never refreshed',
+  'rep.onWriteNote': 'Maintained on write by a database trigger, not on a schedule',
+  'rep.unbuiltNote':
+    '{count} model(s) have never refreshed. A report that depends on one reports no as-of date rather than drawing zeros.',
+
+  'rep.catalogueHeading': 'The reports',
+  'rep.catalogueIntro':
+    'Each entry declares its grain, its metrics with their formulas, and where its rows live. An aggregate you cannot decompose is one you cannot audit.',
+  'rep.metricCount': '{count} metrics',
+  'rep.windowed': 'Windowed',
+  'rep.suppressedBadge': 'Suppressed below {size}',
+  'rep.openReport': 'Open the report',
+
+  'rep.elsewhereHeading': 'Reporting that already exists elsewhere',
+  'rep.elsewhereIntro':
+    'The approved design lists these as reporting screens. They are not duplicated here: one screen reading the data through one path cannot disagree with itself.',
+  'rep.linkAiUsage': 'Governance \u2192 AI Usage & Budgets',
+  'rep.linkAiUsageNote':
+    'Token usage, cost accounting, budget windows, concurrency and provider health \u2014 including the providers that have never run, which report \u201cNot Yet Recorded\u201d rather than a figure.',
+  'rep.linkAudit': 'Governance \u2192 Audit Explorer',
+  'rep.linkAuditNote':
+    'Every recorded event, filterable, with the correlated trace behind any one of them.',
+
+  'rep.learnerHeading': 'Learner performance by department and topic',
+  'rep.learnerPlanned': 'Not built, and blocked on more than code',
+  'rep.learnerBody':
+    'The approved design shows a heatmap of average scores by department and topic. Three things stop it. Its two read models are not built. A learner has no department \u2014 department is a label on a question, not on a person, and the platform\u2019s grouping model for people has no rows and no way to create one. And every cell is an average over a handful of learners, so suppression would withhold most of them: the panel has to be designed knowing that before it is worth building. Topic accuracy without a person grouping is real, and is the next honest step.',
+
+  'rep.emptyTitle': 'Nothing has been recorded yet',
+  'rep.emptyBody':
+    'Generate and approve some questions, or run an assessment, and these reports fill from the records that produces.',
+
+  // ------------------------------------------------------- one report
+  'rep.asOf': 'Data as of',
+  'rep.fromCache': 'Served from the dataset cache',
+  'rep.computedNow': 'Computed for this request',
+  'rep.window': 'Window',
+  'rep.notWindowed': 'Current state',
+  'rep.currentState': 'This report describes now, not a period',
+  'rep.halfOpenUtc': 'Half-open interval, UTC',
+  'rep.rows': 'Rows',
+  'rep.rowsNote': 'Within your scope',
+  'rep.suppression': 'Suppression',
+  'rep.nothingWithheld': 'Nothing withheld',
+  'rep.cellsWithheld': '{count} cells withheld',
+  'rep.minGroup': 'Minimum group size {size}',
+  'rep.datasetStale':
+    'The read model(s) {models} last failed to refresh \u2014 {failures} consecutive failure(s). The rows below are the last good ones.',
+
+  'rep.filtersHeading': 'Filters',
+  'rep.filtersIntro':
+    'A filtered report is a URL, so it can be sent to somebody else and the back button works.',
+  'rep.windowLabel': 'Window',
+  'rep.windowHint':
+    'Resolved to absolute dates and shown above, so a relative choice stays checkable.',
+  'rep.windowIgnored': 'This report describes current state, so a window does not apply to it.',
+  'rep.windowDefault': 'Default (30 days)',
+  'rep.windowOption': 'Last {days} days',
+  'rep.apply': 'Apply',
+  'rep.reset': 'Reset',
+
+  'rep.allWithheld': 'Withheld',
+  'rep.totalVisibleOnly': 'Total of visible rows \u2014 a withheld row contributes to no total',
+  'rep.totalAllRows': 'Total across every row in scope',
+
+  'rep.tableHeading': 'The data',
+  'rep.suppressedCell': 'Suppressed',
+  'rep.drillThrough': 'Open the rows behind these figures',
+  'rep.noRowsTitle': 'No rows in scope',
+  'rep.noRowsBody':
+    'The read model is current and has nothing to report for your scope and window. That is a fact, not an error.',
+  'rep.notBuiltTitle': 'This report has never been built',
+  'rep.notBuiltBody':
+    'Its read model has not refreshed yet, so there is no as-of date and nothing to show. The refresh runs every fifteen minutes.',
+
+  'rep.formulaHeading': 'How every number here is calculated',
+  'rep.formulaIntro':
+    'One written formula per metric. A number nobody can explain is a number somebody will quietly redefine.',
+  'rep.estimated': 'Estimated',
+
+  'rep.refresh': 'Refresh data',
+  'rep.refreshing': 'Refreshing\u2026',
+  'rep.refreshed': '{count} read models refreshed.',
+  'rep.refreshedPartly': '{count} refreshed, {failed} failed. The table below says which.',
+  'rep.export': 'Export CSV',
+  'rep.exporting': 'Exporting\u2026',
+  'rep.exported': 'Downloaded. The export is recorded in the audit trail.',
+  'rep.snapshot': 'Snapshot',
+  'rep.snapshotTitle': 'Capture this report',
+  'rep.snapshotIntro':
+    'Stores what this report says right now, with its scope, its window, its as-of date and how much was withheld.',
+  'rep.snapshotLabel': 'Label',
+  'rep.snapshotLabelHint':
+    'How this will be recognised in a list of thirty. At least three characters.',
+  'rep.snapshotReason': 'Why (optional)',
+  'rep.snapshotReasonHint': 'What the capture is for. Retained with it.',
+  'rep.snapshotNote':
+    'A snapshot is not a published report. A publication is a definition plus an audience, re-rendered for each viewer under their own scope; a snapshot is a fixed record of what you saw, and it stores the withheld cells as withheld.',
+  'rep.capture': 'Capture',
+  'rep.capturing': 'Capturing\u2026',
+  'rep.snapshotSaved': 'Captured, and recorded in the audit trail.',
 
   'form.select': 'Select',
   'form.cancel': 'Cancel',

@@ -95,9 +95,16 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     status: 'IMPLEMENTED',
   },
   {
+    // The last dead entry in this rail, and no longer dead: Phase 10 R1 put
+    // five real reports behind it. PARTIALLY_IMPLEMENTED rather than
+    // IMPLEMENTED because reporting.md's catalogue declares thirty-five entries
+    // and this is five of them -- the note names which five, so the link is not
+    // a promise the section cannot keep.
     label: 'Reports',
+    href: '/reports',
     icon: <TrendingUp className="size-5" />,
-    status: 'REQUIRES_BACKEND_EXTENSION',
+    status: 'PARTIALLY_IMPLEMENTED',
+    note: 'Pipeline · Generation · Assessments · Filing · Sources',
   },
   {
     // PARTIALLY_IMPLEMENTED as of 2026-09-24: AI Usage & Budgets is real and
