@@ -113,6 +113,24 @@ person-level detail is possible.
 | Standing exceptions | event | Break-glass uses, approval overrides, bulk approvals above threshold | `audit.read` | Audit chain | Yes, by design |
 | Item quality candidates | question | Difficulty (proportion correct), distractor distribution, below-chance flag, minimum 30 attempts | `report.read` | Question detail | No |
 | Duplicate and cluster health | domain | Blocked, flagged, dispositioned; cluster count and size distribution | `report.read` | Similarity clusters | No |
+| **Filing coverage** | domain × topic × department × role | Questions, published, approved, in progress, imported, and the count missing an organizational axis | `report.read` | Question list, filtered | No |
+
+**Filing coverage was added on 2026-09-26** and this section was written before the organizational
+axes existed. A question is filed on **four** axes — domain and topic say what it is about,
+department and job role say who it is for — and the last two arrived with migration 0010. The entry
+is here rather than in its own section because it is an authoring property: it describes the bank,
+not a learner and not a source.
+
+Two rules it inherits from elsewhere and one it does not:
+
+- **Suppression does not apply** (§7 S1). A question is not a person, and suppressing question
+  counts by department would protect nobody while making the report useless.
+- **A missing axis is a FIGURE, not an absent row.** "How much of the bank is unfiled" is the first
+  question this report answers, so the count is a metric and the dimension renders as `Not filed`
+  rather than as an empty cell — every question drafted before 2026-09-26 carries neither axis.
+- **A department is not a security boundary** ([data-model.md](data-model.md)). Scope remains roles
+  and DataScope; these are labels for filing and reporting, so the entry is scoped by domain like
+  its neighbours.
 
 ### 4.2 Knowledge sources
 
