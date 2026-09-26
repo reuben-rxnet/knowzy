@@ -2119,7 +2119,7 @@ clamps to the last question and the presented question is one the server holds a
 
 `npm run verify` green: typecheck 34/34, lint 22/22, boundaries 0 errors, codegen clean, format
 clean, **909 passing + 12 todo across 45 files**. The CI drift gate exits 0 against a shadow
-database. `npm run test:e2e` green: **23 passing, 1 skipped**, including 11 new browser tests over
+database. `npm run test:e2e` green: **34 passing, 1 skipped**, including 11 new browser tests over
 AI Providers, the header identity menu and the Filing tab.
 
 The four writes were additionally exercised over HTTP as the portal makes them — a pasted key
