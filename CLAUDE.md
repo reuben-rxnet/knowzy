@@ -89,10 +89,8 @@ Current Status:
   with the real row counts, what survives and what has to be redone
   (scripts/destructive-warning.ts). Interactive runs ask; CI prints and
   continues. They wiped a live walkthrough mid-click on 2026-09-26.
-- npm run test:e2e: 45 passing + 1 skipped + 1 order-dependent failure (2026-09-27; the
-  publish spec finds no draft once the fixture corpus is exhausted, and passes alone) across three projects
-  (45 listed; re-counted 2026-09-27 -- the earlier "47 + 1" did not reconcile),
-  driving all three applications against the running stack. It is NOT part of verify —
+- npm run test:e2e: 79 passing + 1 skipped, 0 failed (2026-09-27, after UX-M1 and
+  LIVE-PREVIEW-M2) across three projects, driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
   as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
 - The integration project is 189 of those tests, and until 2026-09-21 three of
@@ -761,7 +759,16 @@ item keeps its unreleased status and gains `preview: true` (a test refuses a
 preview marked IMPLEMENTED). Illustrative content goes ONLY inside
 `ExampleRegion` (dashed, tagged on screen), every control in one is disabled,
 and every string -- examples included, under `ex.*` -- lives in
-apps/live-web/src/copy.ts so no-fabricated-metrics scans it. Real sections use
+apps/live-web/src/copy.ts so no-fabricated-metrics scans it.
+ALL EIGHT learner destinations open (M2 added /badges and /my-progress); a
+test asserts every LEARNER_NAV item has an href. The list is
+docs/ui/PLANNED_FEATURE_SCREEN_CATALOG.md.
+NAVIGATION AT EVERY WIDTH (UX-M1): lg+ full sidebar, md-lg `SideNav
+variant="rail"`, below lg a `NavDrawer` (header menu button, same SideNav,
+dialog focus trap, focus on the current link). A `knowzy-sr-only` element
+inside a scroll box escapes it unless an ancestor is positioned -- DataTable
+and Card are `relative` for that reason -- and a TABLE cannot be made sr-only
+at all (CSS will not shrink it): hide it with a wrapper div. Real sections use
 only GET /learning/assessments and carry the "Live" tag. Promoting a preview to
 real means removing its frames, not relabelling them.
 

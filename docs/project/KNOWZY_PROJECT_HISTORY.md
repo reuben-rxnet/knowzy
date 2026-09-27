@@ -2641,3 +2641,68 @@ capability**.
 - A screenshot found "1 assessments", which was fixed.
 - `npm run verify` was not run: the change touches no API or database, and verify empties the demo
   data.
+
+## UX-M1 and LIVE-PREVIEW-M2 — navigation at every width, and no dead learner entry
+
+2026-09-27. The brief covered four things: mobile navigation, the last two learner previews, a
+navigation audit, and a consistency and mobile-quality review. It excluded OpenAI generation, the
+SharePoint adapters, the bank adapter, Phase 11 and new reports, and it forbade destructive
+verification.
+
+### What a review of every screen at 390, 820 and 1280 px found first
+
+A script loaded all twenty screens across the three applications at each width. It measured the
+document's scroll width and listed every element past the viewport's edge.
+
+| # | Finding | Cause | Fix |
+| --- | --- | --- | --- |
+| 1 | **No navigation below 1024 px in either portal.** The sidebar was hidden and nothing replaced it; a comment promised a drawer "with UI-M2" | Never built | Tablet rail and phone drawer (below) |
+| 2 | **AI Providers scrolled sideways at every width**, desktop included (1054 px in an 820 px viewport) | The `knowzy-sr-only` labels inside the table cells are absolutely positioned. Nothing between them and the page was positioned, so they escaped the table's scroll box | `DataTable` and `Card` are the containing block (`relative`) |
+| 3 | **Reports was 809 px wide on a phone** | Grid items refused to shrink below their content | `min-w-0` on the dashboard grids' children |
+| 4 | Reports was still **1 px** too wide after that | A chart's hidden data table: CSS will not shrink a `<table>` to 1 px, so the "hidden" table kept its 375 px width | Hidden by a wrapper `div` instead. First tried pinning it to `left-0`, which moved the problem without fixing it |
+| 5 | The Sync Manager's identity form overflowed on a phone | No wrap, and a select that would not shrink | Wrap, `min-w-0` |
+| 6 | Adding the menu button made **every** phone header 19 px too wide | Six fixed-size controls in 390 px | The disabled notification bell is hidden below `sm` |
+
+After the fixes, all 60 screen-and-width combinations measure 0 px of sideways scroll.
+
+### Navigation
+
+- **The tablet rail** is `SideNav variant="rail"`: icons only, each a real link or a disabled entry,
+  named by label and status. It has a green outline for the current page and a blue dot for a
+  preview.
+- **The phone drawer** is `NavDrawer`, beside `Drawer` and `Modal` in the package's only stateful
+  module. It renders the SAME `SideNav` as the desktop, so chips, notes and previews cannot drift.
+- **Drawer behaviour** reuses the dialog hook: Escape closes, Tab is trapped, focus returns to the
+  button.
+- **Two additions of its own:** focus lands on the current page's link, and the drawer closes if the
+  window grows to desktop width, so a rotated tablet is never left behind an invisible modal.
+- **The Sync Manager has no rail by specification.** On a phone its header folds behind one
+  disclosure, *Environment and settings*.
+
+### Previews
+
+- **Badges has no Live section.** Nothing is awarded, and a Live tag on a zero would still be a
+  claim.
+- **All eight approved badge designs are shown greyed.** Two, Knowledge Sharer and Team Learner, are
+  marked as needing data the platform does not keep: contributions, and teams (D-1).
+- **The "recently earned" example carries no date.**
+- **My Progress** shows real assessment completion. Its examples use the platform's own five
+  proficiency bands.
+- **The mockups' streaks, points, hours, averages and "this quarter" deltas are absent, not framed.**
+- **The six previews now share one hero backdrop.** They had used three.
+- **`PLANNED_FEATURE_SCREEN_CATALOG.md` was created.** The brief named it as existing; it did not.
+
+### Validated
+
+- Format, lint, typecheck and boundaries are clean.
+- **Unit and contract: 736 passing + 12 todo across 36 files.**
+- The integration suite was **not** run: it empties the demo data, and the brief forbade it.
+- `npm run build` passed 21/21 with the web containers **stopped** first, then the `.next` repair.
+  The API container lost `zod` after the build, and a second `up migrate` fixed it. That is the known
+  trap, and the code was unchanged.
+- The new browser specs (responsive navigation in both portals, the Sync Manager header, all six
+  previews and the learner audit) pass.
+- **The full browser suite: 79 passed, 1 skipped, 0 failed** (15.6 min). It was 45 + 1 + 1 before this
+  work; the order-dependent publish failure did not recur.
+- Mutation: with the drawer's "focus the current page" line disabled, the phone drawer spec fails on
+  `toBeFocused`. It was restored with no diff.
