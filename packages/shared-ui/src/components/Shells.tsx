@@ -144,8 +144,9 @@ export const AUTHORING_NAV: readonly NavItem[] = [
  * owner's request): My Learnings, Discover, Knowledge Library and Help &
  * Support link to pages that open with a preview notice and fence every
  * illustrative block. Their status is UNCHANGED — a preview is not a release —
- * and the sidebar chip reads "Preview". Badges and My Progress stay plain
- * unreachable entries.
+ * and the sidebar chip reads "Preview". Badges and My Progress followed on
+ * 2026-09-27 (LIVE-PREVIEW-M2), so every learner destination now opens either
+ * a working screen or a labelled preview.
  */
 /*
  * The icons here are the APPROVED pack's, not Lucide's: the pack covers
@@ -182,7 +183,13 @@ export const LEARNER_NAV: readonly NavItem[] = [
     status: 'REQUIRES_BACKEND_EXTENSION',
     preview: true,
   },
-  { label: 'Badges', icon: <KnowzyNavIcon name="badges" />, status: 'PLANNED' },
+  {
+    label: 'Badges',
+    href: '/badges',
+    icon: <KnowzyNavIcon name="badges" />,
+    status: 'PLANNED',
+    preview: true,
+  },
   {
     label: 'Knowledge Library',
     href: '/knowledge-library',
@@ -196,8 +203,10 @@ export const LEARNER_NAV: readonly NavItem[] = [
     // a learner can see it today, but an unreachable item must not be styled
     // as a link.
     label: 'My Progress',
+    href: '/my-progress',
     icon: <KnowzyNavIcon name="progress" />,
     status: 'PLANNED',
+    preview: true,
     note: 'Per result, on your results page',
   },
   {

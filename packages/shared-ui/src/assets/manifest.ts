@@ -66,7 +66,7 @@ export const ILLUSTRATIONS = {
 export type IllustrationName = keyof typeof ILLUSTRATIONS;
 
 /**
- * Badge designs, for the My Learnings PREVIEW only.
+ * Badge designs, for the My Learnings and Badges PREVIEWS only.
  *
  * No badge is awarded anywhere in this build (Phase 9), so these are drawn
  * desaturated by `KnowzyBadgeArt` and captioned as designs. Integration spec
@@ -77,6 +77,10 @@ export const BADGE_ARTWORK = {
   continuousLearner: 'badges/badge_continuous_learner.svg',
   domainSpecialist: 'badges/badge_domain_specialist.svg',
   knowledgeExplorer: 'badges/badge_knowledge_explorer.svg',
+  growthMindset: 'badges/badge_growth_mindset.svg',
+  knowledgeSharer: 'badges/badge_knowledge_sharer.svg',
+  learningChampion: 'badges/badge_learning_champion.svg',
+  teamLearner: 'badges/badge_team_learner.svg',
 } as const;
 
 export type BadgeArtworkName = keyof typeof BADGE_ARTWORK;

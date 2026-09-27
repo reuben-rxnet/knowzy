@@ -224,23 +224,32 @@ describe('exactly one navigation item is ever active', () => {
     expect(activeNavLabel(LEARNER_NAV, '/')).toBe('Home');
   });
 
-  it('highlights a preview page as its own destination, and only the four asked for', () => {
+  it('highlights a preview page as its own destination, and only the six asked for', () => {
     expect(activeNavLabel(LEARNER_NAV, '/my-learnings')).toBe('My Learnings');
     expect(activeNavLabel(LEARNER_NAV, '/discover')).toBe('Discover');
+    expect(activeNavLabel(LEARNER_NAV, '/badges')).toBe('Badges');
     expect(activeNavLabel(LEARNER_NAV, '/knowledge-library')).toBe('Knowledge Library');
+    expect(activeNavLabel(LEARNER_NAV, '/my-progress')).toBe('My Progress');
     expect(activeNavLabel(LEARNER_NAV, '/help')).toBe('Help & Support');
     expect(LEARNER_NAV.filter((item) => item.preview === true).map((item) => item.label)).toEqual([
       'My Learnings',
       'Discover',
+      'Badges',
       'Knowledge Library',
+      'My Progress',
       'Help & Support',
     ]);
+    // The learner audit (LIVE-PREVIEW-M2): every learner destination opens
+    // something — a working screen or a labelled preview. None is a dead entry.
+    expect(LEARNER_NAV.every((item) => item.href !== undefined)).toBe(true);
     // No authoring destination is a preview: every one of them is real.
     expect(AUTHORING_NAV.some((item) => item.preview === true)).toBe(false);
   });
 
   it('highlights nothing on a route no destination owns', () => {
-    expect(activeNavLabel(LEARNER_NAV, '/badges')).toBeUndefined();
+    // `/badges` USED to be the learner example; LIVE-PREVIEW-M2 made it a
+    // preview, so the example moved to a route no learner entry owns.
+    expect(activeNavLabel(LEARNER_NAV, '/certificates')).toBeUndefined();
     // `/reports` USED to be the example here, because the rail entry had no
     // href. Phase 10 R1 gave it one, so the example moved to a route that is
     // still genuinely unowned rather than the assertion being deleted.

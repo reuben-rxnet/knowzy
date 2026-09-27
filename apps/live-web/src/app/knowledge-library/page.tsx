@@ -113,7 +113,7 @@ export default async function KnowledgeLibraryPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHero title={t('lib.heading')} purpose={t('lib.intro')} backdrop="gradient" />
+      <PageHero title={t('lib.heading')} purpose={t('lib.intro')} backdrop="wave" />
 
       <PreviewNotice
         label={t('preview.label')}

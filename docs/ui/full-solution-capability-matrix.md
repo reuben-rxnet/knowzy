@@ -284,7 +284,7 @@ numbers, no charts with fabricated series.
 
 ## B5. My Learnings — `my-learnings.png`
 
-> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1) at the end.
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1-m2) at the end.
 
 The entire page depends on models that do not exist. Specification §7.2 lists eleven of them;
 **none** is in the schema.
@@ -300,7 +300,7 @@ The entire page depends on models that do not exist. Specification §7.2 lists e
 
 ## B6. Discover — `discover.png`
 
-> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1) at the end.
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1-m2) at the end.
 
 | Feature | Status | Required extension | Security & authorization | Milestone |
 | --- | --- | --- | --- | --- |
@@ -313,7 +313,7 @@ The entire page depends on models that do not exist. Specification §7.2 lists e
 
 ## B7. Knowledge Library — `knowledge-library.png`
 
-> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1) at the end.
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1-m2) at the end.
 
 | Feature | Status | Required extension | Security & authorization | Milestone |
 | --- | --- | --- | --- | --- |
@@ -324,6 +324,8 @@ The entire page depends on models that do not exist. Specification §7.2 lists e
 | Suggest a Resource | `REQUIRES_BACKEND_EXTENSION` | Submission + moderation workflow | Learner-submitted content needs review before exposure | LIVE-FULL-M4 |
 
 ## B8. Badges and Certifications — `badges.png`
+
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M2).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1-m2) at the end.
 
 | Feature | Status | Route | Domain model | Backend today | Security | Authorization | Data source | Required extension | Milestone |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -336,6 +338,8 @@ The entire page depends on models that do not exist. Specification §7.2 lists e
 | "Your Impact" (courses, assessments, points, badges) | `PARTIALLY_IMPLEMENTED` | — | mixed | Assessments taken is derivable; courses/points are not | §15.4: do not merge unlike metrics | learner-own | mixed | Per-metric definition | LIVE-FULL-M5 |
 
 ## B9. My Progress — `my-progress.png`
+
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M2).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1-m2) at the end.
 
 | Feature | Status | Required extension | Security & authorization | Milestone |
 | --- | --- | --- | --- | --- |
@@ -351,7 +355,7 @@ The entire page depends on models that do not exist. Specification §7.2 lists e
 
 ## B10. Help and Support — `help-and-support.png`
 
-> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1) at the end.
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1-m2) at the end.
 
 | Feature | Status | Required extension | Security & authorization | Milestone |
 | --- | --- | --- | --- | --- |
@@ -438,15 +442,16 @@ are unchanged by this section.
 
 ---
 
-## Preview pages (LIVE-PREVIEW-M1)
+## Preview pages (LIVE-PREVIEW-M1, M2)
 
 **2026-09-27.** The product owner asked for every learner destination to be clickable, so a
 stakeholder can see the intended finished product. That answers open question 4 of
 [ui-modernization-plan.md §20](ui-modernization-plan.md) for four of the six unbuilt destinations:
 **My Learnings, Discover, Knowledge Library and Help & Support are shown as previews.** Badges and
-My Progress stay unreachable.
+My Progress followed the same day (**LIVE-PREVIEW-M2**), so all six are previews and every learner
+destination opens. The full list is in [PLANNED_FEATURE_SCREEN_CATALOG.md](PLANNED_FEATURE_SCREEN_CATALOG.md).
 
-**A preview is not a status.** Every feature row in B5, B6, B7 and B10 keeps the status it had. The
+**A preview is not a status.** Every feature row in B5 to B10 keeps the status it had. The
 sidebar item keeps `REQUIRES_BACKEND_EXTENSION` and gains `preview: true`. A test refuses a preview
 item whose status is `IMPLEMENTED` or `PARTIALLY_IMPLEMENTED`, and it was checked by mutation.
 
@@ -458,6 +463,8 @@ item whose status is `IMPLEMENTED` or `PARTIALLY_IMPLEMENTED`, and it was checke
 | Discover | The domains of the assessments published to the learner, with counts | Framed examples |
 | Knowledge Library | The same domains (permission-trimmed by construction, §13.4) | Framed examples. Every source reads Not connected |
 | Help & Support | User guides and FAQ describing this release (user guide §5) | Framed examples. No address, number, hours or status claim |
+| Badges | Nothing: no award exists, so the page has no Live section | Framed examples. Every design greyed; no date on an example award |
+| My Progress | Assessment completion (attempted of available) | Framed examples, in the platform's own five bands |
 
 **The rules a preview keeps, and what enforces each one:**
 

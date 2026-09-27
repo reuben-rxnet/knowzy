@@ -330,6 +330,113 @@ export const copy = {
   'help.hoursHeading': 'Support hours',
   'help.hoursBody': 'Published by the support team when the service is approved.',
 
+  'badges.heading': 'Badges',
+  'badges.intro':
+    'Recognition for what your recorded results show — awarded by published rules, verifiable, and never decided by a model.',
+  'badges.previewTitle': 'No badge is awarded in this build.',
+  'badges.previewBody':
+    'Everything on this page is an illustrative example inside a dashed frame: the categories, the designs, the rules, how an award would be listed and how progress toward one would look. Nothing here is your data, no badge has been awarded to anyone, and none of the controls work.',
+  'badges.previewRequirement':
+    'Needs badge rules, evaluation and award records, which arrive in Phase 9 — a Future Phase 9 capability.',
+  'badges.categoriesHeading': 'Badge categories',
+  'badges.categoriesIntro':
+    'Every badge belongs to one category, so the gallery can be browsed by what it recognises.',
+  'badges.catAssessment': 'Assessment',
+  'badges.catAssessmentBody': 'Passing assessments, and passing them well.',
+  'badges.catMastery': 'Domain mastery',
+  'badges.catMasteryBody': 'Reaching a proficiency band across a whole domain.',
+  'badges.catConsistency': 'Consistency',
+  'badges.catConsistencyBody': 'Keeping at it over weeks and months.',
+  'badges.catExploration': 'Exploration',
+  'badges.catExplorationBody': 'Learning beyond your own domain.',
+  'badges.galleryHeading': 'Badge gallery',
+  'badges.galleryIntro':
+    'The approved badge designs. Each is shown greyed, as a design, because none can be earned in this release.',
+  'badges.criteriaHeading': 'Badge criteria',
+  'badges.criteriaIntro':
+    'A rule names the recorded fields it reads, so anyone can check why a badge was or was not awarded. These rules are examples.',
+  'badges.colBadge': 'Badge',
+  'badges.colRule': 'Example rule',
+  'badges.colBasis': 'Reads',
+  'badges.basisResults': 'Scored results and pass decisions',
+  'badges.basisBands': 'Topic proficiency bands',
+  'badges.basisDates': 'Result dates',
+  'badges.basisDomains': 'Assessment domains',
+  'badges.basisNone': 'Nothing the platform records today',
+  'badges.recentHeading': 'Recently earned badges',
+  'badges.recentIntro':
+    'How an award would be listed: the badge, the rule that was met and the result that met it. Nothing has been awarded, so these rows are examples of the layout and carry no date.',
+  'badges.recentTag': 'Illustrative example — nothing has been awarded',
+  'badges.recentWhen': 'Award date shown here',
+  'badges.recentResult': 'Linked to the result that met the rule',
+  'badges.progressHeading': 'Badge progress',
+  'badges.progressIntro':
+    'How far you are toward a badge, counted from your recorded results against its rule.',
+  'badges.progressAssessmentPro':
+    'Assessment Pro — example: 3 of 5 assessments passed at Proficient',
+  'badges.progressExplorer': 'Knowledge Explorer — example: 1 of 3 domains passed',
+  'badges.view': 'View badge',
+  'badges.share': 'Share',
+  'badges.badgeGrowthMindset': 'Growth Mindset',
+  'badges.badgeKnowledgeSharer': 'Knowledge Sharer',
+  'badges.badgeLearningChampion': 'Learning Champion',
+  'badges.badgeTeamLearner': 'Team Learner',
+  'badges.altGrowthMindset': 'Badge design: Growth Mindset. Not earned.',
+  'badges.altKnowledgeSharer': 'Badge design: Knowledge Sharer. Not earned.',
+  'badges.altLearningChampion': 'Badge design: Learning Champion. Not earned.',
+  'badges.altTeamLearner': 'Badge design: Team Learner. Not earned.',
+  'badges.ruleGrowthMindset': 'Example rule: move up at least one band on a retaken assessment.',
+  'badges.ruleKnowledgeSharer':
+    'Needs contribution records, which the platform does not keep. Shown as a design only.',
+  'badges.ruleLearningChampion': 'Example rule: reach Expert on five different assessments.',
+  'badges.ruleTeamLearner':
+    'Needs team learning, which the platform does not model. Shown as a design only.',
+
+  'prog.heading': 'My Progress',
+  'prog.intro': 'How far you have come, by topic and by domain, and what to work on next.',
+  'prog.previewTitle': 'Progress over time is not live yet.',
+  'prog.previewBody':
+    'Assessment completion below is real: it is counted from the assessments published to you. Everything inside a dashed frame is an illustrative example of the finished page. Your per-topic results today are on each result page, at the end of the attempt that produced them.',
+  'prog.previewRequirement':
+    'Needs a per-learner result history and a cross-result proficiency roll-up (LIVE-UI-M2); the learning journey needs the learning catalog (LIVE-FULL-M1 and M2).',
+  'prog.completionHeading': 'Assessment completion',
+  'prog.completionIntro':
+    'Of the assessments published to you, how many you have attempted. Counted by the server; nothing is estimated.',
+  'prog.completionMeter': 'Attempted',
+  'prog.completionSummary': '{attempted} of {available} attempted',
+  'prog.completionEmpty': 'No assessment is published to you yet.',
+  'prog.filtersPeriod': 'Period',
+  'prog.filtersDomain': 'Domain',
+  'prog.searchPlaceholder': 'Filter topics',
+  'prog.topicHeading': 'Progress by topic',
+  'prog.topicIntro':
+    'Your latest accuracy on each topic you have been assessed on, across all your results rather than one.',
+  'prog.domainHeading': 'Progress by domain',
+  'prog.domainIntro': 'The same results rolled up by domain.',
+  'prog.competencyHeading': 'Competency overview',
+  'prog.competencyIntro':
+    'Your current proficiency band in each domain, using the same five bands a result is scored against.',
+  'prog.colDomain': 'Domain',
+  'prog.colBand': 'Current band',
+  'prog.colBasis': 'Based on',
+  'prog.bandExpert': 'Expert',
+  'prog.bandProficient': 'Proficient',
+  'prog.bandDeveloping': 'Developing',
+  'prog.bandNeedsImprovement': 'Needs improvement',
+  'prog.basisExample1': 'Example: 2 results, 24 questions',
+  'prog.basisExample2': 'Example: 1 result, 10 questions',
+  'prog.basisExample3': 'Example: 3 results, 30 questions',
+  'prog.journeyHeading': 'Learning journey',
+  'prog.journeyIntro':
+    'The milestones along your way, in order — each one linked to the record behind it.',
+  'prog.journey1': 'Joined the learning portal',
+  'prog.journey2': 'Completed a first assessment',
+  'prog.journey3': 'Reached Proficient in a domain',
+  'prog.journey4': 'Closed a knowledge gap on a retake',
+  'prog.journey5': 'Next: reach Expert in a domain',
+  'prog.journeyDone': 'Example milestone',
+  'prog.journeyNext': 'Example next step',
+
   'ex.pathOrderTitle': 'Customer order fundamentals',
   'ex.pathOrderBody':
     'How an order moves from entry to delivery, and how to fix the common exceptions.',

@@ -1,4 +1,4 @@
-// LIVE-PREVIEW-M1: the four learner preview pages.
+// LIVE-PREVIEW-M1 and M2: the six learner preview pages.
 //
 // What a preview must NEVER do is pass for the real thing, so the assertions
 // are about that, not about layout:
@@ -8,22 +8,22 @@
 //   * every illustrative block is fenced and tagged on screen;
 //   * NOTHING inside a frame is actionable: no link, and every button and
 //     form control disabled;
-//   * the real sections are tagged Live and carry real data.
+//   * a real section, where the page has one, is tagged Live.
 
 import { expect, test, type Page } from '@playwright/test';
 
 const PAGES = [
-  { path: '/my-learnings', nav: 'My Learnings', heading: 'My Learnings' },
-  { path: '/discover', nav: 'Discover', heading: 'Discover' },
-  { path: '/knowledge-library', nav: 'Knowledge Library', heading: 'Knowledge Library' },
-  { path: '/help', nav: 'Help & Support', heading: 'Help & Support' },
+  { path: '/my-learnings', nav: 'My Learnings', live: true },
+  { path: '/discover', nav: 'Discover', live: true },
+  { path: '/badges', nav: 'Badges', live: false },
+  { path: '/knowledge-library', nav: 'Knowledge Library', live: true },
+  { path: '/my-progress', nav: 'My Progress', live: true },
+  { path: '/help', nav: 'Help & Support', live: true },
 ] as const;
 
 /** Every dashed frame on the page, found by its visible tag. */
 const frames = (page: Page) =>
-  page
-    .locator('main section')
-    .filter({ has: page.getByText(/^Illustrative example — not (real|your) data$/) });
+  page.locator('main section').filter({ has: page.getByText(/^Illustrative example — /) });
 
 test.describe('learner preview pages', () => {
   for (const entry of PAGES) {
@@ -37,15 +37,14 @@ test.describe('learner preview pages', () => {
       await link.click();
 
       await expect(page).toHaveURL(new RegExp(`${entry.path}$`));
-      await expect(page.getByRole('heading', { level: 1, name: entry.heading })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1, name: entry.nav })).toBeVisible();
       await expect(nav.getByRole('link', { name: new RegExp(`^${entry.nav}`) })).toHaveAttribute(
         'aria-current',
         'page',
       );
 
       // The notice comes first and says what it is.
-      const notice = page.getByRole('note', { name: 'Preview' });
-      await expect(notice).toBeVisible();
+      await expect(page.getByRole('note', { name: 'Preview' })).toBeVisible();
 
       const fenced = frames(page);
       const count = await fenced.count();
@@ -62,26 +61,44 @@ test.describe('learner preview pages', () => {
         }
       }
 
-      // Every page carries at least one real section, tagged as such.
-      await expect(page.getByText('Live — from this release').first()).toBeVisible();
+      const live = page.getByText('Live — from this release');
+      if (entry.live) await expect(live.first()).toBeVisible();
+      // Badges has no live section: nothing is awarded, and a Live tag on a
+      // zero would still be a claim.
+      else await expect(live).toHaveCount(0);
     });
   }
 
-  test('Badges and My Progress are still not links', async ({ page }) => {
+  test('every learner destination opens something, and none reads "Needs backend"', async ({
+    page,
+  }) => {
     await page.goto('/');
     const nav = page.getByRole('navigation', { name: 'Learning sections' });
-    await expect(nav.getByRole('link', { name: /^Badges/ })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: /^My Progress/ })).toHaveCount(0);
+    await expect(nav.getByText('Needs backend')).toHaveCount(0);
+    const hrefs = await nav
+      .getByRole('link')
+      .evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''));
+    expect(hrefs).toHaveLength(8);
+    for (const href of new Set(hrefs)) {
+      const response = await page.goto(href);
+      expect(response?.status(), href).toBe(200);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    }
   });
 
   test('no badge design is presented as earned', async ({ page }) => {
-    await page.goto('/my-learnings');
-    const art = page.getByRole('img', { name: /^Badge design: / });
-    const total = await art.count();
-    expect(total).toBeGreaterThan(0);
-    for (let index = 0; index < total; index += 1) {
-      await expect(art.nth(index)).toHaveAttribute('alt', /Not earned\.$/);
+    for (const path of ['/my-learnings', '/badges']) {
+      await page.goto(path);
+      const art = page.getByRole('img', { name: /^Badge design: / });
+      const total = await art.count();
+      expect(total, path).toBeGreaterThan(0);
+      for (let index = 0; index < total; index += 1) {
+        await expect(art.nth(index)).toHaveAttribute('alt', /Not earned\.$/);
+      }
     }
+    // The "recently earned" example carries no date: nothing has been awarded.
+    const recent = page.locator('section', { hasText: 'Recently earned badges' });
+    expect(await recent.innerText()).not.toMatch(/\b20\d\d\b|\b\d{1,2}\s\w{3}\b/);
   });
 
   test('the real sections agree with the learner API', async ({ page, request }) => {
@@ -90,7 +107,10 @@ test.describe('learner preview pages', () => {
       headers: { 'x-knowzy-subject': 'learner@local.invalid' },
     });
     expect(response.ok(), await response.text()).toBe(true);
-    const body = (await response.json()) as { count: number; assessments: { domain: string }[] };
+    const body = (await response.json()) as {
+      count: number;
+      assessments: { domain: string; attemptsUsed: number; inProgressSession: unknown }[];
+    };
 
     await page.goto('/my-learnings');
     const available = page.getByText('Assessments available to you').locator('..');
@@ -99,6 +119,14 @@ test.describe('learner preview pages', () => {
     await page.goto('/discover');
     for (const domain of new Set(body.assessments.map((item) => item.domain))) {
       await expect(page.getByText(domain, { exact: true }).first()).toBeVisible();
+    }
+
+    if (body.count > 0) {
+      const attempted = body.assessments.filter(
+        (item) => item.attemptsUsed > 0 || item.inProgressSession !== null,
+      ).length;
+      await page.goto('/my-progress');
+      await expect(page.getByText(`${attempted} of ${body.count} attempted`)).toBeVisible();
     }
   });
 

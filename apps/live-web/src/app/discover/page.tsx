@@ -66,7 +66,7 @@ export default async function DiscoverPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHero title={t('disc.heading')} purpose={t('disc.intro')} backdrop="dots" />
+      <PageHero title={t('disc.heading')} purpose={t('disc.intro')} backdrop="wave" />
 
       <PreviewNotice
         label={t('preview.label')}
