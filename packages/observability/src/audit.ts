@@ -103,7 +103,40 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'providerState',
     'failedChecks',
     'notAttemptedChecks',
+    // OPENAI-CODEX-00: which checks PASSED (the live ones are real now), the
+    // readiness it produced, and what the endpoint answered. Never a key,
+    // never a reference, never a provider's error message.
+    'passedChecks',
+    'readinessState',
+    'endpointHost',
+    'httpStatus',
   ],
+  // P-5 -- the Secret Resolution Layer. Fingerprints and sources, never a
+  // reference and never a value: `audit_event` has never held either.
+  'ADMIN.CONFIGURATION.SECRET_REFERENCE_CREATED': [
+    'providerId',
+    'referenceSource',
+    'referenceFingerprint',
+  ],
+  'ADMIN.CONFIGURATION.SECRET_REFERENCE_UPDATED': [
+    'providerId',
+    // REPLACED or REMOVED.
+    'change',
+    'referenceSource',
+    'referenceFingerprint',
+    'previousReferenceFingerprint',
+  ],
+  'ADMIN.CONFIGURATION.SECRET_VALIDATED': [
+    'providerId',
+    'referenceSource',
+    'referenceFingerprint',
+    // RESOLVED, NOT_FOUND, SOURCE_UNAVAILABLE, SOURCE_FORBIDDEN, INVALID_REFERENCE.
+    'resolutionStatus',
+    'purpose',
+    'durationMs',
+  ],
+  'ADMIN.CONFIGURATION.PROVIDER_ENABLED': ['providerId', 'previouslyEnabled'],
+  'ADMIN.CONFIGURATION.PROVIDER_DISABLED': ['providerId', 'previouslyEnabled'],
   'ADMIN.CONFIGURATION.UPDATED': [
     'key',
     'scope',

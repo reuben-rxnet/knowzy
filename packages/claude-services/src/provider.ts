@@ -59,6 +59,17 @@ export interface ProviderCapabilities {
    */
   readonly grantsTools: false;
   readonly maxInputTokens: number;
+  /**
+   * Whether THIS BUILD can generate questions with the provider.
+   *
+   * Distinct from every field above, which describe the provider: this one
+   * describes the platform's client. OPENAI-CODEX-00 registers an OpenAI
+   * client that validates readiness and cannot generate, and the registry
+   * turns `false` here into UNAVAILABLE so it can never be activated.
+   */
+  readonly supportsGeneration: boolean;
+  /** Whether the provider's API can stream a response. Declared, not used. */
+  readonly supportsStreaming: boolean;
 }
 
 export interface ExecutionContext {
@@ -114,6 +125,8 @@ export const PROVIDER_CATALOGUE: Readonly<Record<GenerationProviderId, ProviderC
       supportsStructuredOutput: true,
       grantsTools: false,
       maxInputTokens: Number.MAX_SAFE_INTEGER,
+      supportsGeneration: true,
+      supportsStreaming: false,
     },
     ANTHROPIC: {
       retrievalFree: true,
@@ -130,6 +143,8 @@ export const PROVIDER_CATALOGUE: Readonly<Record<GenerationProviderId, ProviderC
       supportsStructuredOutput: true,
       grantsTools: false,
       maxInputTokens: 180_000,
+      supportsGeneration: false,
+      supportsStreaming: true,
     },
     OPENAI: {
       retrievalFree: true,
@@ -144,6 +159,9 @@ export const PROVIDER_CATALOGUE: Readonly<Record<GenerationProviderId, ProviderC
       supportsStructuredOutput: true,
       grantsTools: false,
       maxInputTokens: 128_000,
+      // A readiness client exists (OPENAI-CODEX-00); generation does not.
+      supportsGeneration: false,
+      supportsStreaming: true,
     },
     MICROSOFT_COPILOT: {
       // FALSE, pending investigation, and therefore ineligible.
@@ -164,6 +182,8 @@ export const PROVIDER_CATALOGUE: Readonly<Record<GenerationProviderId, ProviderC
       supportsStructuredOutput: false,
       grantsTools: false,
       maxInputTokens: 100_000,
+      supportsGeneration: false,
+      supportsStreaming: false,
     },
     AZURE_OPENAI: {
       retrievalFree: true,
@@ -173,6 +193,8 @@ export const PROVIDER_CATALOGUE: Readonly<Record<GenerationProviderId, ProviderC
       supportsStructuredOutput: true,
       grantsTools: false,
       maxInputTokens: 120_000,
+      supportsGeneration: false,
+      supportsStreaming: true,
     },
     GEMINI: {
       retrievalFree: true,
@@ -182,6 +204,8 @@ export const PROVIDER_CATALOGUE: Readonly<Record<GenerationProviderId, ProviderC
       supportsStructuredOutput: true,
       grantsTools: false,
       maxInputTokens: 120_000,
+      supportsGeneration: false,
+      supportsStreaming: true,
     },
   });
 

@@ -78,6 +78,16 @@ export const AUDIT_FAMILIES = {
     'PROVIDER_APPROVAL_CHANGED',
     'PROVIDER_ACTIVATED',
     'PROVIDER_VALIDATED',
+    // P-5 and OPENAI-CODEX-00, 2026-09-27. Each a separate act because each is
+    // a separate question a reviewer asks: "when did this provider start
+    // pointing at a different secret", "did the secret resolve when somebody
+    // tested it", "who switched it on". None carries a secret or a reference:
+    // a REFERENCE FINGERPRINT (sha-256, 16 hex) identifies which one.
+    'SECRET_REFERENCE_CREATED',
+    'SECRET_REFERENCE_UPDATED',
+    'SECRET_VALIDATED',
+    'PROVIDER_ENABLED',
+    'PROVIDER_DISABLED',
   ],
   'ADMIN.FIELDMAPPING': ['CREATED', 'UPDATED', 'VALIDATED', 'ACTIVATED', 'RETIRED'],
   'ADMIN.QUESTIONBANK': ['PROVISIONED', 'VERIFIED', 'RECONCILED', 'RECONCILE_DECISION_APPLIED'],

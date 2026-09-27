@@ -148,6 +148,24 @@ const decideState = (
     };
   }
 
+  // A client that exists but CANNOT GENERATE (OPENAI-CODEX-00: readiness
+  // only). Registered so validation can truthfully say a client exists;
+  // UNAVAILABLE here so it can never be activated or reached by a job.
+  //
+  // Read from the REGISTERED CLIENT, not the catalogue: the catalogue says what
+  // a provider can do, and whether this build's client can generate is a fact
+  // about the client. The day a generating OpenAI client is registered, this
+  // passes without editing the catalogue.
+  if (!factory('').capabilities.supportsGeneration) {
+    return {
+      state: 'UNAVAILABLE',
+      reason:
+        'A readiness client for this provider exists in this build, but generating questions with it does not. It can be validated, not used.',
+      refusalReason: 'PROVIDER_NOT_REGISTERED',
+      code: 'PROVIDER_NOT_REGISTERED',
+    };
+  }
+
   // WITHIN the configuration step, the administrator's explicit decision is
   // checked BEFORE the credential: "the owner turned this off" is a more useful
   // sentence than "its credential is missing", and it is the one that is true.

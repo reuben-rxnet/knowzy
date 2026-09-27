@@ -97,10 +97,33 @@ export {
 } from './registry.js';
 
 export {
+  REQUIRED_SETTINGS,
+  mayProbe,
+  missingSettings,
+  outcomeOf,
+  settingsFingerprint,
   validateProvider,
+  type SecretCheck,
   type ValidateProviderInput,
   type ValidateProviderResult,
 } from './validation.js';
+
+// OPENAI-CODEX-00: readiness, not generation.
+export {
+  OPENAI_DEFAULT_BASE_URL,
+  OPENAI_DEFAULT_HOSTS,
+  checkOpenAIReadiness,
+  createOpenAIProvider,
+  endpointPermission,
+  type CheckReadinessArgs,
+  type ReadinessLimits,
+  type ReadinessResult,
+} from './openai.js';
+
+export { deriveReadiness, type DeriveReadinessInput } from './readiness.js';
+
+/** The five capabilities a provider declares, in the administration screen's names. */
+export { declaredCapabilities } from './declared.js';
 
 export {
   assessProviderHealth,

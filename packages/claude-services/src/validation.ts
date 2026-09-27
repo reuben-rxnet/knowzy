@@ -1,54 +1,64 @@
-// "Test connection", and the line it must not cross.
+// "Test connection" — the chain, and what each link may honestly claim.
 //
-// A connection test for an AI provider is a request to be told something
-// definite, and the honest answer in this build is definite but partial. So
-// this reports a CHAIN rather than a verdict: five checks in the order the
-// platform enforces them, each with PASSED, FAILED or NOT_ATTEMPTED, and each
-// with a sentence saying why.
+// Before P-5 this reported five checks and could establish only the first
+// three: nothing could resolve a secret and nothing could call a provider, so
+// CREDENTIAL and LIVE_CALL were NOT_ATTEMPTED for every external provider and
+// the outcome was INCOMPLETE by construction. Since P-5 and OPENAI-CODEX-00 the
+// chain is nine checks and the live ones are REAL:
 //
-// The rule it exists to keep: **nothing here may report a successful
-// authentication, a reachable model or a valid key, because nothing here calls
-// a provider.** No provider client is implemented in this build (architecture
-// .md §9.0), so LIVE_CALL is always NOT_ATTEMPTED and the overall outcome is
-// INCOMPLETE rather than PASSED. A test that printed "Authentication
-// successful" from a configuration read would be worse than no test: it would
-// be the exact false assurance somebody would cite when a deployment failed.
+//   CAPABILITY         can the provider ground a question at all
+//   APPROVAL           is a data-processing approval recorded
+//   IMPLEMENTATION     does this build have a client for it
+//   CONFIGURATION      are the base URL, model and reference recorded
+//   SECRET_RESOLUTION  does the reference resolve, here, now
+//   ENDPOINT           did the allow-listed host answer
+//   AUTHENTICATION     did the provider accept the key
+//   MODEL              is the configured model available to that key
+//   GENERATION         can this build generate with it
 //
-// What it DOES establish is real and worth a button:
+// THE RULE IS UNCHANGED: no step may claim more than was observed. The live
+// steps come from `checkOpenAIReadiness`, which records what it saw (a status
+// code, a round-trip time); this function only arranges them. GENERATION is
+// NOT_ATTEMPTED for every provider whose client cannot generate -- this
+// milestone ends before generation, and a validation that PASSED would read
+// as "ready to generate", which is false.
 //
-//   * that a provider can ground a question at all;
-//   * that a data-processing approval has been recorded for it;
-//   * that a client for it exists in this build;
-//   * that a credential REFERENCE is recorded, and whether the platform can
-//     resolve it here.
+// APPROVAL DOES NOT GATE THE LIVE CHECKS. They are metadata calls: the request
+// is the key and a model name, with no prompt, document or person in it.
+// Knowing that a key works before Privacy signs off is useful and harmless;
+// GENERATING before then is what the approval governs, and the registry keeps
+// refusing that with BLOCKED_BY_APPROVAL.
 //
-// Those four are the reasons a generation request is refused today, in the
-// order they are enforced, and each one names what to do next.
-//
-// Pure: no I/O, no clock, no database. The caller supplies the assessment, the
-// settings and whether the reference resolves; this decides what may be said.
+// Pure: no I/O. The caller resolves the secret and runs the probe.
 
+import { createHash } from 'node:crypto';
 import type {
-  ProviderStateAssessment,
   ProviderSettings,
+  ProviderStateAssessment,
   ProviderValidationOutcome,
   ProviderValidationStep,
+  SecretResolutionStatus,
+  SecretSource,
 } from '@knowzy/shared-types';
+import type { ProviderCapabilities } from './provider.js';
+import type { ReadinessResult } from './openai.js';
+
+export interface SecretCheck {
+  readonly status: SecretResolutionStatus;
+  readonly source: SecretSource | null;
+  /** The resolver's sentence. Never a value. */
+  readonly detail: string | null;
+}
 
 export interface ValidateProviderInput {
   /** The registry's verdict. This function never second-guesses it. */
   readonly assessment: ProviderStateAssessment;
+  readonly capabilities: ProviderCapabilities;
   readonly settings: ProviderSettings | undefined;
-  /**
-   * Whether the platform can RESOLVE the recorded reference in this
-   * environment — not whether the credential is valid, which only a call could
-   * establish.
-   *
-   * `null` means the platform has no way to find out: there is no secret
-   * resolver in this build, so a recorded reference for an external provider is
-   * "recorded, unresolvable here". Saying so is the point.
-   */
-  readonly credentialResolves: boolean | null;
+  /** Null when resolution was not attempted (a prerequisite failed). */
+  readonly secret: SecretCheck | null;
+  /** Null when the live probe was not run. */
+  readonly live: ReadinessResult | null;
 }
 
 export interface ValidateProviderResult {
@@ -56,12 +66,58 @@ export interface ValidateProviderResult {
   readonly steps: readonly ProviderValidationStep[];
 }
 
-/** The deterministic provider is the one case where every check is genuinely met. */
 const DETERMINISTIC = 'DETERMINISTIC_LOCAL';
+
+/** The fields a network provider needs before anything live can run. */
+export const REQUIRED_SETTINGS = ['baseUrl', 'modelId', 'apiKeyRef'] as const;
+
+export const missingSettings = (settings: ProviderSettings | undefined): readonly string[] =>
+  REQUIRED_SETTINGS.filter((field) => settings?.[field] === undefined);
+
+/**
+ * A fingerprint of the settings a validation depends on.
+ *
+ * Recorded on the CONFIGURATION step so a later read can tell whether the
+ * validation still describes the configuration in force. The whole-row
+ * `settingsUpdatedAt` cannot: it moves when ANY provider's settings change.
+ */
+export const settingsFingerprint = (settings: ProviderSettings | undefined): string =>
+  createHash('sha256')
+    .update(
+      JSON.stringify([
+        settings?.baseUrl ?? null,
+        settings?.modelId ?? null,
+        settings?.apiKeyRef ?? null,
+      ]),
+    )
+    .digest('hex')
+    .slice(0, 16);
+
+/** Whether prerequisites allow the live probe. The caller asks before running it. */
+export const mayProbe = (input: Omit<ValidateProviderInput, 'secret' | 'live'>): boolean =>
+  input.assessment.providerId !== DETERMINISTIC &&
+  input.assessment.groundingSafe &&
+  input.assessment.registered &&
+  missingSettings(input.settings).length === 0;
 
 export const validateProvider = (input: ValidateProviderInput): ValidateProviderResult => {
   const { assessment, settings } = input;
   const steps: ProviderValidationStep[] = [];
+
+  if (assessment.providerId === DETERMINISTIC) {
+    const inProcess = (check: ProviderValidationStep['check'], detail: string) =>
+      steps.push({ check, result: 'PASSED', detail });
+    inProcess('CAPABILITY', 'The deterministic generator quotes only the sections it is given.');
+    inProcess('APPROVAL', 'Nothing leaves this process, so no data-processing approval is needed.');
+    inProcess('IMPLEMENTATION', 'The deterministic generator is built into every environment.');
+    inProcess('CONFIGURATION', 'It needs no endpoint, model or credential.');
+    inProcess('SECRET_RESOLUTION', 'It needs no secret.');
+    inProcess('ENDPOINT', 'It runs in this process; there is no network endpoint.');
+    inProcess('AUTHENTICATION', 'There is nothing to authenticate to.');
+    inProcess('MODEL', 'The model is the platform’s own: knowzy-deterministic-local-1.');
+    inProcess('GENERATION', 'It generates in this build.');
+    return { outcome: 'PASSED', steps };
+  }
 
   // ------------------------------------------------------------- capability
   steps.push(
@@ -92,7 +148,7 @@ export const validateProvider = (input: ValidateProviderInput): ValidateProvider
           check: 'APPROVAL',
           result: 'FAILED',
           detail:
-            'No data-processing approval is recorded. Record one before enabling the provider — a credential alone is not authorization.',
+            'No data-processing approval is recorded. The readiness checks below still run -- they send only the key and a model name -- but no question will be generated until one is.',
         },
   );
 
@@ -102,7 +158,9 @@ export const validateProvider = (input: ValidateProviderInput): ValidateProvider
       ? {
           check: 'IMPLEMENTATION',
           result: 'PASSED',
-          detail: 'A client for this provider is implemented in this build.',
+          detail: input.capabilities.supportsGeneration
+            ? 'A client for this provider is implemented in this build.'
+            : 'A readiness client for this provider is implemented in this build (endpoint, authentication, model).',
         }
       : {
           check: 'IMPLEMENTATION',
@@ -112,85 +170,103 @@ export const validateProvider = (input: ValidateProviderInput): ValidateProvider
         },
   );
 
-  // ------------------------------------------------------------- credential
-  steps.push(credentialStep(assessment.providerId, settings, input.credentialResolves));
-
-  // -------------------------------------------------------------- live call
-  //
-  // Never attempted, and the detail says why rather than leaving a reader to
-  // conclude the test was inconclusive by accident.
+  // ---------------------------------------------------------- configuration
+  const missing = missingSettings(settings);
   steps.push(
-    assessment.providerId === DETERMINISTIC
+    missing.length === 0
       ? {
-          check: 'LIVE_CALL',
+          check: 'CONFIGURATION',
           result: 'PASSED',
-          detail:
-            'The deterministic generator runs in this process. Nothing is called over a network, so there is nothing left to verify.',
+          detail: `Base URL, model and credential reference are recorded${settings?.enabled === true ? '' : '; the provider is not enabled'}.`,
+          facts: {
+            settingsFingerprint: settingsFingerprint(settings),
+            enabled: settings?.enabled === true,
+          },
         }
       : {
-          check: 'LIVE_CALL',
+          check: 'CONFIGURATION',
+          result: 'FAILED',
+          detail: `Not recorded: ${missing.join(', ')}. Set them in this provider’s settings.`,
+          facts: { settingsFingerprint: settingsFingerprint(settings) },
+        },
+  );
+
+  // ------------------------------------------------------- secret resolution
+  const blocker = !assessment.groundingSafe
+    ? 'the provider cannot ground a question'
+    : !assessment.registered
+      ? 'no client exists in this build'
+      : missing.length > 0
+        ? 'the configuration is incomplete'
+        : null;
+
+  if (input.secret === null) {
+    steps.push({
+      check: 'SECRET_RESOLUTION',
+      result: 'NOT_ATTEMPTED',
+      detail: `Not attempted: ${blocker ?? 'no resolution was run'}.`,
+    });
+  } else {
+    steps.push(
+      input.secret.status === 'RESOLVED'
+        ? {
+            check: 'SECRET_RESOLUTION',
+            result: 'PASSED',
+            detail: `The reference resolved from ${input.secret.source ?? 'its source'}. The value was not recorded or displayed.`,
+            facts: { source: input.secret.source ?? 'UNKNOWN' },
+          }
+        : {
+            check: 'SECRET_RESOLUTION',
+            result: 'FAILED',
+            detail:
+              input.secret.detail ?? `The reference did not resolve (${input.secret.status}).`,
+            facts: { status: input.secret.status, source: input.secret.source ?? 'UNKNOWN' },
+          },
+    );
+  }
+
+  // ------------------------------------------------------------ live checks
+  if (input.live === null) {
+    const why =
+      blocker ??
+      (input.secret !== null && input.secret.status !== 'RESOLVED'
+        ? 'the secret did not resolve, so there was no key to send'
+        : 'the probe was not run');
+    for (const check of ['ENDPOINT', 'AUTHENTICATION', 'MODEL'] as const) {
+      steps.push({ check, result: 'NOT_ATTEMPTED', detail: `Not attempted: ${why}. UNVERIFIED.` });
+    }
+  } else {
+    steps.push(input.live.endpoint, input.live.authentication, input.live.model);
+  }
+
+  // ------------------------------------------------------------- generation
+  steps.push(
+    input.capabilities.supportsGeneration
+      ? {
+          check: 'GENERATION',
           result: 'NOT_ATTEMPTED',
           detail:
-            'No request was sent. This build implements no client for this provider, so authentication, endpoint reachability and model availability are UNVERIFIED — this result does not claim them.',
+            'A test connection never generates a question: it would spend tokens to prove what the checks above establish.',
+        }
+      : {
+          check: 'GENERATION',
+          result: 'NOT_ATTEMPTED',
+          detail:
+            'Generating questions with this provider is not implemented in this build. Readiness ends here.',
         },
   );
 
   return { outcome: outcomeOf(steps), steps };
 };
 
-const credentialStep = (
-  providerId: string,
-  settings: ProviderSettings | undefined,
-  resolves: boolean | null,
-): ProviderValidationStep => {
-  if (providerId === DETERMINISTIC) {
-    return {
-      check: 'CREDENTIAL',
-      result: 'PASSED',
-      detail: 'The deterministic generator needs no credential.',
-    };
-  }
-  if (settings?.apiKeyRef === undefined) {
-    return {
-      check: 'CREDENTIAL',
-      result: 'FAILED',
-      detail:
-        'No credential reference is recorded. Record a keyvault://{vault}/secrets/{name} reference — never the key itself.',
-    };
-  }
-  if (resolves === true) {
-    return {
-      check: 'CREDENTIAL',
-      result: 'PASSED',
-      detail:
-        'The recorded reference resolves in this environment. Whether the secret behind it is valid is not established here.',
-    };
-  }
-  if (resolves === false) {
-    return {
-      check: 'CREDENTIAL',
-      result: 'FAILED',
-      detail:
-        'A reference is recorded but does not resolve in this environment. Check that the secret exists in the named vault and that this deployable can read it.',
-    };
-  }
-  return {
-    check: 'CREDENTIAL',
-    result: 'NOT_ATTEMPTED',
-    detail:
-      'A reference is recorded. This build has no secret resolver, so whether it resolves cannot be checked here.',
-  };
-};
-
 /**
- * One outcome from five results.
+ * One outcome from the results.
  *
- * Any FAILED makes the whole thing FAILED -- the chain is conjunctive, and a
- * provider that fails one check cannot be used. Otherwise INCOMPLETE if
- * anything was not attempted, and only PASSED when every check actually ran
- * and passed. There is no outcome meaning "probably fine".
+ * Any FAILED makes the whole thing FAILED -- the chain is conjunctive. Otherwise
+ * INCOMPLETE if anything was not attempted, and only PASSED when every check
+ * ran and passed. There is no outcome meaning "probably fine".
  */
-const outcomeOf = (steps: readonly ProviderValidationStep[]): ProviderValidationOutcome => {
+export const outcomeOf = (steps: readonly ProviderValidationStep[]): ProviderValidationOutcome => {
   if (steps.some((step) => step.result === 'FAILED')) return 'FAILED';
   if (steps.some((step) => step.result === 'NOT_ATTEMPTED')) return 'INCOMPLETE';
   return 'PASSED';
