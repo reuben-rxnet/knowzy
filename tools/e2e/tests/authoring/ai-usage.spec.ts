@@ -71,7 +71,12 @@ test.describe('governance: AI usage and budgets', () => {
     expect(copilot?.state).toBe('BLOCKED_BY_CAPABILITY');
     await expect(page.getByText('MICROSOFT_COPILOT')).toBeVisible();
     await expect(page.getByText('BLOCKED_BY_CAPABILITY').first()).toBeVisible();
-    await expect(page.getByText('performs its own retrieval', { exact: false })).toBeVisible();
+    // `.first()`: since P-5 the row states it twice -- as the generation
+    // gate's reason and as the readiness reason -- which is the same fact
+    // from the two derivations, not a duplicate to remove.
+    await expect(
+      page.getByText('performs its own retrieval', { exact: false }).first(),
+    ).toBeVisible();
 
     // And the provider nobody has approved says so in those words, rather than
     // as a generic "unavailable".

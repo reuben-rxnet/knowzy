@@ -6,10 +6,14 @@
 //   1. IT LISTS THE PROVIDERS IT WILL NOT USE, each with the registry's own
 //      reason. A table showing only the deterministic generator would suggest
 //      the others do not exist rather than that they are not built yet.
-//   2. IT CLAIMS NO CONNECTION. "Validate" records what the configuration
-//      chain establishes and marks the live call NOT_ATTEMPTED, because no
-//      client for an external provider exists in this build. A green tick here
-//      would be read as "authentication succeeded" during an incident.
+//   2. IT CLAIMS NOTHING IT DID NOT OBSERVE. Since P-5, Test connection
+//      resolves the secret and, for OpenAI, makes live metadata calls -- but
+//      only when the configuration is complete. With none recorded, as here,
+//      every live step reads NOT_ATTEMPTED with UNVERIFIED, and GENERATION is
+//      NOT_ATTEMPTED because this build cannot generate with OpenAI at all.
+//      (The live path itself is exercised against a fake OpenAI in
+//      apps/api/test/provider-readiness.test.ts; a browser test cannot reach
+//      one from inside the API container.)
 //   3. A CREDENTIAL NEVER APPEARS. The field for one is write-only and the
 //      page says CONFIGURED or NOT CONFIGURED — the response is checked for
 //      the reference itself, not just the screen.
@@ -64,7 +68,7 @@ test.describe('administration: AI providers', () => {
     await expect(page.getByText(/performs its own retrieval/i).first()).toBeVisible();
   });
 
-  test('a validation records the chain and does NOT claim a live call', async ({
+  test('Test connection records the real chain, and claims no live result it did not get', async ({
     page,
     request,
   }) => {
@@ -74,14 +78,15 @@ test.describe('administration: AI providers', () => {
     await page
       .getByRole('row', { name: /OPENAI/ })
       .first()
-      .getByRole('button', { name: /^validate$/i })
+      .getByRole('button', { name: /^test connection$/i })
       .click();
     await expect(page.getByText(/recorded\. the result is in the row/i)).toBeVisible({
       timeout: 30_000,
     });
 
-    // The recorded row, read back from the API: the LIVE_CALL step is
-    // NOT_ATTEMPTED and says the claim it is refusing to make.
+    // The recorded row, read back from the API. No configuration is recorded
+    // for OpenAI in the shipped state, so CONFIGURATION fails and nothing live
+    // is attempted -- and each live step says the claim it is not making.
     const after = await api<{
       providers: readonly {
         providerId: string;
@@ -92,12 +97,59 @@ test.describe('administration: AI providers', () => {
       }[];
     }>(request, '/api/v1/authoring/administration/providers');
     const openai = after.providers.find((row) => row.providerId === 'OPENAI');
-    const live = openai?.lastValidation?.steps.find((step) => step.check === 'LIVE_CALL');
-    expect(live?.result).toBe('NOT_ATTEMPTED');
-    expect(live?.detail).toMatch(/UNVERIFIED/);
+    const step = (check: string) => openai?.lastValidation?.steps.find((s) => s.check === check);
+    expect(step('CONFIGURATION')?.result).toBe('FAILED');
+    for (const check of ['ENDPOINT', 'AUTHENTICATION', 'MODEL']) {
+      expect(step(check)?.result, check).toBe('NOT_ATTEMPTED');
+      expect(step(check)?.detail, check).toMatch(/UNVERIFIED/);
+    }
+    expect(step('GENERATION')?.result).toBe('NOT_ATTEMPTED');
     // Never PASSED while a check was skipped. There is no outcome meaning
     // "probably fine".
     expect(openai?.lastValidation?.outcome).not.toBe('PASSED');
+  });
+
+  test('readiness is shown beside the generation gate, with the declared capabilities', async ({
+    page,
+    request,
+  }) => {
+    const admin = await api<{
+      providers: readonly {
+        providerId: string;
+        readiness: { state: string };
+        capabilities: Record<string, boolean>;
+      }[];
+    }>(request, '/api/v1/authoring/administration/providers');
+    const openai = admin.providers.find((row) => row.providerId === 'OPENAI');
+    // Nothing configured in the shipped state: the ladder's first rung.
+    expect(openai?.readiness.state).toBe('BLOCKED_BY_CONFIGURATION');
+    expect(openai?.capabilities['supportsGeneration']).toBe(false);
+
+    await actAs(page, IDENTITY.administrator);
+    await page.goto(PAGE);
+    const row = page.getByRole('row', { name: /^\s*OPENAI/ }).first();
+    await expect(row.locator('[data-readiness="BLOCKED_BY_CONFIGURATION"]')).toBeVisible();
+    await expect(row.getByText('Generation: no')).toBeVisible();
+    await expect(row.getByText('Retrieval-free: yes')).toBeVisible();
+
+    // The same ladder on AI Usage & Budgets, derived the same way.
+    await page.goto(`${AUTHORING}/governance/ai-usage`);
+    await expect(
+      page
+        .getByRole('row', { name: /OPENAI/ })
+        .first()
+        .locator('[data-readiness="BLOCKED_BY_CONFIGURATION"]'),
+    ).toBeVisible();
+  });
+
+  test('the secret sources are reported, with no name and no value', async ({ page }) => {
+    await actAs(page, IDENTITY.administrator);
+    await page.goto(PAGE);
+    await expect(page.getByRole('heading', { name: 'Secret sources' })).toBeVisible();
+    await expect(page.getByRole('row', { name: /LOCAL_SECURE_STORE/ })).toBeVisible();
+    await expect(page.getByRole('row', { name: /AZURE_KEY_VAULT/ })).toBeVisible();
+    await expect(page.getByText(/no Key Vault client exists in this build/i).first()).toBeVisible();
+    await expect(page.getByText(/npm run secrets -- set/)).toBeVisible();
   });
 
   test('a pasted key is REFUSED, and a reference is never shown back', async ({

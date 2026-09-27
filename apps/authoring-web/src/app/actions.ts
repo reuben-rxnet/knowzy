@@ -567,9 +567,10 @@ export const setTopicActiveAction = async (
  * "off". The API refuses an empty string for a url or a model anyway; sending
  * one would turn a blank box into a validation error the person did not cause.
  *
- * `apiKeyRef` is a keyvault:// REFERENCE. The server validates it as one, so a
- * key pasted into that box is refused rather than stored. This action never
- * echoes it back, and no read model returns it.
+ * `apiKeyRef` is a REFERENCE -- localstore:// or keyvault://. The server
+ * validates it as one, so a key pasted into that box is refused rather than
+ * stored. An EMPTY box keeps the recorded reference (P-5); removing it is the
+ * separate `removeApiKeyRef` checkbox, sent beside the settings.
  */
 export const setProviderSettingsAction = async (
   _previous: ActionState | null,
@@ -598,6 +599,7 @@ export const setProviderSettingsAction = async (
     ...text('apiKeyRef'),
     ...numeric('temperature'),
     ...numeric('maxOutputTokens'),
+    ...(formData.get('removeApiKeyRef') === null ? {} : { removeApiKeyRef: true }),
   };
 
   const result = await api<unknown>(
@@ -655,11 +657,11 @@ export const setActiveProviderAction = async (
 /**
  * Records a readiness validation.
  *
- * It does NOT call the provider: no client for any external provider exists in
- * this build. The response is the configuration chain with each check marked
- * PASSED, FAILED or NOT_ATTEMPTED, and the screen shows it verbatim rather
- * than reducing it to a tick -- a green tick here would be read as
- * "authentication succeeded", which nothing has established.
+ * Test connection. Since P-5 and OPENAI-CODEX-00 it resolves the secret and,
+ * for OpenAI, makes two metadata requests; the response is the chain with
+ * each check PASSED, FAILED or NOT_ATTEMPTED and what it observed, plus the
+ * readiness it produced. It never carries a key: the API builds it from
+ * steps that hold none and refuses to send one that does.
  */
 export const validateProviderAction = async (
   _previous: ActionState | null,
@@ -671,6 +673,7 @@ export const validateProviderAction = async (
     { method: 'POST' },
   );
   revalidatePath('/administration/providers');
+  revalidatePath('/governance/ai-usage');
   return result.ok ? { ok: true, data: result.data } : failed(result.problem);
 };
 

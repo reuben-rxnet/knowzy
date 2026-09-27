@@ -4,7 +4,7 @@
 (provider-based generation and question import), taxonomy administration, the SharePoint Sync
 Manager, the AI Generation Control Layer, AI provider administration and Phase 10 R1 and R2
 reporting, including PILOT-T1, PILOT-T2, UI-M3, SYNC-M1..M4, AI-CONTROL-M1, AI-PROVIDER-M1,
-PHASE10-R1 and PHASE10-R2
+PHASE10-R1, PHASE10-R2, P-5 (secret resolution) and OPENAI-CODEX-00 (provider readiness)
 **Last updated:** 2026-09-27
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -596,6 +596,10 @@ its state and **the reason beside it**:
 A provider that has never run shows **Not reported yet** for its version, because there is no
 version to claim.
 
+Under each state is the provider's **Readiness** — configured, secret resolved, authenticated, and
+so on — exactly as Administration → AI Providers shows it (§4.3f), from the same last Test
+connection.
+
 **Usage timeline.** Generation grouped by day, week or month — requests, questions, tokens and cost.
 
 **Generation history.** The most recent jobs with the person, the provider, the mode, the tokens, the
@@ -718,7 +722,27 @@ people:
 
 The checks run in that order, **most permanent first**, so the reason you read is the one you can
 least easily change. It would be a waste of a week to be sent to get Copilot approved for something
-it can never do.
+it can never do. That list is the **Generation gate** on each row: whether a job would run.
+
+**Readiness sits above it**, and answers a different question: how far along the path you are. It
+comes from the settings and the last **Test connection**, and drops back to `CONFIGURED` whenever
+you change the base URL, model or reference:
+
+| Readiness | What you have proved | Next step |
+| --- | --- | --- |
+| `BLOCKED_BY_CONFIGURATION` | Base URL, model or reference missing; or the secret did not resolve; or the host is not allowed | Fix what the reason names |
+| `CONFIGURED` | Settings are complete; not tested since | **Test connection** |
+| `RESOLVED` | The secret was read; the provider did not accept it | Check the key in the store |
+| `AUTHENTICATED` | The provider accepted the key; the model is not available to it | Check the model name |
+| `BLOCKED_BY_APPROVAL` | Endpoint, key and model all verified | The data-processing approval (T-29) |
+| `UNAVAILABLE` | Cannot ground, no client, unreachable — or everything verified, but this build cannot generate with it | A release |
+| `AVAILABLE` | Everything, and it can generate | — |
+
+**OpenAI (Codex) is the first provider with a real client — for readiness only.** Test connection
+can prove its endpoint, key and model. It **cannot generate questions** in this build: the row
+reads *Generation: no*, and even with an approval and enabled it stays `UNAVAILABLE` for generation
+and **Make active** stays refused. Each row also lists what the provider **declares**: generation,
+cost reporting, token reporting, streaming and retrieval-free, each yes or no.
 
 **Four things you can do per provider:**
 
@@ -729,22 +753,52 @@ it can never do.
 - **Record approval** — a separate dialog, on purpose, and it **requires a reference** to where the
   approval is held: a document id, a ticket, a signed decision. A credential is not authorization,
   and an approval nobody can trace is not one. Withdrawing needs no reference.
-- **Set limits** — the per-provider token ceilings, concurrency and retry cap.
-- **Validate** — see below.
+- **Set limits** — the per-provider token ceilings (per job, daily, weekly, monthly), concurrency
+  and retry cap (maximum attempts).
+- **Test connection** — see below.
 
-**About the credential field.** You type a **reference**, never a key:
-`keyvault://{vault}/secrets/{name}`. Anything that looks like a key is refused before it is stored.
-The box is write-only — an existing reference is never shown back, never returned by any read, and
-never written into an audit row. The row tells you only whether one is recorded.
+**About the credential field.** You type a **reference**, never a key: `localstore://{name}` for the
+local secure store, or `keyvault://{vault}/secrets/{name}` for Azure Key Vault. Anything that looks
+like a key is refused before it is stored. The row now **shows the reference** and its source — a
+reference names a secret and is not one — but the box stays empty when you reopen the dialog:
+**leave it empty to keep the recorded reference**, or tick **Remove the recorded reference**. The key
+itself never appears on any screen, in any response, or in any log or audit row.
 
-**Validate does not call the provider, and says so.** It reports five checks — capability, approval,
-implementation, credential, live call — each PASSED, FAILED or NOT ATTEMPTED, with a sentence each.
-For every external provider the live call reads **NOT ATTEMPTED**, because this build implements no
-client for one, and the detail says that authentication, endpoint reachability and model
-availability are therefore **unverified**. The overall result is `INCOMPLETE` rather than `PASSED`.
+**Putting a key in the local secure store.** There is deliberately no way to type a key into the
+browser. On the machine running the stack:
 
-That is deliberate and it is the most important thing on the screen: a green "Model reachable" from
-a configuration read would be the sentence somebody quotes during an incident.
+```
+npm run secrets -- init
+npm run secrets -- set openai-api-key      # paste the key at the hidden prompt
+```
+
+then record `localstore://openai-api-key` in the provider's settings. `npm run secrets -- list` shows
+names only; `status` says whether the store is readable. The store lives in `.secrets/` at the
+repository root, which is never committed and never copied into an image. It works in the local
+environment only — a deployed environment reads Key Vault, which this build cannot read yet.
+
+**Test connection makes real calls now, and reports only what it saw.** Nine checks, each PASSED,
+FAILED or NOT ATTEMPTED, with a sentence and, for the live ones, what was observed (HTTP status,
+time taken):
+
+1. **Capability**, **Approval**, **Implementation**, **Configuration** — as the gate above.
+2. **Secret resolution** — reads the reference from its store. The value is used and discarded.
+3. **Endpoint**, **Authentication**, **Model** — for OpenAI, two requests: list the models, then
+   look up the configured one. They carry the key and the model name, nothing else. They run even
+   without an approval, because they process no data; generating is what the approval governs.
+4. **Generation** — always NOT ATTEMPTED. A test never generates, and OpenAI cannot in this build.
+
+Two safeguards you may meet: the key is sent **only** to an allowed host (for OpenAI,
+`api.openai.com`; other hosts are added by the deployment, not on this screen) and only over
+https. A base URL pointing anywhere else fails **Endpoint** with *"The key was not sent."*
+
+The overall result is `FAILED` while no approval is recorded and at best `INCOMPLETE` after it —
+never `PASSED` for an external provider, because Generation was not attempted. After a run, the
+button reports the new readiness and any rate limits the provider reported.
+
+**Secret sources**, at the bottom of the page, shows each place secrets can come from — the local
+secure store and Azure Key Vault — whether it is permitted here, configured and reachable, and how
+many secrets it holds. Never their names, never their values.
 
 **Make active** switches the provider generation uses. It is refused for any provider that is not
 `AVAILABLE` — generation would be refused for every job, so the switch is refused instead.
@@ -1345,7 +1399,9 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | **Trends and deltas** | **Real** (§4.3g). Counts over a period are compared with the period before; figures describing a moment are compared with the daily coverage snapshot. Snapshots began on 2026-09-27 and are never back-filled, so those four comparisons read **Not Yet Available** until a snapshot old enough exists |
 | **The learner performance heatmap** | **Real** (§4.3g), by the department the questions were filed under. With few learners most cells read **Suppressed**, which is correct |
 | **AI provider configuration** | **Real** (§4.3f). A provider's endpoint, model, credential reference, ceilings, enablement and its recorded data-processing approval are all set from **Administration → AI Providers**, with no deployment. What remains a release is *writing a client* for a provider — see the Claude row above |
-| **A connection test against an AI provider** | Not real, and the screen says which parts it did and did not check (§4.3f). No client for an external provider exists in this build, so the live call is reported as NOT ATTEMPTED and authentication, endpoint reachability and model availability are stated as unverified |
+| **A connection test against an AI provider** | **Real for OpenAI** (§4.3f): the secret is resolved and the endpoint, key and model are checked with two metadata requests. Not real for any other external provider, which has no client — its live checks read NOT ATTEMPTED |
+| **Generating questions with OpenAI (Codex)** | Not real. The client proves readiness only; generation stays with the deterministic generator |
+| **Azure Key Vault** | Not real. `keyvault://` references are accepted and reported as unreadable here; the local secure store works in the local environment only |
 | **Badges and certificates** | Not built |
 | **Refreshers** | Not built |
 | **The assessment builder** | One form on the Publish page, not the specified builder |
@@ -1383,6 +1439,7 @@ the log below.
 | 2026-09-22 | Taxonomy administration | **Domains and topics can now be created and edited** (§4.3b, **Administration → Knowledge Domains**), which is the first Administration screen with a backend behind it. Before this the platform held one seeded domain and one seeded topic and offered no way to add a second, so an imported VisionStar question bank was filed under Support Operations. A domain code is editable only while nothing references the domain and then shows as **Permanent** with the counts that locked it; a topic belongs to exactly one domain and is unique within it; nothing can be deleted, only deactivated. **Import now files each question where the FILE says it belongs** (§4.3a) and refuses a file naming taxonomy that does not exist, rather than creating it — a spreadsheet typo must never mint a permanent domain code |
 | 2026-09-26 | PHASE10-R1 | **Reporting exists** (§4.3g, **Reports**), which makes `Reports` the last dead entry in the navigation to become a link. Five reports over records the platform already held — the question pipeline, generation yield, assessment performance, how the bank is filed on all four axes, and source coverage — on six read models in their own database schema. Every report states **when its data was true** (from the model's own refresh record, never from the clock), **the absolute dates** a relative window resolved to, and **one written formula per metric**. The assessment report **withholds any row covering fewer than five learners**, including the second row needed so the first cannot be derived by subtraction, and **a total that lost rows to suppression reads "Withheld" rather than 0** — a zero there would have said "nobody has taken it". Export produces a CSV with a header block stating scope, as-of, threshold and withheld count, with formula-injection defused, and is audited; a snapshot stores the same header block under a label, and is **not** a published report. Two absences are stated rather than filled: **no "vs previous period" anywhere**, because no history of those figures is stored and two of them could never have one, and **no learner heatmap**, because its read models do not exist, a learner has no department, and most of its cells would be withheld |
 | 2026-09-27 | PHASE10-R2 | **The Reports dashboard is visual** (§4.3g): eight headline figures, a generated-vs-published trend line, a status donut, a department × job role column chart, the **learner performance heatmap**, recent activity from the audit trail, knowledge source health and an AI usage summary. **Two decisions made this possible.** Department and job role are the reporting hierarchy, so the heatmap groups by the department the *questions* were filed under and says so; and coverage history is now recorded — **one coverage snapshot per day**, append-only, never back-filled — so every headline figure carries a real comparison or reads **Not Yet Available**. The heatmap withholds any cell under five learners and any cell derivable from its row or column. The feed names nobody and groups completions. Every panel opens as a full report with its own CSV export and snapshot, and an export now records the period it covered. The two absences R1 stated — no comparisons and no heatmap — are promoted out of §10 |
+| 2026-09-27 | P-5 / OPENAI-CODEX-00 | **Test connection is real for OpenAI** (§4.3f): the credential reference is resolved from the new **local secure store** and the endpoint, key and model are verified with two metadata requests, each result showing what it observed. Rows now show a **Readiness** ladder beside the **Generation gate**, the five **declared capabilities**, and the credential **reference** (never the key). A **Secret sources** panel reports each source's health. Keys enter the store only through `npm run secrets`. Re-saving a provider without re-typing the reference now keeps it; removing it is a checkbox. The button is renamed **Test connection**. AI Usage & Budgets (§4.3c) shows the same readiness. OpenAI still cannot generate |
 | 2026-09-26 | AI-PROVIDER-M1 | **A provider can now be configured through the product** (§4.3f, **Administration → AI Providers**), which is what makes the day a credential arrives a configuration change rather than a release. Every declared provider is listed — including the five that cannot be used — each with the reason and who can clear it, in order of permanence: capability, approval, implementation, credential. **Recording a data-processing approval is its own act and requires a reference** to where the approval is held, because a credential is not authorization and a checkbox beside "Enabled" would be one nobody stopped at. A credential is typed as a `keyvault://` **reference**, never a key: anything key-shaped is refused before storage, the field is write-only, and no read, screen or audit row ever returns it. **Validate** reports five checks with a sentence each and marks the live call **NOT ATTEMPTED** — because nothing in this build can make one, and a green tick here would be read as "authentication successful". A provider that is not AVAILABLE cannot be made active. Also on §4.3c: **Estimated cost** and **Daily budget** joined the KPIs, the provider table gained a **Questions** column, a **Concurrent generation** card shows jobs running against the cap and states that there is no queue, and a **usage heatmap** shades tokens by day, week or month with five labelled bands and an empty square for a period with no activity |
 | 2026-09-26 | Filing | **The question review page has a seventh tab, Filing** (§4.5), showing all four axes a question is filed under and letting **department and role be corrected** while the question is still with its author. Domain and topic are shown read-only with the reason: the domain code is inside the published identifier, and the topic is what the preflight authorized. After submission the whole filing is read-only, because a question is approved as filed. A change creates a new version and an audit entry carrying the previous and new value, and touches no text, so nothing is re-verified. Also fixed: the header badge printed the word "undefined" twice for a question with no filing, and now reads **"No department or role assigned"** — an absent value and a null value render identically |
 | 2026-09-26 | Identity switcher | **Identity switching moved into the header** (§3), on every page of both portals, from the card it used to occupy at the bottom of each home page. A refusal happens where you are, and switching identity is the usual fix, so it should not require navigating away and back |

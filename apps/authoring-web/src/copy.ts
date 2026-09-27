@@ -72,6 +72,7 @@ export const copy = {
   'ai.modeUser': 'User',
   'ai.registered': 'Registered',
   'ai.state': 'State',
+  'ai.readiness': 'Readiness',
   'ai.generations': 'Generations',
   'ai.tokens': 'Tokens',
   'ai.cost': 'Estimated cost',
@@ -890,13 +891,13 @@ export const copy = {
   'prov.kpiAvailableCaption': 'Capable, approved, built and configured',
   'prov.kpiCredentialled': 'Credential references recorded',
   'prov.kpiCredentialledCaption':
-    'A reference is recorded; the secret behind it is never read here',
+    'A reference is recorded. The secret behind it is read only by Test connection, and never shown',
   'prov.defaultsNote':
     'Platform defaults, in force wherever a provider sets no override: {perJob} tokens per job, {daily} per day, {concurrency} concurrent jobs, {attempts} attempts per call.',
 
   'prov.tableHeading': 'Declared providers',
   'prov.tableIntro':
-    'Unusable providers are listed rather than hidden: the state and its reason are what say whether the next step is a legal approval, a release, or a vault entry. Checks run in order of permanence — capability, approval, implementation, credential.',
+    'Unusable providers are listed rather than hidden: the state and its reason are what say whether the next step is a legal approval, a release, or a vault entry. Readiness is how far a provider has got — configured, secret resolved, authenticated — and the generation gate is whether a job would run. Checks run in order of permanence.',
   'prov.colProvider': 'Provider',
   'prov.colState': 'State',
   'prov.colMode': 'Execution mode',
@@ -942,7 +943,11 @@ export const copy = {
     'Recorded on every question this provider drafts, so a yield comparison can tell two models apart.',
   'prov.apiKeyRef': 'Credential reference',
   'prov.apiKeyRefHint':
-    'A keyvault://{vault}/secrets/{name} REFERENCE, never the key. A pasted key is refused. The box is write-only: an existing reference is never shown back.',
+    'A REFERENCE, never the key: localstore://{name} for the local secure store, or keyvault://{vault}/secrets/{name}. A pasted key is refused. Leave the box empty to keep the recorded reference.',
+  'prov.refCurrent': 'Recorded: {reference}',
+  'prov.removeRef': 'Remove the recorded reference',
+  'prov.removeRefHint':
+    'The provider keeps its other settings. An enabled provider cannot lose its reference; disable it first.',
   'prov.temperature': 'Temperature',
   'prov.maxOutputTokens': 'Maximum output tokens',
   'prov.save': 'Save provider',
@@ -970,19 +975,43 @@ export const copy = {
     'Only an AVAILABLE provider can be made active. Generation would be refused for every job, so the switch is refused instead.',
   'prov.activated': 'Active provider changed.',
 
-  'prov.validate': 'Validate',
-  'prov.validating': 'Validating…',
+  'prov.validate': 'Test connection',
+  'prov.validating': 'Testing…',
   'prov.validationRecorded': 'Recorded. The result is in the row.',
+  'prov.readinessAfter': 'Readiness now: {state}. {reason}',
+  'prov.limitsReported':
+    'Rate limits the provider reported: {requests} requests and {tokens} tokens per minute.',
+  'prov.limitsNotReported': 'The provider reported no rate limits on these requests.',
 
-  'prov.secretsHeading': 'How credentials are handled',
+  'prov.readinessLabel': 'Readiness',
+  'prov.gateLabel': 'Generation gate',
+  'prov.capabilitiesLabel': 'Declares',
+  'prov.capGeneration': 'Generation',
+  'prov.capCost': 'Cost reporting',
+  'prov.capTokens': 'Token reporting',
+  'prov.capStreaming': 'Streaming',
+  'prov.capRetrievalFree': 'Retrieval-free',
+  'prov.capYes': 'yes',
+  'prov.capNo': 'no',
+  'prov.factsLabel': 'Observed',
+
+  'prov.secretsHeading': 'Secret sources',
   'prov.secretsBody':
-    'The platform stores a REFERENCE to a secret, never a secret. That is why the field asks for a vault path and refuses anything that looks like a key.',
+    'The platform stores a REFERENCE to a secret, never a secret. Test connection resolves the reference, uses the key for two metadata requests, and discards it. The value never appears in a log, an audit row, a response or this page.',
   'prov.secretsRefShape':
-    'The shape is keyvault://{vault}/secrets/{name} — the same convention every other credential in this platform uses.',
+    'Two forms: localstore://{name} for the local secure store (local environment only), and keyvault://{vault}/secrets/{name} for Azure Key Vault.',
   'prov.secretsNeverShown':
-    'A recorded reference is never returned by any read, shown in any screen, or written into an audit row. Every surface reports only whether one exists.',
-  'prov.secretsNoResolver':
-    'This build has no secret resolver, so whether a reference RESOLVES cannot be checked here — a validation reports that honestly rather than reporting a pass.',
+    'References are shown, because they name a secret and are not one. Audit and change rows carry only a fingerprint of the reference.',
+  'prov.secretsHowTo':
+    'To store a key locally, run npm run secrets -- set {name} on the machine running the stack and paste the key at the hidden prompt; then record localstore://{name} here. There is deliberately no way to type a key into this screen.',
+  'prov.colSource': 'Source',
+  'prov.colConfigured': 'Configured',
+  'prov.colReachable': 'Reachable',
+  'prov.colSecrets': 'Secrets held',
+  'prov.colPermitted': 'Permitted here',
+  'prov.colDetail': 'Detail',
+  'prov.yes': 'Yes',
+  'prov.no': 'No',
 
   // -------------------------------------- Reports (Phase 10 R1, 2026-09-26)
   'nav.reports': 'Reports',

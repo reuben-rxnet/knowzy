@@ -139,6 +139,13 @@ interface AiUsage {
   };
   readonly activeProvider: string;
   readonly providers: readonly ProviderState[];
+  /**
+   * The readiness ladder (P-5 / OPENAI-CODEX-00), derived by the API with the
+   * same function AI Providers uses, from the same latest validation.
+   */
+  readonly readiness?: Readonly<
+    Record<string, { readonly state: string; readonly reason: string }>
+  >;
   readonly providerUsage: readonly ProviderUsage[];
   readonly budgets: readonly BudgetWindowStatus[];
   readonly concurrency: {
@@ -470,7 +477,27 @@ export default async function AiUsagePage({
                     <Td>{modes(provider.supportedExecutionModes)}</Td>
                     <Td>{provider.registered ? t('ai.yes') : t('ai.no')}</Td>
                     <Td>
-                      <Badge tone={STATE_TONE[provider.state] ?? 'neutral'}>{provider.state}</Badge>
+                      <span className="flex flex-col gap-1">
+                        <Badge tone={STATE_TONE[provider.state] ?? 'neutral'}>
+                          {provider.state}
+                        </Badge>
+                        {data.readiness?.[provider.providerId] === undefined ? null : (
+                          <span
+                            className="flex flex-col gap-0.5"
+                            data-readiness={data.readiness[provider.providerId]?.state}
+                          >
+                            <span className="text-2xs font-semibold text-ink-subtle">
+                              {t('ai.readiness')}
+                            </span>
+                            <Badge tone="neutral" withIcon={false}>
+                              {data.readiness[provider.providerId]?.state}
+                            </Badge>
+                            <span className="max-w-48 text-2xs text-ink-muted">
+                              {data.readiness[provider.providerId]?.reason}
+                            </span>
+                          </span>
+                        )}
+                      </span>
                     </Td>
                     <Td align="end">
                       {usageRow === undefined ? '—' : number(usageRow.generations)}

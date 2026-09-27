@@ -49,6 +49,8 @@ export interface ProviderFormValues {
   readonly temperature: number | null;
   readonly maxOutputTokens: number | null;
   readonly credentialConfigured: boolean;
+  /** The reference, shown: it names a secret and is not one. */
+  readonly credentialReference: string | null;
   readonly approved: boolean;
   readonly state: string;
 }
@@ -118,25 +120,36 @@ export const ProviderSettingsButton = ({
             <TextInput id={`modelId-${id}`} name="modelId" defaultValue={provider.modelId ?? ''} />
           </Field>
 
-          {/* The credential box is EMPTY even when one is recorded, and says so.
-              A masked value pre-filled in a text input is a value the browser
-              can be asked to autofill and a value a submit would echo back;
-              the field is write-only, and the badge beside it carries the only
-              fact a reader needs. */}
+          {/* The credential box is EMPTY even when a reference is recorded, and
+              the recorded one is printed above it instead. Leaving the box
+              empty KEEPS it (P-5); removing it is the checkbox below. A
+              pre-filled box would be echoed back on every save and could be
+              autofilled by the browser. */}
           <Field id={`apiKeyRef-${id}`} label={t('prov.apiKeyRef')} hint={t('prov.apiKeyRefHint')}>
             <span className="mb-2 flex items-center gap-2">
               <KeyRound className="size-4 text-ink-muted" aria-hidden="true" />
               <Badge tone={provider.credentialConfigured ? 'success' : 'neutral'} withIcon={false}>
                 {provider.credentialConfigured ? t('prov.refConfigured') : t('prov.refMissing')}
               </Badge>
+              {provider.credentialReference === null ? null : (
+                <span className="break-all font-mono text-2xs text-ink-muted">
+                  {t('prov.refCurrent', { reference: provider.credentialReference })}
+                </span>
+              )}
             </span>
             <TextInput
               id={`apiKeyRef-${id}`}
               name="apiKeyRef"
-              placeholder="keyvault://my-vault/secrets/OPENAI-API-KEY"
+              placeholder="localstore://openai-api-key"
               autoComplete="off"
             />
           </Field>
+
+          {provider.credentialConfigured ? (
+            <CheckboxRow name="removeApiKeyRef" value="true" description={t('prov.removeRefHint')}>
+              {t('prov.removeRef')}
+            </CheckboxRow>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id={`temperature-${id}`} label={t('prov.temperature')}>
@@ -293,6 +306,30 @@ export const ActivateProviderButton = ({
 
 // ---------------------------------------------------------------- validate
 
+interface ValidationResponse {
+  readonly readiness?: { readonly state: string; readonly reason: string };
+  readonly limits?: {
+    readonly requestsPerMinute: number | null;
+    readonly tokensPerMinute: number | null;
+  } | null;
+}
+
+const readinessOf = (state: { ok: boolean; data?: unknown } | null) =>
+  state?.ok === true ? ((state.data as ValidationResponse | undefined)?.readiness ?? null) : null;
+
+/** The limits line, or null when there is no result yet. */
+const limitsLine = (state: { ok: boolean; data?: unknown } | null): string | null => {
+  if (state?.ok !== true) return null;
+  const limits = (state.data as ValidationResponse | undefined)?.limits ?? null;
+  if (limits === null || (limits.requestsPerMinute === null && limits.tokensPerMinute === null)) {
+    return t('prov.limitsNotReported');
+  }
+  return t('prov.limitsReported', {
+    requests: limits.requestsPerMinute === null ? '?' : String(limits.requestsPerMinute),
+    tokens: limits.tokensPerMinute === null ? '?' : String(limits.tokensPerMinute),
+  });
+};
+
 export const ValidateProviderButton = ({
   provider,
   actingAs,
@@ -317,8 +354,19 @@ export const ValidateProviderButton = ({
           tick here would be read as "authentication succeeded", which nothing
           in this build has verified. */}
       {state?.ok === true ? (
-        <p className="text-sm font-semibold text-ink">{t('prov.validationRecorded')}</p>
+        <p className="max-w-64 text-sm font-semibold text-ink">{t('prov.validationRecorded')}</p>
       ) : null}
+      {readinessOf(state) === null ? null : (
+        <p className="max-w-64 text-2xs text-ink-muted" role="status">
+          {t('prov.readinessAfter', {
+            state: readinessOf(state)?.state ?? '',
+            reason: readinessOf(state)?.reason ?? '',
+          })}
+        </p>
+      )}
+      {limitsLine(state) === null ? null : (
+        <p className="max-w-64 text-2xs text-ink-muted">{limitsLine(state)}</p>
+      )}
     </form>
   );
 };

@@ -12,14 +12,19 @@
 //      and a table listing only the deterministic generator would suggest the
 //      others do not exist rather than that they are not built yet. Each row
 //      carries the registry's own reason.
-//   2. It does not show a credential. The box for one is write-only and the
-//      row says CONFIGURED or NOT CONFIGURED -- the reference names a secret,
-//      and no read model returns it.
-//   3. It does not claim a connection. "Validate" records what the
-//      configuration chain establishes and marks the live call NOT ATTEMPTED,
-//      because no client for any external provider exists in this build. A
-//      green "Model reachable" here would be the one lie that gets quoted back
-//      during an incident.
+//   2. It does not show a SECRET. It shows the REFERENCE (P-5) -- a
+//      reference names a secret and is not one -- and the key behind it never
+//      reaches this page: the credential box is write-only, and Test
+//      connection's response carries what each check observed, never a value.
+//   3. It does not claim more than was observed. Test connection resolves the
+//      secret and, for OpenAI, makes two metadata requests; each step records
+//      its HTTP status and timing. GENERATION stays NOT ATTEMPTED because this
+//      build cannot generate with any external provider, so a green overall
+//      result would be false.
+//
+// Two columns of state, deliberately: READINESS is the ladder an administrator
+// climbs (configured, resolved, authenticated), and the GENERATION GATE is the
+// registry's verdict on whether a job would run.
 //
 // The state column is the registry's, in its own order of permanence:
 // capability, approval, implementation, credential. The reason beneath it is
@@ -60,6 +65,21 @@ interface ValidationStep {
   readonly check: string;
   readonly result: string;
   readonly detail: string;
+  readonly facts?: Readonly<Record<string, string | number | boolean>>;
+}
+
+interface SecretSourceRow {
+  readonly source: string;
+  readonly configured: boolean;
+  readonly reachable: boolean;
+  readonly secretCount: number | null;
+  readonly detail: string;
+}
+
+interface SecretHealth {
+  readonly environment: string;
+  readonly sources: readonly SecretSourceRow[];
+  readonly permitted: readonly { readonly source: string; readonly permitted: boolean }[];
 }
 
 interface ProviderRow {
@@ -74,6 +94,20 @@ interface ProviderRow {
   readonly supportedExecutionModes: readonly string[];
   readonly providerVersion: string | null;
   readonly credentialConfigured: boolean;
+  readonly credentialReference: string | null;
+  readonly credentialSource: string | null;
+  readonly capabilities: {
+    readonly supportsGeneration: boolean;
+    readonly supportsCostReporting: boolean;
+    readonly supportsTokenReporting: boolean;
+    readonly supportsStreaming: boolean;
+    readonly retrievalFree: boolean;
+  };
+  readonly readiness: {
+    readonly state: string;
+    readonly reason: string;
+    readonly validatedAt: string | null;
+  };
   readonly settingsUpdatedAt: string | null;
   readonly baseUrl: string | null;
   readonly modelId: string | null;
@@ -119,6 +153,34 @@ const STATE_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> =
   UNAVAILABLE: 'neutral',
 };
 
+/** The readiness ladder, P-5 / OPENAI-CODEX-00. */
+const READINESS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'info'> = {
+  AVAILABLE: 'success',
+  AUTHENTICATED: 'info',
+  RESOLVED: 'info',
+  CONFIGURED: 'neutral',
+  BLOCKED_BY_APPROVAL: 'warning',
+  BLOCKED_BY_CONFIGURATION: 'warning',
+  UNAVAILABLE: 'neutral',
+};
+
+const CAPABILITY_LABEL = [
+  ['supportsGeneration', 'prov.capGeneration'],
+  ['supportsCostReporting', 'prov.capCost'],
+  ['supportsTokenReporting', 'prov.capTokens'],
+  ['supportsStreaming', 'prov.capStreaming'],
+  ['retrievalFree', 'prov.capRetrievalFree'],
+] as const;
+
+/** An observed fact, printed as the check recorded it. */
+const factText = (facts: ValidationStep['facts']): string | null =>
+  facts === undefined || Object.keys(facts).length === 0
+    ? null
+    : Object.entries(facts)
+        .filter(([name]) => name !== 'settingsFingerprint')
+        .map(([name, value]) => `${name}=${String(value)}`)
+        .join(' · ') || null;
+
 const HEALTH_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
   HEALTHY: 'success',
   DEGRADED: 'warning',
@@ -140,8 +202,9 @@ const when = (iso: string | null): string =>
 export const dynamic = 'force-dynamic';
 
 export default async function AiProvidersPage() {
-  const [result, subject] = await Promise.all([
+  const [result, secrets, subject] = await Promise.all([
     api<Administration>('/api/v1/authoring/administration/providers'),
+    api<SecretHealth>('/api/v1/authoring/administration/secrets'),
     currentSubject(),
   ]);
 
@@ -174,6 +237,7 @@ export default async function AiProvidersPage() {
     temperature: row.temperature,
     maxOutputTokens: row.maxOutputTokens,
     credentialConfigured: row.credentialConfigured,
+    credentialReference: row.credentialReference,
     approved: row.approved,
     state: row.state,
   });
@@ -266,10 +330,45 @@ export default async function AiProvidersPage() {
                           {t('prov.isActive')}
                         </Badge>
                       ) : null}
+                      {/* The five declared capabilities, each stated -- none
+                          inferred from another, and a "no" is as visible as a
+                          "yes". */}
+                      <span className="text-2xs font-semibold text-ink-subtle">
+                        {t('prov.capabilitiesLabel')}
+                      </span>
+                      <span className="flex max-w-56 flex-wrap gap-1">
+                        {CAPABILITY_LABEL.map(([field, label]) => (
+                          <Badge
+                            key={field}
+                            tone={row.capabilities[field] ? 'success' : 'neutral'}
+                            withIcon={false}
+                          >
+                            {t(label)}:{' '}
+                            {row.capabilities[field] ? t('prov.capYes') : t('prov.capNo')}
+                          </Badge>
+                        ))}
+                      </span>
                     </span>
                   </Th>
                   <Td>
                     <span className="flex flex-col gap-1">
+                      <span className="text-2xs font-semibold text-ink-subtle">
+                        {t('prov.readinessLabel')}
+                      </span>
+                      <span data-readiness={row.readiness.state}>
+                        <Badge
+                          tone={READINESS_TONE[row.readiness.state] ?? 'neutral'}
+                          withIcon={false}
+                        >
+                          {row.readiness.state}
+                        </Badge>
+                      </span>
+                      <span className="max-w-56 text-2xs text-ink-muted">
+                        {row.readiness.reason}
+                      </span>
+                      <span className="mt-1 text-2xs font-semibold text-ink-subtle">
+                        {t('prov.gateLabel')}
+                      </span>
                       <Badge tone={STATE_TONE[row.state] ?? 'neutral'} withIcon={false}>
                         {row.state}
                       </Badge>
@@ -308,6 +407,16 @@ export default async function AiProvidersPage() {
                       >
                         {row.credentialConfigured ? t('prov.refConfigured') : t('prov.refMissing')}
                       </Badge>
+                      {/* The REFERENCE, which names a secret and is not one.
+                          The value itself never reaches this page. */}
+                      {row.credentialReference === null ? null : (
+                        <span className="flex flex-col gap-0.5">
+                          <span className="break-all font-mono text-2xs">
+                            {row.credentialReference}
+                          </span>
+                          <span className="text-2xs text-ink-muted">{row.credentialSource}</span>
+                        </span>
+                      )}
                       {/* Labelled as the SETTINGS row's timestamp, not the
                           credential's. Nothing records when one reference
                           changed, and a rotation date inferred from a shared
@@ -380,6 +489,11 @@ export default async function AiProvidersPage() {
                                   {step.check} — {step.result}
                                 </Badge>
                                 <span className="text-ink-muted">{step.detail}</span>
+                                {factText(step.facts) === null ? null : (
+                                  <span className="font-mono text-ink-subtle">
+                                    {t('prov.factsLabel')}: {factText(step.facts)}
+                                  </span>
+                                )}
                               </li>
                             ))}
                           </ul>
@@ -410,13 +524,57 @@ export default async function AiProvidersPage() {
       </Card>
 
       <Card>
-        <CardHeader title={t('prov.secretsHeading')} />
+        <CardHeader title={t('prov.secretsHeading')} description={t('prov.secretsBody')} />
         <CardBody>
-          <p className="max-w-prose text-base text-ink-muted">{t('prov.secretsBody')}</p>
+          {secrets.ok ? (
+            <DataTable caption={t('prov.secretsHeading')} captionHidden>
+              <THead>
+                <Tr>
+                  <Th scope="col">{t('prov.colSource')}</Th>
+                  <Th scope="col">{t('prov.colPermitted')}</Th>
+                  <Th scope="col">{t('prov.colConfigured')}</Th>
+                  <Th scope="col">{t('prov.colReachable')}</Th>
+                  <Th scope="col" align="end">
+                    {t('prov.colSecrets')}
+                  </Th>
+                  <Th scope="col">{t('prov.colDetail')}</Th>
+                </Tr>
+              </THead>
+              <TBody>
+                {secrets.data.sources.map((source) => {
+                  const permitted =
+                    secrets.data.permitted.find((entry) => entry.source === source.source)
+                      ?.permitted ?? false;
+                  return (
+                    <Tr key={source.source}>
+                      <Th scope="row">
+                        <span className="font-mono text-2xs">{source.source}</span>
+                      </Th>
+                      <Td>{permitted ? t('prov.yes') : t('prov.no')}</Td>
+                      <Td>{source.configured ? t('prov.yes') : t('prov.no')}</Td>
+                      <Td>
+                        <Badge tone={source.reachable ? 'success' : 'neutral'} withIcon={false}>
+                          {source.reachable ? t('prov.yes') : t('prov.no')}
+                        </Badge>
+                      </Td>
+                      <Td numeric>
+                        {source.secretCount === null ? DASH : String(source.secretCount)}
+                      </Td>
+                      <Td>
+                        <span className="text-2xs text-ink-muted">{source.detail}</span>
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </TBody>
+            </DataTable>
+          ) : (
+            <Problem problem={secrets.problem} actingAs={subject.label} />
+          )}
           <ul className="mt-3 flex list-disc flex-col gap-1 pl-5 text-sm text-ink-muted">
             <li>{t('prov.secretsRefShape')}</li>
             <li>{t('prov.secretsNeverShown')}</li>
-            <li>{t('prov.secretsNoResolver')}</li>
+            <li>{t('prov.secretsHowTo', { name: 'openai-api-key' })}</li>
           </ul>
         </CardBody>
       </Card>
