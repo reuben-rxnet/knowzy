@@ -157,6 +157,14 @@ export {
   type TrendPoint,
   ActivityHeatmap,
   type HeatCell,
+  // Phase 10 R2
+  LineChart,
+  MatrixHeatmap,
+  StackedColumnChart,
+  type ColumnStack,
+  type LinePoint,
+  type LineSeries,
+  type MatrixCell,
 } from './components/Charts.js';
 
 export { FilterBar, type FilterDefinition } from './components/FilterBar.js';

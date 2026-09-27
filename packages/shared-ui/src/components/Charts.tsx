@@ -703,3 +703,500 @@ export const InsightList = ({
     )}
   </section>
 );
+
+// ---------------------------------------------------------------------------
+// Multi-series line — "Question Generation Trend"
+// ---------------------------------------------------------------------------
+
+export interface LineSeries {
+  readonly key: string;
+  readonly label: string;
+  readonly tone: SeriesTone;
+}
+
+export interface LinePoint {
+  readonly label: string;
+  /** Values by series key. A missing key is drawn as absent, never as zero. */
+  readonly values: Readonly<Record<string, number>>;
+  /** The period is still running. Drawn hollow, and named in the legend. */
+  readonly partial?: boolean;
+}
+
+/** A round axis ceiling, so gridlines carry numbers a reader would write. */
+const niceCeiling = (value: number): number => {
+  if (value <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const step = [1, 2, 2.5, 5, 10].find((m) => m * magnitude >= value) ?? 10;
+  return step * magnitude;
+};
+
+/**
+ * Two or more series over the same periods.
+ *
+ * The LAST point of each series is labelled with its value, as the approved
+ * design does, and a PARTIAL period — the current month, still running — is
+ * drawn hollow at the end of a dashed segment and named in the legend. A
+ * partial month drawn level with complete ones reads as a decline; this is
+ * the one place the chart itself has to say so.
+ */
+export const LineChart = ({
+  title,
+  description,
+  series,
+  points,
+  partialLabel = 'Period still in progress',
+  height = 240,
+}: {
+  readonly title: string;
+  readonly description?: ReactNode;
+  readonly series: readonly LineSeries[];
+  readonly points: readonly LinePoint[];
+  readonly partialLabel?: string;
+  readonly height?: number;
+}) => {
+  if (points.length < 2 || series.length === 0) return null;
+
+  const PAD_LEFT = 48;
+  const PAD_RIGHT = 56;
+  const PAD_BOTTOM = 30;
+  const PAD_TOP = 18;
+  const width = Math.max(520, points.length * 60);
+  const plotHeight = height - PAD_BOTTOM - PAD_TOP;
+  const peak = niceCeiling(
+    Math.max(...points.flatMap((point) => series.map((entry) => point.values[entry.key] ?? 0))),
+  );
+  const step = (width - PAD_LEFT - PAD_RIGHT) / (points.length - 1);
+  const xOf = (index: number) => PAD_LEFT + index * step;
+  const yOf = (value: number) => PAD_TOP + plotHeight - (value / peak) * plotHeight;
+  const ticks = [...new Set([0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(peak * f * 100) / 100))];
+  // Thin the x labels on a long daily series so they do not overprint.
+  const labelEvery = Math.max(1, Math.ceil(points.length / 12));
+  const hasPartial = points.some((point) => point.partial === true);
+
+  return (
+    <figure className="flex flex-col gap-2">
+      <figcaption className="flex flex-col gap-0.5">
+        <span className="text-md font-semibold text-brand-navy-text">{title}</span>
+        {description === undefined ? null : (
+          <span className="text-sm text-ink-muted">{description}</span>
+        )}
+      </figcaption>
+
+      <ul className="flex flex-wrap gap-x-4 gap-y-1">
+        {series.map((entry) => (
+          <li key={entry.key} className="flex items-center gap-1.5 text-2xs text-ink-muted">
+            <span aria-hidden="true" className={`size-2.5 rounded-full ${SWATCH[entry.tone]}`} />
+            {entry.label}
+          </li>
+        ))}
+        {hasPartial ? (
+          <li className="flex items-center gap-1.5 text-2xs text-ink-muted">
+            <span
+              aria-hidden="true"
+              className="size-2.5 rounded-full border-2 border-ink-muted bg-brand-surface"
+            />
+            {partialLabel}
+          </li>
+        ) : null}
+      </ul>
+
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-auto w-full"
+        role="presentation"
+        aria-hidden="true"
+      >
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line
+              x1={PAD_LEFT}
+              x2={width - PAD_RIGHT}
+              y1={yOf(tick)}
+              y2={yOf(tick)}
+              className="stroke-line"
+            />
+            <text
+              x={PAD_LEFT - 8}
+              y={yOf(tick) + 4}
+              textAnchor="end"
+              className="fill-ink-muted text-2xs"
+            >
+              {tick.toLocaleString('en-GB')}
+            </text>
+          </g>
+        ))}
+
+        {series.map((entry) => {
+          const coords = points
+            .map((point, index) => ({ index, value: point.values[entry.key], point }))
+            .filter(
+              (c): c is { index: number; value: number; point: LinePoint } =>
+                typeof c.value === 'number',
+            );
+          const complete = coords.filter((c) => c.point.partial !== true);
+          const solid = complete
+            .map(
+              (c, i) =>
+                `${i === 0 ? 'M' : 'L'} ${xOf(c.index).toFixed(1)} ${yOf(c.value).toFixed(1)}`,
+            )
+            .join(' ');
+          const last = coords.at(-1);
+          const lastComplete = complete.at(-1);
+          return (
+            <g key={entry.key}>
+              <path d={solid} fill="none" strokeWidth={2.5} className={STROKE[entry.tone]} />
+              {last !== undefined && last.point.partial === true && lastComplete !== undefined ? (
+                <path
+                  d={`M ${xOf(lastComplete.index)} ${yOf(lastComplete.value)} L ${xOf(last.index)} ${yOf(last.value)}`}
+                  fill="none"
+                  strokeWidth={2}
+                  strokeDasharray="5 4"
+                  className={STROKE[entry.tone]}
+                />
+              ) : null}
+              {coords.map((c) =>
+                c.point.partial === true ? (
+                  <circle
+                    key={c.index}
+                    cx={xOf(c.index)}
+                    cy={yOf(c.value)}
+                    r={4}
+                    strokeWidth={2}
+                    className={`fill-brand-surface ${STROKE[entry.tone]}`}
+                  />
+                ) : (
+                  <circle
+                    key={c.index}
+                    cx={xOf(c.index)}
+                    cy={yOf(c.value)}
+                    r={3.5}
+                    className={FILL[entry.tone]}
+                  />
+                ),
+              )}
+              {last === undefined ? null : (
+                <text
+                  x={xOf(last.index) + 8}
+                  y={yOf(last.value) + 4}
+                  className={`${FILL[entry.tone]} text-xs font-semibold`}
+                >
+                  {last.value.toLocaleString('en-GB')}
+                </text>
+              )}
+            </g>
+          );
+        })}
+
+        {points.map((point, index) =>
+          index % labelEvery === 0 || index === points.length - 1 ? (
+            <text
+              key={point.label}
+              x={xOf(index)}
+              y={height - 8}
+              textAnchor="middle"
+              className="fill-ink-muted text-2xs"
+            >
+              {point.label}
+            </text>
+          ) : null,
+        )}
+      </svg>
+
+      <DataAlternative
+        caption={title}
+        head={['Period', ...series.map((entry) => entry.label), 'Partial']}
+        rows={points.map((point) => [
+          point.label,
+          ...series.map((entry) => point.values[entry.key] ?? '—'),
+          point.partial === true ? 'yes' : 'no',
+        ])}
+      />
+    </figure>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Vertical stacked columns, absolute — "Questions by Department & Job Role"
+// ---------------------------------------------------------------------------
+
+export interface ColumnStack {
+  readonly label: string;
+  /** Counts by series key. The caller's numbers, drawn as given. */
+  readonly parts: Readonly<Record<string, number>>;
+}
+
+export const StackedColumnChart = ({
+  title,
+  description,
+  series,
+  columns,
+  height = 260,
+}: {
+  readonly title: string;
+  readonly description?: ReactNode;
+  readonly series: readonly StackSeries[];
+  readonly columns: readonly ColumnStack[];
+  readonly height?: number;
+}) => {
+  if (columns.length === 0 || series.length === 0) return null;
+
+  const PAD_LEFT = 44;
+  const PAD_BOTTOM = 36;
+  const PAD_TOP = 20;
+  const width = Math.max(420, columns.length * 96);
+  const plotHeight = height - PAD_BOTTOM - PAD_TOP;
+  // The stack heights are sums of the parts the caller gave. That is drawing,
+  // not aggregation: the column total printed on top is the sum of what is
+  // drawn beneath it, and the hidden table carries both.
+  const totals = columns.map((column) =>
+    series.reduce((sum, entry) => sum + (column.parts[entry.key] ?? 0), 0),
+  );
+  const peak = niceCeiling(Math.max(...totals, 1));
+  const band = (width - PAD_LEFT) / columns.length;
+  const barWidth = Math.min(56, band * 0.56);
+  const yOf = (value: number) => PAD_TOP + plotHeight - (value / peak) * plotHeight;
+  const ticks = [...new Set([0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(peak * f)))];
+
+  return (
+    <figure className="flex flex-col gap-2">
+      <figcaption className="flex flex-col gap-0.5">
+        <span className="text-md font-semibold text-brand-navy-text">{title}</span>
+        {description === undefined ? null : (
+          <span className="text-sm text-ink-muted">{description}</span>
+        )}
+      </figcaption>
+
+      <ul className="flex flex-wrap gap-x-4 gap-y-1">
+        {series.map((entry) => (
+          <li key={entry.key} className="flex items-center gap-1.5 text-2xs text-ink-muted">
+            <span aria-hidden="true" className={`size-2.5 rounded-full ${SWATCH[entry.tone]}`} />
+            {entry.label}
+          </li>
+        ))}
+      </ul>
+
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-auto w-full"
+        role="presentation"
+        aria-hidden="true"
+      >
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line x1={PAD_LEFT} x2={width} y1={yOf(tick)} y2={yOf(tick)} className="stroke-line" />
+            <text
+              x={PAD_LEFT - 8}
+              y={yOf(tick) + 4}
+              textAnchor="end"
+              className="fill-ink-muted text-2xs"
+            >
+              {tick.toLocaleString('en-GB')}
+            </text>
+          </g>
+        ))}
+
+        {columns.map((column, index) => {
+          const x = PAD_LEFT + index * band + (band - barWidth) / 2;
+          let base = 0;
+          return (
+            <g key={column.label}>
+              {series.map((entry) => {
+                const value = column.parts[entry.key] ?? 0;
+                if (value <= 0) return null;
+                const y = yOf(base + value);
+                const h = yOf(base) - y;
+                base += value;
+                return (
+                  <rect
+                    key={entry.key}
+                    x={x}
+                    y={y}
+                    width={barWidth}
+                    height={Math.max(1, h)}
+                    className={FILL[entry.tone]}
+                  >
+                    <title>{`${column.label} · ${entry.label}: ${value}`}</title>
+                  </rect>
+                );
+              })}
+              {/* The column's total on top: rule 1, no hidden denominator. */}
+              <text
+                x={x + barWidth / 2}
+                y={yOf(totals[index] ?? 0) - 6}
+                textAnchor="middle"
+                className="fill-brand-navy-text text-xs font-semibold"
+              >
+                {(totals[index] ?? 0).toLocaleString('en-GB')}
+              </text>
+              <text
+                x={x + barWidth / 2}
+                y={height - 12}
+                textAnchor="middle"
+                className="fill-ink-muted text-2xs"
+              >
+                {column.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+
+      <DataAlternative
+        caption={title}
+        head={['Column', ...series.map((entry) => entry.label), 'Total']}
+        rows={columns.map((column, index) => [
+          column.label,
+          ...series.map((entry) => column.parts[entry.key] ?? 0),
+          totals[index] ?? 0,
+        ])}
+      />
+    </figure>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Matrix heatmap — "Learner Performance", rows × columns of percentages
+// ---------------------------------------------------------------------------
+
+export interface MatrixCell {
+  readonly row: string;
+  readonly column: string;
+  /**
+   * A percentage, `null` for "no attempts", or `'SUPPRESSED'`. Three different
+   * facts, drawn three different ways: a number, a dash, and the word.
+   */
+  readonly value: number | null | 'SUPPRESSED';
+  /** Extra facts for the pointer tooltip. */
+  readonly detail?: readonly (readonly [string, string | number])[];
+}
+
+/** The approved design's five bands, with their boundaries printed in the legend. */
+const MATRIX_BANDS: readonly {
+  readonly below: number;
+  readonly label: string;
+  readonly cls: string;
+}[] = [
+  { below: 60, label: '< 60%', cls: 'bg-danger text-white' },
+  { below: 70, label: '60–70%', cls: 'bg-danger-soft text-danger' },
+  { below: 80, label: '70–80%', cls: 'bg-warning-soft text-warning' },
+  { below: 90, label: '80–90%', cls: 'bg-success-soft text-success' },
+  { below: Infinity, label: '≥ 90%', cls: 'bg-success text-white' },
+];
+
+const HATCH =
+  'bg-[repeating-linear-gradient(135deg,var(--color-surface-sunken)_0_6px,var(--color-line)_6px_8px)]';
+
+/**
+ * A rows × columns grid of percentages, as a real table.
+ *
+ * EVERY CELL PRINTS ITS NUMBER (rule 2): the band colour is a reading aid, not
+ * the carrier. A SUPPRESSED cell is hatched and says "Suppressed" — never
+ * blank, never zero, never only a colour (S2) — and a cell with no attempts
+ * shows a dash and says so to a screen reader. The grid computes nothing: it
+ * draws the values given. Because it IS a table, it needs no separate data
+ * alternative.
+ */
+export const MatrixHeatmap = ({
+  caption,
+  rows,
+  columns,
+  cells,
+  suppressedLabel = 'Suppressed',
+  emptyLabel = 'No attempts',
+  unit = '%',
+}: {
+  readonly caption: string;
+  readonly rows: readonly string[];
+  readonly columns: readonly string[];
+  readonly cells: readonly MatrixCell[];
+  readonly suppressedLabel?: string;
+  readonly emptyLabel?: string;
+  readonly unit?: string;
+}) => {
+  if (rows.length === 0 || columns.length === 0) return null;
+  const at = new Map(cells.map((cell) => [`${cell.row}\u0000${cell.column}`, cell]));
+  const bandOf = (value: number) => MATRIX_BANDS.find((band) => value < band.below);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="overflow-x-auto">
+        <table className="w-full border-separate border-spacing-1 text-xs">
+          <caption className="knowzy-sr-only">{caption}</caption>
+          <thead>
+            <tr>
+              <td />
+              {columns.map((column) => (
+                <th key={column} scope="col" className="px-1 text-center font-semibold text-ink">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row}>
+                <th scope="row" className="whitespace-nowrap pr-2 text-left font-medium text-ink">
+                  {row}
+                </th>
+                {columns.map((column) => {
+                  const cell = at.get(`${row}\u0000${column}`);
+                  if (cell === undefined || cell.value === null) {
+                    return (
+                      <td
+                        key={column}
+                        className="h-9 rounded-sm bg-surface-sunken text-center text-ink-subtle"
+                        title={`${row} · ${column}: ${emptyLabel}`}
+                      >
+                        <span aria-hidden="true">—</span>
+                        <span className="knowzy-sr-only">{emptyLabel}</span>
+                      </td>
+                    );
+                  }
+                  if (cell.value === 'SUPPRESSED') {
+                    return (
+                      <td
+                        key={column}
+                        className={`h-9 rounded-sm ${HATCH} text-center text-2xs font-semibold text-ink-muted`}
+                        title={`${row} · ${column}: ${suppressedLabel}`}
+                        data-suppressed="true"
+                      >
+                        {suppressedLabel}
+                      </td>
+                    );
+                  }
+                  const detail = (cell.detail ?? []).map(([k, v]) => `${k}: ${v}`).join(' · ');
+                  return (
+                    <td
+                      key={column}
+                      className={`h-9 rounded-sm text-center font-semibold tabular-nums ${bandOf(cell.value)?.cls ?? ''}`}
+                      title={`${row} · ${column}: ${cell.value}${unit}${detail === '' ? '' : ` · ${detail}`}`}
+                    >
+                      {`${Math.round(cell.value)}${unit}`}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 text-2xs text-ink-muted">
+        {MATRIX_BANDS.map((band) => (
+          <span key={band.label} className="flex items-center gap-1">
+            <span aria-hidden="true" className={`h-3 w-5 rounded-sm ${band.cls}`} />
+            {band.label}
+          </span>
+        ))}
+        <span className="flex items-center gap-1">
+          <span aria-hidden="true" className={`h-3 w-5 rounded-sm ${HATCH}`} />
+          {suppressedLabel}
+        </span>
+        <span className="flex items-center gap-1">
+          <span aria-hidden="true" className="h-3 w-5 rounded-sm bg-surface-sunken" />
+          {emptyLabel}
+        </span>
+      </div>
+    </div>
+  );
+};

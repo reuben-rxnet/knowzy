@@ -98,11 +98,14 @@ export const CardFooter = ({ children }: { readonly children: ReactNode }) => (
 /**
  * A metric card.
  *
- * `value` is a `ReactNode` and there is no `delta` prop by design. Every
- * mockup card shows "+6% vs last month"; the platform stores no KPI history,
- * so a delta cannot be computed from anything (capability matrix §5.1). A
- * component that accepted one would invite fabrication, so this one refuses to
- * have the field. `caption` is where a real, sourced qualifier goes.
+ * `value` is a `ReactNode` and there is still no `delta` NUMBER prop, by
+ * design: a component that accepted a bare number would invite one being made
+ * up. Since decision R-1 (2026-09-27) a comparison CAN be real — coverage
+ * snapshots are recorded daily and flows are counted from dated rows — so the
+ * card has a `comparison` SLOT, which takes a rendered element. The only thing
+ * that renders one is the authoring portal's `KpiComparison`, which is built
+ * from the API's measured comparison object and prints "Not Yet Available"
+ * when there is no base. `caption` is where any other sourced qualifier goes.
  */
 export const KpiCard = ({
   label,
@@ -111,6 +114,7 @@ export const KpiCard = ({
   icon,
   tone = 'info',
   planned = false,
+  comparison,
 }: {
   readonly label: string;
   readonly value: ReactNode;
@@ -119,6 +123,8 @@ export const KpiCard = ({
   readonly tone?: 'info' | 'success' | 'ai' | 'warning' | 'neutral';
   /** True when the metric has no data source yet: renders a Planned state. */
   readonly planned?: boolean;
+  /** A rendered, measured comparison. See the note above: never a bare number. */
+  readonly comparison?: ReactNode;
 }) => {
   const ICON_TONE = {
     info: 'bg-info-soft text-info',
@@ -146,6 +152,7 @@ export const KpiCard = ({
           ) : (
             <p className="mt-1 text-2xl font-bold tracking-tight text-brand-navy-text">{value}</p>
           )}
+          {comparison === undefined ? null : <div className="mt-1">{comparison}</div>}
           {caption === undefined ? null : <p className="mt-1 text-xs text-ink-subtle">{caption}</p>}
         </div>
       </div>
