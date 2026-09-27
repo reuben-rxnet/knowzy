@@ -52,9 +52,10 @@ Implementation Order:
 7. SharePoint read integration NOT STARTED
 8. Question Bank write integration PORT + MOCK DONE; adapter NOT STARTED
 9. Refreshers and recognition NOT STARTED
-10. Reporting and audit surfaces R1 DONE (five reports, six read models,
-    suppression, export, snapshots); the remaining 30 catalogue entries,
-    proficiency and recognition models NOT STARTED
+10. Reporting and audit surfaces R1 + R2 DONE (a visual dashboard to the
+    approved design, twelve catalogue reports, nine read models, a daily
+    append-only coverage snapshot, grid suppression, export, snapshots); the
+    remaining catalogue entries, proficiency and recognition models NOT STARTED
 11. Hardening and release NOT STARTED
 
 Phase 2 is Identity and access, not Knowledge Sources. Sources come in Phase 3
@@ -81,14 +82,15 @@ Current Status:
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
 - npm run verify passes: typecheck 35/35, lint 22/22,
-  tests 939 passing + 12 todo across 47 files, boundaries 0 errors,
-  codegen contract clean, format clean. Re-counted 2026-09-26; see
+  tests 981 passing + 12 todo across 49 files, boundaries 0 errors,
+  codegen contract clean, format clean. Re-counted 2026-09-27; see
   docs/project/STATUS_RECONCILIATION_2026-09-23.md for what was stale.
 - `npm run verify`, `test`, `test:integration` and `db:reset` now WARN FIRST
   with the real row counts, what survives and what has to be redone
   (scripts/destructive-warning.ts). Interactive runs ask; CI prints and
   continues. They wiped a live walkthrough mid-click on 2026-09-26.
-- npm run test:e2e passes: 47 passing + 1 skipped across three projects,
+- npm run test:e2e passes: 44 passing + 1 skipped across three projects
+  (45 listed; re-counted 2026-09-27 -- the earlier "47 + 1" did not reconcile),
   driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
   as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
@@ -97,7 +99,8 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 12 migrations apply from empty; seed is idempotent. 0012 is the reporting
+- 13 migrations apply from empty; seed is idempotent. 0013 is Phase 10 R2:
+  three read models and the append-only daily coverage_snapshot. 0012 is the reporting
   schema: six read models, a refresh ledger, a dataset cache, a snapshot store
   and three triggers on draft_question. 0011 is AI provider
   administration: `generation_provider_validation` (one row per readiness
@@ -111,16 +114,17 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 86 API routes, every one with a declared
+- 19 of 36 MCP tools registered; 88 API routes, every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
   administration 5, the Sync Manager 11 (2 read/aggregate plus 9 source
   administration), AI Usage & Budgets 2 (one read, one write), the four-axis
   filing 1 (PUT a question's filing), AI Providers 5 (one read plus settings,
-  approval, active provider and validate), and Phase 10 R1 reporting 7 (the
+  approval, active provider and validate), Phase 10 R1 reporting 7 (the
   catalogue, a dataset, an export, a snapshot write, a snapshot list, one
-  snapshot, and an on-demand refresh).
+  snapshot, and an on-demand refresh), and R2 2 (coverage history, and an AI
+  usage summary through the governance read).
 
 Environment:
 
@@ -313,6 +317,12 @@ Gotchas learned by execution (each of these cost real time):
   Add a migration without updating all four and every service REFUSES TO START
   with "The database is not at the expected migration version" -- which is the
   control working, and costs ten minutes if you do not know where to look.
+- THE API CONTAINER RUNS A PACKAGE'S `dist`, NOT ITS `src`. `tsx watch` reloads
+  apps/api, but `@knowzy/reporting` (and every other `@knowzy/*`) resolves
+  through its package exports to `dist/index.js`. An edit to a package looked
+  like it did nothing -- a 500 for a column already fixed. Fix: `npx tsc -b
+packages/<name>`, then restart api. The tests do not see this, because
+  vitest aliases `@knowzy/*` to `src`.
 - A SCHEMA CHANGE NEEDS PRISMA GENERATE INSIDE THE CONTAINER VOLUME, not just
   on the host. Symptom: `PrismaClientValidationError: Unknown field X for
 select statement on model Y` from the api while the host typechecks clean.
@@ -808,7 +818,7 @@ would otherwise ship and be believed about:
 - "AI PROVIDER VALIDATED -- CLAUDE CONNECTION VERIFIED" in the activity feed.
   Nothing in this build can verify a connection; a validation marks the live
   call NOT_ATTEMPTED.
-- THE LEARNER PERFORMANCE HEATMAP, 30 cells of learner averages with no
+- THE LEARNER PERFORMANCE HEATMAP (BUILT IN R2, see below), 30 cells of learner averages with no
   suppression anywhere. That is the identifying aggregate reporting.md 7 S1
   governs, so some cells WILL read SUPPRESSED and the design has to accept that
   before it is built. It is also blocked twice more: a learner has no
@@ -822,8 +832,26 @@ duplicated as reporting screens, and the eight sidebar entries should be a tab
 strip under one Reports rail entry, as Governance and Administration already
 are.
 
-Phase 10 R1 delivered sections 3 (partly), 4, 5, 6 and 8. The learner heatmap
-and the activity feed need read models that do not exist.
+Phase 10 R1 delivered sections 3 (partly), 4, 5, 6 and 8. PHASE 10 R2 BUILT
+2026-09-27 (migration 0013) delivers ALL TEN, after two product decisions:
+
+- D-1: DEPARTMENT + JOB ROLE IS THE REPORTING HIERARCHY. Do not build team
+  administration, screens or APIs; Team stays a future extensibility point.
+  The learner heatmap groups by the department the QUESTIONS were filed under
+  (rm_topic_attempt), because a learner has no department.
+- R-1: COVERAGE HISTORY IS PERMANENT. reporting.coverage_snapshot, one row per
+  UTC day, APPEND-ONLY (UPDATE and DELETE are refused by trigger), NEVER
+  BACK-FILLED, captured at 00:05 UTC by the jobs runner. A STATE KPI compares
+  against the snapshot of the period's start day; a FLOW KPI against the
+  previous window of its dated rows. No base reads "Not Yet Available".
+  NEVER PLANT A BACK-DATED SNAPSHOT IN A TEST: it can never be deleted from the
+  shared database.
+- "VS PREVIOUS" COPY IS ALLOWED ONLY UNDER `rep.cmp*`, rendered only by
+  components/KpiComparison.tsx, whose first branch is the non-AVAILABLE
+  wording. no-fabricated-metrics.test.ts enforces all three. Everywhere else
+  the comparison ban stands.
+- Completions are audited as LEARNING.RESULT.SCORED. LEARNING.SESSION.COMPLETED
+  is registered and has never been written.
 
 ## Reporting read models (Phase 10 R1)
 

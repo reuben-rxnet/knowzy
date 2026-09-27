@@ -1,8 +1,8 @@
 # Reporting & Analytics UI Source of Truth
 
 **Approved visual reference:** `design/approved/reporting-and-analytics/KNOWZY-reporting-and-analytics-dashboard.png`
-**Status of this document:** the design contract. **Phase 10 R1 is now built** — see §15 for what
-landed and what did not.
+**Status of this document:** the design contract. **Phase 10 R1 and R2 are built** — §15 records R1,
+§16 records R2 (the visual dashboard, coverage snapshots and the learner heatmap).
 **Created:** 2026-09-26, before Phase 10 implementation, so the design was official before code
 existed. **R1 built the same day**, against this document rather than against the image.
 **Phase:** 10 — Reporting and audit surfaces ([implementation-roadmap.md](../implementation-roadmap.md))
@@ -387,13 +387,15 @@ Carried from the standing rules and from what this screen specifically invites.
 
 ---
 
-## 13. Open decisions for the product owner
+## 13. Decisions for the product owner
 
-Neither is an engineering choice, and both change what gets built.
+**All decided.** D-1 and D-2 were raised here before R1; R-1 was raised by R1 itself. The table
+keeps the options as they were put, and the decision beside each.
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
-| **D-1** | **How are learners grouped for §7?** `Team`/`UserTeam` exist with zero rows and no write path. The options are: build team administration, group by the **department** a learner's *assessment* was filed under (indirect and arguably wrong), or ship topic accuracy with **no** person grouping | **Ship without a person grouping in R1**, and treat team administration as its own milestone. A heatmap axis that needs a data model nobody maintains is the row of the report that is always empty |
+| **D-1** | **How are learners grouped for §7?** `Team`/`UserTeam` exist with zero rows and no write path. The options are: build team administration, group by the **department** a learner's *assessment* was filed under (indirect and arguably wrong), or ship topic accuracy with **no** person grouping | **Ship without a person grouping in R1**, and treat team administration as its own milestone. A heatmap axis that needs a data model nobody maintains is the row of the report that is always empty. **Decided 2026-09-27: Department + Job Role is the official reporting hierarchy. No team administration, screens or APIs; Team stays a future extensibility point.** The heatmap groups by the department the questions were filed under (§16.4) |
+| **R-1** | **Can coverage and the source count ever have a "vs previous period" figure?** Nothing stored could produce one | **Decided 2026-09-27: coverage history is a permanent requirement.** A daily coverage snapshot is recorded and is the authoritative base for comparing any point-in-time figure (§16.2) |
 | **D-2** | **One AI Usage screen or two?** The image lists it under Reports; it exists under Governance | **One screen, two entry points.** Two screens reading the same data through different paths will disagree, and the one nobody opens will be the wrong one |
 
 ---
@@ -435,9 +437,156 @@ every surface renders a partial total as **"Withheld"** or `≥ n`.
 
 ---
 
+## 16. What R2 built — the visual dashboard
+
+**Built 2026-09-27.** Migration `0013_reporting_r2_snapshots`, three new read models, a daily
+coverage snapshot, seven new catalogue entries, and `/reports` redrawn to the approved design. It
+follows two product decisions taken the same day, recorded in §13.
+
+### 16.1 Section status after R2
+
+| Section | Status after R2 |
+| --- | --- |
+| 1. Header | `PARTIALLY_IMPLEMENTED`. Export (the headline figures as CSV) and Refresh are in the header. The date range is a **Period** select (30 / 90 / 365 days) plus a **Trend range** select, both query parameters; every panel prints the absolute interval it resolved to. The bell stays `BLOCKED` |
+| 2. Navigation | Unchanged from R1: one rail entry, a tab strip. Every dashboard panel has **Open the report**, a full table of the same dataset with its export and snapshot |
+| 3. KPI cards | **`IMPLEMENTED`**, all eight, each with its formula and a **measured comparison or "Not Yet Available"** (§16.3) |
+| 4. Generation trend | **`IMPLEMENTED`** as a two-series line chart, by day, ISO week or calendar month; the current period is drawn hollow and labelled |
+| 5. Status distribution | **`IMPLEMENTED`** as a donut, the five buckets of §5 **plus "Retired or archived"**, so the legend sums to the centre |
+| 6. Department and role | **`IMPLEMENTED`** as vertical stacked columns: job roles as columns, departments as the stack, **Not filed** neutral |
+| 7. Learner heatmap | **`IMPLEMENTED`**, department × topic, three measures, suppressed on both axes (§16.5). Unblocked by D-1 |
+| 8. Source health | **`IMPLEMENTED`**, read-only, status from the Sync Manager's own derivation |
+| 9. AI usage | **`IMPLEMENTED`** as summary cards and a provider table, **read through `readAiUsage`**, the governance screen's own function (D-2: one read path, two entry points) |
+| 10. Activity feed | **`IMPLEMENTED`** from `audit_event`, actor-less, completions aggregated and suppressed; **View all** opens the Audit Explorer |
+
+### 16.2 The coverage snapshot model (R-1)
+
+`reporting.coverage_snapshot` — **one row per UTC day** of point-in-time platform state.
+
+| Column group | Columns |
+| --- | --- |
+| Identity | `snapshot_date` (primary key), `captured_at`, `capture_trigger` (`SCHEDULE` · `MANUAL` · `MIGRATION`), `correlation_id`, `models_as_of` |
+| Sources and content | `source_count`, `active_source_count`, `document_count`, `section_count`, `assessable_sections`, `covered_sections`, `coverage_percent` |
+| Question lifecycle | `total_questions`, `published_questions`, `approved_questions`, `in_review_questions`, `draft_questions`, `rejected_questions`, `retired_or_archived_questions`, `status_counts` (all ten states, JSON) |
+| Approvals | `approvals_granted`, `approvals_refused` (cumulative) |
+| Assessments | `assessments_total`, `assessments_published`, `assessment_attempts` (cumulative scored) |
+
+Rules, each enforced rather than intended:
+
+1. **Append-only.** Triggers refuse `UPDATE` and `DELETE`. History that can be rewritten is not
+   history.
+2. **The first capture of a day stands.** `capture_coverage_snapshot()` inserts `ON CONFLICT DO
+   NOTHING` and returns whether it wrote; a retry, a restart or a second firing writes nothing.
+3. **One code path.** Only that database function writes a row; the job, the migration and the
+   tests call it.
+4. **It reads the read models**, not the transactional tables — `rm_source_coverage`,
+   `rm_question_pipeline`, `rm_platform_inventory` — so a snapshot and the KPI later compared with it
+   share one definition. `models_as_of` is the oldest refresh of the two materialized inputs; the
+   job refreshes both immediately before capturing.
+5. **Never back-filled.** The first row was captured by the migration on 2026-09-27. A missed day
+   stays missed; a comparison that needed it reads "Not Yet Available". Deriving a missing day from
+   `created_at` arithmetic would be the fabricated history R-1 replaced, and a test suite that
+   planted a back-dated row could never remove it.
+6. **Coverage is `NULL`, never 0,** when nothing is assessable.
+
+Schedule: `reporting-coverage-snapshot`, **00:05 UTC daily** (`5 0 * * *`), plus once at
+job-runner start. Served at `GET /api/v1/authoring/reports/coverage-history`.
+
+### 16.3 Reporting calculations
+
+Every KPI is one row of the `kpis` dataset, with its formula, value status and comparison.
+
+| KPI | Current value | Kind | Compared against |
+| --- | --- | --- | --- |
+| Total questions | `sum(rm_question_pipeline.question_count)` | STATE | snapshot `total_questions` |
+| Published questions | same, `status = PUBLISHED` | STATE | snapshot `published_questions` |
+| Assessments completed | scored results completed in the window (`rm_assessment_attempt`) | FLOW | the previous window |
+| Pass rate | passed ÷ scored × 100 in the window; null with no attempts | FLOW | previous window, **in points** |
+| Knowledge sources | `rm_platform_inventory.source_count` (non-archived) | STATE | snapshot `source_count` |
+| Coverage | covered ÷ assessable sections × 100 over active documents; null with no denominator | STATE | snapshot `coverage_percent`, **in points** |
+| AI generations | generation jobs created in the window (`rm_generation_yield`) | FLOW | the previous window |
+| Estimated AI cost | sum of observable cost in the window | FLOW | the previous window |
+
+**The comparison** (`packages/reporting/src/comparison.ts`, tested as a table):
+
+- A STATE is compared with the snapshot whose date is the period's start date, or up to **3 days**
+  earlier (`SNAPSHOT_BASE_TOLERANCE_DAYS`). The date actually used is printed ("vs the 28 Aug 2026
+  snapshot"). No such snapshot → `NOT_YET_AVAILABLE`, with the date one becomes available.
+- A FLOW is compared with `[from − days, from)`, the same length immediately before (D9 half-open).
+- `change = current − previous`. `changePercent = change ÷ previous × 100`, **null for a ratio
+  (points) and for a zero base.** Direction is `UP`/`DOWN`/`FLAT` from the unrounded values.
+- Statuses: `AVAILABLE`, `NOT_YET_AVAILABLE`, `SUPPRESSED` (either window under the learner
+  threshold), `NOT_OBSERVABLE` (a job's cost cannot be observed), `SCOPE_RESTRICTED` (snapshots are
+  platform-wide; a domain- or source-restricted caller gets no snapshot comparison).
+- Cost: no jobs → `NOT_RECORDED`; any job with `cost_observable = false` → `NOT_OBSERVABLE`;
+  otherwise the sum, where the deterministic provider's `0` is a measurement.
+- A KPI's `asOf` is the oldest refresh of the models it reads, **excluding** `coverage_snapshot`:
+  the snapshot is the comparison base, dated in the note, not the source of the current value.
+
+**The only UI that may state a comparison** is `KpiComparison.tsx`. The `rep.cmp*` copy keys are
+allow-listed by `no-fabricated-metrics.test.ts` only on the conditions that no other file
+references them and that the component's first branch returns the non-AVAILABLE wording.
+
+### 16.4 Chart calculations
+
+All charts are SVG in `packages/shared-ui/src/components/Charts.tsx`, draw only what the API
+returned, print their numbers on the marks, and carry a hidden data table.
+
+| Chart | Dataset | Calculation |
+| --- | --- | --- |
+| Generation trend (`LineChart`) | `question-trend` | Buckets from `trendBuckets(to, windowDays)`: ≤ 31 days daily; ≤ 120 days ISO-weekly, Monday start (PostgreSQL `date_trunc('week')`); otherwise calendar months, 12 for a year, ending in the current partial month. Generated = `sum(accepted_question_count)` of jobs created in the bucket; published = publications with `published_at` in the bucket. **Zero-filled**: an empty period is a measured zero. The last bucket is `partial` |
+| Status donut (`DonutChart`) | `question-status` | The six buckets of `STATUS_BUCKETS`; share = bucket ÷ all questions × 100; centre = the dataset total |
+| Department × role (`StackedColumnChart`) | `department-role` | `rm_filing_coverage` grouped by department and role, every lifecycle state. The page pivots rows into columns and sums nothing; the column total printed on top is the sum of the drawn parts |
+| Learner heatmap (`MatrixHeatmap`) | `learner-performance` | Per (department, topic) over scored topic results completed in the window: learners = distinct learners; average score = `avg(topic_accuracy)`; pass rate = topic attempts whose assessment was passed ÷ topic attempts; attempt success = topic attempts not flagged a knowledge gap ÷ topic attempts. Bands: < 60, 60–70, 70–80, 80–90, ≥ 90 |
+| Source coverage bar (`Meter`) | `source-health` | covered ÷ assessable × 100 per source; "No assessable sections" instead of a bar at 0 |
+
+**Department attribution** (decision D-1, `rm_topic_attempt`). A learner has no department. A topic
+result is attributed to a department only when **every question presented in that topic** is filed
+under that one department (joined `quiz_session_question.question_id` → `published_question_reference`).
+Mixed departments → "Filed under several departments"; none → "Not filed". Per-question correctness
+is not stored, so splitting a topic result across departments would mean re-scoring in SQL.
+
+### 16.5 Suppression logic
+
+| Surface | Rule |
+| --- | --- |
+| Learner heatmap | `applyGridSuppression`: S1 on distinct learners (< `minimumGroupSize`, floor 5), then S3 along **rows and columns**, repeated until neither axis has a line with exactly one hidden cell beside a visible one. Every dependent measure of a hidden cell is hidden with it. A hidden cell renders hatched, reading **Suppressed** |
+| KPIs | Assessments completed and pass rate are withheld when the window's distinct learners are 1–4; the comparison is withheld when either window is |
+| Activity | Completions (`LEARNING.RESULT.SCORED`) are aggregated per assessment per day and **dropped** below the threshold; no event carries an actor |
+| Everything else | Counts of questions, documents, sections and providers — not people — are not suppressed |
+
+Every response carries `suppressionCount` and `suppressionReason` (null when nothing was withheld),
+and the dashboard prints both beside the panel. The reason is one sentence produced by
+`suppressionReasonOf`, so screen, CSV and snapshot give the same words.
+
+### 16.6 API
+
+| Route | Policy | Returns |
+| --- | --- | --- |
+| `GET /reports/:dataset` for `kpis`, `question-trend`, `question-status`, `department-role`, `learner-performance`, `source-health`, `activity` | `reporting.dataset.read` | The dataset, through the same `runDataset`, cache, export and snapshot routes as R1 |
+| `GET /reports/coverage-history` | `reporting.dataset.read` | The snapshot rows, newest first |
+| `GET /reports/ai-usage-summary` | `governance.ai.read` | `readAiUsage`'s KPIs, providers, usage and budgets |
+
+**Every** reporting response carries `asOf`, `sourceWindow { from, to, days }` (all null for a
+current-state report) and `suppressionCount`. The dataset cache key now includes a shape version,
+so an R1-shaped cached payload is never served to an R2 request. **Exports** are audited as
+`REPORT.RUN.EXPORTED` with the actor (user), `entityId` (report), `occurred_at` (timestamp) and now
+`windowFrom`/`windowTo`.
+
+### 16.7 What R2 did not build
+
+- The remaining catalogue entries in `reporting.md` §4, including proficiency and recognition.
+- A team model. `Team`/`UserTeam` stay a future extensibility point (D-1); no screen, API or write
+  path was added.
+- The notification bell.
+- Provider figures for any external provider — they read "Not Yet Recorded" until a client exists.
+- A per-panel filter for domain or source; the Period and Trend range selects are global.
+
+---
+
 ## 14. Change log
 
 | Date | Change |
 | --- | --- |
 | 2026-09-26 | Created from the approved reference `KNOWZY-reporting-and-analytics-dashboard.png`, before any Phase 10 implementation. Ten sections documented; four widgets classified `BLOCKED` with the reason and the condition for unblocking; two decisions raised for the product owner. |
 | 2026-09-26 | **Phase 10 R1 built.** §15 added: five reports, six read models, suppression with complementary suppression, `asOf` from a refresh ledger, a dataset cache keyed on the caller's scope, audited CSV export and snapshots, and an on-demand refresh. Decision **D-1** taken as recommended — learner reporting ships with **no person grouping**, so the heatmap stays unbuilt. |
+| 2026-09-27 | **Phase 10 R2 built.** §16 added. Decisions **D-1** (Department + Job Role is the reporting hierarchy; no team model) and **R-1** (coverage history is permanent) recorded in §13. Migration 0013: `rm_platform_inventory`, `rm_assessment_attempt`, `rm_topic_attempt` and the append-only daily `coverage_snapshot`. Seven dashboard datasets; every section of the image implemented, with the H1–H4 constraints kept: comparisons only where measured, provider figures only where recorded, no "verified", and the heatmap suppressed on both axes. |

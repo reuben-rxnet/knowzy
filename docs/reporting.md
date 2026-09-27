@@ -75,6 +75,10 @@ the authoring or quiz path.
 | `rm_recognition` | badge/certificate × domain × window | Materialized view, hourly | 1 h |
 | `rm_reuse_metrics` | domain × window | Materialized view, hourly | 1 h |
 | `rm_governance_activity` | actor × action family × day | Partition-aligned view over `AuditEvent`, 15 min | 15 min |
+| `rm_platform_inventory` *(R2)* | one row | Materialized view, 15 min | 15 min |
+| `rm_assessment_attempt` *(R2)* | scored result | Materialized view, 15 min | 15 min |
+| `rm_topic_attempt` *(R2)* | scored result × topic, attributed to a department | Materialized view, 15 min | 15 min |
+| `coverage_snapshot` *(R2, decision R-1)* | UTC day | Captured once a day at 00:05 UTC; append-only | 1 day |
 
 | # | Rule |
 | --- | --- |
@@ -86,6 +90,7 @@ the authoring or quiz path.
 | D6 | Every read model carries the grain's natural key, so a drill-through from an aggregate to its rows is always possible |
 | D7 | Counters are reconciled nightly against the transactional tables; drift produces a `PlatformConsistencyFinding` and a notification, never a silent correction ([data-model.md §1](data-model.md#1-modelling-principles), M4) |
 | D8 | No read model contains question text, answer keys, explanations, evidence, or learner answer values. Reporting works from identifiers, counts, and scores |
+| D10 | *(R2, decision R-1, 2026-09-27)* **Point-in-time figures have a daily history.** `reporting.coverage_snapshot` holds one row per UTC day — sources, documents, sections, coverage, the question lifecycle, approvals and assessments — captured from the read models, **append-only** (UPDATE and DELETE are refused), **never back-filled**, the first capture of a day standing. It is the authoritative base for comparing any figure with no dated row behind it. A FLOW over a window is compared with the previous window of its own dated rows instead. No base, no comparison: the answer is "Not Yet Available" |
 | D9 | Windows are half-open UTC intervals resolved from the tenant reporting zone at query construction, and the resolved interval is displayed with the report ([data-model.md §9](data-model.md#9-time-and-timezone-rules), T6) |
 
 ### 3.2 Drill-through contract
@@ -159,6 +164,12 @@ Two rules it inherits from elsewhere and one it does not:
 
 All entries are aggregate by default and subject to §7.
 
+> **Decision D-1 (2026-09-27): Department + Job Role is the official reporting hierarchy.** Where an
+> entry below is grained by `team`, read department — and, for learners, the department of the
+> **questions** they were asked, since a learner carries no department. `Team` / `UserTeam` remain a
+> future extensibility point with no administration, screens or APIs. The first entry built on this
+> reading is **Learner performance** in §4.6.
+
 | Report | Grain | Metrics | Permission | Person-level |
 | --- | --- | --- | --- | --- |
 | Domain proficiency | domain × team × window | Band distribution, mean latest score, learners assessed, coverage of the audience | `report.read` | No |
@@ -180,6 +191,25 @@ All entries are aggregate by default and subject to §7.
 | External write log | question × window | Publishes and retirements, reconcilable against the bank's version history | `audit.read` |
 | Security signal summary | signal × window | `PLATFORM.SECURITY.*` counts by type and subject | `audit.read` |
 | Authorization denial summary | policy × window | Denials by policy and subject | `audit.read` |
+
+### 4.6 The dashboard entries (Phase 10 R2)
+
+Added 2026-09-27 so the approved Reporting & Analytics dashboard reads catalogue entries rather than
+private queries. Each is an ordinary entry: it has a report page, a CSV export, snapshots and a cache
+entry through the same `runDataset` (B1). Full calculations:
+[REPORTING_AND_ANALYTICS_UI_SOURCE_OF_TRUTH.md §16](ui/REPORTING_AND_ANALYTICS_UI_SOURCE_OF_TRUTH.md).
+
+| Report | Grain | Metrics | Permission | Suppressed |
+| --- | --- | --- | --- | --- |
+| Headline figures (`kpis`) | headline figure | Current value, previous value, change, change % — each with its basis (snapshot or previous window) and a note | `report.read` | Learner-derived figures, S1 |
+| Question generation trend | day / ISO week / month | Generated (accepted) questions, published questions; zero-filled; last period flagged partial | `report.read` | No |
+| Questions by status | lifecycle bucket | Count and share; Published, Approved, In review, Draft, Rejected, **Retired or archived** | `report.read` | No |
+| Questions by department and job role | department × job role | Questions, published | `report.read` | No |
+| Learner performance | department (of the questions) × topic × window | Learners, topic attempts, average score, pass rate, attempt success | `report.read` | **S1 and S3 on both axes** |
+| Knowledge source health | source | Documents, sections, assessable, coverage %, questions, last sync, the Sync Manager's workflow status | `report.read` | No |
+| Recent activity | audit event, or completions per assessment per day | Event, subject, detail, outcome; actor-less | `report.read` | Completion groups below the threshold are dropped |
+
+Every response carries `asOf`, `sourceWindow` and `suppressionCount` with `suppressionReason`.
 
 ---
 

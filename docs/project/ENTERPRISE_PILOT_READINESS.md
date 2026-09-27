@@ -69,7 +69,7 @@ platform-side logic is complete and tested; only the external adapter is absent.
 | **Question Bank** | Ready behind a mock | `QuestionBankAdapter` port with **required** `ifMatch`, `operationKey` idempotency, and **no delete method** — governance rule G7 enforced by the type system. Mock persists to JSON and is conformance-tested. `PublishedQuestionReference` projection populated | `SharePointQuestionBankAdapter`, field-mapping profile validation, list provisioning, reconciliation. Roadmap Phase 8 |
 | **Question Generation** | Ready behind a mock | The **entire gate chain is model-agnostic and built**: nonce-delimited untrusted framing with a zero tool grant, Zod output schema, evidence verification (STRICT exact / STANDARD ≥0.95 trigram), option integrity, six-component composite confidence, rejection taxonomy, prompt-version records on jobs and questions | A `QuestionGenerator` whose `kind` is `'anthropic'`. The port already declares that variant. No Anthropic SDK is a dependency of any workspace |
 | **Governance** | Production-ready | 13 gates, separation of duties (gate 13), evidence spans with character offsets, duplicate disposition, preflight with six checks and a recorded decision, append-only audit with a declared detail allow-list, idempotent publishing | Nothing for a pilot. Reconciliation drift handling arrives with Phase 8 |
-| **Reporting** | **Not built** | `@knowzy/reporting` is an 18-line placeholder that exports its own `IMPLEMENTED_IN = 'Phase 10'`. `report_definition`/`_run`/`_export`/`_schedule` tables exist and are empty. No aggregate read model exists anywhere | Everything. Roadmap Phase 10. **A pilot that promises reports will not have them** |
+| **Reporting** | **Not built** *(at the date of this assessment — see §12.9: R1 and R2 built a dashboard and twelve reports)* | `@knowzy/reporting` is an 18-line placeholder that exports its own `IMPLEMENTED_IN = 'Phase 10'`. `report_definition`/`_run`/`_export`/`_schedule` tables exist and are empty. No aggregate read model exists anywhere | Everything. Roadmap Phase 10. **A pilot that promises reports will not have them** |
 | **Learner Experience** | Production-ready for assessment | Eligibility snapshots pin the pool at publication; one question at a time with every answer server-persisted; resume from the URL; deterministic scoring; per-topic results and gap states; answer-key protection asserted at runtime | No per-learner **results list** endpoint, so no progress history, proficiency trend or org-level gap view. Badges and certificates are Phase 9 and excluded from this workstream |
 
 ### 1.3 What the pilot can honestly claim today
@@ -604,3 +604,32 @@ exist the honest report is that the reference is recorded and unverified. The al
 "a reference is recorded" as "a credential works", is the failure this whole screen is built to
 avoid.
 
+### 12.9 Reporting R1 and R2 (2026-09-26, 2026-09-27)
+
+§1.2 rated Reporting **Not built** and §2.2 carried it as **G-9**. Both are now out of date.
+
+| | Status |
+| --- | --- |
+| Aggregate read models | **Built.** Nine, in their own `reporting` schema: one maintained on write by a trigger, eight materialized views refreshed every fifteen minutes, each with a refresh ledger that supplies its `asOf` |
+| A reporting surface | **Built.** `/reports`: a visual dashboard drawn to the approved design, and twelve catalogue reports, each with its formulas, export and snapshots |
+| History of point-in-time figures | **Built (R-1).** One append-only coverage snapshot per UTC day, from 2026-09-27. **Not back-filled**, so comparisons of coverage, sources and lifecycle totals read "Not Yet Available" until a snapshot old enough exists |
+| Privacy suppression | **Built.** Minimum group size 5, raisable only; complementary suppression, on both axes for the learner heatmap; withheld totals never shown as 0 |
+| Learner reporting by organisation | **Built, by the department the QUESTIONS were filed under (D-1).** Learners carry no department and there is no team model |
+| Export | **Built.** CSV with a header block and formula-injection guard, audited with user, report, time and the period covered |
+| Proficiency, recognition, reuse and governance-activity reports | **Not built.** Most of `reporting.md` §4's catalogue |
+
+**G-9 is narrowed rather than closed.** A pilot can now be promised a reporting dashboard over its
+own questions, sources, assessments and AI usage. It cannot yet be promised proficiency or
+recognition reports, and anything a pilot sponsor wants to see *trended* must be understood to
+start on the day the snapshots started — the product will say "Not Yet Available" rather than draw a
+line it cannot support.
+
+**Two things for the pilot conversation:**
+
+1. **Most learner cells will read "Suppressed" in a small pilot.** Five distinct learners per
+   department × topic cell is the floor, and complementary suppression removes more. That is the
+   control working. A pilot that wants a populated heatmap needs cohorts of that size, not a lower
+   threshold — and the threshold cannot be lowered.
+2. **"Department" on the learner heatmap is the questions' department.** If the organisation expects
+   learners grouped by their own department, that is a person-to-department mapping the platform
+   does not hold, and it is the team model D-1 deferred.
