@@ -1,6 +1,8 @@
 // Reports — Phase 10 R1.
 //
 //   GET  /authoring/reports                        the catalogue, with freshness
+//   GET  /authoring/reports/coverage-history       the daily coverage snapshots (R-1)
+//   GET  /authoring/reports/ai-usage-summary       AI usage, through the governance read
 //   GET  /authoring/reports/snapshots              captured snapshots
 //   GET  /authoring/reports/snapshots/:snapshotId  one snapshot, with its header block
 //   GET  /authoring/reports/:dataset               one dataset
@@ -41,6 +43,7 @@ import {
   MAX_DATASET_ROWS,
   captureSnapshot,
   isDatasetName,
+  listCoverageSnapshots,
   listSnapshots,
   readAllFreshness,
   readFreshness,
@@ -60,8 +63,10 @@ import {
 import type { ErrorCode } from '@knowzy/shared-types';
 import { systemClock } from '@knowzy/observability';
 import { createAuditWriter } from '@knowzy/database';
+import { readAiUsage } from '@knowzy/domain';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
 import { toProblem } from '../http/problem.js';
+import { loadControlLayer } from '../generation/control-layer.js';
 
 const problemReply = (
   reply: FastifyReply,
@@ -178,7 +183,9 @@ export const reportRoutes = [
             grain: definition.grain,
             windowed: definition.windowed,
             drillThrough: definition.drillThrough,
-            suppressed: definition.suppression !== undefined,
+            // Either the generic engine or the entry's own grid/feed rules.
+            suppressed:
+              definition.suppression !== undefined || definition.suppressesPeople === true,
             models: definition.models,
             dimensions: definition.dimensions,
             metrics: definition.metrics,
@@ -232,6 +239,85 @@ export const reportRoutes = [
       // A partial failure is reported, not thrown: four refreshed models are
       // worth having, and the ledger already carries which one did not.
       return { refreshed, failed, outcomes };
+    },
+  }),
+
+  // Registered BEFORE `/:dataset`, like the two below.
+  defineRoute({
+    method: 'GET',
+    url: '/api/v1/authoring/reports/coverage-history',
+    policy: 'reporting.dataset.read',
+    portal: 'AUTHORING',
+    summary:
+      'The daily coverage snapshots, newest first. Platform-wide, append-only, never back-filled.',
+    handler: async (_ctx, request, _reply, deps) => {
+      const query = z
+        .object({ limit: z.coerce.number().int().min(1).max(2_000).optional() })
+        .safeParse(request.query ?? {});
+      const snapshots = await listCoverageSnapshots(
+        deps.prisma as unknown as ReadOnlyDb,
+        query.success ? (query.data.limit ?? 400) : 400,
+      );
+      const newest = snapshots[0];
+      const oldest = snapshots.at(-1);
+      return {
+        // The newest capture is the moment this history is true up to.
+        asOf: newest?.capturedAt ?? null,
+        sourceWindow: {
+          from: oldest?.snapshotDate ?? null,
+          to: newest?.snapshotDate ?? null,
+          days: snapshots.length,
+        },
+        // Snapshots count things, never people, so nothing is withheld.
+        suppressionCount: 0,
+        suppressionReason: null,
+        snapshots,
+      };
+    },
+  }),
+
+  defineRoute({
+    method: 'GET',
+    url: '/api/v1/authoring/reports/ai-usage-summary',
+    policy: 'governance.ai.read',
+    portal: 'AUTHORING',
+    summary:
+      'AI usage for the Reports dashboard, through the SAME read the governance screen uses.',
+    handler: async (_ctx, request, _reply, deps) => {
+      // ONE READ PATH (§9, decision D-2): this calls `readAiUsage`, the function
+      // behind Governance → AI Usage & Budgets, with the same control layer.
+      // It restates nothing through a second query, so the two screens cannot
+      // disagree; it only adds the envelope every reporting response carries.
+      const query = z
+        .object({ windowDays: z.coerce.number().int().min(1).max(365).optional() })
+        .safeParse(request.query ?? {});
+      const windowDays = query.success ? (query.data.windowDays ?? 30) : 30;
+      const control = await loadControlLayer(deps.prisma);
+      const summary = await readAiUsage({
+        db: deps.prisma,
+        clock: systemClock,
+        registry: control.registry,
+        settings: control.settings,
+        windowDays,
+        historyLimit: 1,
+      });
+      const to = new Date(summary.asOf);
+      return {
+        asOf: summary.asOf,
+        sourceWindow: {
+          from: new Date(to.getTime() - windowDays * 86_400_000).toISOString(),
+          to: summary.asOf,
+          days: windowDays,
+        },
+        // Provider figures are about providers, not people.
+        suppressionCount: 0,
+        suppressionReason: null,
+        kpis: summary.kpis,
+        activeProvider: summary.activeProvider,
+        providers: summary.providers,
+        providerUsage: summary.providerUsage,
+        budgets: summary.budgets,
+      };
     },
   }),
 
@@ -390,6 +476,11 @@ export const reportRoutes = [
           suppressedCellCount: result.suppressedCellCount,
           minimumGroupSize: result.minimumGroupSize,
           asOf: result.asOf,
+          // The resolved interval, so the audit row says WHICH period left the
+          // platform, not only which report. The exporter and the moment are
+          // the row's own actor and occurred_at.
+          windowFrom: result.sourceWindow.from,
+          windowTo: result.sourceWindow.to,
         },
       });
 
@@ -403,6 +494,9 @@ export const reportRoutes = [
         csv,
         rowCount: result.rowCount,
         suppressedCellCount: result.suppressedCellCount,
+        suppressionCount: result.suppressionCount,
+        suppressionReason: result.suppressionReason,
+        sourceWindow: result.sourceWindow,
         asOf: result.asOf,
       };
     },
