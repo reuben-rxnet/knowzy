@@ -57,7 +57,7 @@ const main = async (): Promise<void> => {
   const report = await validateStartup({
     deployable: 'jobs',
     rawEnv,
-    expectedMigrationVersion: '0013_reporting_r2_snapshots',
+    expectedMigrationVersion: '0014_generation_estimates',
     probes: {
       database: () => probeDatabase(prisma),
       mockAdaptersRegistered: () => isLocal,

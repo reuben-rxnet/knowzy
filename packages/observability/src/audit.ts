@@ -272,6 +272,11 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'measuredCost',
     'costObservable',
     'attemptCount',
+    // OPENAI-CODEX-01: a provider that broke ends the job FAILED with the
+    // CLASS of the error (RATE_LIMIT, TIMEOUT, MALFORMED_OUTPUT, ...), never
+    // its message, and the pre-call estimate beside the measurement.
+    'errorClass',
+    'estimatedInputTokens',
   ],
   'AUTHORING.GENERATION.JOB_REFUSED': [
     'refusalReason',
@@ -315,6 +320,11 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'measuredCost',
     'costObservable',
     'attemptCount',
+    // OPENAI-CODEX-01, and in BOTH lists for the reason given above -- the
+    // first edit added these to JOB_COMPLETED only, and the dropped-keys test
+    // caught it on the new failure path.
+    'errorClass',
+    'estimatedInputTokens',
   ],
   // M4 review and approval. Counts, ids, hashes, decisions and field NAMES —
   // never question text, option text, evidence spans, or comment bodies. The

@@ -106,6 +106,8 @@ export interface ControlledCallResult {
   readonly cost: CostAccount;
   readonly attemptCount: number;
   readonly retries: readonly RetryObservation[];
+  /** The pre-call estimate the budgets were checked against (0014). */
+  readonly estimatedInputTokens: number;
 }
 
 export interface InvokeArgs {
@@ -173,6 +175,8 @@ const recordCall = async (args: {
       outcome: args.outcome,
       inputTokens: args.tokens.inputTokens,
       outputTokens: args.tokens.outputTokens,
+      // 0014: the estimate beside the measurement, on every attempt.
+      estimatedInputTokens: estimateInputTokens(args.context.promptCharacterCount),
       tokenUsageReported: args.tokens.reported,
       estimatedCost: args.cost.amount,
       costObservable: args.cost.observable,
@@ -318,6 +322,7 @@ export const invokeWithControls = async (args: InvokeArgs): Promise<ControlledCa
         cost,
         attemptCount: attempt,
         retries,
+        estimatedInputTokens: estimatedTokens,
       };
     } catch (error) {
       const decision = decideRetry(error, attempt, retry, random);

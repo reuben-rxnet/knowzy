@@ -44,7 +44,17 @@ export const classifyError = (error: unknown): CallErrorClass => {
 
   if (status === 429 || code === 'RATE_LIMITED') return 'RATE_LIMIT';
   if (status !== null && status >= 500) return 'SERVER_ERROR';
-  if (code === 'ETIMEDOUT' || code === 'ECONNRESET' || name === 'AbortError') return 'TIMEOUT';
+  // `TimeoutError` is what `AbortSignal.timeout` throws, and it is what a
+  // provider client's request timeout looks like. Until OPENAI-CODEX-01 it fell
+  // through to UNKNOWN and was never retried.
+  if (
+    code === 'ETIMEDOUT' ||
+    code === 'ECONNRESET' ||
+    name === 'AbortError' ||
+    name === 'TimeoutError'
+  ) {
+    return 'TIMEOUT';
+  }
   if (code === 'MALFORMED_OUTPUT' || name === 'ZodError') return 'MALFORMED_OUTPUT';
   if (status !== null && status >= 400) return 'CLIENT_ERROR';
   return 'UNKNOWN';

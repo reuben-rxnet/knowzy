@@ -738,40 +738,40 @@ enum IdempotencyState {
 // ===========================================================================
 
 model User {
-  id                String     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  id                    String     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   /// Entra `oid` claim — the stable join key. Never the UPN, which can change.
-  entraObjectId     String     @unique @map("entra_object_id")
-  userPrincipalName String     @map("user_principal_name")
-  displayName       String     @map("display_name")
-  email             String?
-  jobTitle          String?    @map("job_title")
-  department        String?
+  entraObjectId         String     @unique @map("entra_object_id")
+  userPrincipalName     String     @map("user_principal_name")
+  displayName           String     @map("display_name")
+  email                 String?
+  jobTitle              String?    @map("job_title")
+  department            String?
   /// Participates in source restrictions.
-  businessFunction  String?    @map("business_function")
-  primaryTeamId     String?    @map("primary_team_id") @db.Uuid
-  status            UserStatus @default(ACTIVE)
-  authoringPortalAccess Boolean @default(false) @map("authoring_portal_access")
-  livePortalAccess      Boolean @default(false) @map("live_portal_access")
+  businessFunction      String?    @map("business_function")
+  primaryTeamId         String?    @map("primary_team_id") @db.Uuid
+  status                UserStatus @default(ACTIVE)
+  authoringPortalAccess Boolean    @default(false) @map("authoring_portal_access")
+  livePortalAccess      Boolean    @default(false) @map("live_portal_access")
   /// IANA zone, display only (§9 T4).
-  timeZone          String     @default("UTC") @map("time_zone")
-  lastSignInAt      DateTime?  @map("last_sign_in_at") @db.Timestamptz(6)
-  provisionedAt     DateTime?  @map("provisioned_at") @db.Timestamptz(6)
-  lastReconciledAt  DateTime?  @map("last_reconciled_at") @db.Timestamptz(6)
+  timeZone              String     @default("UTC") @map("time_zone")
+  lastSignInAt          DateTime?  @map("last_sign_in_at") @db.Timestamptz(6)
+  provisionedAt         DateTime?  @map("provisioned_at") @db.Timestamptz(6)
+  lastReconciledAt      DateTime?  @map("last_reconciled_at") @db.Timestamptz(6)
   /// Erasure is pseudonymization, never deletion (§14 rule 3).
-  pseudonymizedAt   DateTime?  @map("pseudonymized_at") @db.Timestamptz(6)
+  pseudonymizedAt       DateTime?  @map("pseudonymized_at") @db.Timestamptz(6)
 
-  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId   String?    @map("created_by_user_id") @db.Uuid
-  modifiedByUserId  String?    @map("modified_by_user_id") @db.Uuid
-  version           Int        @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
-  primaryTeam       Team?             @relation("UserPrimaryTeam", fields: [primaryTeamId], references: [id], onDelete: Restrict)
-  roles             UserRole[]        @relation("UserRoleUser")
-  teams             UserTeam[]        @relation("UserTeamUser")
-  domainScopes      UserDomainScope[] @relation("UserDomainScopeUser")
-  sourceAccess      UserSourceAccess[] @relation("UserSourceAccessUser")
-  managedTeams      Team[]            @relation("TeamManager")
+  primaryTeam  Team?              @relation("UserPrimaryTeam", fields: [primaryTeamId], references: [id], onDelete: Restrict)
+  roles        UserRole[]         @relation("UserRoleUser")
+  teams        UserTeam[]         @relation("UserTeamUser")
+  domainScopes UserDomainScope[]  @relation("UserDomainScopeUser")
+  sourceAccess UserSourceAccess[] @relation("UserSourceAccessUser")
+  managedTeams Team[]             @relation("TeamManager")
 
   @@index([status])
   @@index([userPrincipalName])
@@ -786,9 +786,9 @@ model Role {
   isSystem    Boolean     @default(true) @map("is_system")
   portalScope PortalScope @map("portal_scope")
 
-  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version     Int         @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
   permissions RolePermission[] @relation("RolePermissionRole")
   userRoles   UserRole[]       @relation("UserRoleRole")
@@ -797,15 +797,15 @@ model Role {
 }
 
 model Permission {
-  id          String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  key         String   @unique
+  id          String @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  key         String @unique
   name        String
   family      String
   description String
 
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  roles       RolePermission[] @relation("RolePermissionPermission")
+  roles RolePermission[] @relation("RolePermissionPermission")
 
   @@index([family])
   @@map("permission")
@@ -842,19 +842,19 @@ model UserRole {
 }
 
 model Team {
-  id             String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  name           String
-  parentTeamId   String? @map("parent_team_id") @db.Uuid
-  managerUserId  String? @map("manager_user_id") @db.Uuid
+  id            String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  name          String
+  parentTeamId  String? @map("parent_team_id") @db.Uuid
+  managerUserId String? @map("manager_user_id") @db.Uuid
 
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version        Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
-  parentTeam     Team?  @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: Restrict)
-  childTeams     Team[] @relation("TeamHierarchy")
-  manager        User?  @relation("TeamManager", fields: [managerUserId], references: [id], onDelete: Restrict)
-  primaryMembers User[] @relation("UserPrimaryTeam")
+  parentTeam     Team?      @relation("TeamHierarchy", fields: [parentTeamId], references: [id], onDelete: Restrict)
+  childTeams     Team[]     @relation("TeamHierarchy")
+  manager        User?      @relation("TeamManager", fields: [managerUserId], references: [id], onDelete: Restrict)
+  primaryMembers User[]     @relation("UserPrimaryTeam")
   members        UserTeam[] @relation("UserTeamTeam")
 
   @@unique([name])
@@ -892,14 +892,14 @@ model UserDomainScope {
 
 /// Per-user source override. An explicit DENY always wins (§3.3).
 model UserSourceAccess {
-  id        String               @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  userId    String               @map("user_id") @db.Uuid
-  sourceId  String               @map("source_id") @db.Uuid
-  mode      UserSourceAccessMode
-  reason    String
-  grantedByUserId String         @map("granted_by_user_id") @db.Uuid
-  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  revokedAt DateTime?            @map("revoked_at") @db.Timestamptz(6)
+  id              String               @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  userId          String               @map("user_id") @db.Uuid
+  sourceId        String               @map("source_id") @db.Uuid
+  mode            UserSourceAccessMode
+  reason          String
+  grantedByUserId String               @map("granted_by_user_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt       DateTime?            @map("revoked_at") @db.Timestamptz(6)
 
   user   User            @relation("UserSourceAccessUser", fields: [userId], references: [id], onDelete: Restrict)
   source KnowledgeSource @relation("UserSourceAccessSource", fields: [sourceId], references: [id], onDelete: Restrict)
@@ -910,19 +910,19 @@ model UserSourceAccess {
 }
 
 model Domain {
-  id                String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  id                String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   /// Immutable once a question has published under it; appears in every QuestionID.
-  code              String   @unique
+  code              String  @unique
   name              String
   description       String?
-  isActive          Boolean  @default(true) @map("is_active")
-  requireSmeSignoff Boolean  @default(false) @map("require_sme_signoff")
+  isActive          Boolean @default(true) @map("is_active")
+  requireSmeSignoff Boolean @default(false) @map("require_sme_signoff")
 
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId   String?  @map("created_by_user_id") @db.Uuid
-  modifiedByUserId  String?  @map("modified_by_user_id") @db.Uuid
-  version           Int      @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
   topics       Topic[]             @relation("TopicDomain")
   objectives   LearningObjective[] @relation("LearningObjectiveDomain")
@@ -946,13 +946,13 @@ model Domain {
 /// NOT a security boundary. Authorization is roles and DataScope; a department
 /// is a label for filing and reporting, and nothing here grants access.
 model Department {
-  id               String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  id          String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   /// Stable, upper-case, and written into the published record. Editable only
   /// while nothing references it.
-  code             String   @unique
-  name             String
-  description      String?
-  isActive         Boolean  @default(true) @map("is_active")
+  code        String  @unique
+  name        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
 
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -975,11 +975,11 @@ model Department {
 /// sharing one name in one schema is how a permission check ends up reading an
 /// org chart. The UI labels it simply "Role", which is what a person calls it.
 model JobRole {
-  id               String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  code             String   @unique
-  name             String
-  description      String?
-  isActive         Boolean  @default(true) @map("is_active")
+  id          String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  code        String  @unique
+  name        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
 
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -996,27 +996,27 @@ model JobRole {
 }
 
 model Topic {
-  id                String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  domainId          String   @map("domain_id") @db.Uuid
+  id                String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  domainId          String  @map("domain_id") @db.Uuid
   name              String
   slug              String
   description       String?
-  isActive          Boolean  @default(true) @map("is_active")
+  isActive          Boolean @default(true) @map("is_active")
   /// Merge sets this and rewrites references in one transaction (§3.4).
-  mergedIntoTopicId String?  @map("merged_into_topic_id") @db.Uuid
+  mergedIntoTopicId String? @map("merged_into_topic_id") @db.Uuid
 
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId   String?  @map("created_by_user_id") @db.Uuid
-  modifiedByUserId  String?  @map("modified_by_user_id") @db.Uuid
-  version           Int      @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
-  domain       Domain              @relation("TopicDomain", fields: [domainId], references: [id], onDelete: Restrict)
-  mergedInto   Topic?              @relation("TopicMerge", fields: [mergedIntoTopicId], references: [id], onDelete: Restrict)
-  mergedFrom   Topic[]             @relation("TopicMerge")
-  objectives   LearningObjective[] @relation("LearningObjectiveTopic")
-  questions    DraftQuestion[]     @relation("DraftQuestionTopic")
-  topicResults TopicResult[]       @relation("TopicResultTopic")
+  domain          Domain                    @relation("TopicDomain", fields: [domainId], references: [id], onDelete: Restrict)
+  mergedInto      Topic?                    @relation("TopicMerge", fields: [mergedIntoTopicId], references: [id], onDelete: Restrict)
+  mergedFrom      Topic[]                   @relation("TopicMerge")
+  objectives      LearningObjective[]       @relation("LearningObjectiveTopic")
+  questions       DraftQuestion[]           @relation("DraftQuestionTopic")
+  topicResults    TopicResult[]             @relation("TopicResultTopic")
   recommendations KnowledgeRecommendation[] @relation("KnowledgeRecommendationTopic")
 
   @@unique([domainId, slug])
@@ -1038,16 +1038,16 @@ model LearningObjective {
   /// Free-text objectives are captured as ad-hoc and flagged for curation (§8.1).
   isAdHoc             Boolean         @default(false) @map("is_ad_hoc")
 
-  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId     String?         @map("created_by_user_id") @db.Uuid
-  modifiedByUserId    String?         @map("modified_by_user_id") @db.Uuid
-  version             Int             @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
-  domain          Domain                   @relation("LearningObjectiveDomain", fields: [domainId], references: [id], onDelete: Restrict)
-  topic           Topic?                   @relation("LearningObjectiveTopic", fields: [topicId], references: [id], onDelete: Restrict)
+  domain          Domain                    @relation("LearningObjectiveDomain", fields: [domainId], references: [id], onDelete: Restrict)
+  topic           Topic?                    @relation("LearningObjectiveTopic", fields: [topicId], references: [id], onDelete: Restrict)
   sectionMappings ObjectiveSectionMapping[] @relation("ObjectiveSectionMappingObjective")
-  questions       DraftQuestion[]          @relation("DraftQuestionObjective")
+  questions       DraftQuestion[]           @relation("DraftQuestionObjective")
 
   @@index([domainId, status])
   @@map("learning_objective")
@@ -1055,15 +1055,15 @@ model LearningObjective {
 
 /// The pinned objective -> section mapping, for reproducibility (§8.2).
 model ObjectiveSectionMapping {
-  id                String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  objectiveId       String   @map("objective_id") @db.Uuid
-  documentId        String   @map("document_id") @db.Uuid
-  sectionKey        String   @map("section_key") @db.Char(64)
-  score             Decimal  @db.Decimal(4, 3)
-  confirmedByUserId String?  @map("confirmed_by_user_id") @db.Uuid
+  id                String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  objectiveId       String    @map("objective_id") @db.Uuid
+  documentId        String    @map("document_id") @db.Uuid
+  sectionKey        String    @map("section_key") @db.Char(64)
+  score             Decimal   @db.Decimal(4, 3)
+  confirmedByUserId String?   @map("confirmed_by_user_id") @db.Uuid
   confirmedAt       DateTime? @map("confirmed_at") @db.Timestamptz(6)
-  generationJobId   String?  @map("generation_job_id") @db.Uuid
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  generationJobId   String?   @map("generation_job_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   objective LearningObjective @relation("ObjectiveSectionMappingObjective", fields: [objectiveId], references: [id], onDelete: Restrict)
   document  KnowledgeDocument @relation("ObjectiveSectionMappingDocument", fields: [documentId], references: [id], onDelete: Restrict)
@@ -1077,40 +1077,40 @@ model ObjectiveSectionMapping {
 // ===========================================================================
 
 model KnowledgeSource {
-  id                   String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  name                 String           @unique
-  description          String?
-  sourceType           SourceType       @map("source_type")
+  id                    String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  name                  String           @unique
+  description           String?
+  sourceType            SourceType       @map("source_type")
   /// Type-specific. Holds a secret REFERENCE only, never a value (§4.5).
-  connection           Json             @db.JsonB
+  connection            Json             @db.JsonB
   /// { roles[], domains[], teams[], functions[] }
-  restrictions         Json             @default("{}") @db.JsonB
-  usableForGeneration  Boolean          @default(false) @map("usable_for_generation")
-  usableForRefreshers  Boolean          @default(false) @map("usable_for_refreshers")
-  usableForExplanations Boolean         @default(false) @map("usable_for_explanations")
-  permissionMode       PermissionMode   @map("permission_mode")
+  restrictions          Json             @default("{}") @db.JsonB
+  usableForGeneration   Boolean          @default(false) @map("usable_for_generation")
+  usableForRefreshers   Boolean          @default(false) @map("usable_for_refreshers")
+  usableForExplanations Boolean          @default(false) @map("usable_for_explanations")
+  permissionMode        PermissionMode   @map("permission_mode")
   /// Only an executed probe may set this (§5.4 rule 1).
-  connectionStatus     ConnectionStatus @default(UNTESTED) @map("connection_status")
+  connectionStatus      ConnectionStatus @default(UNTESTED) @map("connection_status")
   /// Always displayed with the status; never inferred.
-  connectionStatusAt   DateTime?        @map("connection_status_at") @db.Timestamptz(6)
+  connectionStatusAt    DateTime?        @map("connection_status_at") @db.Timestamptz(6)
   /// { mode, intervalHours?, cron? }
-  syncSchedule         Json             @default("{\"mode\":\"MANUAL\"}") @db.JsonB
-  isActive             Boolean          @default(false) @map("is_active")
-  archivedAt           DateTime?        @map("archived_at") @db.Timestamptz(6)
-  ownerUserId          String           @map("owner_user_id") @db.Uuid
+  syncSchedule          Json             @default("{\"mode\":\"MANUAL\"}") @db.JsonB
+  isActive              Boolean          @default(false) @map("is_active")
+  archivedAt            DateTime?        @map("archived_at") @db.Timestamptz(6)
+  ownerUserId           String           @map("owner_user_id") @db.Uuid
 
-  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId      String?          @map("created_by_user_id") @db.Uuid
-  modifiedByUserId     String?          @map("modified_by_user_id") @db.Uuid
-  version              Int              @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
-  paths        KnowledgeSourcePath[] @relation("KnowledgeSourcePathSource")
-  syncRuns     KnowledgeSourceSync[] @relation("KnowledgeSourceSyncSource")
-  documents    KnowledgeDocument[]   @relation("KnowledgeDocumentSource")
-  userAccess   UserSourceAccess[]    @relation("UserSourceAccessSource")
-  generationJobs GenerationJob[]     @relation("GenerationJobSource")
-  preflights   GenerationPreflight[] @relation("GenerationPreflightSource")
+  paths          KnowledgeSourcePath[] @relation("KnowledgeSourcePathSource")
+  syncRuns       KnowledgeSourceSync[] @relation("KnowledgeSourceSyncSource")
+  documents      KnowledgeDocument[]   @relation("KnowledgeDocumentSource")
+  userAccess     UserSourceAccess[]    @relation("UserSourceAccessSource")
+  generationJobs GenerationJob[]       @relation("GenerationJobSource")
+  preflights     GenerationPreflight[] @relation("GenerationPreflightSource")
 
   @@index([sourceType, isActive])
   @@index([connectionStatus])
@@ -1118,29 +1118,29 @@ model KnowledgeSource {
 }
 
 model KnowledgeSourcePath {
-  id                  String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  sourceId            String    @map("source_id") @db.Uuid
-  containerId         String    @map("container_id")
-  containerName       String    @map("container_name")
+  id                   String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sourceId             String    @map("source_id") @db.Uuid
+  containerId          String    @map("container_id")
+  containerName        String    @map("container_name")
   /// Normalized on write: leading `/`, no trailing `/`, no `.`/`..` segments,
   /// so path traversal is not expressible (§4.2).
-  folderPath          String    @map("folder_path")
-  includedFileTypes   String[]  @default([]) @map("included_file_types")
-  excludedFileTypes   String[]  @default([]) @map("excluded_file_types")
-  includedMetadata    String[]  @default([]) @map("included_metadata")
-  domainMapping       Json      @default("{}") @map("domain_mapping") @db.JsonB
-  topicMapping        Json      @default("{}") @map("topic_mapping") @db.JsonB
-  deltaToken          String?   @map("delta_token")
-  deltaTokenAt        DateTime? @map("delta_token_at") @db.Timestamptz(6)
-  requiresFullSync    Boolean   @default(true) @map("requires_full_sync")
-  isActive            Boolean   @default(true) @map("is_active")
+  folderPath           String    @map("folder_path")
+  includedFileTypes    String[]  @default([]) @map("included_file_types")
+  excludedFileTypes    String[]  @default([]) @map("excluded_file_types")
+  includedMetadata     String[]  @default([]) @map("included_metadata")
+  domainMapping        Json      @default("{}") @map("domain_mapping") @db.JsonB
+  topicMapping         Json      @default("{}") @map("topic_mapping") @db.JsonB
+  deltaToken           String?   @map("delta_token")
+  deltaTokenAt         DateTime? @map("delta_token_at") @db.Timestamptz(6)
+  requiresFullSync     Boolean   @default(true) @map("requires_full_sync")
+  isActive             Boolean   @default(true) @map("is_active")
   lastSuccessfulSyncAt DateTime? @map("last_successful_sync_at") @db.Timestamptz(6)
 
-  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId     String?   @map("created_by_user_id") @db.Uuid
-  modifiedByUserId    String?   @map("modified_by_user_id") @db.Uuid
-  version             Int       @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
   source    KnowledgeSource     @relation("KnowledgeSourcePathSource", fields: [sourceId], references: [id], onDelete: Restrict)
   documents KnowledgeDocument[] @relation("KnowledgeDocumentPath")
@@ -1151,32 +1151,32 @@ model KnowledgeSourcePath {
 }
 
 model KnowledgeSourceSync {
-  id                     String      @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  sourceId               String      @map("source_id") @db.Uuid
-  pathIds                String[]    @map("path_ids") @db.Uuid
-  mode                   SyncMode
-  trigger                SyncTrigger
-  actorUserId            String?     @map("actor_user_id") @db.Uuid
-  startedAt              DateTime    @default(now()) @map("started_at") @db.Timestamptz(6)
-  completedAt            DateTime?   @map("completed_at") @db.Timestamptz(6)
-  durationMs             Int?        @map("duration_ms")
-  outcome                SyncOutcome @default(RUNNING)
-  itemsScanned           Int         @default(0) @map("items_scanned")
-  itemsAdded             Int         @default(0) @map("items_added")
-  itemsModified          Int         @default(0) @map("items_modified")
-  itemsDeleted           Int         @default(0) @map("items_deleted")
-  itemsUnchanged         Int         @default(0) @map("items_unchanged")
-  itemsFailed            Int         @default(0) @map("items_failed")
+  id                              String      @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sourceId                        String      @map("source_id") @db.Uuid
+  pathIds                         String[]    @map("path_ids") @db.Uuid
+  mode                            SyncMode
+  trigger                         SyncTrigger
+  actorUserId                     String?     @map("actor_user_id") @db.Uuid
+  startedAt                       DateTime    @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt                     DateTime?   @map("completed_at") @db.Timestamptz(6)
+  durationMs                      Int?        @map("duration_ms")
+  outcome                         SyncOutcome @default(RUNNING)
+  itemsScanned                    Int         @default(0) @map("items_scanned")
+  itemsAdded                      Int         @default(0) @map("items_added")
+  itemsModified                   Int         @default(0) @map("items_modified")
+  itemsDeleted                    Int         @default(0) @map("items_deleted")
+  itemsUnchanged                  Int         @default(0) @map("items_unchanged")
+  itemsFailed                     Int         @default(0) @map("items_failed")
   /// Discovered and deliberately not indexed -- outside every configured
   /// path. Kept apart from `itemsFailed`: a skip is the configuration working,
   /// and counting it as a failure made a healthy source report PARTIAL
   /// permanently.
-  itemsSkipped           Int         @default(0) @map("items_skipped")
-  extractedCharCount     Int         @default(0) @map("extracted_char_count")
-  questionsFlaggedForRevalidation Int @default(0) @map("questions_flagged_for_revalidation")
+  itemsSkipped                    Int         @default(0) @map("items_skipped")
+  extractedCharCount              Int         @default(0) @map("extracted_char_count")
+  questionsFlaggedForRevalidation Int         @default(0) @map("questions_flagged_for_revalidation")
   /// Knowzy error codes and safe messages only. Secrets never enter this column.
-  errorSummary           Json        @default("[]") @map("error_summary") @db.JsonB
-  correlationId          String      @map("correlation_id")
+  errorSummary                    Json        @default("[]") @map("error_summary") @db.JsonB
+  correlationId                   String      @map("correlation_id")
 
   source           KnowledgeSource       @relation("KnowledgeSourceSyncSource", fields: [sourceId], references: [id], onDelete: Restrict)
   documentFailures SyncDocumentFailure[] @relation("SyncDocumentFailureSync")
@@ -1187,21 +1187,21 @@ model KnowledgeSourceSync {
 }
 
 model SyncDocumentFailure {
-  id               String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  syncId           String           @map("sync_id") @db.Uuid
-  documentId       String?          @map("document_id") @db.Uuid
-  sourceDocumentId String           @map("source_document_id")
-  phase            SyncFailurePhase
-  errorCode        String           @map("error_code")
-  safeMessage      String           @map("safe_message")
-  attemptCount     Int              @default(1) @map("attempt_count")
-  nextRetryAt      DateTime?        @map("next_retry_at") @db.Timestamptz(6)
-  state            SyncFailureState @default(PENDING_RETRY)
-  dismissedByUserId String?         @map("dismissed_by_user_id") @db.Uuid
-  dismissReason    String?          @map("dismiss_reason")
+  id                String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  syncId            String           @map("sync_id") @db.Uuid
+  documentId        String?          @map("document_id") @db.Uuid
+  sourceDocumentId  String           @map("source_document_id")
+  phase             SyncFailurePhase
+  errorCode         String           @map("error_code")
+  safeMessage       String           @map("safe_message")
+  attemptCount      Int              @default(1) @map("attempt_count")
+  nextRetryAt       DateTime?        @map("next_retry_at") @db.Timestamptz(6)
+  state             SyncFailureState @default(PENDING_RETRY)
+  dismissedByUserId String?          @map("dismissed_by_user_id") @db.Uuid
+  dismissReason     String?          @map("dismiss_reason")
 
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   sync KnowledgeSourceSync @relation("SyncDocumentFailureSync", fields: [syncId], references: [id], onDelete: Cascade)
 
@@ -1211,56 +1211,56 @@ model SyncDocumentFailure {
 }
 
 model KnowledgeDocument {
-  id                   String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  sourceId             String           @map("source_id") @db.Uuid
-  pathId               String           @map("path_id") @db.Uuid
+  id                       String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sourceId                 String           @map("source_id") @db.Uuid
+  pathId                   String           @map("path_id") @db.Uuid
   /// Provider-native item ID (Graph driveItem.id for SharePoint).
-  sourceDocumentId     String           @map("source_document_id")
-  name                 String
-  containerSiteName    String?          @map("container_site_name")
-  containerSiteId      String?          @map("container_site_id")
-  containerName        String           @map("container_name")
-  containerId          String           @map("container_id")
-  folderPath           String           @map("folder_path")
-  sourceUrl            String           @map("source_url")
-  fileType             String           @map("file_type")
-  fileSizeBytes        BigInt           @map("file_size_bytes")
-  sourceCreatedAt      DateTime?        @map("source_created_at") @db.Timestamptz(6)
-  sourceModifiedAt     DateTime?        @map("source_modified_at") @db.Timestamptz(6)
-  sourceVersion        String           @map("source_version")
+  sourceDocumentId         String           @map("source_document_id")
+  name                     String
+  containerSiteName        String?          @map("container_site_name")
+  containerSiteId          String?          @map("container_site_id")
+  containerName            String           @map("container_name")
+  containerId              String           @map("container_id")
+  folderPath               String           @map("folder_path")
+  sourceUrl                String           @map("source_url")
+  fileType                 String           @map("file_type")
+  fileSizeBytes            BigInt           @map("file_size_bytes")
+  sourceCreatedAt          DateTime?        @map("source_created_at") @db.Timestamptz(6)
+  sourceModifiedAt         DateTime?        @map("source_modified_at") @db.Timestamptz(6)
+  sourceVersion            String           @map("source_version")
   /// Stored separately: the dual change test needs both signals (§5).
-  sourceETag           String?          @map("source_etag")
-  localVersionCounter  Int              @default(1) @map("local_version_counter")
+  sourceETag               String?          @map("source_etag")
+  localVersionCounter      Int              @default(1) @map("local_version_counter")
   /// SHA-256 of normalized extracted text — the authority for "did content change".
-  contentHash          String?          @map("content_hash") @db.Char(64)
+  contentHash              String?          @map("content_hash") @db.Char(64)
   /// Normalized text. Null for UNSUPPORTED and TOO_LARGE documents.
-  extractedText        String?          @map("extracted_text")
-  extractedCharCount   Int              @default(0) @map("extracted_char_count")
-  extractionStatus     ExtractionStatus @default(PENDING) @map("extraction_status")
-  extractionReason     String?          @map("extraction_reason")
-  indexingStatus       IndexingStatus   @default(PENDING) @map("indexing_status")
-  status               DocumentStatus   @default(ACTIVE)
-  isExcludedFromGeneration Boolean      @default(false) @map("is_excluded_from_generation")
-  exclusionReason      String?          @map("exclusion_reason")
-  excludedByUserId     String?          @map("excluded_by_user_id") @db.Uuid
-  excludedAt           DateTime?        @map("excluded_at") @db.Timestamptz(6)
+  extractedText            String?          @map("extracted_text")
+  extractedCharCount       Int              @default(0) @map("extracted_char_count")
+  extractionStatus         ExtractionStatus @default(PENDING) @map("extraction_status")
+  extractionReason         String?          @map("extraction_reason")
+  indexingStatus           IndexingStatus   @default(PENDING) @map("indexing_status")
+  status                   DocumentStatus   @default(ACTIVE)
+  isExcludedFromGeneration Boolean          @default(false) @map("is_excluded_from_generation")
+  exclusionReason          String?          @map("exclusion_reason")
+  excludedByUserId         String?          @map("excluded_by_user_id") @db.Uuid
+  excludedAt               DateTime?        @map("excluded_at") @db.Timestamptz(6)
   /// Only the columns named in the path's Included Metadata.
-  sourceMetadata       Json             @default("{}") @map("source_metadata") @db.JsonB
-  domainHint           String?          @map("domain_hint") @db.Uuid
-  topicHint            String?          @map("topic_hint") @db.Uuid
-  lastSynchronizedAt   DateTime?        @map("last_synchronized_at") @db.Timestamptz(6)
+  sourceMetadata           Json             @default("{}") @map("source_metadata") @db.JsonB
+  domainHint               String?          @map("domain_hint") @db.Uuid
+  topicHint                String?          @map("topic_hint") @db.Uuid
+  lastSynchronizedAt       DateTime?        @map("last_synchronized_at") @db.Timestamptz(6)
 
-  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version              Int              @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
-  source             KnowledgeSource        @relation("KnowledgeDocumentSource", fields: [sourceId], references: [id], onDelete: Restrict)
-  path               KnowledgeSourcePath    @relation("KnowledgeDocumentPath", fields: [pathId], references: [id], onDelete: Restrict)
-  sections           DocumentSection[]      @relation("DocumentSectionDocument")
-  sectionLineage     DocumentSectionLineage[] @relation("DocumentSectionLineageDocument")
-  generationStat     DocumentGenerationStat? @relation("DocumentGenerationStatDocument")
-  jobDocuments       GenerationJobDocument[] @relation("GenerationJobDocumentDocument")
-  objectiveMappings  ObjectiveSectionMapping[] @relation("ObjectiveSectionMappingDocument")
+  source            KnowledgeSource           @relation("KnowledgeDocumentSource", fields: [sourceId], references: [id], onDelete: Restrict)
+  path              KnowledgeSourcePath       @relation("KnowledgeDocumentPath", fields: [pathId], references: [id], onDelete: Restrict)
+  sections          DocumentSection[]         @relation("DocumentSectionDocument")
+  sectionLineage    DocumentSectionLineage[]  @relation("DocumentSectionLineageDocument")
+  generationStat    DocumentGenerationStat?   @relation("DocumentGenerationStatDocument")
+  jobDocuments      GenerationJobDocument[]   @relation("GenerationJobDocumentDocument")
+  objectiveMappings ObjectiveSectionMapping[] @relation("ObjectiveSectionMappingDocument")
 
   @@unique([sourceId, sourceDocumentId])
   @@index([sourceId, status, extractionStatus])
@@ -1275,43 +1275,43 @@ model KnowledgeDocument {
 /// The coverage unit (§6.1 of generation-governance.md). Versioned with the
 /// document, so coverage history survives re-extraction.
 model DocumentSection {
-  id                     String         @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  documentId             String         @map("document_id") @db.Uuid
+  id                     String                   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  documentId             String                   @map("document_id") @db.Uuid
   /// SHA-256 of (unscoped key + the document's own sourceDocumentId). Scoped
   /// since migration 0004: the unscoped form collided across every
   /// heading-less document.
-  sectionKey             String         @map("section_key") @db.Char(64)
+  sectionKey             String                   @map("section_key") @db.Char(64)
   /// The pre-0004 unscoped key, kept so a historical reference still resolves.
-  sectionKeyV1           String?        @map("section_key_v1") @db.Char(64)
+  sectionKeyV1           String?                  @map("section_key_v1") @db.Char(64)
   ordinal                Int
   heading                String?
-  headingPath            String?        @map("heading_path")
-  pageNumber             Int?           @map("page_number")
-  slideNumber            Int?           @map("slide_number")
-  sheetName              String?        @map("sheet_name")
-  startOffset            Int            @map("start_offset")
-  endOffset              Int            @map("end_offset")
-  sectionContentHash     String         @map("section_content_hash") @db.Char(64)
-  assessableCharCount    Int            @map("assessable_char_count")
-  isAssessable           Boolean        @default(true) @map("is_assessable")
-  nonAssessableReason    String?        @map("non_assessable_reason")
-  targetQuestionCount    Int            @map("target_question_count")
+  headingPath            String?                  @map("heading_path")
+  pageNumber             Int?                     @map("page_number")
+  slideNumber            Int?                     @map("slide_number")
+  sheetName              String?                  @map("sheet_name")
+  startOffset            Int                      @map("start_offset")
+  endOffset              Int                      @map("end_offset")
+  sectionContentHash     String                   @map("section_content_hash") @db.Char(64)
+  assessableCharCount    Int                      @map("assessable_char_count")
+  isAssessable           Boolean                  @default(true) @map("is_assessable")
+  nonAssessableReason    String?                  @map("non_assessable_reason")
+  targetQuestionCount    Int                      @map("target_question_count")
   /// Whether a question COVERS this section. Never records a generator's
   /// failure: a refusal is an outcome of a run, not a property of the section,
   /// and conflating the two made every refusal count as coverage.
-  coverageStatus         CoverageStatus @default(NOT_COVERED) @map("coverage_status")
+  coverageStatus         CoverageStatus           @default(NOT_COVERED) @map("coverage_status")
   /// --- generation outcome, deliberately separate from coverage -----------
   /// How many jobs have had this section in scope.
-  generationAttemptCount Int            @default(0) @map("generation_attempt_count")
-  lastAttemptedAt        DateTime?      @map("last_attempted_at") @db.Timestamptz(6)
+  generationAttemptCount Int                      @default(0) @map("generation_attempt_count")
+  lastAttemptedAt        DateTime?                @map("last_attempted_at") @db.Timestamptz(6)
   lastGenerationOutcome  SectionGenerationOutcome @default(NOT_ATTEMPTED) @map("last_generation_outcome")
   /// The generator's own words, shown to an author. Distinct from
   /// `nonAssessableReason`, which is curation and is never written by a run.
-  lastRefusalReason      String?        @map("last_refusal_reason")
-  documentVersionCounter Int            @map("document_version_counter")
+  lastRefusalReason      String?                  @map("last_refusal_reason")
+  documentVersionCounter Int                      @map("document_version_counter")
 
-  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   document KnowledgeDocument @relation("DocumentSectionDocument", fields: [documentId], references: [id], onDelete: Cascade)
 
@@ -1346,32 +1346,32 @@ model DocumentSectionLineage {
 // ===========================================================================
 
 model GenerationProfile {
-  id                      String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  name                    String   @unique
+  id                      String       @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  name                    String       @unique
   description             String?
   /// Configuration value, never hardcoded.
-  modelId                 String   @map("model_id")
-  promptVersionId         String   @map("prompt_version_id") @db.Uuid
+  modelId                 String       @map("model_id")
+  promptVersionId         String       @map("prompt_version_id") @db.Uuid
   questionType            QuestionType @default(MULTIPLE_CHOICE_4) @map("question_type")
-  difficultyMix           Json     @map("difficulty_mix") @db.JsonB
-  maxQuestionsPerDocument Int      @default(25) @map("max_questions_per_document")
-  maxQuestionsPerSection  Int      @default(5) @map("max_questions_per_section")
+  difficultyMix           Json         @map("difficulty_mix") @db.JsonB
+  maxQuestionsPerDocument Int          @default(25) @map("max_questions_per_document")
+  maxQuestionsPerSection  Int          @default(5) @map("max_questions_per_section")
   evidenceStrictness      EvidenceMode @default(STRICT) @map("evidence_strictness")
-  distractorRules         Json     @map("distractor_rules") @db.JsonB
-  duplicateFlagThreshold  Decimal  @default(0.75) @map("duplicate_flag_threshold") @db.Decimal(4, 3)
-  duplicateBlockThreshold Decimal  @default(0.92) @map("duplicate_block_threshold") @db.Decimal(4, 3)
+  distractorRules         Json         @map("distractor_rules") @db.JsonB
+  duplicateFlagThreshold  Decimal      @default(0.75) @map("duplicate_flag_threshold") @db.Decimal(4, 3)
+  duplicateBlockThreshold Decimal      @default(0.92) @map("duplicate_block_threshold") @db.Decimal(4, 3)
   /// charsPerQuestion, minPerSection, maxPerSection, minAssessableChars
-  coverageSettings        Json     @map("coverage_settings") @db.JsonB
-  temperature             Decimal  @default(0.2) @db.Decimal(3, 2)
-  maxOutputTokens         Int      @default(8192) @map("max_output_tokens")
-  enabledDomainIds        String[] @default([]) @map("enabled_domain_ids") @db.Uuid
-  isActive                Boolean  @default(true) @map("is_active")
+  coverageSettings        Json         @map("coverage_settings") @db.JsonB
+  temperature             Decimal      @default(0.2) @db.Decimal(3, 2)
+  maxOutputTokens         Int          @default(8192) @map("max_output_tokens")
+  enabledDomainIds        String[]     @default([]) @map("enabled_domain_ids") @db.Uuid
+  isActive                Boolean      @default(true) @map("is_active")
 
-  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId         String?  @map("created_by_user_id") @db.Uuid
-  modifiedByUserId        String?  @map("modified_by_user_id") @db.Uuid
-  version                 Int      @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
   promptVersion PromptVersion   @relation("GenerationProfilePromptVersion", fields: [promptVersionId], references: [id], onDelete: Restrict)
   jobs          GenerationJob[] @relation("GenerationJobProfile")
@@ -1399,24 +1399,24 @@ model PromptVersion {
 }
 
 model GenerationPreflight {
-  id                  String                   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  sourceId            String                   @map("source_id") @db.Uuid
-  documentIds         String[]                 @map("document_ids") @db.Uuid
-  objectiveIds        String[]                 @default([]) @map("objective_ids") @db.Uuid
-  targetAssessmentId  String?                  @map("target_assessment_id") @db.Uuid
+  id                 String                   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  sourceId           String                   @map("source_id") @db.Uuid
+  documentIds        String[]                 @map("document_ids") @db.Uuid
+  objectiveIds       String[]                 @default([]) @map("objective_ids") @db.Uuid
+  targetAssessmentId String?                  @map("target_assessment_id") @db.Uuid
   /// The six checks of generation-governance.md §4.1, each with status and evidence.
-  checkResults        Json                     @map("check_results") @db.JsonB
-  recommendation      PreflightRecommendation
+  checkResults       Json                     @map("check_results") @db.JsonB
+  recommendation     PreflightRecommendation
   /// Null while undecided. There is no "proceed anyway" default.
-  chosenAction        PreflightRecommendation? @map("chosen_action")
-  chosenAt            DateTime?                @map("chosen_at") @db.Timestamptz(6)
-  chosenByUserId      String?                  @map("chosen_by_user_id") @db.Uuid
+  chosenAction       PreflightRecommendation? @map("chosen_action")
+  chosenAt           DateTime?                @map("chosen_at") @db.Timestamptz(6)
+  chosenByUserId     String?                  @map("chosen_by_user_id") @db.Uuid
   /// An expired preflight cannot authorize a job — state may have moved.
-  expiresAt           DateTime                 @map("expires_at") @db.Timestamptz(6)
-  correlationId       String                   @map("correlation_id")
+  expiresAt          DateTime                 @map("expires_at") @db.Timestamptz(6)
+  correlationId      String                   @map("correlation_id")
 
-  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdByUserId     String?                  @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
 
   source KnowledgeSource @relation("GenerationPreflightSource", fields: [sourceId], references: [id], onDelete: Restrict)
   jobs   GenerationJob[] @relation("GenerationJobPreflight")
@@ -1427,83 +1427,85 @@ model GenerationPreflight {
 }
 
 model GenerationJob {
-  id                     String               @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  id                     String                   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   /// Required. No job without a recorded preflight decision (§13 I16).
-  preflightId            String               @map("preflight_id") @db.Uuid
-  sourceId               String               @map("source_id") @db.Uuid
-  profileId              String               @map("profile_id") @db.Uuid
-  promptVersionId        String               @map("prompt_version_id") @db.Uuid
+  preflightId            String                   @map("preflight_id") @db.Uuid
+  sourceId               String                   @map("source_id") @db.Uuid
+  profileId              String                   @map("profile_id") @db.Uuid
+  promptVersionId        String                   @map("prompt_version_id") @db.Uuid
   /// Captured at run time, never resolved later.
-  modelId                String               @map("model_id")
+  modelId                String                   @map("model_id")
   /// --- provider provenance ------------------------------------------------
-  providerId             GenerationProviderId @default(DETERMINISTIC_LOCAL) @map("provider_id")
-  executionMode          GenerationExecutionMode @default(PLATFORM_MANAGED) @map("execution_mode")
+  providerId             GenerationProviderId     @default(DETERMINISTIC_LOCAL) @map("provider_id")
+  executionMode          GenerationExecutionMode  @default(PLATFORM_MANAGED) @map("execution_mode")
   /// The provider's own version string. Distinct from `modelId`.
-  providerVersion        String?              @map("provider_version")
+  providerVersion        String?                  @map("provider_version")
   /// WHOSE entitlement was spent. Null when platform-managed. Distinct from
   /// `createdByUserId`, which records who ran the job -- the same person in
   /// practice, a different fact in principle.
-  onBehalfOfUserId       String?              @map("on_behalf_of_user_id") @db.Uuid
+  onBehalfOfUserId       String?                  @map("on_behalf_of_user_id") @db.Uuid
   /// False when the token counts are the platform's estimate rather than a
   /// provider's report. A cost derived from an estimate is an estimate.
-  tokenUsageReported     Boolean              @default(false) @map("token_usage_reported")
-  domainId               String               @map("domain_id") @db.Uuid
-  topicId                String               @map("topic_id") @db.Uuid
+  tokenUsageReported     Boolean                  @default(false) @map("token_usage_reported")
+  domainId               String                   @map("domain_id") @db.Uuid
+  topicId                String                   @map("topic_id") @db.Uuid
   /// Chosen once on the generate screen; stamped onto every draft the job
   /// creates, so a batch cannot be half-filed.
-  departmentId           String?              @map("department_id") @db.Uuid
-  jobRoleId              String?              @map("job_role_id") @db.Uuid
-  targetAudience         String?              @map("target_audience")
+  departmentId           String?                  @map("department_id") @db.Uuid
+  jobRoleId              String?                  @map("job_role_id") @db.Uuid
+  targetAudience         String?                  @map("target_audience")
   scope                  GenerationScope
-  objectiveIds           String[]             @default([]) @map("objective_ids") @db.Uuid
+  objectiveIds           String[]                 @default([]) @map("objective_ids") @db.Uuid
   /// The pinned, reproducible input.
-  resolvedSectionKeys    String[]             @default([]) @map("resolved_section_keys")
-  requestedQuestionCount Int                  @map("requested_question_count")
-  acceptedQuestionCount  Int                  @default(0) @map("accepted_question_count")
-  rejectionCounts        Json                 @default("{}") @map("rejection_counts") @db.JsonB
-  reasonCode             GenerationReasonCode @map("reason_code")
+  resolvedSectionKeys    String[]                 @default([]) @map("resolved_section_keys")
+  requestedQuestionCount Int                      @map("requested_question_count")
+  acceptedQuestionCount  Int                      @default(0) @map("accepted_question_count")
+  rejectionCounts        Json                     @default("{}") @map("rejection_counts") @db.JsonB
+  reasonCode             GenerationReasonCode     @map("reason_code")
   /// Required when reasonCode = PUBLISHER_REQUESTED (§13 I17).
   justification          String?
-  status                 JobState             @default(QUEUED)
-  inputTokens            Int                  @default(0) @map("input_tokens")
-  outputTokens           Int                  @default(0) @map("output_tokens")
+  status                 JobState                 @default(QUEUED)
+  inputTokens            Int                      @default(0) @map("input_tokens")
+  outputTokens           Int                      @default(0) @map("output_tokens")
+  /// The control layer's pre-call estimate (0014). Null before that migration.
+  estimatedInputTokens   Int?                     @map("estimated_input_tokens")
   /// --- cost accounting ----------------------------------------------------
   /// NULL means "no cost could be known", never "free". Written only where the
   /// provider reports cost AND the run was platform-managed; the deterministic
   /// provider is the one case where 0 is a measurement rather than a claim.
-  estimatedCost          Decimal?             @map("estimated_cost") @db.Decimal(12, 6)
+  estimatedCost          Decimal?                 @map("estimated_cost") @db.Decimal(12, 6)
   /// A cost the provider itself reported, where it does. Kept apart from the
   /// estimate so a comparison can show the two diverging instead of one
   /// quietly overwriting the other.
-  measuredCost           Decimal?             @map("measured_cost") @db.Decimal(12, 6)
+  measuredCost           Decimal?                 @map("measured_cost") @db.Decimal(12, 6)
   /// Whether a cost was observable at all. A null cost with this false is an
   /// honest absence; a null cost with this true would be a defect.
-  costObservable         Boolean              @default(false) @map("cost_observable")
+  costObservable         Boolean                  @default(false) @map("cost_observable")
   /// Attempts made, including the first. 0 until a call is attempted.
-  attemptCount           Int                  @default(0) @map("attempt_count")
+  attemptCount           Int                      @default(0) @map("attempt_count")
   /// --- refusal ------------------------------------------------------------
   /// Set only with status REFUSED, and then always set.
   refusalReason          GenerationRefusalReason? @map("refusal_reason")
-  refusalDetail          String?              @map("refusal_detail")
-  startedAt              DateTime?            @map("started_at") @db.Timestamptz(6)
-  completedAt            DateTime?            @map("completed_at") @db.Timestamptz(6)
-  durationMs             Int?                 @map("duration_ms")
-  correlationId          String               @map("correlation_id")
+  refusalDetail          String?                  @map("refusal_detail")
+  startedAt              DateTime?                @map("started_at") @db.Timestamptz(6)
+  completedAt            DateTime?                @map("completed_at") @db.Timestamptz(6)
+  durationMs             Int?                     @map("duration_ms")
+  correlationId          String                   @map("correlation_id")
 
-  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdByUserId        String?              @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
 
-  preflight     GenerationPreflight     @relation("GenerationJobPreflight", fields: [preflightId], references: [id], onDelete: Restrict)
-  source        KnowledgeSource         @relation("GenerationJobSource", fields: [sourceId], references: [id], onDelete: Restrict)
-  profile       GenerationProfile       @relation("GenerationJobProfile", fields: [profileId], references: [id], onDelete: Restrict)
-  department    Department?             @relation("GenerationJobDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
-  jobRole       JobRole?                @relation("GenerationJobJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
-  promptVersion PromptVersion           @relation("GenerationJobPromptVersion", fields: [promptVersionId], references: [id], onDelete: Restrict)
-  documents     GenerationJobDocument[] @relation("GenerationJobDocumentJob")
+  preflight     GenerationPreflight      @relation("GenerationJobPreflight", fields: [preflightId], references: [id], onDelete: Restrict)
+  source        KnowledgeSource          @relation("GenerationJobSource", fields: [sourceId], references: [id], onDelete: Restrict)
+  profile       GenerationProfile        @relation("GenerationJobProfile", fields: [profileId], references: [id], onDelete: Restrict)
+  department    Department?              @relation("GenerationJobDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
+  jobRole       JobRole?                 @relation("GenerationJobJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
+  promptVersion PromptVersion            @relation("GenerationJobPromptVersion", fields: [promptVersionId], references: [id], onDelete: Restrict)
+  documents     GenerationJobDocument[]  @relation("GenerationJobDocumentJob")
   rejections    GenerationJobRejection[] @relation("GenerationJobRejectionJob")
   providerCalls GenerationProviderCall[] @relation("GenerationProviderCallJob")
-  questions     DraftQuestion[]         @relation("DraftQuestionGenerationJob")
-  questionSets  QuestionSet[]           @relation("QuestionSetOriginJob")
+  questions     DraftQuestion[]          @relation("DraftQuestionGenerationJob")
+  questionSets  QuestionSet[]            @relation("QuestionSetOriginJob")
 
   @@index([sourceId, createdAt(sort: Desc)])
   @@index([status])
@@ -1517,15 +1519,15 @@ model GenerationJob {
 /// Records what the document WAS, not what it is now — this row is why a job
 /// is reproducible (§5.4).
 model GenerationJobDocument {
-  id                  String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  jobId               String  @map("job_id") @db.Uuid
-  documentId          String  @map("document_id") @db.Uuid
-  sourceVersionAtRun  String  @map("source_version_at_run")
-  contentHashAtRun    String  @map("content_hash_at_run") @db.Char(64)
-  sectionHashesAtRun  Json    @default("{}") @map("section_hashes_at_run") @db.JsonB
-  outcome             String
-  failureReason       String? @map("failure_reason")
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                 String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  jobId              String   @map("job_id") @db.Uuid
+  documentId         String   @map("document_id") @db.Uuid
+  sourceVersionAtRun String   @map("source_version_at_run")
+  contentHashAtRun   String   @map("content_hash_at_run") @db.Char(64)
+  sectionHashesAtRun Json     @default("{}") @map("section_hashes_at_run") @db.JsonB
+  outcome            String
+  failureReason      String?  @map("failure_reason")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   job      GenerationJob     @relation("GenerationJobDocumentJob", fields: [jobId], references: [id], onDelete: Cascade)
   document KnowledgeDocument @relation("GenerationJobDocumentDocument", fields: [documentId], references: [id], onDelete: Restrict)
@@ -1542,34 +1544,35 @@ model GenerationJobDocument {
 /// that ignored retries would not be a budget, and a health signal derived from
 /// job outcomes alone cannot see that a job succeeded on its third try.
 model GenerationProviderCall {
-  id                 String                @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  jobId              String                @map("job_id") @db.Uuid
-  providerId         GenerationProviderId  @map("provider_id")
+  id                   String                   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  jobId                String                   @map("job_id") @db.Uuid
+  providerId           GenerationProviderId     @map("provider_id")
   /// The provider's own version string, where it reported one.
-  providerVersion    String?               @map("provider_version")
-  modelId            String                @map("model_id")
-  executionMode      GenerationExecutionMode @map("execution_mode")
+  providerVersion      String?                  @map("provider_version")
+  modelId              String                   @map("model_id")
+  executionMode        GenerationExecutionMode  @map("execution_mode")
   /// 1 for the first call. Unique per job so a replay cannot double-count.
-  attempt            Int
-  outcome            GenerationCallOutcome
-  inputTokens        Int                   @default(0) @map("input_tokens")
-  outputTokens       Int                   @default(0) @map("output_tokens")
-  tokenUsageReported Boolean               @default(false) @map("token_usage_reported")
-  estimatedCost      Decimal?              @map("estimated_cost") @db.Decimal(12, 6)
-  measuredCost       Decimal?              @map("measured_cost") @db.Decimal(12, 6)
-  costObservable     Boolean               @default(false) @map("cost_observable")
+  attempt              Int
+  outcome              GenerationCallOutcome
+  inputTokens          Int                      @default(0) @map("input_tokens")
+  outputTokens         Int                      @default(0) @map("output_tokens")
+  estimatedInputTokens Int?                     @map("estimated_input_tokens")
+  tokenUsageReported   Boolean                  @default(false) @map("token_usage_reported")
+  estimatedCost        Decimal?                 @map("estimated_cost") @db.Decimal(12, 6)
+  measuredCost         Decimal?                 @map("measured_cost") @db.Decimal(12, 6)
+  costObservable       Boolean                  @default(false) @map("cost_observable")
   /// Null when the attempt never started a timer -- a refusal before the call.
-  latencyMs          Int?                  @map("latency_ms")
+  latencyMs            Int?                     @map("latency_ms")
   /// The classified failure, never the provider's own error body (V5).
-  errorClass         String?               @map("error_class")
-  refusalReason      GenerationRefusalReason? @map("refusal_reason")
+  errorClass           String?                  @map("error_class")
+  refusalReason        GenerationRefusalReason? @map("refusal_reason")
   /// WHO ran it, and whose entitlement paid. The same person in practice, a
   /// different fact in principle.
-  requestedByUserId  String?               @map("requested_by_user_id") @db.Uuid
-  onBehalfOfUserId   String?               @map("on_behalf_of_user_id") @db.Uuid
-  correlationId      String                @map("correlation_id")
-  startedAt          DateTime              @default(now()) @map("started_at") @db.Timestamptz(6)
-  completedAt        DateTime?             @map("completed_at") @db.Timestamptz(6)
+  requestedByUserId    String?                  @map("requested_by_user_id") @db.Uuid
+  onBehalfOfUserId     String?                  @map("on_behalf_of_user_id") @db.Uuid
+  correlationId        String                   @map("correlation_id")
+  startedAt            DateTime                 @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt          DateTime?                @map("completed_at") @db.Timestamptz(6)
 
   job GenerationJob @relation("GenerationProviderCallJob", fields: [jobId], references: [id], onDelete: Cascade)
 
@@ -1593,20 +1596,20 @@ model GenerationProviderCall {
 /// contains a credential, an endpoint response or a model output; the whole
 /// record is a statement about configuration.
 model GenerationProviderValidation {
-  id           String                     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  providerId   GenerationProviderId       @map("provider_id")
+  id                String                    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  providerId        GenerationProviderId      @map("provider_id")
   /// The registry's state at the moment of validation. OVER_BUDGET is not a
   /// member: it is derived per request from budget consumption and would be
   /// stale the moment a window rolled over.
-  state        GenerationProviderState
-  outcome      ProviderValidationOutcome
+  state             GenerationProviderState
+  outcome           ProviderValidationOutcome
   /// `[{ check, result, detail }]`, in enforcement order.
-  steps        Json                       @db.JsonB
+  steps             Json                      @db.JsonB
   /// The single sentence a screen shows beside the outcome.
-  summary      String                     @db.VarChar(500)
-  validatedByUserId String?               @map("validated_by_user_id") @db.Uuid
-  validatedAt  DateTime                   @default(now()) @map("validated_at") @db.Timestamptz(6)
-  correlationId String                    @map("correlation_id") @db.VarChar(64)
+  summary           String                    @db.VarChar(500)
+  validatedByUserId String?                   @map("validated_by_user_id") @db.Uuid
+  validatedAt       DateTime                  @default(now()) @map("validated_at") @db.Timestamptz(6)
+  correlationId     String                    @map("correlation_id") @db.VarChar(64)
 
   /// `map:` because the migration names this index itself. Prisma would
   /// otherwise expect `generation_provider_validation_provider_id_validated_at_idx`
@@ -1640,23 +1643,23 @@ model GenerationJobRejection {
 /// One row per KnowledgeDocument. Denormalized for dashboard performance and
 /// verified nightly; drift is reported, never silently corrected (§1 M4).
 model DocumentGenerationStat {
-  id                          String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  documentId                  String           @unique @map("document_id") @db.Uuid
-  lastGeneratedAt             DateTime?        @map("last_generated_at") @db.Timestamptz(6)
-  lastApprovedQuestionAt      DateTime?        @map("last_approved_question_at") @db.Timestamptz(6)
-  totalDraftQuestionsGenerated Int             @default(0) @map("total_draft_questions_generated")
-  totalApprovedQuestions      Int              @default(0) @map("total_approved_questions")
-  totalPublishedQuestions     Int              @default(0) @map("total_published_questions")
-  activeQuestionCount         Int              @default(0) @map("active_question_count")
-  retiredQuestionCount        Int              @default(0) @map("retired_question_count")
+  id                           String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  documentId                   String           @unique @map("document_id") @db.Uuid
+  lastGeneratedAt              DateTime?        @map("last_generated_at") @db.Timestamptz(6)
+  lastApprovedQuestionAt       DateTime?        @map("last_approved_question_at") @db.Timestamptz(6)
+  totalDraftQuestionsGenerated Int              @default(0) @map("total_draft_questions_generated")
+  totalApprovedQuestions       Int              @default(0) @map("total_approved_questions")
+  totalPublishedQuestions      Int              @default(0) @map("total_published_questions")
+  activeQuestionCount          Int              @default(0) @map("active_question_count")
+  retiredQuestionCount         Int              @default(0) @map("retired_question_count")
   /// Null when the document has no assessable sections — never 0 or 100 (§6.4).
-  coveragePercentage          Decimal?         @map("coverage_percentage") @db.Decimal(5, 2)
-  versionAtLastGeneration     String?          @map("version_at_last_generation")
-  hashAtLastGeneration        String?          @map("hash_at_last_generation") @db.Char(64)
-  generationStatus            GenerationStatus @default(NOT_PROCESSED) @map("generation_status")
-  recomputedAt                DateTime?        @map("recomputed_at") @db.Timestamptz(6)
+  coveragePercentage           Decimal?         @map("coverage_percentage") @db.Decimal(5, 2)
+  versionAtLastGeneration      String?          @map("version_at_last_generation")
+  hashAtLastGeneration         String?          @map("hash_at_last_generation") @db.Char(64)
+  generationStatus             GenerationStatus @default(NOT_PROCESSED) @map("generation_status")
+  recomputedAt                 DateTime?        @map("recomputed_at") @db.Timestamptz(6)
 
-  updatedAt                   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   document KnowledgeDocument @relation("DocumentGenerationStatDocument", fields: [documentId], references: [id], onDelete: Cascade)
 
@@ -1666,18 +1669,18 @@ model DocumentGenerationStat {
 
 /// References questions by ID and version; never copies content (§5.6).
 model QuestionSet {
-  id                   String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  name                 String
-  description          String?
-  domainId             String   @map("domain_id") @db.Uuid
+  id                    String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  name                  String
+  description           String?
+  domainId              String  @map("domain_id") @db.Uuid
   originGenerationJobId String? @map("origin_generation_job_id") @db.Uuid
-  isActive             Boolean  @default(true) @map("is_active")
+  isActive              Boolean @default(true) @map("is_active")
 
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId      String   @map("created_by_user_id") @db.Uuid
-  modifiedByUserId     String?  @map("modified_by_user_id") @db.Uuid
-  version              Int      @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String   @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
   domain    Domain              @relation("QuestionSetDomain", fields: [domainId], references: [id], onDelete: Restrict)
   originJob GenerationJob?      @relation("QuestionSetOriginJob", fields: [originGenerationJobId], references: [id], onDelete: Restrict)
@@ -1706,109 +1709,109 @@ model QuestionSetMember {
 // ===========================================================================
 
 model DraftQuestion {
-  id                        String                @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  id                  String         @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   /// The stable platform identity across all versions.
-  internalQuestionId        String                @unique @default(dbgenerated("uuid_generate_v7()")) @map("internal_question_id") @db.Uuid
+  internalQuestionId  String         @unique @default(dbgenerated("uuid_generate_v7()")) @map("internal_question_id") @db.Uuid
   /// KNZ-{DOMAIN_CODE}-{YYYY}-{SEQ}. Proposed until publication.
-  proposedQuestionId        String?               @unique @map("proposed_question_id")
-  questionType              QuestionType          @default(MULTIPLE_CHOICE_4) @map("question_type")
-  status                    QuestionStatus        @default(GENERATED)
-  version                   Int                   @default(1)
-  domainId                  String                @map("domain_id") @db.Uuid
-  topicId                   String                @map("topic_id") @db.Uuid
+  proposedQuestionId  String?        @unique @map("proposed_question_id")
+  questionType        QuestionType   @default(MULTIPLE_CHOICE_4) @map("question_type")
+  status              QuestionStatus @default(GENERATED)
+  version             Int            @default(1)
+  domainId            String         @map("domain_id") @db.Uuid
+  topicId             String         @map("topic_id") @db.Uuid
   /// --- organizational mapping (2026-09-26) ---------------------------------
   /// NULLABLE, deliberately: every question drafted before this existed has no
   /// department or role, and a NOT NULL column would have meant either
   /// inventing a value for them or refusing to migrate. A question carries the
   /// axes it was filed under, or honestly carries none.
-  departmentId              String?               @map("department_id") @db.Uuid
-  jobRoleId                 String?               @map("job_role_id") @db.Uuid
-  learningObjectiveId       String?               @map("learning_objective_id") @db.Uuid
-  questionText              String                @map("question_text")
+  departmentId        String?        @map("department_id") @db.Uuid
+  jobRoleId           String?        @map("job_role_id") @db.Uuid
+  learningObjectiveId String?        @map("learning_objective_id") @db.Uuid
+  questionText        String         @map("question_text")
   /// Discriminated by questionType. For MULTIPLE_CHOICE_4:
   /// { options: {A,B,C,D}, correctOption }. The learner projection is built
   /// from an explicit field list, never from this column (security.md §8).
-  answerPayload             Json                  @map("answer_payload") @db.JsonB
-  explanation               String
+  answerPayload       Json           @map("answer_payload") @db.JsonB
+  explanation         String
 
   // --- lineage, immutable after insert (§13 I15) --------------------------
-  sourceId                  String                @map("source_id") @db.Uuid
-  sourceDocumentId          String                @map("source_document_id")
-  sectionKey                String                @map("section_key") @db.Char(64)
-  sourceUrl                 String                @map("source_url")
-  sourceDocumentName        String                @map("source_document_name")
-  sourceSiteName            String?               @map("source_site_name")
-  sourceLibraryName         String?               @map("source_library_name")
-  sourceFolderPath          String?               @map("source_folder_path")
-  sourceVersionAtGeneration String                @map("source_version_at_generation")
-  sourceETagAtGeneration    String?               @map("source_etag_at_generation")
+  sourceId                  String                   @map("source_id") @db.Uuid
+  sourceDocumentId          String                   @map("source_document_id")
+  sectionKey                String                   @map("section_key") @db.Char(64)
+  sourceUrl                 String                   @map("source_url")
+  sourceDocumentName        String                   @map("source_document_name")
+  sourceSiteName            String?                  @map("source_site_name")
+  sourceLibraryName         String?                  @map("source_library_name")
+  sourceFolderPath          String?                  @map("source_folder_path")
+  sourceVersionAtGeneration String                   @map("source_version_at_generation")
+  sourceETagAtGeneration    String?                  @map("source_etag_at_generation")
   /// Hash at generation time — the revalidation comparator.
-  sourceContentHash         String                @map("source_content_hash") @db.Char(64)
-  sectionContentHash        String                @map("section_content_hash") @db.Char(64)
+  sourceContentHash         String                   @map("source_content_hash") @db.Char(64)
+  sectionContentHash        String                   @map("section_content_hash") @db.Char(64)
   /// Verified verbatim span, original casing preserved.
-  supportingEvidence        String                @map("supporting_evidence")
-  evidenceStartOffset       Int                   @map("evidence_start_offset")
-  evidenceEndOffset         Int                   @map("evidence_end_offset")
-  evidenceVerificationMode  EvidenceMode          @map("evidence_verification_mode")
+  supportingEvidence        String                   @map("supporting_evidence")
+  evidenceStartOffset       Int                      @map("evidence_start_offset")
+  evidenceEndOffset         Int                      @map("evidence_end_offset")
+  evidenceVerificationMode  EvidenceMode             @map("evidence_verification_mode")
   /// 1.000 for exact matches.
-  evidenceSimilarityScore   Decimal?              @map("evidence_similarity_score") @db.Decimal(4, 3)
-  generationJobId           String?               @map("generation_job_id") @db.Uuid
-  modelId                   String?               @map("model_id")
-  promptVersionId           String?               @map("prompt_version_id") @db.Uuid
+  evidenceSimilarityScore   Decimal?                 @map("evidence_similarity_score") @db.Decimal(4, 3)
+  generationJobId           String?                  @map("generation_job_id") @db.Uuid
+  modelId                   String?                  @map("model_id")
+  promptVersionId           String?                  @map("prompt_version_id") @db.Uuid
   /// Provider provenance, carried on the question as well as the job because
   /// a question outlives its job and these lineage columns are immutable
   /// after insert (I15) -- the same reasoning that put `modelId` on both.
   /// GENERATED or IMPORTED. Defaults to GENERATED because every question that
   /// existed before import did come from a generator.
-  acquisition               QuestionAcquisition   @default(GENERATED)
+  acquisition               QuestionAcquisition      @default(GENERATED)
   /// Where in the imported file this question was found: "row 7", "slide 4".
   /// Null for a generated question, which has a section rather than a locator.
-  importLocator             String?               @map("import_locator")
-  providerId                GenerationProviderId? @map("provider_id")
+  importLocator             String?                  @map("import_locator")
+  providerId                GenerationProviderId?    @map("provider_id")
   executionMode             GenerationExecutionMode? @map("execution_mode")
-  providerVersion           String?               @map("provider_version")
+  providerVersion           String?                  @map("provider_version")
 
   // --- quality -----------------------------------------------------------
   /// Composite, platform-computed. Authorizes nothing.
-  confidenceScore           Decimal               @default(0) @map("confidence_score") @db.Decimal(4, 3)
+  confidenceScore          Decimal               @default(0) @map("confidence_score") @db.Decimal(4, 3)
   /// The six weighted components, so a reviewer sees WHY confidence is low.
-  confidenceComponents      Json                  @default("{}") @map("confidence_components") @db.JsonB
-  similarityClusterId       String?               @map("similarity_cluster_id") @db.Uuid
-  maxSimilarityScore        Decimal?              @map("max_similarity_score") @db.Decimal(4, 3)
-  duplicateDisposition      DuplicateDisposition? @map("duplicate_disposition")
-  duplicateDispositionNote  String?               @map("duplicate_disposition_note")
+  confidenceComponents     Json                  @default("{}") @map("confidence_components") @db.JsonB
+  similarityClusterId      String?               @map("similarity_cluster_id") @db.Uuid
+  maxSimilarityScore       Decimal?              @map("max_similarity_score") @db.Decimal(4, 3)
+  duplicateDisposition     DuplicateDisposition? @map("duplicate_disposition")
+  duplicateDispositionNote String?               @map("duplicate_disposition_note")
 
   // --- revalidation ------------------------------------------------------
-  needsRevalidation         Boolean               @default(false) @map("needs_revalidation")
-  revalidationReason        RevalidationReason?   @map("revalidation_reason")
-  revalidationDetectedBySyncId String?            @map("revalidation_detected_by_sync_id") @db.Uuid
-  revalidationDetectedAt    DateTime?             @map("revalidation_detected_at") @db.Timestamptz(6)
+  needsRevalidation            Boolean             @default(false) @map("needs_revalidation")
+  revalidationReason           RevalidationReason? @map("revalidation_reason")
+  revalidationDetectedBySyncId String?             @map("revalidation_detected_by_sync_id") @db.Uuid
+  revalidationDetectedAt       DateTime?           @map("revalidation_detected_at") @db.Timestamptz(6)
 
-  publishedVersion          Int?                  @map("published_version")
-  archivedAt                DateTime?             @map("archived_at") @db.Timestamptz(6)
-  retiredAt                 DateTime?             @map("retired_at") @db.Timestamptz(6)
+  publishedVersion Int?      @map("published_version")
+  archivedAt       DateTime? @map("archived_at") @db.Timestamptz(6)
+  retiredAt        DateTime? @map("retired_at") @db.Timestamptz(6)
 
   /// Reserved for semantic duplicate detection (ADR-008). Unused in release 1.
-  embedding                 Unsupported("vector(1536)")?
+  embedding Unsupported("vector(1536)")?
 
-  createdAt                 DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                 DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId           String?               @map("created_by_user_id") @db.Uuid
-  modifiedByUserId          String?               @map("modified_by_user_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
 
-  domain            Domain                     @relation("DraftQuestionDomain", fields: [domainId], references: [id], onDelete: Restrict)
-  topic             Topic                      @relation("DraftQuestionTopic", fields: [topicId], references: [id], onDelete: Restrict)
-  department        Department?                @relation("DraftQuestionDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
-  jobRole           JobRole?                   @relation("DraftQuestionJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
-  objective         LearningObjective?         @relation("DraftQuestionObjective", fields: [learningObjectiveId], references: [id], onDelete: Restrict)
-  generationJob     GenerationJob?             @relation("DraftQuestionGenerationJob", fields: [generationJobId], references: [id], onDelete: Restrict)
-  similarityCluster SimilarityCluster?         @relation("SimilarityClusterMember", fields: [similarityClusterId], references: [id], onDelete: SetNull)
-  versions          DraftQuestionVersion[]     @relation("DraftQuestionVersionQuestion")
-  reviews           QuestionReview[]           @relation("QuestionReviewQuestion")
-  approvals         QuestionApproval[]         @relation("QuestionApprovalQuestion")
+  domain            Domain                      @relation("DraftQuestionDomain", fields: [domainId], references: [id], onDelete: Restrict)
+  topic             Topic                       @relation("DraftQuestionTopic", fields: [topicId], references: [id], onDelete: Restrict)
+  department        Department?                 @relation("DraftQuestionDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
+  jobRole           JobRole?                    @relation("DraftQuestionJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
+  objective         LearningObjective?          @relation("DraftQuestionObjective", fields: [learningObjectiveId], references: [id], onDelete: Restrict)
+  generationJob     GenerationJob?              @relation("DraftQuestionGenerationJob", fields: [generationJobId], references: [id], onDelete: Restrict)
+  similarityCluster SimilarityCluster?          @relation("SimilarityClusterMember", fields: [similarityClusterId], references: [id], onDelete: SetNull)
+  versions          DraftQuestionVersion[]      @relation("DraftQuestionVersionQuestion")
+  reviews           QuestionReview[]            @relation("QuestionReviewQuestion")
+  approvals         QuestionApproval[]          @relation("QuestionApprovalQuestion")
   publishedRef      PublishedQuestionReference? @relation("PublishedQuestionReferenceQuestion")
-  publishOperations PublishOperation[]         @relation("PublishOperationQuestion")
-  setMemberships    QuestionSetMember[]        @relation("QuestionSetMemberQuestion")
+  publishOperations PublishOperation[]          @relation("PublishOperationQuestion")
+  setMemberships    QuestionSetMember[]         @relation("QuestionSetMemberQuestion")
 
   @@index([status, domainId, updatedAt(sort: Desc)])
   @@index([sourceDocumentId, sectionKey])
@@ -1830,18 +1833,18 @@ model DraftQuestion {
 
 /// Append-only snapshot with a field-level diff (§6.3).
 model DraftQuestionVersion {
-  id                    String     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  questionId            String     @map("question_id") @db.Uuid
-  version               Int
+  id                     String     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  questionId             String     @map("question_id") @db.Uuid
+  version                Int
   /// The full question as of that version.
-  snapshot              Json       @db.JsonB
+  snapshot               Json       @db.JsonB
   /// Field-level previous/new pairs.
-  diff                  Json       @db.JsonB
-  changedByUserId       String?    @map("changed_by_user_id") @db.Uuid
-  changedAt             DateTime   @default(now()) @map("changed_at") @db.Timestamptz(6)
-  changeKind            ChangeKind @map("change_kind")
-  evidenceReverified    Boolean    @default(false) @map("evidence_reverified")
-  evidenceReverifyResult Json?     @map("evidence_reverify_result") @db.JsonB
+  diff                   Json       @db.JsonB
+  changedByUserId        String?    @map("changed_by_user_id") @db.Uuid
+  changedAt              DateTime   @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changeKind             ChangeKind @map("change_kind")
+  evidenceReverified     Boolean    @default(false) @map("evidence_reverified")
+  evidenceReverifyResult Json?      @map("evidence_reverify_result") @db.JsonB
 
   question DraftQuestion @relation("DraftQuestionVersionQuestion", fields: [questionId], references: [id], onDelete: Cascade)
 
@@ -1896,11 +1899,11 @@ model QuestionApproval {
 /// Transitive closure of flagged pairs. Selection takes at most one member per
 /// cluster (generation-governance.md §4.5).
 model SimilarityCluster {
-  id                       String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  domainId                 String?  @map("domain_id") @db.Uuid
-  memberCount              Int      @default(0) @map("member_count")
-  representativeQuestionId String?  @map("representative_question_id") @db.Uuid
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                       String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  domainId                 String?   @map("domain_id") @db.Uuid
+  memberCount              Int       @default(0) @map("member_count")
+  representativeQuestionId String?   @map("representative_question_id") @db.Uuid
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   recomputedAt             DateTime? @map("recomputed_at") @db.Timestamptz(6)
 
   members DraftQuestion[] @relation("SimilarityClusterMember")
@@ -1965,13 +1968,13 @@ model PublishedQuestionReference {
   reconciliationState ReconciliationState      @default(IN_SYNC) @map("reconciliation_state")
   mappingProfileId    String?                  @map("mapping_profile_id") @db.Uuid
 
-  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version             Int                      @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
-  question DraftQuestion @relation("PublishedQuestionReferenceQuestion", fields: [internalQuestionId], references: [internalQuestionId], onDelete: Restrict)
-  department Department? @relation("PublishedQuestionDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
-  jobRole    JobRole?    @relation("PublishedQuestionJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
+  question   DraftQuestion @relation("PublishedQuestionReferenceQuestion", fields: [internalQuestionId], references: [internalQuestionId], onDelete: Restrict)
+  department Department?   @relation("PublishedQuestionDepartment", fields: [departmentId], references: [id], onDelete: Restrict)
+  jobRole    JobRole?      @relation("PublishedQuestionJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
 
   @@index([domainId, topicId, isActive, isPublished])
   @@index([sourceDocumentId])
@@ -1982,27 +1985,27 @@ model PublishedQuestionReference {
 /// The unique operationKey is the structural guarantee behind
 /// workflows.md §4.2: a retried publish cannot create a second item.
 model PublishOperation {
-  id               String                @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  id                    String                @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   /// sha256(targetListId + questionId + publishedVersion + operationType)
-  operationKey     String                @unique @map("operation_key") @db.Char(64)
-  questionId       String                @map("question_id") @db.Uuid
-  batchId          String                @map("batch_id") @db.Uuid
-  operationType    PublishOperationType  @map("operation_type")
-  state            PublishOperationState @default(PENDING)
-  attemptCount     Int                   @default(0) @map("attempt_count")
-  claimedAt        DateTime?             @map("claimed_at") @db.Timestamptz(6)
-  claimedBy        String?               @map("claimed_by")
-  lastError        Json?                 @map("last_error") @db.JsonB
-  sharePointItemId String?               @map("sharepoint_item_id")
-  resultETag       String?               @map("result_etag")
+  operationKey          String                @unique @map("operation_key") @db.Char(64)
+  questionId            String                @map("question_id") @db.Uuid
+  batchId               String                @map("batch_id") @db.Uuid
+  operationType         PublishOperationType  @map("operation_type")
+  state                 PublishOperationState @default(PENDING)
+  attemptCount          Int                   @default(0) @map("attempt_count")
+  claimedAt             DateTime?             @map("claimed_at") @db.Timestamptz(6)
+  claimedBy             String?               @map("claimed_by")
+  lastError             Json?                 @map("last_error") @db.JsonB
+  sharePointItemId      String?               @map("sharepoint_item_id")
+  resultETag            String?               @map("result_etag")
   /// The client header, distinct from operationKey (error-handling.md §6.2).
-  idempotencyKey   String?               @map("idempotency_key")
-  mappingProfileId String?               @map("mapping_profile_id") @db.Uuid
-  mappingProfileVersion Int?             @map("mapping_profile_version")
-  correlationId    String                @map("correlation_id")
+  idempotencyKey        String?               @map("idempotency_key")
+  mappingProfileId      String?               @map("mapping_profile_id") @db.Uuid
+  mappingProfileVersion Int?                  @map("mapping_profile_version")
+  correlationId         String                @map("correlation_id")
 
-  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   question DraftQuestion @relation("PublishOperationQuestion", fields: [questionId], references: [id], onDelete: Restrict)
 
@@ -2016,24 +2019,24 @@ model PublishOperation {
 // ===========================================================================
 
 model FieldMappingProfile {
-  id               String                    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  key              String                    @unique
-  name             String
-  description      String?
-  environment      String
-  targetSiteId     String                    @map("target_site_id")
-  targetListId     String                    @map("target_list_id")
-  schemaVersion    Int                       @default(1) @map("schema_version")
-  status           FieldMappingProfileStatus @default(DRAFT)
-  validatedAt      DateTime?                 @map("validated_at") @db.Timestamptz(6)
-  validationResult Json?                     @map("validation_result") @db.JsonB
-  activatedAt      DateTime?                 @map("activated_at") @db.Timestamptz(6)
-  activatedByUserId String?                  @map("activated_by_user_id") @db.Uuid
+  id                String                    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  key               String                    @unique
+  name              String
+  description       String?
+  environment       String
+  targetSiteId      String                    @map("target_site_id")
+  targetListId      String                    @map("target_list_id")
+  schemaVersion     Int                       @default(1) @map("schema_version")
+  status            FieldMappingProfileStatus @default(DRAFT)
+  validatedAt       DateTime?                 @map("validated_at") @db.Timestamptz(6)
+  validationResult  Json?                     @map("validation_result") @db.JsonB
+  activatedAt       DateTime?                 @map("activated_at") @db.Timestamptz(6)
+  activatedByUserId String?                   @map("activated_by_user_id") @db.Uuid
 
-  createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId  String?                   @map("created_by_user_id") @db.Uuid
-  version          Int                       @default(1)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  version         Int      @default(1)
 
   mappings FieldMapping[] @relation("FieldMappingProfile")
 
@@ -2068,20 +2071,20 @@ model FieldMapping {
 // ===========================================================================
 
 model Assessment {
-  id                       String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  name                     String
-  slug                     String           @unique
-  domainId                 String           @map("domain_id") @db.Uuid
-  description              String?
-  ownerUserId              String           @map("owner_user_id") @db.Uuid
-  status                   AssessmentStatus @default(DRAFT)
-  currentPublishedVersionId String?         @unique @map("current_published_version_id") @db.Uuid
+  id                        String           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  name                      String
+  slug                      String           @unique
+  domainId                  String           @map("domain_id") @db.Uuid
+  description               String?
+  ownerUserId               String           @map("owner_user_id") @db.Uuid
+  status                    AssessmentStatus @default(DRAFT)
+  currentPublishedVersionId String?          @unique @map("current_published_version_id") @db.Uuid
 
-  createdAt                DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId          String?          @map("created_by_user_id") @db.Uuid
-  modifiedByUserId         String?          @map("modified_by_user_id") @db.Uuid
-  version                  Int              @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
   domain   Domain              @relation("AssessmentDomain", fields: [domainId], references: [id], onDelete: Restrict)
   versions AssessmentVersion[] @relation("AssessmentVersionAssessment")
@@ -2093,49 +2096,49 @@ model Assessment {
 }
 
 model AssessmentVersion {
-  id                       String                  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  assessmentId             String                  @map("assessment_id") @db.Uuid
-  versionNumber            Int                     @map("version_number")
-  status                   AssessmentVersionStatus @default(DRAFT)
-  topicIds                 String[]                @default([]) @map("topic_ids") @db.Uuid
-  objectiveIds             String[]                @default([]) @map("objective_ids") @db.Uuid
-  targetAudience           String?                 @map("target_audience")
-  instructions             String?
-  questionCount            Int                     @map("question_count")
-  selectionStrategy        SelectionStrategy       @map("selection_strategy")
-  selectionConfig          Json                    @map("selection_config") @db.JsonB
-  passPercentage           Decimal                 @map("pass_percentage") @db.Decimal(5, 2)
+  id                         String                  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  assessmentId               String                  @map("assessment_id") @db.Uuid
+  versionNumber              Int                     @map("version_number")
+  status                     AssessmentVersionStatus @default(DRAFT)
+  topicIds                   String[]                @default([]) @map("topic_ids") @db.Uuid
+  objectiveIds               String[]                @default([]) @map("objective_ids") @db.Uuid
+  targetAudience             String?                 @map("target_audience")
+  instructions               String?
+  questionCount              Int                     @map("question_count")
+  selectionStrategy          SelectionStrategy       @map("selection_strategy")
+  selectionConfig            Json                    @map("selection_config") @db.JsonB
+  passPercentage             Decimal                 @map("pass_percentage") @db.Decimal(5, 2)
   /// Contiguous, non-overlapping, covering 0–100 exactly (§13 I11).
-  proficiencyThresholds    Json                    @map("proficiency_thresholds") @db.JsonB
+  proficiencyThresholds      Json                    @map("proficiency_thresholds") @db.JsonB
   /// Null = unlimited.
-  attemptLimit             Int?                    @map("attempt_limit")
-  retakePolicy             Json                    @default("{}") @map("retake_policy") @db.JsonB
-  timeLimitMinutes         Int?                    @map("time_limit_minutes")
-  availabilityStart        DateTime?               @map("availability_start") @db.Timestamptz(6)
-  availabilityEnd          DateTime?               @map("availability_end") @db.Timestamptz(6)
-  allowBackNavigation      Boolean                 @default(true) @map("allow_back_navigation")
-  showAnswersAfterCompletion Boolean               @default(true) @map("show_answers_after_completion")
-  scoreOnExpiry            ExpiryPolicy            @default(SCORE_PARTIAL) @map("score_on_expiry")
-  minimumObjectiveCoverage Json?                   @map("minimum_objective_coverage") @db.JsonB
-  badgeRuleId              String?                 @map("badge_rule_id") @db.Uuid
-  certificateRuleId        String?                 @map("certificate_rule_id") @db.Uuid
-  submittedByUserId        String?                 @map("submitted_by_user_id") @db.Uuid
-  submittedAt              DateTime?               @map("submitted_at") @db.Timestamptz(6)
-  approvedByUserId         String?                 @map("approved_by_user_id") @db.Uuid
-  approvedAt               DateTime?               @map("approved_at") @db.Timestamptz(6)
-  publishedByUserId        String?                 @map("published_by_user_id") @db.Uuid
-  publishedAt              DateTime?               @map("published_at") @db.Timestamptz(6)
+  attemptLimit               Int?                    @map("attempt_limit")
+  retakePolicy               Json                    @default("{}") @map("retake_policy") @db.JsonB
+  timeLimitMinutes           Int?                    @map("time_limit_minutes")
+  availabilityStart          DateTime?               @map("availability_start") @db.Timestamptz(6)
+  availabilityEnd            DateTime?               @map("availability_end") @db.Timestamptz(6)
+  allowBackNavigation        Boolean                 @default(true) @map("allow_back_navigation")
+  showAnswersAfterCompletion Boolean                 @default(true) @map("show_answers_after_completion")
+  scoreOnExpiry              ExpiryPolicy            @default(SCORE_PARTIAL) @map("score_on_expiry")
+  minimumObjectiveCoverage   Json?                   @map("minimum_objective_coverage") @db.JsonB
+  badgeRuleId                String?                 @map("badge_rule_id") @db.Uuid
+  certificateRuleId          String?                 @map("certificate_rule_id") @db.Uuid
+  submittedByUserId          String?                 @map("submitted_by_user_id") @db.Uuid
+  submittedAt                DateTime?               @map("submitted_at") @db.Timestamptz(6)
+  approvedByUserId           String?                 @map("approved_by_user_id") @db.Uuid
+  approvedAt                 DateTime?               @map("approved_at") @db.Timestamptz(6)
+  publishedByUserId          String?                 @map("published_by_user_id") @db.Uuid
+  publishedAt                DateTime?               @map("published_at") @db.Timestamptz(6)
 
-  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId          String?                 @map("created_by_user_id") @db.Uuid
-  modifiedByUserId         String?                 @map("modified_by_user_id") @db.Uuid
-  version                  Int                     @default(1)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
 
-  assessment Assessment                        @relation("AssessmentVersionAssessment", fields: [assessmentId], references: [id], onDelete: Restrict)
-  snapshots  AssessmentEligibilitySnapshot[]   @relation("EligibilitySnapshotVersion")
-  sessions   QuizSession[]                     @relation("QuizSessionAssessmentVersion")
-  results    AssessmentResult[]                @relation("AssessmentResultAssessmentVersion")
+  assessment Assessment                      @relation("AssessmentVersionAssessment", fields: [assessmentId], references: [id], onDelete: Restrict)
+  snapshots  AssessmentEligibilitySnapshot[] @relation("EligibilitySnapshotVersion")
+  sessions   QuizSession[]                   @relation("QuizSessionAssessmentVersion")
+  results    AssessmentResult[]              @relation("AssessmentResultAssessmentVersion")
 
   @@unique([assessmentId, versionNumber])
   @@index([status, availabilityStart, availabilityEnd])
@@ -2145,16 +2148,16 @@ model AssessmentVersion {
 /// Pins (questionId, publishedVersion) pairs so a release never acquires
 /// questions the approver never saw (workflows.md §5.1).
 model AssessmentEligibilitySnapshot {
-  id                    String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  assessmentVersionId   String   @map("assessment_version_id") @db.Uuid
-  snapshotAt            DateTime @default(now()) @map("snapshot_at") @db.Timestamptz(6)
-  strategy              SelectionStrategy
-  resolvedSelectionConfig Json   @map("resolved_selection_config") @db.JsonB
-  proficiencyThresholds Json     @map("proficiency_thresholds") @db.JsonB
+  id                      String            @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  assessmentVersionId     String            @map("assessment_version_id") @db.Uuid
+  snapshotAt              DateTime          @default(now()) @map("snapshot_at") @db.Timestamptz(6)
+  strategy                SelectionStrategy
+  resolvedSelectionConfig Json              @map("resolved_selection_config") @db.JsonB
+  proficiencyThresholds   Json              @map("proficiency_thresholds") @db.JsonB
   /// [{ questionId, publishedVersion, topicId, objectiveId?, similarityClusterId? }]
-  poolMembers           Json     @map("pool_members") @db.JsonB
-  poolSizeByTopic       Json     @map("pool_size_by_topic") @db.JsonB
-  poolSizeByObjective   Json     @map("pool_size_by_objective") @db.JsonB
+  poolMembers             Json              @map("pool_members") @db.JsonB
+  poolSizeByTopic         Json              @map("pool_size_by_topic") @db.JsonB
+  poolSizeByObjective     Json              @map("pool_size_by_objective") @db.JsonB
 
   assessmentVersion AssessmentVersion @relation("EligibilitySnapshotVersion", fields: [assessmentVersionId], references: [id], onDelete: Restrict)
   sessions          QuizSession[]     @relation("QuizSessionSnapshot")
@@ -2280,18 +2283,18 @@ model AssessmentResult {
   voidedByUserId        String?         @map("voided_by_user_id") @db.Uuid
   correlationId         String          @map("correlation_id")
 
-  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  session           QuizSession       @relation("AssessmentResultSession", fields: [sessionId], references: [id], onDelete: Restrict)
-  assessment        Assessment        @relation("AssessmentResultAssessment", fields: [assessmentId], references: [id], onDelete: Restrict)
-  assessmentVersion AssessmentVersion @relation("AssessmentResultAssessmentVersion", fields: [assessmentVersionId], references: [id], onDelete: Restrict)
-  supersedes        AssessmentResult? @relation("AssessmentResultSupersede", fields: [supersedesResultId], references: [id], onDelete: Restrict)
-  supersededBy      AssessmentResult[] @relation("AssessmentResultSupersede")
-  topicResults      TopicResult[]     @relation("TopicResultResult")
-  objectiveResults  ObjectiveResult[] @relation("ObjectiveResultResult")
+  session           QuizSession               @relation("AssessmentResultSession", fields: [sessionId], references: [id], onDelete: Restrict)
+  assessment        Assessment                @relation("AssessmentResultAssessment", fields: [assessmentId], references: [id], onDelete: Restrict)
+  assessmentVersion AssessmentVersion         @relation("AssessmentResultAssessmentVersion", fields: [assessmentVersionId], references: [id], onDelete: Restrict)
+  supersedes        AssessmentResult?         @relation("AssessmentResultSupersede", fields: [supersedesResultId], references: [id], onDelete: Restrict)
+  supersededBy      AssessmentResult[]        @relation("AssessmentResultSupersede")
+  topicResults      TopicResult[]             @relation("TopicResultResult")
+  objectiveResults  ObjectiveResult[]         @relation("ObjectiveResultResult")
   recommendations   KnowledgeRecommendation[] @relation("KnowledgeRecommendationResult")
-  badgeAwards       BadgeAward[]      @relation("BadgeAwardResult")
-  certificates      Certificate[]     @relation("CertificateResult")
+  badgeAwards       BadgeAward[]              @relation("BadgeAwardResult")
+  certificates      Certificate[]             @relation("CertificateResult")
 
   @@index([learnerUserId, completedAt(sort: Desc)])
   @@index([assessmentVersionId, completedAt])
@@ -2300,18 +2303,18 @@ model AssessmentResult {
 }
 
 model TopicResult {
-  id              String          @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  resultId        String          @map("result_id") @db.Uuid
-  topicId         String          @map("topic_id") @db.Uuid
-  questionsAsked  Int             @map("questions_asked")
-  correct         Int
-  incorrect       Int
-  unanswered      Int
-  topicAccuracy   Decimal         @map("topic_accuracy") @db.Decimal(5, 2)
-  topicBand       ProficiencyBand @map("topic_band")
-  isKnowledgeGap  Boolean         @map("is_knowledge_gap")
+  id             String          @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  resultId       String          @map("result_id") @db.Uuid
+  topicId        String          @map("topic_id") @db.Uuid
+  questionsAsked Int             @map("questions_asked")
+  correct        Int
+  incorrect      Int
+  unanswered     Int
+  topicAccuracy  Decimal         @map("topic_accuracy") @db.Decimal(5, 2)
+  topicBand      ProficiencyBand @map("topic_band")
+  isKnowledgeGap Boolean         @map("is_knowledge_gap")
   /// INSUFFICIENT_EVIDENCE is excluded from gap reporting, not reported as a gap.
-  gapState        GapState        @map("gap_state")
+  gapState       GapState        @map("gap_state")
 
   result AssessmentResult @relation("TopicResultResult", fields: [resultId], references: [id], onDelete: Cascade)
   topic  Topic            @relation("TopicResultTopic", fields: [topicId], references: [id], onDelete: Restrict)
@@ -2367,7 +2370,7 @@ model KnowledgeRecommendation {
   dismissedAt             DateTime?                 @map("dismissed_at") @db.Timestamptz(6)
   correlationId           String                    @map("correlation_id")
 
-  createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   result AssessmentResult @relation("KnowledgeRecommendationResult", fields: [resultId], references: [id], onDelete: Cascade)
   topic  Topic            @relation("KnowledgeRecommendationTopic", fields: [topicId], references: [id], onDelete: Restrict)
@@ -2399,10 +2402,10 @@ model BadgeDefinition {
   /// Repeatable once per domain rather than globally.
   isPerDomain  Boolean      @default(false) @map("is_per_domain")
 
-  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdByUserId String?   @map("created_by_user_id") @db.Uuid
-  version      Int          @default(1)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  version         Int      @default(1)
 
   awards BadgeAward[] @relation("BadgeAwardDefinition")
 
@@ -2411,17 +2414,17 @@ model BadgeDefinition {
 
 /// Append-only; revoked, never deleted (§13 I20).
 model BadgeAward {
-  id                String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  badgeDefinitionId String    @map("badge_definition_id") @db.Uuid
-  learnerUserId     String    @map("learner_user_id") @db.Uuid
-  resultId          String?   @map("result_id") @db.Uuid
-  domainId          String?   @map("domain_id") @db.Uuid
-  awardedAt         DateTime  @default(now()) @map("awarded_at") @db.Timestamptz(6)
+  id                String                @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  badgeDefinitionId String                @map("badge_definition_id") @db.Uuid
+  learnerUserId     String                @map("learner_user_id") @db.Uuid
+  resultId          String?               @map("result_id") @db.Uuid
+  domainId          String?               @map("domain_id") @db.Uuid
+  awardedAt         DateTime              @default(now()) @map("awarded_at") @db.Timestamptz(6)
   /// What the award satisfied, so a rule change never rewrites why (R5).
-  criteriaSnapshot  Json      @map("criteria_snapshot") @db.JsonB
-  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  criteriaSnapshot  Json                  @map("criteria_snapshot") @db.JsonB
+  revokedAt         DateTime?             @map("revoked_at") @db.Timestamptz(6)
   revokeReason      RevokeReasonCategory? @map("revoke_reason")
-  revokedByUserId   String?   @map("revoked_by_user_id") @db.Uuid
+  revokedByUserId   String?               @map("revoked_by_user_id") @db.Uuid
 
   definition BadgeDefinition   @relation("BadgeAwardDefinition", fields: [badgeDefinitionId], references: [id], onDelete: Restrict)
   result     AssessmentResult? @relation("BadgeAwardResult", fields: [resultId], references: [id], onDelete: Restrict)
@@ -2432,17 +2435,17 @@ model BadgeAward {
 }
 
 model CertificateRule {
-  id             String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  key            String   @unique
+  id             String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  key            String  @unique
   name           String
-  templateRef    String   @map("template_ref")
-  validityMonths Int?     @map("validity_months")
-  criteria       Json     @db.JsonB
-  isActive       Boolean  @default(true) @map("is_active")
+  templateRef    String  @map("template_ref")
+  validityMonths Int?    @map("validity_months")
+  criteria       Json    @db.JsonB
+  isActive       Boolean @default(true) @map("is_active")
 
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version        Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
   certificates Certificate[] @relation("CertificateRule")
 
@@ -2451,30 +2454,30 @@ model CertificateRule {
 
 /// Never deleted — verification must keep working (§14).
 model Certificate {
-  id                String            @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  certificateRuleId String            @map("certificate_rule_id") @db.Uuid
-  learnerUserId     String            @map("learner_user_id") @db.Uuid
-  resultId          String            @map("result_id") @db.Uuid
-  serialNumber      String            @unique @map("serial_number")
+  id                   String                @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  certificateRuleId    String                @map("certificate_rule_id") @db.Uuid
+  learnerUserId        String                @map("learner_user_id") @db.Uuid
+  resultId             String                @map("result_id") @db.Uuid
+  serialNumber         String                @unique @map("serial_number")
   /// Plaintext held only long enough to render the PDF (§6 W2).
-  verificationCode  String?           @unique @map("verification_code")
-  verificationCodeHash String         @unique @map("verification_code_hash") @db.Char(64)
-  issuedAt          DateTime          @default(now()) @map("issued_at") @db.Timestamptz(6)
+  verificationCode     String?               @unique @map("verification_code")
+  verificationCodeHash String                @unique @map("verification_code_hash") @db.Char(64)
+  issuedAt             DateTime              @default(now()) @map("issued_at") @db.Timestamptz(6)
   /// Stored absolutely; a later rule change never moves it (§9 T12).
-  expiresAt         DateTime?         @map("expires_at") @db.Timestamptz(6)
-  status            CertificateStatus @default(ISSUED)
-  revokedAt         DateTime?         @map("revoked_at") @db.Timestamptz(6)
-  revokeReason      RevokeReasonCategory? @map("revoke_reason")
-  revokeComment     String?           @map("revoke_comment")
-  revokedByUserId   String?           @map("revoked_by_user_id") @db.Uuid
-  blobRef           String?           @map("blob_ref")
+  expiresAt            DateTime?             @map("expires_at") @db.Timestamptz(6)
+  status               CertificateStatus     @default(ISSUED)
+  revokedAt            DateTime?             @map("revoked_at") @db.Timestamptz(6)
+  revokeReason         RevokeReasonCategory? @map("revoke_reason")
+  revokeComment        String?               @map("revoke_comment")
+  revokedByUserId      String?               @map("revoked_by_user_id") @db.Uuid
+  blobRef              String?               @map("blob_ref")
   /// SHA-256 of the PDF bytes; a mismatched re-render is a platform finding.
-  renderedHash      String?           @map("rendered_hash") @db.Char(64)
-  signatureKeyId    String            @map("signature_key_id")
-  templateVersion   String            @map("template_version")
+  renderedHash         String?               @map("rendered_hash") @db.Char(64)
+  signatureKeyId       String                @map("signature_key_id")
+  templateVersion      String                @map("template_version")
 
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   rule   CertificateRule  @relation("CertificateRule", fields: [certificateRuleId], references: [id], onDelete: Restrict)
   result AssessmentResult @relation("CertificateResult", fields: [resultId], references: [id], onDelete: Restrict)
@@ -2493,45 +2496,45 @@ model Certificate {
 /// converted to a partitioned one; PostgreSQL requires the partition key in the
 /// primary key, hence the composite @@id.
 model AuditEvent {
-  id               String        @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  occurredAt       DateTime      @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  id         String   @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
 
-  action           String
-  family           String
-  category         AuditCategory
-  outcome          AuditOutcome
-  severity         AuditSeverity
+  action   String
+  family   String
+  category AuditCategory
+  outcome  AuditOutcome
+  severity AuditSeverity
 
-  actorType        ActorType     @map("actor_type")
-  actorUserId      String?       @map("actor_user_id") @db.Uuid
+  actorType        ActorType @map("actor_type")
+  actorUserId      String?   @map("actor_user_id") @db.Uuid
   /// Snapshots, not foreign keys resolved at read time (§3.1 H1).
-  actorDisplayName String?       @map("actor_display_name")
-  actorRoles       String[]      @default([]) @map("actor_roles")
-  onBehalfOfUserId String?       @map("on_behalf_of_user_id") @db.Uuid
+  actorDisplayName String?   @map("actor_display_name")
+  actorRoles       String[]  @default([]) @map("actor_roles")
+  onBehalfOfUserId String?   @map("on_behalf_of_user_id") @db.Uuid
 
-  entityType       String        @map("entity_type")
-  entityId         String?       @map("entity_id")
-  entityLabel      String?       @map("entity_label")
-  domainId         String?       @map("domain_id") @db.Uuid
-  sourceId         String?       @map("source_id") @db.Uuid
+  entityType  String  @map("entity_type")
+  entityId    String? @map("entity_id")
+  entityLabel String? @map("entity_label")
+  domainId    String? @map("domain_id") @db.Uuid
+  sourceId    String? @map("source_id") @db.Uuid
 
   /// Populated for configuration, mapping, scope, role, taxonomy, and flag
   /// changes only. NOT for question content (§3.1 H2).
-  previousValue    Json?         @map("previous_value") @db.JsonB
-  newValue         Json?         @map("new_value") @db.JsonB
+  previousValue Json? @map("previous_value") @db.JsonB
+  newValue      Json? @map("new_value") @db.JsonB
   /// Allow-listed keys per action (H3). There is no "dump the request body" path.
-  detail           Json          @default("{}") @db.JsonB
+  detail        Json  @default("{}") @db.JsonB
 
-  correlationId    String        @map("correlation_id")
-  requestId        String?       @map("request_id")
-  portal           PortalContext?
+  correlationId  String         @map("correlation_id")
+  requestId      String?        @map("request_id")
+  portal         PortalContext?
   /// Truncated before storage: /24 IPv4, /48 IPv6 (H6).
-  ipAddress        String?       @map("ip_address")
-  userAgentClass   String?       @map("user_agent_class")
-  policyName       String?       @map("policy_name")
-  denyReason       String?       @map("deny_reason")
-  errorCode        String?       @map("error_code")
-  schemaVersion    Int           @default(1) @map("schema_version")
+  ipAddress      String?        @map("ip_address")
+  userAgentClass String?        @map("user_agent_class")
+  policyName     String?        @map("policy_name")
+  denyReason     String?        @map("deny_reason")
+  errorCode      String?        @map("error_code")
+  schemaVersion  Int            @default(1) @map("schema_version")
 
   @@id([id, occurredAt])
   @@index([occurredAt(sort: Desc)])
@@ -2546,37 +2549,37 @@ model AuditEvent {
 /// Chained hash over a sealed partition, verified monthly. Detects modification
 /// by a database-level actor who bypassed the application role (§6).
 model AuditPartitionSeal {
-  id            String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  partitionName String   @unique @map("partition_name")
-  periodStart   DateTime @map("period_start") @db.Timestamptz(6)
-  periodEnd     DateTime @map("period_end") @db.Timestamptz(6)
-  eventCount    BigInt   @map("event_count")
-  chainHash     String   @map("chain_hash") @db.Char(64)
-  sealedAt      DateTime @default(now()) @map("sealed_at") @db.Timestamptz(6)
+  id             String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  partitionName  String    @unique @map("partition_name")
+  periodStart    DateTime  @map("period_start") @db.Timestamptz(6)
+  periodEnd      DateTime  @map("period_end") @db.Timestamptz(6)
+  eventCount     BigInt    @map("event_count")
+  chainHash      String    @map("chain_hash") @db.Char(64)
+  sealedAt       DateTime  @default(now()) @map("sealed_at") @db.Timestamptz(6)
   lastVerifiedAt DateTime? @map("last_verified_at") @db.Timestamptz(6)
-  lastVerifyOk  Boolean?  @map("last_verify_ok")
+  lastVerifyOk   Boolean?  @map("last_verify_ok")
 
   @@map("audit_partition_seal")
 }
 
 model Notification {
-  id            String              @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  recipientUserId String            @map("recipient_user_id") @db.Uuid
-  kind          String
-  severity      AuditSeverity       @default(INFO)
-  subject       String
-  body          String
-  entityType    String?             @map("entity_type")
-  entityId      String?             @map("entity_id")
+  id              String              @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  recipientUserId String              @map("recipient_user_id") @db.Uuid
+  kind            String
+  severity        AuditSeverity       @default(INFO)
+  subject         String
+  body            String
+  entityType      String?             @map("entity_type")
+  entityId        String?             @map("entity_id")
   /// Only IN_APP is delivered in release 1.
-  channel       NotificationChannel @default(IN_APP)
-  state         NotificationState   @default(PENDING)
-  correlationId String?             @map("correlation_id")
+  channel         NotificationChannel @default(IN_APP)
+  state           NotificationState   @default(PENDING)
+  correlationId   String?             @map("correlation_id")
 
-  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  deliveredAt   DateTime?           @map("delivered_at") @db.Timestamptz(6)
-  readAt        DateTime?           @map("read_at") @db.Timestamptz(6)
-  dismissedAt   DateTime?           @map("dismissed_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  deliveredAt DateTime? @map("delivered_at") @db.Timestamptz(6)
+  readAt      DateTime? @map("read_at") @db.Timestamptz(6)
+  dismissedAt DateTime? @map("dismissed_at") @db.Timestamptz(6)
 
   @@index([recipientUserId, state, createdAt(sort: Desc)])
   @@map("notification")
@@ -2593,9 +2596,9 @@ model ApplicationConfiguration {
   isSecretRef     Boolean            @default(false) @map("is_secret_ref")
   updatedByUserId String?            @map("updated_by_user_id") @db.Uuid
 
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version         Int                @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
   @@unique([key, scope, scopeId])
   @@index([key])
@@ -2619,16 +2622,16 @@ model ConfigurationChange {
 }
 
 model FeatureFlag {
-  id              String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  id              String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   key             String
-  enabled         Boolean  @default(false)
+  enabled         Boolean @default(false)
   environment     String
-  rolloutRule     Json?    @map("rollout_rule") @db.JsonB
-  updatedByUserId String?  @map("updated_by_user_id") @db.Uuid
+  rolloutRule     Json?   @map("rollout_rule") @db.JsonB
+  updatedByUserId String? @map("updated_by_user_id") @db.Uuid
 
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version         Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
   @@unique([key, environment])
   @@map("feature_flag")
@@ -2647,9 +2650,9 @@ model ReportDefinition {
   status             ReportStatus @default(DRAFT)
   ownerUserId        String?      @map("owner_user_id") @db.Uuid
 
-  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version            Int          @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
   runs         ReportRun[]         @relation("ReportRunDefinition")
   publications ReportPublication[] @relation("ReportPublicationDefinition")
@@ -2660,16 +2663,16 @@ model ReportDefinition {
 }
 
 model ReportRun {
-  id                 String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  definitionId       String   @map("definition_id") @db.Uuid
-  parameters         Json     @db.JsonB
-  requestedByUserId  String   @map("requested_by_user_id") @db.Uuid
-  rowCount           Int      @default(0) @map("row_count")
-  suppressedCellCount Int     @default(0) @map("suppressed_cell_count")
-  startedAt          DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
-  completedAt        DateTime? @map("completed_at") @db.Timestamptz(6)
-  outcome            String   @default("RUNNING")
-  correlationId      String   @map("correlation_id")
+  id                  String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  definitionId        String    @map("definition_id") @db.Uuid
+  parameters          Json      @db.JsonB
+  requestedByUserId   String    @map("requested_by_user_id") @db.Uuid
+  rowCount            Int       @default(0) @map("row_count")
+  suppressedCellCount Int       @default(0) @map("suppressed_cell_count")
+  startedAt           DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt         DateTime? @map("completed_at") @db.Timestamptz(6)
+  outcome             String    @default("RUNNING")
+  correlationId       String    @map("correlation_id")
 
   definition ReportDefinition @relation("ReportRunDefinition", fields: [definitionId], references: [id], onDelete: Restrict)
   exports    ReportExport[]   @relation("ReportExportRun")
@@ -2680,19 +2683,19 @@ model ReportRun {
 
 /// A definition plus an audience, never a frozen result set (§8.2 U1).
 model ReportPublication {
-  id               String       @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  definitionId     String       @map("definition_id") @db.Uuid
-  versionNumber    Int          @map("version_number")
-  status           ReportStatus @default(DRAFT)
-  audienceRule     Json         @map("audience_rule") @db.JsonB
-  submittedByUserId String?     @map("submitted_by_user_id") @db.Uuid
-  approvedByUserId String?      @map("approved_by_user_id") @db.Uuid
-  publishedByUserId String?     @map("published_by_user_id") @db.Uuid
-  retiredAt        DateTime?    @map("retired_at") @db.Timestamptz(6)
+  id                String       @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  definitionId      String       @map("definition_id") @db.Uuid
+  versionNumber     Int          @map("version_number")
+  status            ReportStatus @default(DRAFT)
+  audienceRule      Json         @map("audience_rule") @db.JsonB
+  submittedByUserId String?      @map("submitted_by_user_id") @db.Uuid
+  approvedByUserId  String?      @map("approved_by_user_id") @db.Uuid
+  publishedByUserId String?      @map("published_by_user_id") @db.Uuid
+  retiredAt         DateTime?    @map("retired_at") @db.Timestamptz(6)
 
-  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version          Int          @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
   definition ReportDefinition @relation("ReportPublicationDefinition", fields: [definitionId], references: [id], onDelete: Restrict)
 
@@ -2704,20 +2707,20 @@ model ReportPublication {
 /// PER_RECIPIENT only: a single evaluation delivered to many would be a
 /// scope-escalation delivery mechanism (H1).
 model ReportSchedule {
-  id             String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  definitionId   String   @map("definition_id") @db.Uuid
+  id             String              @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  definitionId   String              @map("definition_id") @db.Uuid
   cron           String
-  reportTimeZone String   @map("report_time_zone")
-  parameters     Json     @default("{}") @db.JsonB
+  reportTimeZone String              @map("report_time_zone")
+  parameters     Json                @default("{}") @db.JsonB
   format         ExportFormat
-  recipients     Json     @db.JsonB
+  recipients     Json                @db.JsonB
   channel        NotificationChannel @default(IN_APP)
-  runAsMode      String   @default("PER_RECIPIENT") @map("run_as_mode")
-  isActive       Boolean  @default(false) @map("is_active")
+  runAsMode      String              @default("PER_RECIPIENT") @map("run_as_mode")
+  isActive       Boolean             @default(false) @map("is_active")
 
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version        Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int      @default(1)
 
   definition ReportDefinition @relation("ReportScheduleDefinition", fields: [definitionId], references: [id], onDelete: Restrict)
 
@@ -2734,7 +2737,7 @@ model ReportExport {
   expiresAt         DateTime     @map("expires_at") @db.Timestamptz(6)
   downloadedAt      DateTime?    @map("downloaded_at") @db.Timestamptz(6)
 
-  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   run ReportRun @relation("ReportExportRun", fields: [runId], references: [id], onDelete: Cascade)
 
@@ -2744,21 +2747,21 @@ model ReportExport {
 
 /// pg-boss owns the queue; this is the queryable operational record (ADR-007).
 model JobRun {
-  id            String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  jobType       String    @map("job_type")
-  payloadRef    String?   @map("payload_ref")
-  state         JobState  @default(QUEUED)
-  attemptCount  Int       @default(0) @map("attempt_count")
-  claimedBy     String?   @map("claimed_by")
-  claimedAt     DateTime? @map("claimed_at") @db.Timestamptz(6)
+  id             String    @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  jobType        String    @map("job_type")
+  payloadRef     String?   @map("payload_ref")
+  state          JobState  @default(QUEUED)
+  attemptCount   Int       @default(0) @map("attempt_count")
+  claimedBy      String?   @map("claimed_by")
+  claimedAt      DateTime? @map("claimed_at") @db.Timestamptz(6)
   leaseExpiresAt DateTime? @map("lease_expires_at") @db.Timestamptz(6)
-  startedAt     DateTime? @map("started_at") @db.Timestamptz(6)
-  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
-  lastError     Json?     @map("last_error") @db.JsonB
-  correlationId String    @map("correlation_id")
+  startedAt      DateTime? @map("started_at") @db.Timestamptz(6)
+  completedAt    DateTime? @map("completed_at") @db.Timestamptz(6)
+  lastError      Json?     @map("last_error") @db.JsonB
+  correlationId  String    @map("correlation_id")
 
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([jobType, state])
   @@index([state, leaseExpiresAt])
@@ -2769,17 +2772,17 @@ model JobRun {
 /// The output of M4's nightly checks. Drift is REPORTED, never silently
 /// corrected.
 model PlatformConsistencyFinding {
-  id          String       @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  checkKey    String       @map("check_key")
-  entityType  String       @map("entity_type")
-  entityId    String?      @map("entity_id")
-  expected    Json?        @db.JsonB
-  actual      Json?        @db.JsonB
-  detectedAt  DateTime     @default(now()) @map("detected_at") @db.Timestamptz(6)
-  state       FindingState @default(OPEN)
-  acknowledgedByUserId String? @map("acknowledged_by_user_id") @db.Uuid
-  resolvedAt  DateTime?    @map("resolved_at") @db.Timestamptz(6)
-  note        String?
+  id                   String       @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  checkKey             String       @map("check_key")
+  entityType           String       @map("entity_type")
+  entityId             String?      @map("entity_id")
+  expected             Json?        @db.JsonB
+  actual               Json?        @db.JsonB
+  detectedAt           DateTime     @default(now()) @map("detected_at") @db.Timestamptz(6)
+  state                FindingState @default(OPEN)
+  acknowledgedByUserId String?      @map("acknowledged_by_user_id") @db.Uuid
+  resolvedAt           DateTime?    @map("resolved_at") @db.Timestamptz(6)
+  note                 String?
 
   @@index([state, detectedAt(sort: Desc)])
   @@index([checkKey])
@@ -2799,8 +2802,8 @@ model IdempotencyRecord {
   state            IdempotencyState @default(IN_PROGRESS)
   expiresAt        DateTime         @map("expires_at") @db.Timestamptz(6)
 
-  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([key, route, subjectId])
   @@index([expiresAt])

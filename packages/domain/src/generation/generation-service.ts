@@ -50,6 +50,7 @@ import {
   type ControlSettings,
   type RetryObservation,
 } from './control/runtime.js';
+import { classifyError } from './control/retry.js';
 import { scopeSectionKeys, type ResolvedGenerationScope } from './scope.js';
 
 export interface GenerationRunContext {
@@ -327,6 +328,67 @@ const recordJobRefusal = async (args: {
   });
 };
 
+/**
+ * A provider that BROKE -- not a control decision -- ends the job FAILED.
+ *
+ * Before OPENAI-CODEX-01 this path rethrew with the job left RUNNING forever:
+ * harmless while the only provider was an in-process function that does not
+ * fail, and an outage-shaped hole the moment a network call can time out, be
+ * rate-limited past its retries or return something that does not parse. A
+ * RUNNING row with nothing behind it is the same shape as the stuck sync run
+ * that froze a source (CLAUDE.md), so it is closed here rather than reaped
+ * later. The error's CLASS is recorded, never its message: a provider's
+ * message can quote what it was sent.
+ */
+const recordJobFailure = async (args: {
+  readonly prisma: PrismaClient;
+  readonly auditWriter: ReturnType<typeof createAuditWriter>;
+  readonly context: GenerationRunContext;
+  readonly requestedQuestionCount: number;
+  readonly executionMode: GenerationExecutionMode;
+  readonly providerId: GenerationProviderId;
+  readonly error: unknown;
+  readonly completedAt: Date;
+  readonly startedAt: Date;
+}): Promise<void> => {
+  const { context } = args;
+  const errorClass = classifyError(args.error);
+  await args.prisma.$transaction(async (tx) => {
+    await tx.generationJob.update({
+      where: { id: context.jobId },
+      data: {
+        status: 'FAILED',
+        completedAt: args.completedAt,
+        durationMs: args.completedAt.getTime() - args.startedAt.getTime(),
+      },
+    });
+    await args.auditWriter.write(tx, {
+      action: 'AUTHORING.GENERATION.JOB_FAILED',
+      outcome: 'FAILURE',
+      actorType: 'USER',
+      actorUserId: context.actorUserId,
+      actorDisplayName: context.actorDisplayName,
+      actorRoles: [...context.actorRoles],
+      entityType: 'GenerationJob',
+      entityId: context.jobId,
+      entityLabel: context.jobId,
+      domainId: context.domainId,
+      sourceId: context.sourceId,
+      correlationId: context.correlationId,
+      requestId: context.requestId,
+      portal: 'AUTHORING',
+      detail: {
+        jobStatus: 'FAILED',
+        providerId: args.providerId,
+        executionMode: args.executionMode,
+        requestedQuestionCount: args.requestedQuestionCount,
+        acceptedQuestionCount: 0,
+        errorClass,
+      },
+    });
+  });
+};
+
 export const runGenerationJob = async (args: RunGenerationArgs): Promise<GenerationRunResult> => {
   const { prisma, clock, scope, context, profile } = args;
   // A provider wins if one was resolved; otherwise the legacy generator port,
@@ -456,6 +518,18 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     // hold?" unanswerable from the audit log.
     if (error instanceof GenerationRefusedError) {
       await recordJobRefusal({
+        prisma,
+        auditWriter,
+        context,
+        requestedQuestionCount: args.requestedQuestionCount,
+        executionMode: args.executionMode ?? 'PLATFORM_MANAGED',
+        providerId: provider.providerId,
+        error,
+        completedAt: clock.now(),
+        startedAt,
+      });
+    } else {
+      await recordJobFailure({
         prisma,
         auditWriter,
         context,
@@ -766,6 +840,9 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
         rejectionCounts,
         inputTokens,
         outputTokens,
+        // 0014: the pre-call estimate the budgets were checked against, beside
+        // what the provider reported.
+        estimatedInputTokens: controlled.estimatedInputTokens,
         // Null when no cost could be known -- a licence-based provider or a
         // user-managed run. Never 0, which would claim a measurement.
         estimatedCost: controlled.cost.amount,
