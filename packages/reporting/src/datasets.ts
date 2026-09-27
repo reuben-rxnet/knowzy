@@ -23,59 +23,28 @@
 // it.
 
 import type { ReadOnlyDb } from './audit-explorer.js';
+import { DASHBOARD_DEFINITIONS, isDashboardDataset, runDashboardQuery } from './dashboard.js';
 import {
   applySuppression,
+  suppressionReasonOf,
   effectiveMinimumGroupSize,
   visibleTotals,
   SUPPRESSED,
   type DatasetRow,
-  type SuppressionPolicy,
 } from './suppression.js';
 
-export const DATASETS = [
-  'question-pipeline',
-  'generation',
-  'assessments',
-  'filing',
-  'sources',
-] as const;
-export type DatasetName = (typeof DATASETS)[number];
+// The names live in catalogue-types.ts, which imports neither this file nor
+// dashboard.ts, so the three form no cycle (B9).
+export { DATASETS, type DatasetName } from './catalogue-types.js';
+import { DATASETS, type DatasetName } from './catalogue-types.js';
 
 export const isDatasetName = (value: string): value is DatasetName =>
   (DATASETS as readonly string[]).includes(value);
 
-/** One measure, with the sentence that defines it. */
-export interface MetricDefinition {
-  readonly column: string;
-  readonly label: string;
-  /** B3. Written as an expression a reader can check against the numbers. */
-  readonly formula: string;
-  /** True where the figure is modelled rather than counted (B7). */
-  readonly estimated?: boolean;
-}
-
-export interface DatasetDefinition {
-  readonly name: DatasetName;
-  readonly title: string;
-  readonly grain: string;
-  /** The read models this entry reads, for the staleness report. */
-  readonly models: readonly string[];
-  readonly requiredPermission: string;
-  /** §3.2: an aggregate a reader cannot decompose is one they cannot audit. */
-  readonly drillThrough: string | null;
-  readonly dimensions: readonly { column: string; label: string }[];
-  readonly metrics: readonly MetricDefinition[];
-  /**
-   * Present only where a row could identify a person (S1).
-   *
-   * Absent on four of the five entries, and that is the point: a question, a
-   * document and a section are not people, and suppressing "17 questions in
-   * RX_NET" protects nobody while making the report useless.
-   */
-  readonly suppression?: Omit<SuppressionPolicy, 'minimumGroupSize'>;
-  /** Whether the entry supports a day window at all. */
-  readonly windowed: boolean;
-}
+// The definition types live in their own module so that dashboard.ts can
+// declare catalogue entries without importing this file, which imports it.
+export type { DatasetDefinition, MetricDefinition } from './catalogue-types.js';
+import type { DatasetDefinition, MetricDefinition } from './catalogue-types.js';
 
 // ---------------------------------------------------------------------------
 // 1. Question pipeline
@@ -360,6 +329,7 @@ export const DATASET_DEFINITIONS: Readonly<Record<DatasetName, DatasetDefinition
   assessments: ASSESSMENTS,
   filing: FILING,
   sources: SOURCES,
+  ...DASHBOARD_DEFINITIONS,
 };
 
 // ---------------------------------------------------------------------------
@@ -417,12 +387,29 @@ export interface DatasetResult {
    */
   readonly totalsPartial: Readonly<Record<string, boolean>>;
   readonly suppressedCellCount: number;
+  /**
+   * The envelope every reporting response carries (R2): the same count as
+   * `suppressedCellCount` under the name the API contract uses, and the reason
+   * in one sentence — null when nothing was withheld.
+   */
+  readonly suppressionCount: number;
+  readonly suppressionReason: string | null;
   readonly minimumGroupSize: number;
   readonly drillThrough: string | null;
   readonly windowDays: number | null;
   /** D9: the resolved half-open interval, displayed with the report. */
   readonly windowFrom: string | null;
   readonly windowTo: string | null;
+  /**
+   * The same interval as `windowFrom`/`windowTo`, as one object. For a
+   * current-state report every field is null: the data is "now", and a window
+   * printed beside it would imply a filter that was not applied.
+   */
+  readonly sourceWindow: {
+    readonly from: string | null;
+    readonly to: string | null;
+    readonly days: number | null;
+  };
   readonly durationMs: number;
 }
 
@@ -499,7 +486,7 @@ export const readFreshness = async (
   // OLDEST: a panel is as stale as its stalest input, and overstating freshness
   // is the only direction that misleads.
   const asOf =
-    times.length === models.length
+    models.length > 0 && times.length === models.length
       ? times.reduce((oldest, value) => (value < oldest ? value : oldest))
       : null;
   return { asOf, freshness };
@@ -554,18 +541,45 @@ export const runDataset = async (
 ): Promise<DatasetResult> => {
   const started = Date.now();
   const definition = DATASET_DEFINITIONS[request.name];
-  const pageSize = Math.min(request.pageSize ?? MAX_DATASET_ROWS, MAX_DATASET_ROWS);
-  const windowDays = definition.windowed ? (request.windowDays ?? 30) : null;
+  const pageSize = Math.min(
+    request.pageSize ?? definition.defaultPageSize ?? MAX_DATASET_ROWS,
+    MAX_DATASET_ROWS,
+  );
+  const windowDays = definition.windowed
+    ? (request.windowDays ?? definition.defaultWindowDays ?? 30)
+    : null;
 
   // D9: half-open [from, to) in UTC, resolved once and reported with the data.
   const to = new Date();
-  const from = windowDays === null ? null : new Date(to.getTime() - windowDays * 86_400_000);
+  let from = windowDays === null ? null : new Date(to.getTime() - windowDays * 86_400_000);
 
   const domainIds = request.scope.domainIds;
   const scopeAll = domainIds === null;
   const scopeList = domainIds === null ? [] : [...domainIds];
 
-  let raw: DatasetRow[];
+  let raw: DatasetRow[] = [];
+  let ownSuppression: { suppressedCellCount: number; reason: string | null } | null = null;
+  let asOfOverride: string | null | undefined;
+
+  if (isDashboardDataset(request.name)) {
+    const sourceAll = request.scope.sourceIds === null || request.scope.sourceIds === undefined;
+    const result = await runDashboardQuery(request.name, {
+      db,
+      scopeAll,
+      scopeList,
+      sourceAll,
+      sourceList: sourceAll ? [] : [...(request.scope.sourceIds ?? [])],
+      from,
+      to,
+      windowDays,
+      pageSize,
+      minimumGroupSize: effectiveMinimumGroupSize(request.minimumGroupSize),
+    });
+    raw = [...result.rows];
+    ownSuppression = result.suppression ?? null;
+    asOfOverride = result.asOf;
+    if (result.windowFrom !== undefined) from = result.windowFrom;
+  }
 
   switch (request.name) {
     case 'question-pipeline': {
@@ -840,6 +854,10 @@ export const runDataset = async (
       });
       break;
     }
+
+    default:
+      // A dashboard entry, already run above.
+      break;
   }
 
   // ------------------------------------------------------- suppression (S6)
@@ -850,7 +868,13 @@ export const runDataset = async (
       : applySuppression(raw, { ...definition.suppression, minimumGroupSize: threshold });
 
   const rows = suppression?.rows ?? raw;
-  const { asOf, freshness } = await readFreshness(db, definition.models);
+  const suppressedCellCount =
+    ownSuppression?.suppressedCellCount ?? suppression?.suppressedCellCount ?? 0;
+  const suppressionReason =
+    ownSuppression?.reason ?? (suppression === null ? null : suppressionReasonOf(suppression));
+  const ledger = await readFreshness(db, definition.models);
+  const asOf = asOfOverride === undefined ? ledger.asOf : asOfOverride;
+  const freshness = ledger.freshness;
 
   return {
     name: definition.name,
@@ -864,22 +888,35 @@ export const runDataset = async (
     rowCount: rows.length,
     // S4: totals are of VISIBLE rows, so a suppressed row never contributes to
     // a figure a reader could subtract it back out of.
-    totals: visibleTotals(
-      rows,
-      definition.metrics.map((metric) => metric.column),
-    ),
-    totalsPartial: Object.fromEntries(
-      definition.metrics.map((metric) => [
-        metric.column,
-        rows.some((row) => row[metric.column] === SUPPRESSED),
-      ]),
-    ),
-    suppressedCellCount: suppression?.suppressedCellCount ?? 0,
+    totals:
+      definition.summable === false
+        ? {}
+        : visibleTotals(
+            rows,
+            definition.metrics.map((metric) => metric.column),
+          ),
+    totalsPartial:
+      definition.summable === false
+        ? {}
+        : Object.fromEntries(
+            definition.metrics.map((metric) => [
+              metric.column,
+              rows.some((row) => row[metric.column] === SUPPRESSED),
+            ]),
+          ),
+    suppressedCellCount,
+    suppressionCount: suppressedCellCount,
+    suppressionReason,
     minimumGroupSize: threshold,
     drillThrough: definition.drillThrough,
     windowDays,
     windowFrom: from?.toISOString() ?? null,
     windowTo: windowDays === null ? null : to.toISOString(),
+    sourceWindow: {
+      from: from?.toISOString() ?? null,
+      to: windowDays === null ? null : to.toISOString(),
+      days: windowDays,
+    },
     durationMs: Date.now() - started,
   };
 };

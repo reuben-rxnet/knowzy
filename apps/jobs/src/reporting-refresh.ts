@@ -25,7 +25,9 @@
 
 import {
   REPORTING_DRIFT_CHECK_KEY,
+  captureCoverageSnapshot,
   pruneDatasetCache,
+  refreshModel,
   reconcileQuestionPipeline,
   refreshAllModels,
   type RefreshDb,
@@ -35,6 +37,7 @@ import { findingRepository, type PrismaClient } from '@knowzy/database';
 
 export const QUEUE_REPORTING_REFRESH = 'reporting-refresh';
 export const QUEUE_REPORTING_RECONCILE = 'reporting-reconcile';
+export const QUEUE_COVERAGE_SNAPSHOT = 'reporting-coverage-snapshot';
 
 export interface RefreshSummary {
   readonly refreshed: number;
@@ -92,4 +95,48 @@ export const runReportingReconcile = async (prisma: PrismaClient): Promise<Recon
     driftCount: drift.length,
     findingsRaised: drift.length,
   };
+};
+
+// ---------------------------------------------------------------------------
+// The daily coverage snapshot — decision R-1
+// ---------------------------------------------------------------------------
+//
+// ONCE A DAY, and the first capture of the day stands. The database function
+// refuses to overwrite a recorded day, so this job is idempotent by
+// construction: a restart, a retry or a second scheduler firing on the same
+// day writes nothing and says so.
+//
+// It REFRESHES ITS INPUTS FIRST. A snapshot reads the read models, not the
+// transactional tables — so that it is compared later against a KPI computed
+// the same way — and a snapshot of a model fifteen minutes stale would record
+// a day's state as it was a quarter of an hour earlier. The two materialized
+// inputs are refreshed immediately before the capture; the on-write pipeline
+// counter is always current.
+//
+// NOTHING IS BACK-FILLED, ever. A missed day stays missed, and a comparison
+// that needed it reads "Not Yet Available". Inventing the missing row from
+// `created_at` arithmetic would be the fabricated history R-1 replaced.
+
+export interface SnapshotSummary {
+  readonly written: boolean;
+  readonly inputsRefreshed: number;
+  readonly inputsFailed: number;
+}
+
+export const runCoverageSnapshot = async (
+  prisma: PrismaClient,
+  trigger: 'SCHEDULE' | 'MANUAL',
+  correlationId: string,
+): Promise<SnapshotSummary> => {
+  const db = prisma as unknown as RefreshDb;
+  const inputs = await Promise.all([
+    refreshModel(db, 'rm_source_coverage'),
+    refreshModel(db, 'rm_platform_inventory'),
+  ]);
+  const inputsFailed = inputs.filter((outcome) => outcome.status === 'FAILED').length;
+  // A failed input refresh does not block the capture: D4 leaves the previous
+  // data in place, and `models_as_of` on the row records how old it was. A
+  // day with a slightly stale snapshot is worth more than a day with none.
+  const written = await captureCoverageSnapshot(db, trigger, correlationId);
+  return { written, inputsRefreshed: inputs.length - inputsFailed, inputsFailed };
 };

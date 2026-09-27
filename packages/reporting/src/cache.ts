@@ -59,9 +59,23 @@ export const scopeHashOf = (request: DatasetRequest): string =>
     }),
   );
 
+/**
+ * The response SHAPE's version, hashed into every key.
+ *
+ * R2 added `sourceWindow`, `suppressionCount` and `suppressionReason` to every
+ * dataset. An R1 entry has the same report, parameters, scope and `asOf` as an
+ * R2 request made in the same fifteen minutes, so without this it would be
+ * served — a response missing the fields the contract now promises.
+ */
+export const DATASET_SHAPE_VERSION = 2;
+
 export const paramsHashOf = (request: DatasetRequest): string =>
   sha256(
-    JSON.stringify({ windowDays: request.windowDays ?? null, pageSize: request.pageSize ?? null }),
+    JSON.stringify({
+      shape: DATASET_SHAPE_VERSION,
+      windowDays: request.windowDays ?? null,
+      pageSize: request.pageSize ?? null,
+    }),
   );
 
 export const cacheKeyOf = (request: DatasetRequest, asOf: string | null): string =>

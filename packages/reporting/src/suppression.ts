@@ -218,3 +218,114 @@ export const visibleTotals = <T extends DatasetRow>(
   }
   return totals;
 };
+
+// ---------------------------------------------------------------------------
+// Two-way suppression — for a grid whose rows AND columns both have totals
+// ---------------------------------------------------------------------------
+
+export interface GridSuppressionPolicy {
+  readonly groupSizeColumn: string;
+  readonly dependentColumns: readonly string[];
+  /** The dimension(s) that identify a grid ROW, e.g. department. */
+  readonly rowBy: readonly string[];
+  /** The dimension(s) that identify a grid COLUMN, e.g. topic. */
+  readonly columnBy: readonly string[];
+  readonly minimumGroupSize: number;
+}
+
+/**
+ * S1 and S3 over a two-dimensional grid.
+ *
+ * `applySuppression` protects a cell against subtraction from ONE total. A
+ * heatmap has two: every row has a total and every column has a total, and a
+ * reader who knows a column's total can recover the single hidden cell in it
+ * even when its row hides two. So S3 is applied along BOTH axes, repeatedly,
+ * until neither axis has a line with exactly one hidden cell beside a visible
+ * one — each added suppression can create that condition on the other axis,
+ * which is why it iterates rather than running each axis once.
+ *
+ * It terminates: every pass either adds a cell to the hidden set or stops, and
+ * the set is bounded by the number of cells.
+ */
+export const applyGridSuppression = <T extends DatasetRow>(
+  rows: readonly T[],
+  policy: GridSuppressionPolicy,
+): SuppressionResult<T> => {
+  const threshold = effectiveMinimumGroupSize(policy.minimumGroupSize);
+  const columns = [policy.groupSizeColumn, ...policy.dependentColumns];
+  const hidden = new Set<number>();
+
+  rows.forEach((row, index) => {
+    const size = groupSizeOf(row, policy.groupSizeColumn);
+    if (size !== null && size > 0 && size < threshold) hidden.add(index);
+  });
+  const primary = hidden.size;
+
+  const linesOf = (by: readonly string[]): number[][] => {
+    const lines = new Map<string, number[]>();
+    rows.forEach((row, index) => {
+      const key = partitionKey(row, by);
+      const line = lines.get(key);
+      if (line === undefined) lines.set(key, [index]);
+      else line.push(index);
+    });
+    return [...lines.values()];
+  };
+  const axes = [linesOf(policy.rowBy), linesOf(policy.columnBy)];
+
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const lines of axes) {
+      for (const line of lines) {
+        if (line.length < 2) continue;
+        const hiddenHere = line.filter((index) => hidden.has(index));
+        const visible = line.filter((index) => !hidden.has(index));
+        if (hiddenHere.length !== 1 || visible.length === 0) continue;
+        const smallest = visible.reduce((best, index) => {
+          const a = groupSizeOf(rows[index] as DatasetRow, policy.groupSizeColumn) ?? Infinity;
+          const b = groupSizeOf(rows[best] as DatasetRow, policy.groupSizeColumn) ?? Infinity;
+          return a < b ? index : best;
+        }, visible[0] as number);
+        hidden.add(smallest);
+        changed = true;
+      }
+    }
+  }
+
+  const suppressed = rows.map((row, index) => {
+    if (!hidden.has(index)) return row;
+    const copy: Record<string, unknown> = { ...row };
+    for (const column of columns) if (column in copy) copy[column] = SUPPRESSED;
+    return copy as T;
+  });
+
+  return {
+    rows: suppressed,
+    suppressedCellCount: hidden.size * columns.length,
+    primarySuppressedRowCount: primary,
+    complementarySuppressedRowCount: hidden.size - primary,
+    minimumGroupSize: threshold,
+  };
+};
+
+/**
+ * The sentence a screen prints beside a withheld cell.
+ *
+ * One wording, produced here, so the dashboard, the CSV header and a snapshot
+ * give the same reason. Null when nothing was withheld: a reason for a
+ * suppression that did not happen is its own small fabrication.
+ */
+export const suppressionReasonOf = (
+  result: Pick<
+    SuppressionResult<DatasetRow>,
+    'primarySuppressedRowCount' | 'complementarySuppressedRowCount' | 'minimumGroupSize'
+  >,
+): string | null => {
+  if (result.primarySuppressedRowCount === 0 && result.complementarySuppressedRowCount === 0) {
+    return null;
+  }
+  const primary = `${result.primarySuppressedRowCount} group(s) had fewer than ${result.minimumGroupSize} distinct learners (S1)`;
+  return result.complementarySuppressedRowCount === 0
+    ? `${primary}.`
+    : `${primary}; ${result.complementarySuppressedRowCount} more withheld so the first could not be derived from a total (S3).`;
+};

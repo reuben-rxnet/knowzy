@@ -3,8 +3,10 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  applyGridSuppression,
   applySuppression,
   effectiveMinimumGroupSize,
+  suppressionReasonOf,
   isSuppressed,
   MINIMUM_GROUP_SIZE_FLOOR,
   SUPPRESSED,
@@ -185,5 +187,94 @@ describe('the input', () => {
     const rows = [row('a', 'one', 2), row('a', 'two', 30)];
     applySuppression(rows, policy);
     expect(rows[0]?.uniqueLearners).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Two-way suppression — the learner heatmap
+// ---------------------------------------------------------------------------
+
+describe('grid suppression (S1 + S3 on both axes)', () => {
+  const cell = (department: string, topic: string, learners: number) => ({
+    department,
+    topic,
+    learners,
+    averageScore: 80,
+  });
+  const grid = {
+    groupSizeColumn: 'learners',
+    dependentColumns: ['averageScore'],
+    rowBy: ['department'],
+    columnBy: ['topic'],
+    minimumGroupSize: 5,
+  };
+  const hidden = (rows: readonly Record<string, unknown>[]) =>
+    rows.filter((r) => r['learners'] === SUPPRESSED).map((r) => `${r['department']}/${r['topic']}`);
+
+  it('protects a small cell against its COLUMN total as well as its row total', () => {
+    //            T1   T2
+    //   Ops       3   20      <- Ops/T1 is small (S1)
+    //   Dev      30   40
+    //
+    // Row-only S3 hides Ops/T2 too (Ops row now has two hidden). But the T1
+    // COLUMN still has one hidden cell beside Dev/T1 = 30, so a reader with the
+    // T1 total recovers 3. Column S3 must hide Dev/T1 as well — and that in
+    // turn leaves the Dev row with one hidden cell, so Dev/T2 goes too.
+    const result = applyGridSuppression(
+      [cell('Ops', 'T1', 3), cell('Ops', 'T2', 20), cell('Dev', 'T1', 30), cell('Dev', 'T2', 40)],
+      grid,
+    );
+    expect(hidden(result.rows).sort()).toEqual(['Dev/T1', 'Dev/T2', 'Ops/T1', 'Ops/T2']);
+    expect(result.primarySuppressedRowCount).toBe(1);
+    expect(result.complementarySuppressedRowCount).toBe(3);
+  });
+
+  it('leaves no row or column with exactly one hidden cell beside a visible one', () => {
+    const rows = [
+      cell('A', 'x', 2),
+      cell('A', 'y', 50),
+      cell('A', 'z', 60),
+      cell('B', 'x', 40),
+      cell('B', 'y', 45),
+      cell('B', 'z', 3),
+      cell('C', 'x', 70),
+      cell('C', 'y', 80),
+      cell('C', 'z', 90),
+    ];
+    const result = applyGridSuppression(rows, grid);
+    const isHidden = (r: Record<string, unknown>) => r['learners'] === SUPPRESSED;
+    for (const axis of ['department', 'topic'] as const) {
+      const lines = new Map<string, Record<string, unknown>[]>();
+      for (const r of result.rows) {
+        const key = String(r[axis]);
+        lines.set(key, [...(lines.get(key) ?? []), r]);
+      }
+      for (const line of lines.values()) {
+        const h = line.filter(isHidden).length;
+        const v = line.length - h;
+        expect(h === 1 && v > 0, `${axis} line leaks a single hidden cell`).toBe(false);
+      }
+    }
+  });
+
+  it('hides nothing, and gives no reason, when every cell is large enough', () => {
+    const result = applyGridSuppression([cell('A', 'x', 10), cell('B', 'x', 12)], grid);
+    expect(result.suppressedCellCount).toBe(0);
+    expect(suppressionReasonOf(result)).toBeNull();
+  });
+
+  it('states the reason, naming both rules when both fired', () => {
+    const result = applyGridSuppression(
+      [cell('Ops', 'T1', 3), cell('Ops', 'T2', 20), cell('Dev', 'T1', 30), cell('Dev', 'T2', 40)],
+      grid,
+    );
+    expect(suppressionReasonOf(result)).toMatch(/fewer than 5 distinct learners \(S1\)/);
+    expect(suppressionReasonOf(result)).toMatch(/\(S3\)/);
+  });
+
+  it('clamps a configured threshold below the floor, exactly as the flat engine does', () => {
+    const result = applyGridSuppression([cell('A', 'x', 4)], { ...grid, minimumGroupSize: 2 });
+    expect(result.minimumGroupSize).toBe(MINIMUM_GROUP_SIZE_FLOOR);
+    expect(result.rows[0]?.learners).toBe(SUPPRESSED);
   });
 });

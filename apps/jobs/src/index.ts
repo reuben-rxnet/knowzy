@@ -30,8 +30,10 @@ import {
 import {
   runReportingReconcile,
   runReportingRefresh,
+  QUEUE_COVERAGE_SNAPSHOT,
   QUEUE_REPORTING_RECONCILE,
   QUEUE_REPORTING_REFRESH,
+  runCoverageSnapshot,
 } from './reporting-refresh.js';
 
 export const QUEUE_AUDIT_PARTITION_MAINTENANCE = 'audit.partition.maintenance';
@@ -55,7 +57,7 @@ const main = async (): Promise<void> => {
   const report = await validateStartup({
     deployable: 'jobs',
     rawEnv,
-    expectedMigrationVersion: '0012_reporting_read_models',
+    expectedMigrationVersion: '0013_reporting_r2_snapshots',
     probes: {
       database: () => probeDatabase(prisma),
       mockAdaptersRegistered: () => isLocal,
@@ -306,6 +308,7 @@ const main = async (): Promise<void> => {
   // view.
   await boss.createQueue(QUEUE_REPORTING_REFRESH);
   await boss.createQueue(QUEUE_REPORTING_RECONCILE);
+  await boss.createQueue(QUEUE_COVERAGE_SNAPSHOT);
 
   await boss.work(QUEUE_REPORTING_REFRESH, async () => {
     const correlation = startSystemCorrelation();
@@ -399,6 +402,48 @@ const main = async (): Promise<void> => {
     }
   });
 
+  // R-1: the daily coverage snapshot. The first capture of a UTC day stands, so
+  // a retry or a restart the same day writes nothing and reports that.
+  await boss.work(QUEUE_COVERAGE_SNAPSHOT, async () => {
+    const correlation = startSystemCorrelation();
+    const jobRun = await prisma.jobRun.create({
+      data: {
+        jobType: QUEUE_COVERAGE_SNAPSHOT,
+        state: 'RUNNING',
+        startedAt: systemClock.now(),
+        attemptCount: 1,
+        correlationId: correlation.correlationId,
+      },
+    });
+
+    const summary = await runCoverageSnapshot(prisma, 'SCHEDULE', correlation.correlationId);
+
+    await prisma.jobRun.update({
+      where: { id: jobRun.id },
+      data: { state: 'SUCCEEDED', completedAt: systemClock.now() },
+    });
+    await auditWriter.write(prisma, {
+      action: 'PLATFORM.JOB.SUCCEEDED',
+      entityType: 'JobRun',
+      entityId: jobRun.id,
+      correlationId: correlation.correlationId,
+      actorType: 'SYSTEM',
+      detail: {
+        jobType: QUEUE_COVERAGE_SNAPSHOT,
+        jobRunId: jobRun.id,
+        // 1 when today's row was written, 0 when today already had one.
+        itemsProcessed: summary.written ? 1 : 0,
+        itemsFailed: summary.inputsFailed,
+      },
+    });
+    logger.info(
+      summary.written
+        ? 'coverage snapshot recorded'
+        : 'coverage snapshot already recorded today; nothing written',
+      { correlationId: correlation.correlationId, inputsFailed: summary.inputsFailed },
+    );
+  });
+
   await boss.schedule(QUEUE_SOURCE_SYNC_TICK, `*/${tickMinutes} * * * *`, undefined, {
     tz: 'UTC',
   });
@@ -411,6 +456,8 @@ const main = async (): Promise<void> => {
   // alongside it: two jobs contending on the same tables at 03:00 makes each
   // one's duration a function of the other's.
   await boss.schedule(QUEUE_REPORTING_RECONCILE, '30 3 * * *', undefined, { tz: 'UTC' });
+  // Five past midnight UTC: the first capture of the new day.
+  await boss.schedule(QUEUE_COVERAGE_SNAPSHOT, '5 0 * * *', undefined, { tz: 'UTC' });
 
   // Run once at start so a fresh environment has its runway immediately.
   await boss.send(QUEUE_AUDIT_PARTITION_MAINTENANCE, {});
@@ -419,6 +466,9 @@ const main = async (): Promise<void> => {
   // render as "not yet built", which is honest and also unhelpful on the first
   // run of the day.
   await boss.send(QUEUE_REPORTING_REFRESH, {});
+  // And a snapshot, so a runner started after 00:05 still records today. A
+  // no-op when today already has one.
+  await boss.send(QUEUE_COVERAGE_SNAPSHOT, {});
 
   logger.info('job runner started', {
     queues: [QUEUE_AUDIT_PARTITION_MAINTENANCE, QUEUE_SOURCE_SYNC_TICK, QUEUE_SOURCE_SYNC_RUN],

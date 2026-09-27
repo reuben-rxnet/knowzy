@@ -46,6 +46,9 @@ export {
 export {
   MINIMUM_GROUP_SIZE_FLOOR,
   SUPPRESSED,
+  applyGridSuppression,
+  suppressionReasonOf,
+  type GridSuppressionPolicy,
   applySuppression,
   effectiveMinimumGroupSize,
   isSuppressed,
@@ -89,7 +92,41 @@ export {
 } from './refresh.js';
 
 export {
+  ACTIVITY_ACTIONS,
+  ACTIVITY_COMPLETION_ACTION,
+  DASHBOARD_DATASETS,
+  DASHBOARD_DEFINITIONS,
+  STATUS_BUCKETS,
+  captureCoverageSnapshot,
+  isDashboardDataset,
+  listCoverageSnapshots,
+  trendBuckets,
+  trendLabel,
+  type CoverageSnapshotRow,
+  type DashboardDatasetName,
+  type KpiKey,
+  type KpiValueStatus,
+  type SnapshotTrigger,
+  type TrendUnit,
+} from './dashboard.js';
+
+export {
+  SNAPSHOT_BASE_TOLERANCE_DAYS,
+  addDays,
+  compareValues,
+  noComparison,
+  previousWindow,
+  utcDate,
+  type ChangeUnit,
+  type Comparison,
+  type ComparisonBasis,
+  type ComparisonStatus,
+  type Direction,
+} from './comparison.js';
+
+export {
   CACHE_TTL_SECONDS,
+  DATASET_SHAPE_VERSION,
   cacheKeyOf,
   datasetCacheStats,
   paramsHashOf,

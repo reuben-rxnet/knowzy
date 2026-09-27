@@ -24,6 +24,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { systemClock } from '@knowzy/observability';
 import {
+  DATASETS,
   MATERIALIZED_MODELS,
   REPORTING_DRIFT_CHECK_KEY,
   readFreshness,
@@ -260,13 +261,9 @@ describeDb('reporting read models', () => {
 
   describe('datasets', () => {
     it('carry asOf, a formula for every metric, and the resolved window', async () => {
-      for (const name of [
-        'question-pipeline',
-        'generation',
-        'assessments',
-        'filing',
-        'sources',
-      ] as const) {
+      // EVERY catalogue entry, including R2's dashboard panels: a list that had
+      // to be extended by hand is a list the next dataset would be left off.
+      for (const name of DATASETS) {
         const result = await runDataset(prisma as never, { name, scope: { domainIds: null } });
         expect(result.asOf, name).not.toBeNull();
         expect(result.metrics.length, name).toBeGreaterThan(0);

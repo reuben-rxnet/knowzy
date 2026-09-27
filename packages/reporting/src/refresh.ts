@@ -42,6 +42,11 @@ export const MATERIALIZED_MODELS = [
   'rm_generation_yield',
   'rm_assessment_performance',
   'rm_source_coverage',
+  // Phase 10 R2. The inventory is one row and cheap; the two attempt models
+  // grow with every scored result, so they go last.
+  'rm_platform_inventory',
+  'rm_assessment_attempt',
+  'rm_topic_attempt',
 ] as const;
 export type MaterializedModel = (typeof MATERIALIZED_MODELS)[number];
 
