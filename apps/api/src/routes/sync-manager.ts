@@ -25,7 +25,7 @@ import { nextRunAt, scheduleOf } from '@knowzy/domain';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
 import { toProblem } from '../http/problem.js';
 import type { FastifyReply } from 'fastify';
-import type { ErrorCode } from '@knowzy/shared-types';
+import { sourceWorkflowStatus, type ErrorCode } from '@knowzy/shared-types';
 import type { McpClient } from '../mcp/client.js';
 
 const problemReply = (
@@ -97,31 +97,9 @@ const runView = (row: {
   errorSummary: row.errorSummary,
 });
 
-/**
- * The workflow status an operator sees, derived from state rather than stored.
- *
- * Order matters: a source that is RUNNING is running whatever its schedule
- * says, and a source that is inactive is PAUSED even if its last run
- * succeeded. `DISABLED` is reserved for a source that is both inactive and
- * archived, because those are different operator actions with different
- * remedies.
- */
-const workflowStatus = (source: {
-  isActive: boolean;
-  archivedAt: Date | null;
-  runningCount: number;
-  lastOutcome: string | null;
-  scheduleMode: string;
-}): 'RUNNING' | 'DISABLED' | 'PAUSED' | 'FAILED' | 'SCHEDULED' | 'SUCCESS' | 'NEVER_RUN' => {
-  if (source.runningCount > 0) return 'RUNNING';
-  if (source.archivedAt !== null) return 'DISABLED';
-  if (!source.isActive) return 'PAUSED';
-  if (source.lastOutcome === 'FAILED') return 'FAILED';
-  if (source.lastOutcome === null) {
-    return source.scheduleMode === 'MANUAL' ? 'NEVER_RUN' : 'SCHEDULED';
-  }
-  return source.scheduleMode === 'MANUAL' ? 'SUCCESS' : 'SCHEDULED';
-};
+// The workflow status is derived by `sourceWorkflowStatus` in
+// @knowzy/shared-types, shared with Reports → Knowledge Source Health so the two
+// screens cannot disagree about the same source.
 
 export const syncManagerRoutes = [
   defineRoute({
@@ -202,7 +180,7 @@ export const syncManagerRoutes = [
             ...schedule,
             nextRunAt: nextRunAt(schedule, lastRun?.startedAt ?? null, now)?.toISOString() ?? null,
           },
-          status: workflowStatus({
+          status: sourceWorkflowStatus({
             isActive: source.isActive,
             archivedAt: source.archivedAt,
             runningCount: running,

@@ -44,3 +44,50 @@ export const SyncScheduleSchema = z
 export type SyncSchedule = z.infer<typeof SyncScheduleSchema>;
 
 export const MANUAL_SCHEDULE: SyncSchedule = { mode: 'MANUAL', timezone: 'UTC' };
+
+// ---------------------------------------------------------------------------
+// The workflow status an operator sees
+// ---------------------------------------------------------------------------
+
+export const SOURCE_WORKFLOW_STATUSES = [
+  'RUNNING',
+  'DISABLED',
+  'PAUSED',
+  'FAILED',
+  'SCHEDULED',
+  'SUCCESS',
+  'NEVER_RUN',
+] as const;
+export type SourceWorkflowStatus = (typeof SOURCE_WORKFLOW_STATUSES)[number];
+
+/**
+ * The workflow status of a knowledge source, derived from state rather than stored.
+ *
+ * It lives HERE, rather than in the Sync Manager's route, because two surfaces
+ * show it: the Sync Manager and Reports → Knowledge Source Health. The
+ * reporting design (§8) requires the second to REUSE this derivation rather
+ * than invent one, and a "Healthy" label computed a different way on each
+ * screen is two screens that disagree about the same source.
+ *
+ * Order matters: a source that is RUNNING is running whatever its schedule
+ * says, and a source that is inactive is PAUSED even if its last run
+ * succeeded. `DISABLED` is reserved for a source that is both inactive and
+ * archived, because those are different operator actions with different
+ * remedies.
+ */
+export const sourceWorkflowStatus = (source: {
+  readonly isActive: boolean;
+  readonly archivedAt: Date | string | null;
+  readonly runningCount: number;
+  readonly lastOutcome: string | null;
+  readonly scheduleMode: string;
+}): SourceWorkflowStatus => {
+  if (source.runningCount > 0) return 'RUNNING';
+  if (source.archivedAt !== null) return 'DISABLED';
+  if (!source.isActive) return 'PAUSED';
+  if (source.lastOutcome === 'FAILED') return 'FAILED';
+  if (source.lastOutcome === null) {
+    return source.scheduleMode === 'MANUAL' ? 'NEVER_RUN' : 'SCHEDULED';
+  }
+  return source.scheduleMode === 'MANUAL' ? 'SUCCESS' : 'SCHEDULED';
+};
