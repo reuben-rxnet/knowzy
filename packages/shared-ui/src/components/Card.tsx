@@ -39,7 +39,9 @@ export const Card = ({
     {...(ariaLabelledBy === undefined ? {} : { 'aria-labelledby': ariaLabelledBy })}
     {...(role === undefined ? {} : { role })}
     {...(ariaLive === undefined ? {} : { 'aria-live': ariaLive })}
-    className={`rounded-lg border border-line bg-brand-surface ${ELEVATION[elevation]} ${className}`}
+    // `relative` for the same reason as DataTable: a chart's screen-reader
+    // table inside a card must not escape it and widen the page.
+    className={`relative rounded-lg border border-line bg-brand-surface ${ELEVATION[elevation]} ${className}`}
   >
     {children}
   </Tag>

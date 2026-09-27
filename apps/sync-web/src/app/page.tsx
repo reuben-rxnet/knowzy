@@ -190,7 +190,7 @@ export default async function SyncManagerDashboard() {
         {/* The identity picker. This portal authorizes as the AUTHORING
             context, so the same seeded identities apply and a refusal can be
             reproduced by switching here. */}
-        <form action={switchSubject} className="flex items-center gap-2">
+        <form action={switchSubject} className="flex flex-wrap items-center gap-2">
           <label htmlFor="subject" className="text-2xs text-ink-muted">
             {t('header.identity')}
           </label>
@@ -198,7 +198,7 @@ export default async function SyncManagerDashboard() {
             id="subject"
             name="subject"
             defaultValue={subject.upn}
-            className="min-h-target rounded-md border border-line bg-brand-surface px-2 py-1 text-sm"
+            className="min-h-target min-w-0 max-w-full flex-1 rounded-md border border-line bg-brand-surface px-2 py-1 text-sm"
           >
             {DEMO_SUBJECTS.map((option) => (
               <option key={option.upn} value={option.upn}>

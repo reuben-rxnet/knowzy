@@ -67,33 +67,39 @@ const DataAlternative = ({
   readonly head: readonly string[];
   readonly rows: readonly (readonly (string | number)[])[];
 }) => (
-  <table className="knowzy-sr-only">
-    <caption>{caption}</caption>
-    <thead>
-      <tr>
-        {head.map((cell) => (
-          <th key={cell} scope="col">
-            {cell}
-          </th>
-        ))}
-      </tr>
-    </thead>
-    <tbody>
-      {rows.map((row) => (
-        <tr key={String(row[0])}>
-          {row.map((cell, index) =>
-            index === 0 ? (
-              <th key={String(cell)} scope="row">
-                {cell}
-              </th>
-            ) : (
-              <td key={`${String(row[0])}-${index}`}>{cell}</td>
-            ),
-          )}
+  // Hidden by a WRAPPER, not by putting the class on the table: CSS will not
+  // shrink a table below its content, so a `knowzy-sr-only` table kept its
+  // full width and widened a phone-sized Reports page. The wrapper is a block,
+  // so the 1px box and the clip hold.
+  <div className="knowzy-sr-only">
+    <table>
+      <caption>{caption}</caption>
+      <thead>
+        <tr>
+          {head.map((cell) => (
+            <th key={cell} scope="col">
+              {cell}
+            </th>
+          ))}
         </tr>
-      ))}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={String(row[0])}>
+            {row.map((cell, index) =>
+              index === 0 ? (
+                <th key={String(cell)} scope="row">
+                  {cell}
+                </th>
+              ) : (
+                <td key={`${String(row[0])}-${index}`}>{cell}</td>
+              ),
+            )}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 );
 
 // ---------------------------------------------------------------------------

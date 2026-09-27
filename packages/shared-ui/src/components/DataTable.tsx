@@ -37,7 +37,12 @@ export const DataTable = ({
   // tabIndex on the scroll container: a region that scrolls must be reachable
   // without a mouse (WCAG 2.2, and §31's keyboard requirement).
   <div
-    className={`overflow-x-auto rounded-lg border border-line bg-brand-surface ${className}`}
+    // `relative` makes this the containing block for every absolutely
+    // positioned descendant — above all the `knowzy-sr-only` labels inside
+    // cells. Without it their static position is out at the table's far edge,
+    // they escape this scroll box, and the whole PAGE scrolls sideways (AI
+    // Providers was 1054px wide in an 820px tablet viewport).
+    className={`relative overflow-x-auto rounded-lg border border-line bg-brand-surface ${className}`}
     tabIndex={0}
     role="group"
   >

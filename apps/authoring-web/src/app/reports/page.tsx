@@ -461,7 +461,7 @@ export default async function ReportsDashboardPage({
       </section>
 
       {/* ============================================ 2 + 3. trend and status */}
-      <div className="grid items-start gap-4 xl:grid-cols-3">
+      <div className="grid items-start gap-4 xl:grid-cols-3 [&>*]:min-w-0">
         <Card className="xl:col-span-2">
           <CardHeader title={t('rep.trendHeading')} description={t('rep.trendIntro')} />
           <CardBody>
@@ -532,7 +532,7 @@ export default async function ReportsDashboardPage({
       </div>
 
       {/* =============================== 4 + 5 + 8. filing, learners, activity */}
-      <div className="grid items-start gap-4 xl:grid-cols-12">
+      <div className="grid items-start gap-4 xl:grid-cols-12 [&>*]:min-w-0">
         <Card className="xl:col-span-5">
           <CardHeader title={t('rep.deptHeading')} description={t('rep.deptIntro')} />
           <CardBody>
@@ -595,7 +595,7 @@ export default async function ReportsDashboardPage({
       </div>
 
       {/* ===================================== 6 + 7. sources and AI usage */}
-      <div className="grid items-start gap-4 xl:grid-cols-2">
+      <div className="grid items-start gap-4 xl:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader title={t('rep.sourceHeading')} description={t('rep.sourceIntro')} />
           <CardBody>
