@@ -3,9 +3,9 @@
 **Status:** DESIGN, partly built. The port, catalogue, registry and control layer were built
 2026-09-24 (architecture.md §9.0). **2026-09-27, OPENAI-CODEX-00:** OpenAI (Codex) — the first
 provider in the agreed order (OpenAI Codex, then Claude, then Copilot, then Azure OpenAI) — is
-registered with a **readiness** client: secret resolution, endpoint, authentication and model
-checks, **no generation** (§9.0 rules 9 and 10). No provider other than the deterministic one can
-generate.
+registered with a **readiness** client (§9.0 rules 9 and 10), and since **OPENAI-CODEX-01** with a
+**generation** client (rule 11) — refused until T-29 is recorded, and not yet run against a real
+endpoint. Results: [OPENAI_CODEX_EVALUATION_RESULTS.md](OPENAI_CODEX_EVALUATION_RESULTS.md).
 **Supersedes nothing.** [`LIVE_CLAUDE_IMPLEMENTATION_PLAN.md`](LIVE_CLAUDE_IMPLEMENTATION_PLAN.md)
 remains the build plan for the Anthropic provider; this document is the frame it plugs into.
 **Companion:** [`LIVE_CLAUDE_EVALUATION_PLAN.md`](LIVE_CLAUDE_EVALUATION_PLAN.md) §11 extends the

@@ -113,6 +113,8 @@ interface ProviderRow {
   readonly modelId: string | null;
   readonly temperature: number | null;
   readonly maxOutputTokens: number | null;
+  readonly apiStyle: string | null;
+  readonly authHeaderName: string | null;
   readonly limits: {
     readonly perJobTokenBudget?: number;
     readonly dailyTokenBudget?: number;
@@ -236,6 +238,8 @@ export default async function AiProvidersPage() {
     modelId: row.modelId,
     temperature: row.temperature,
     maxOutputTokens: row.maxOutputTokens,
+    apiStyle: row.apiStyle,
+    authHeaderName: row.authHeaderName,
     credentialConfigured: row.credentialConfigured,
     credentialReference: row.credentialReference,
     approved: row.approved,

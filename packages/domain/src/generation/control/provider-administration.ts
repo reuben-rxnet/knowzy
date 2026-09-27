@@ -724,6 +724,8 @@ export const readProviderAdministration = async (
       modelId: settings.modelId ?? null,
       temperature: settings.temperature ?? null,
       maxOutputTokens: settings.maxOutputTokens ?? null,
+      apiStyle: settings.apiStyle ?? null,
+      authHeaderName: settings.authHeaderName ?? null,
       limits,
       health: health?.state ?? 'UNKNOWN',
       healthReason: health?.reason ?? 'No calls have been recorded for this provider.',

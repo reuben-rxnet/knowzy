@@ -73,6 +73,19 @@ export interface ProviderRegistryOptions {
    * never persisted, so the registry asks a question rather than holding one.
    */
   readonly userEntitlement?: (providerId: GenerationProviderId, userId: string) => Promise<boolean>;
+  /**
+   * OPENAI-CODEX-01: builds the OpenAI generation provider for one job. Its key
+   * is resolved per call through the audited Secret Resolution Layer, so the
+   * registry holds a constructor rather than a credential.
+   */
+  readonly openai?: (args: ResolveProviderArgs) => GenerationProvider;
+  /**
+   * Whether a provider's credential is configured RIGHT NOW. Asked per request,
+   * because a reference is set on a screen, not in the environment -- a set
+   * computed at startup would say "no credential" for a provider an
+   * administrator configured a minute ago.
+   */
+  readonly credentialConfigured?: (providerId: GenerationProviderId) => Promise<boolean>;
 }
 
 export interface ResolveProviderArgs {
@@ -81,6 +94,13 @@ export interface ResolveProviderArgs {
   /** The model from the generation profile. Never hardcoded (T-30). */
   readonly modelId: string;
   readonly requestingUserId: string;
+  /** Who is asking, for the audit rows the provider's secret resolution writes. */
+  readonly caller?: {
+    readonly displayName: string;
+    readonly roles: readonly string[];
+    readonly correlationId: string;
+    readonly requestId: string;
+  };
 }
 
 export interface ProviderRegistry {
@@ -92,7 +112,7 @@ export interface ProviderRegistry {
   resolve: (args: ResolveProviderArgs) => Promise<GenerationProvider>;
 }
 
-type Factory = (modelId: string) => GenerationProvider;
+type Factory = (args: ResolveProviderArgs) => GenerationProvider;
 
 export const createProviderRegistry = (options: ProviderRegistryOptions): ProviderRegistry => {
   const credentialed = new Set(options.credentialedProviders ?? []);
@@ -107,6 +127,13 @@ export const createProviderRegistry = (options: ProviderRegistryOptions): Provid
   // control in every generator comparison, and the reason the gate chain is
   // known to work. Multi-provider must not make it optional.
   factories.set('DETERMINISTIC_LOCAL', () => createDeterministicProvider());
+
+  // OPENAI is registered when the server supplies its constructor
+  // (OPENAI-CODEX-01). Registration is not permission: the control registry
+  // still refuses it until an approval is recorded, it is enabled and its
+  // credential is configured, and every candidate it proposes passes the same
+  // gate chain as the deterministic generator's.
+  if (options.openai !== undefined) factories.set('OPENAI', options.openai);
 
   // ANTHROPIC, MICROSOFT_COPILOT, AZURE_OPENAI and GEMINI are deliberately
   // NOT registered. Each is blocked on something outside this codebase —
@@ -170,7 +197,8 @@ export const createProviderRegistry = (options: ProviderRegistryOptions): Provid
     if (
       args.executionMode === 'PLATFORM_MANAGED' &&
       args.providerId !== 'DETERMINISTIC_LOCAL' &&
-      !credentialed.has(args.providerId)
+      !credentialed.has(args.providerId) &&
+      !((await options.credentialConfigured?.(args.providerId)) ?? false)
     ) {
       throw new ProviderResolutionError(
         'PROVIDER_CREDENTIAL_UNAVAILABLE',
@@ -179,7 +207,7 @@ export const createProviderRegistry = (options: ProviderRegistryOptions): Provid
       );
     }
 
-    return factory(args.modelId);
+    return factory(args);
   };
 
   return {

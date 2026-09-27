@@ -948,6 +948,15 @@ export const copy = {
   'prov.removeRef': 'Remove the recorded reference',
   'prov.removeRefHint':
     'The provider keeps its other settings. An enabled provider cannot lose its reference; disable it first.',
+  'prov.apiStyle': 'API style',
+  'prov.apiStyleHint':
+    'Which OpenAI-compatible API the endpoint serves. Codex models are served on the Responses API; many gateways pass Chat Completions through.',
+  'prov.apiStyleDefault': 'Default (Responses)',
+  'prov.apiStyleResponses': 'Responses (/responses)',
+  'prov.apiStyleChat': 'Chat Completions (/chat/completions)',
+  'prov.authHeaderName': 'Auth header name',
+  'prov.authHeaderNameHint':
+    'Empty sends the key as a Bearer token in Authorization. A gateway may need its own header, such as api-key or Ocp-Apim-Subscription-Key.',
   'prov.temperature': 'Temperature',
   'prov.maxOutputTokens': 'Maximum output tokens',
   'prov.save': 'Save provider',

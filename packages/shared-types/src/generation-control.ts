@@ -271,6 +271,22 @@ export const ProviderSettingsSchema = z
     apiKeyRef: SecretReferenceSchema.optional(),
     temperature: z.number().min(0).max(2).optional(),
     maxOutputTokens: z.number().int().min(1).max(200_000).optional(),
+    /**
+     * OPENAI-CODEX-01: which OpenAI-compatible API the endpoint serves.
+     * RESPONSES (`/responses`, OpenAI's current API and the only one Codex
+     * models are served on) or CHAT_COMPLETIONS (`/chat/completions`, what most
+     * gateways pass through). Absent means RESPONSES.
+     */
+    apiStyle: z.enum(['RESPONSES', 'CHAT_COMPLETIONS']).optional(),
+    /**
+     * The header the key travels in. `authorization` (the default) sends
+     * `Bearer <key>`; any other name -- `api-key`, `Ocp-Apim-Subscription-Key` --
+     * carries the key as its value, for a gateway in front of the model.
+     */
+    authHeaderName: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9-]{1,63}$/, 'a header name: letters, digits and hyphens')
+      .optional(),
   })
   .strict();
 export type ProviderSettings = z.infer<typeof ProviderSettingsSchema>;
@@ -525,6 +541,9 @@ export interface ProviderAdminRow {
   readonly modelId: string | null;
   readonly temperature: number | null;
   readonly maxOutputTokens: number | null;
+  /** OPENAI-CODEX-01. Null means the default: RESPONSES, `authorization`. */
+  readonly apiStyle: 'RESPONSES' | 'CHAT_COMPLETIONS' | null;
+  readonly authHeaderName: string | null;
   readonly limits: ProviderLimits;
   readonly health: ProviderHealthState;
   readonly healthReason: string;

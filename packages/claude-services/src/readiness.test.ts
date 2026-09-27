@@ -5,7 +5,8 @@ import type { ProviderSettings, ProviderStateAssessment } from '@knowzy/shared-t
 import { PROVIDER_CATALOGUE } from './provider.js';
 import { deriveReadiness } from './readiness.js';
 import { createGeneratorRegistry } from './registry.js';
-import { createOpenAIProvider, type ReadinessResult } from './openai.js';
+import type { ReadinessResult } from './openai.js';
+import { createOpenAIGenerationProvider } from './openai-generation.js';
 import { validateProvider } from './validation.js';
 
 const settings: ProviderSettings = {
@@ -197,36 +198,59 @@ describe('deriveReadiness — the ladder', () => {
     expect(ladder(run()).state).toBe('BLOCKED_BY_APPROVAL');
   });
 
-  it('UNAVAILABLE once approved and enabled, because this build cannot generate with it', () => {
+  it('AVAILABLE once verified, approved and enabled -- OPENAI-CODEX-01 can generate', () => {
     const a = assessment({ approved: true });
     const s = { ...settings, enabled: true };
-    expect(ladder(run({ assessment: a, settings: s }), a, s).state).toBe('UNAVAILABLE');
+    expect(ladder(run({ assessment: a, settings: s }), a, s).state).toBe('AVAILABLE');
+  });
+
+  it('BLOCKED_BY_CONFIGURATION when verified and approved but not enabled', () => {
+    const a = assessment({ approved: true });
+    expect(ladder(run({ assessment: a }), a).state).toBe('BLOCKED_BY_CONFIGURATION');
   });
 });
 
-describe('the registry keeps a readiness-only client out of generation', () => {
-  it('reports OPENAI UNAVAILABLE even when approved, enabled and credentialled', () => {
+const openaiFactory = (model: string) =>
+  createOpenAIGenerationProvider({
+    modelId: model,
+    configure: async () => {
+      throw new Error('not called by the registry');
+    },
+  });
+
+describe('the registry lets OpenAI generate only when every gate is met', () => {
+  it('AVAILABLE when approved, enabled and credentialled', () => {
     const registry = createGeneratorRegistry({
-      factories: { OPENAI: (model) => createOpenAIProvider(model) },
+      factories: { OPENAI: openaiFactory },
       activeProvider: 'DETERMINISTIC_LOCAL',
       approvedProviders: ['DETERMINISTIC_LOCAL', 'OPENAI'],
       enabled: { OPENAI: true },
       credentialPresent: { OPENAI: true },
     });
-    const openai = registry.assess('OPENAI');
-    expect(openai.registered).toBe(true);
-    expect(openai.state).toBe('UNAVAILABLE');
-    expect(() =>
-      registry.forJob({ providerId: 'OPENAI', executionMode: 'PLATFORM_MANAGED', modelId: 'm' }),
-    ).toThrow(/readiness client/);
+    expect(registry.assess('OPENAI').state).toBe('AVAILABLE');
   });
 
-  it('still reports BLOCKED_BY_APPROVAL first while unapproved', () => {
+  it('BLOCKED_BY_APPROVAL first while unapproved, however well configured -- where OpenAI stands before T-29', () => {
     const registry = createGeneratorRegistry({
-      factories: { OPENAI: (model) => createOpenAIProvider(model) },
+      factories: { OPENAI: openaiFactory },
       activeProvider: 'DETERMINISTIC_LOCAL',
       approvedProviders: ['DETERMINISTIC_LOCAL'],
+      enabled: { OPENAI: true },
+      credentialPresent: { OPENAI: true },
     });
     expect(registry.assess('OPENAI').state).toBe('BLOCKED_BY_APPROVAL');
+    expect(() =>
+      registry.forJob({ providerId: 'OPENAI', executionMode: 'PLATFORM_MANAGED', modelId: 'm' }),
+    ).toThrow(/approval/i);
+  });
+
+  it('BLOCKED_BY_CONFIGURATION when approved but not enabled', () => {
+    const registry = createGeneratorRegistry({
+      factories: { OPENAI: openaiFactory },
+      activeProvider: 'DETERMINISTIC_LOCAL',
+      approvedProviders: ['DETERMINISTIC_LOCAL', 'OPENAI'],
+      credentialPresent: { OPENAI: true },
+    });
+    expect(registry.assess('OPENAI').state).toBe('BLOCKED_BY_CONFIGURATION');
   });
 });

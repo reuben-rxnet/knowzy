@@ -212,7 +212,7 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
     expect(openai.credentialReference).toBe(REFERENCE);
     expect(openai.credentialSource).toBe('LOCAL_SECURE_STORE');
     expect(openai.capabilities).toEqual({
-      supportsGeneration: false,
+      supportsGeneration: true,
       supportsCostReporting: true,
       supportsTokenReporting: true,
       supportsStreaming: true,

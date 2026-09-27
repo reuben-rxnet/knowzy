@@ -43,7 +43,7 @@ export const secretPlatformFromEnv = (
     .filter((host) => host.length > 0),
 });
 
-const sourcesFor = (platform: SecretPlatform | undefined): SecretSourceProvider[] => {
+export const secretSourcesFor = (platform: SecretPlatform | undefined): SecretSourceProvider[] => {
   const providers: SecretSourceProvider[] = [
     keyVaultPlaceholderSource(platform?.keyVaultUri ?? null),
   ];
@@ -57,7 +57,7 @@ const sourcesFor = (platform: SecretPlatform | undefined): SecretSourceProvider[
 export const healthResolver = (platform: SecretPlatform | undefined): SecretResolver =>
   createSecretResolver({
     environment: platform?.environment ?? 'local',
-    providers: sourcesFor(platform),
+    providers: secretSourcesFor(platform),
   });
 
 /**
@@ -71,7 +71,7 @@ export const auditedResolver = (
 ): SecretResolver =>
   createSecretResolver({
     environment: deps.secrets?.environment ?? 'local',
-    providers: sourcesFor(deps.secrets),
+    providers: secretSourcesFor(deps.secrets),
     onResolution: async (event) => {
       await createAuditWriter({ clock: systemClock }).write(deps.prisma, {
         action: 'ADMIN.CONFIGURATION.SECRET_VALIDATED',

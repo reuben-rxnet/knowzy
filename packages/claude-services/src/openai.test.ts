@@ -6,8 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { RevealableSecret } from '@knowzy/shared-types';
-import { checkOpenAIReadiness, createOpenAIProvider, endpointPermission } from './openai.js';
-import { ProviderRefusedError } from './registry.js';
+import { checkOpenAIReadiness, endpointPermission } from './openai.js';
 
 const KEY = 'sk-proj-FAKE-KEY-FOR-TESTS-ONLY-0123456789';
 const secret: RevealableSecret = {
@@ -168,19 +167,5 @@ describe('endpointPermission', () => {
     ['not a url', false],
   ])('%s -> %s', (url, expected) => {
     expect(endpointPermission(url, allowed).allowed).toBe(expected);
-  });
-});
-
-describe('createOpenAIProvider', () => {
-  it('declares that it cannot generate, and refuses if asked anyway', async () => {
-    const provider = createOpenAIProvider('gpt-5-codex');
-    expect(provider.capabilities.supportsGeneration).toBe(false);
-    await expect(
-      provider.generate({} as never, {
-        mode: 'PLATFORM_MANAGED',
-        onBehalfOfUserId: null,
-        correlationId: 'c',
-      }),
-    ).rejects.toBeInstanceOf(ProviderRefusedError);
   });
 });

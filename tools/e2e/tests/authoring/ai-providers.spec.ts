@@ -123,13 +123,15 @@ test.describe('administration: AI providers', () => {
     const openai = admin.providers.find((row) => row.providerId === 'OPENAI');
     // Nothing configured in the shipped state: the ladder's first rung.
     expect(openai?.readiness.state).toBe('BLOCKED_BY_CONFIGURATION');
-    expect(openai?.capabilities['supportsGeneration']).toBe(false);
+    // OPENAI-CODEX-01: a generation client exists. Whether it may RUN is the
+    // gate's business -- unapproved, it stays BLOCKED_BY_APPROVAL.
+    expect(openai?.capabilities['supportsGeneration']).toBe(true);
 
     await actAs(page, IDENTITY.administrator);
     await page.goto(PAGE);
     const row = page.getByRole('row', { name: /^\s*OPENAI/ }).first();
     await expect(row.locator('[data-readiness="BLOCKED_BY_CONFIGURATION"]')).toBeVisible();
-    await expect(row.getByText('Generation: no')).toBeVisible();
+    await expect(row.getByText('Generation: yes')).toBeVisible();
     await expect(row.getByText('Retrieval-free: yes')).toBeVisible();
 
     // The same ladder on AI Usage & Budgets, derived the same way.

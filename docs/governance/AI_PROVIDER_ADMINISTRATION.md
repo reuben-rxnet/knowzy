@@ -288,16 +288,18 @@ required; an identity without `report.read` is refused the page.
 
 ## 7. What this screen does not do
 
-- **It does not generate.** Test connection makes two metadata requests for OpenAI and nothing for
-  any other external provider (§4.1). No request carries a prompt.
+- **Test connection does not generate.** It makes two metadata requests for OpenAI and nothing
+  for any other external provider (§4.1). No test request carries a prompt. *Generation* with
+  OpenAI exists since OPENAI-CODEX-01, is refused until an approval is recorded, and runs from a
+  generation job, never from this screen.
 - **It does not accept a key.** A key enters the local secure store through `npm run secrets` on the
   machine running the stack; there is no upload, route or form field that writes one.
 - **It does not hide the providers it will not use.** Five of the six are unusable today and all
   six are listed, each with its reason. A table showing only the working one would suggest the
   others do not exist rather than that they are not built yet.
-- **It does not register a stand-in.** Since OPENAI-CODEX-00, `OPENAI` is registered with a
-  **readiness** client that declares `supportsGeneration: false`, so the gate stays `UNAVAILABLE`
-  for generation once approved and "Make active" stays refused. Every other external provider is
+- **It does not register a stand-in.** Since OPENAI-CODEX-01, `OPENAI` is registered with a real
+  **generation** client (`supportsGeneration: true`). Once approved, enabled, tested and
+  credentialled it becomes AVAILABLE and can be made active. Every other external provider is
   declared, not registered.
 - **It does not report a credential rotation date.** The timestamp it shows is the
   `llm.providerSettings` row's, labelled "Provider settings last changed" — nothing records when an
@@ -315,3 +317,4 @@ required; an identity without `report.read` is refused the page.
 | --- | --- |
 | 2026-09-26 | Built. Migration 0011, `llm.providerSettings`, four writes, five-check validation, `OVER_BUDGET` as a sixth provider state, three credential-reference environment variables declared. |
 | 2026-09-27 | **P-5 and OPENAI-CODEX-00.** §3.2 the Secret Resolution Layer (local secure store, Key Vault declared, resolver, audited resolutions, `npm run secrets`); §4.1 the nine-check chain with real endpoint, authentication and model checks for OpenAI; §5.1 readiness. References are shown; values never. Five audit actions added: `SECRET_REFERENCE_CREATED`, `SECRET_REFERENCE_UPDATED`, `SECRET_VALIDATED`, `PROVIDER_ENABLED`, `PROVIDER_DISABLED`. Re-saving settings without the reference now keeps it. |
+| 2026-09-27 | **OPENAI-CODEX-01.** OpenAI's readiness-only client is replaced by a generation client (see [OPENAI_CODEX_GENERATION_READINESS.md](../integrations/OPENAI_CODEX_GENERATION_READINESS.md)). Two settings: **API style** (Responses or Chat Completions) and **Auth header name** (a gateway may need its own). Readiness can now reach AVAILABLE for OpenAI. |

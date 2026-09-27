@@ -13,7 +13,7 @@
 import { resolveControlSettings, CONTROL_CONFIG_KEYS } from '@knowzy/configuration';
 import {
   createGeneratorRegistry,
-  createOpenAIProvider,
+  createOpenAIGenerationProvider,
   type GeneratorRegistry,
 } from '@knowzy/claude-services';
 import type { PrismaClient } from '@knowzy/database';
@@ -74,15 +74,25 @@ export const loadControlLayer = async (prisma: PrismaClient): Promise<ControlLay
   // storage actually knows -- see `settingsUpdatedAt` in shared-types.
   const settingsRow = rows.find((row) => row.key === 'llm.providerSettings');
 
-  // ONE factory besides the deterministic provider's: OpenAI's READINESS
-  // client (OPENAI-CODEX-00). It lets validation say truthfully that a client
-  // exists; it declares `supportsGeneration: false`, so the registry keeps it
-  // UNAVAILABLE for generation and `setActiveProvider` refuses it, and its
-  // `generate()` refuses as well. Every other provider stays unregistered.
-  // Registering a stand-in that could generate is the one thing the registry
-  // exists to prevent.
+  // ONE factory besides the deterministic provider's: OpenAI (OPENAI-CODEX-01).
+  // This registry DECIDES -- approval, enablement, credential -- and the
+  // instance it builds is never the one that calls OpenAI: the route passes
+  // the API registry's instance, whose key is resolved per call through the
+  // audited Secret Resolution Layer, as `providerOverride`. So this one's
+  // `configure` refuses, and a path that reached it would fail loudly rather
+  // than call a provider with no key. Every other provider stays unregistered.
   const registry = createGeneratorRegistry({
-    factories: { OPENAI: (modelId) => createOpenAIProvider(modelId) },
+    factories: {
+      OPENAI: (modelId) =>
+        createOpenAIGenerationProvider({
+          modelId,
+          configure: async () => {
+            throw new Error(
+              'The control-layer OpenAI instance decides state only; calls go through the API provider registry.',
+            );
+          },
+        }),
+    },
     activeProvider: resolved.activeProvider as GenerationProviderId,
     approvedProviders: resolved.approvedProviders as readonly GenerationProviderId[],
     // The administrator's on/off decision, which the registry treats as part

@@ -27,6 +27,7 @@ import {
   CheckboxRow,
   Field,
   Modal,
+  Select,
   StatusBadge,
   TextInput,
 } from '@knowzy/shared-ui';
@@ -48,6 +49,8 @@ export interface ProviderFormValues {
   readonly modelId: string | null;
   readonly temperature: number | null;
   readonly maxOutputTokens: number | null;
+  readonly apiStyle: string | null;
+  readonly authHeaderName: string | null;
   readonly credentialConfigured: boolean;
   /** The reference, shown: it names a secret and is not one. */
   readonly credentialReference: string | null;
@@ -150,6 +153,38 @@ export const ProviderSettingsButton = ({
               {t('prov.removeRef')}
             </CheckboxRow>
           ) : null}
+
+          {/* OPENAI-CODEX-01: how the endpoint is spoken to. Both default to
+              OpenAI's own API; a corporate gateway in front of the model
+              usually needs the header changed, and sometimes the style. */}
+          {id === 'DETERMINISTIC_LOCAL' ? null : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id={`apiStyle-${id}`} label={t('prov.apiStyle')} hint={t('prov.apiStyleHint')}>
+                <Select
+                  id={`apiStyle-${id}`}
+                  name="apiStyle"
+                  defaultValue={provider.apiStyle ?? ''}
+                >
+                  <option value="">{t('prov.apiStyleDefault')}</option>
+                  <option value="RESPONSES">{t('prov.apiStyleResponses')}</option>
+                  <option value="CHAT_COMPLETIONS">{t('prov.apiStyleChat')}</option>
+                </Select>
+              </Field>
+              <Field
+                id={`authHeaderName-${id}`}
+                label={t('prov.authHeaderName')}
+                hint={t('prov.authHeaderNameHint')}
+              >
+                <TextInput
+                  id={`authHeaderName-${id}`}
+                  name="authHeaderName"
+                  placeholder="authorization"
+                  defaultValue={provider.authHeaderName ?? ''}
+                  autoComplete="off"
+                />
+              </Field>
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id={`temperature-${id}`} label={t('prov.temperature')}>

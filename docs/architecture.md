@@ -586,6 +586,17 @@ Eight rules govern it. Rules 7 and 8 were added on 2026-09-26 with provider admi
     `BLOCKED_BY_APPROVAL`. A provider credential is sent only to an **allow-listed host**, set by
     deployment (`LLM_ENDPOINT_ALLOWLIST`) rather than on a screen, only over https (loopback
     excepted for a test double), with redirects refused.
+    *(2026-09-27, OPENAI-CODEX-01: OpenAI is no longer readiness-only — rule 11. The rule stands for
+    any future provider registered before it can generate.)*
+11. *(2026-09-27, OPENAI-CODEX-01.)* **A network provider generates PROPOSALS through the unmodified
+    chain.** OpenAI is registered with a generation client that sends the shared framed prompt
+    (PromptVersion unchanged), a strict output schema, no tools and `store: false`. Its key is
+    resolved per call through the audited resolver and sent under the same host, https and redirect
+    rules as rule 10. It classifies failures for the control layer: 429, 5xx and timeouts are retried,
+    and unparseable output is not. Every proposal then passes scope, evidence verification,
+    integrity, duplicate detection and confidence exactly as the deterministic generator's does, and
+    becomes a DRAFT awaiting review. A provider that breaks ends its job `FAILED`, never `RUNNING`. It
+    still may not run without a recorded approval, an enablement and a configured credential.
 
 **A credential is a reference, never a value.** Configuration stores
 `keyvault://{vault}/secrets/{name}` or, locally, `localstore://{name}` (rule 9), validated as that

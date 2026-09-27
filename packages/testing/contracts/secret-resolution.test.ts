@@ -68,7 +68,41 @@ describe('a secret is revealed in exactly one place', () => {
       }
     };
     const callers = productionSources().filter((file) => /\.reveal\(\)/.test(read(file)));
-    expect(callers).toEqual(['packages/claude-services/src/openai.ts']);
+    // TWO since OPENAI-CODEX-01: the readiness probe's Authorization header,
+    // and the generation client's auth header. A third is a third place a key
+    // can escape, and should be a decision taken here, not an accident.
+    expect(callers.sort()).toEqual([
+      'packages/claude-services/src/openai-generation.ts',
+      'packages/claude-services/src/openai.ts',
+    ]);
+  });
+});
+
+describe('OPENAI-CODEX-01 generates through one endpoint, with no tools', () => {
+  const source = readFileSync(
+    join(ROOT, 'packages/claude-services/src/openai-generation.ts'),
+    'utf8',
+  );
+
+  it('posts only to /responses or /chat/completions', () => {
+    const paths = [...source.matchAll(/'(\/[a-z/_]+)'/g)].map((match) => match[1]);
+    expect(paths.filter((path) => path !== undefined).sort()).toEqual([
+      '/chat/completions',
+      '/responses',
+    ]);
+    for (const forbidden of ['/embeddings', '/files', '/assistants', '/threads', '/fine_tuning']) {
+      expect(source, forbidden).not.toContain(forbidden);
+    }
+  });
+
+  it('grants no tools, stores nothing at the provider, and frames with the shared prompt', () => {
+    expect(source).toContain('tools: GENERATION_TOOL_GRANT');
+    expect(source).toContain('store: false');
+    expect(source).toContain('frameGenerationPrompt(generateArgs)');
+  });
+
+  it('refuses redirects, like the readiness probe', () => {
+    expect(source).toContain("redirect: 'error'");
   });
 });
 

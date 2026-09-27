@@ -293,6 +293,24 @@ export const generationRoutes = [
               'No substitute provider is used.',
           );
         }
+        // A network provider's model comes from ITS settings, not from the
+        // generation profile (whose model is the deterministic baseline's).
+        // Resolved BEFORE the job exists, so a provider with no model leaves
+        // nothing behind.
+        const providerModel =
+          requestedProvider === 'DETERMINISTIC_LOCAL'
+            ? null
+            : ((await loadControlLayer(deps.prisma)).providerSettings[requestedProvider]?.modelId ??
+              null);
+        if (requestedProvider !== 'DETERMINISTIC_LOCAL' && providerModel === null) {
+          return problemReply(
+            reply,
+            ctx,
+            request.url,
+            'PROVIDER_CREDENTIAL_UNAVAILABLE',
+            `${requestedProvider} has no model configured. Set one in Administration -> AI Providers.`,
+          );
+        }
         if (!capabilities.retrievalFree) {
           return problemReply(
             reply,
@@ -335,11 +353,18 @@ export const generationRoutes = [
         // moving it behind the existing pg-boss queue is wiring, not redesign —
         // but until that happens this call is synchronous and a large job will
         // hold the request open. Recorded in MVP-Plan.md.
+        const modelId = providerModel ?? created.profile.modelId;
         const provider = await deps.providers.resolve({
           providerId: requestedProvider,
           executionMode: requestedMode,
-          modelId: created.profile.modelId,
+          modelId,
           requestingUserId: ctx.subject.userId,
+          caller: {
+            displayName: ctx.subject.displayName,
+            roles: ctx.subject.roles,
+            correlationId: ctx.correlationId,
+            requestId: ctx.requestId,
+          },
         });
 
         // The control layer, resolved for this request: budgets, concurrency,
@@ -354,7 +379,9 @@ export const generationRoutes = [
           onBehalfOfUserId: requestedMode === 'USER_MANAGED' ? ctx.subject.userId : null,
           clock: systemClock,
           scope: created.resolvedScope,
-          profile: created.profile,
+          // The model in force for THIS provider, so every attempt row, the
+          // price lookup and the job's provenance name the right one.
+          profile: { ...created.profile, modelId },
           requestedQuestionCount: created.requestedQuestionCount,
           context: {
             jobId: created.jobId,

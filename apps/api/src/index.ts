@@ -3,6 +3,8 @@
 // Order matters: validate configuration, THEN accept traffic. A fail-fast
 // check failing exits non-zero — environment-and-configuration.md §9.
 
+import { createOpenAIForJob } from './generation/openai-provider.js';
+import { loadControlLayer } from './generation/control-layer.js';
 import { secretPlatformFromEnv } from './secrets/platform-secrets.js';
 import {
   StartupFatalError,
@@ -68,6 +70,10 @@ const main = async (): Promise<void> => {
   logger.info('subject resolver ready', { kind: resolver.kind });
 
   const auditWriter = createAuditWriter({ clock: systemClock });
+  const platformSecrets = secretPlatformFromEnv(
+    environment === 'unknown' ? 'local' : environment,
+    rawEnv,
+  );
 
   const app = buildServer({
     logger,
@@ -88,11 +94,26 @@ const main = async (): Promise<void> => {
       // PROVIDER_NOT_REGISTERED read as PROVIDER_CREDENTIAL_UNAVAILABLE, which
       // would send an operator looking for a missing key rather than a missing
       // integration.
-      providers: createProviderRegistry({ environment }),
+      providers: createProviderRegistry({
+        environment,
+        // OPENAI-CODEX-01. Constructed per job, key resolved per call.
+        openai: (args) =>
+          createOpenAIForJob({
+            prisma,
+            secrets: platformSecrets,
+            modelId: args.modelId,
+            caller:
+              args.caller === undefined
+                ? undefined
+                : { userId: args.requestingUserId, ...args.caller },
+          }),
+        credentialConfigured: async (providerId) =>
+          (await loadControlLayer(prisma)).providerSettings[providerId]?.apiKeyRef !== undefined,
+      }),
       // P-5: where secrets resolve. The local secure store in `local` only;
       // elsewhere a keyvault:// reference, which reports SOURCE_UNAVAILABLE
       // until a Key Vault client exists.
-      secrets: secretPlatformFromEnv(environment === 'unknown' ? 'local' : environment, rawEnv),
+      secrets: platformSecrets,
       resolveSubject: (headers) => resolver.resolve(headers),
     },
   });

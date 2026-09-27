@@ -8,10 +8,9 @@
 //     question or anything about a person: the request is the key and a model
 //     name. A contract test asserts no completion, response or chat endpoint
 //     appears in this file.
-//   * `generate()` REFUSES. The provider is registered so the platform can say
-//     "a client exists" truthfully, and it declares `supportsGeneration:
-//     false`, which the registry turns into UNAVAILABLE -- so it cannot be made
-//     the active provider, and no job can reach this method.
+//   * It never generates. Generation lives in `openai-generation.ts`
+//     (OPENAI-CODEX-01), behind the registry's approval, enablement and
+//     credential checks; this file is the readiness probe Test connection runs.
 //
 // FIVE RULES ABOUT THE KEY
 //
@@ -31,14 +30,6 @@
 //      only when they are short identifiers.
 
 import type { ProviderValidationStep, RevealableSecret } from '@knowzy/shared-types';
-import type { GenerateArgs } from './generator.js';
-import {
-  PROVIDER_CATALOGUE,
-  type ExecutionContext,
-  type GenerationProvider,
-  type ProviderGenerateResult,
-} from './provider.js';
-import { ProviderRefusedError } from './registry.js';
 
 /** OpenAI's documented API host. The allow-list default for this provider. */
 export const OPENAI_DEFAULT_HOSTS = ['api.openai.com'] as const;
@@ -309,30 +300,3 @@ export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<Re
 
   return { endpoint, authentication, model, limits };
 };
-
-/**
- * OpenAI as a registered provider — for READINESS only.
- *
- * It exists so the registry can truthfully report "a client for this provider
- * is implemented", and it declares `supportsGeneration: false` so the registry
- * reports UNAVAILABLE for generation and refuses to activate it. `generate()`
- * refuses anyway: two fences, because the second one is the one a future
- * change to the registry would otherwise walk straight through.
- */
-export const createOpenAIProvider = (modelId: string): GenerationProvider => ({
-  providerId: 'OPENAI',
-  capabilities: PROVIDER_CATALOGUE.OPENAI,
-  modelId,
-  providerVersion: 'openai-readiness-00',
-  generate: async (
-    _args: GenerateArgs,
-    _context: ExecutionContext,
-  ): Promise<ProviderGenerateResult> => {
-    throw new ProviderRefusedError(
-      'OPENAI',
-      'PROVIDER_NOT_REGISTERED',
-      'PROVIDER_NOT_REGISTERED',
-      'Generating questions with OpenAI is not implemented in this build. OPENAI-CODEX-00 establishes readiness only: endpoint, authentication and model.',
-    );
-  },
-});

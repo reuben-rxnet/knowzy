@@ -4,7 +4,8 @@
 (provider-based generation and question import), taxonomy administration, the SharePoint Sync
 Manager, the AI Generation Control Layer, AI provider administration and Phase 10 R1 and R2
 reporting, including PILOT-T1, PILOT-T2, UI-M3, SYNC-M1..M4, AI-CONTROL-M1, AI-PROVIDER-M1,
-PHASE10-R1, PHASE10-R2, P-5 (secret resolution) and OPENAI-CODEX-00 (provider readiness)
+PHASE10-R1, PHASE10-R2, P-5 (secret resolution), OPENAI-CODEX-00 (provider readiness) and
+OPENAI-CODEX-01 (OpenAI generation, refused until approved)
 **Last updated:** 2026-09-27
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -738,16 +739,23 @@ you change the base URL, model or reference:
 | `UNAVAILABLE` | Cannot ground, no client, unreachable — or everything verified, but this build cannot generate with it | A release |
 | `AVAILABLE` | Everything, and it can generate | — |
 
-**OpenAI (Codex) is the first provider with a real client — for readiness only.** Test connection
-can prove its endpoint, key and model. It **cannot generate questions** in this build: the row
-reads *Generation: no*, and even with an approval and enabled it stays `UNAVAILABLE` for generation
-and **Make active** stays refused. Each row also lists what the provider **declares**: generation,
+**OpenAI (Codex) is the first external provider that can generate.** Its row reads *Generation:
+yes*. It still generates nothing until four things are true: a data-processing approval is recorded
+(T-29), it is enabled, its credential resolves, and Test connection has passed. Until then it reads
+`BLOCKED_BY_APPROVAL` or `BLOCKED_BY_CONFIGURATION`, and **Make active** stays refused. Once it is
+`AVAILABLE`, its questions are **proposals**: they go through exactly the same checks as the
+deterministic generator's (verbatim evidence, duplicates, integrity) and land in the review queue as
+drafts, and a person still reviews and a different person still approves. The Generate screen
+(§4.3) still offers only the deterministic generator in this build. Each row also lists what the provider **declares**: generation,
 cost reporting, token reporting, streaming and retrieval-free, each yes or no.
 
 **Four things you can do per provider:**
 
 - **Configure** — its display name, endpoint, model, credential reference, temperature and maximum
-  output tokens, and whether it is **Enabled**. Enabling one needs its endpoint, model and
+  output tokens, and whether it is **Enabled**. For an external provider there are two more:
+  **API style** (Responses, the default and the only one Codex models are served on, or Chat
+  Completions) and **Auth header name** (empty sends the key as a Bearer token; a gateway may need
+  its own header, such as `api-key` or `Ocp-Apim-Subscription-Key`). Enabling one needs its endpoint, model and
   credential reference set first: an incomplete provider is refused at generation time, where the
   reason is much harder to find.
 - **Record approval** — a separate dialog, on purpose, and it **requires a reference** to where the
@@ -1400,7 +1408,7 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | **The learner performance heatmap** | **Real** (§4.3g), by the department the questions were filed under. With few learners most cells read **Suppressed**, which is correct |
 | **AI provider configuration** | **Real** (§4.3f). A provider's endpoint, model, credential reference, ceilings, enablement and its recorded data-processing approval are all set from **Administration → AI Providers**, with no deployment. What remains a release is *writing a client* for a provider — see the Claude row above |
 | **A connection test against an AI provider** | **Real for OpenAI** (§4.3f): the secret is resolved and the endpoint, key and model are checked with two metadata requests. Not real for any other external provider, which has no client — its live checks read NOT ATTEMPTED |
-| **Generating questions with OpenAI (Codex)** | Not real. The client proves readiness only; generation stays with the deterministic generator |
+| **Generating questions with OpenAI (Codex)** | **Built, not yet run.** The generation client exists and its proposals go through the full gate chain, but it is refused until the T-29 approval is recorded, and no working credential is configured. The Generate screen does not offer it yet. See docs/integrations/OPENAI_CODEX_EVALUATION_RESULTS.md |
 | **Azure Key Vault** | Not real. `keyvault://` references are accepted and reported as unreadable here; the local secure store works in the local environment only |
 | **Badges and certificates** | Not built |
 | **Refreshers** | Not built |
@@ -1440,6 +1448,7 @@ the log below.
 | 2026-09-26 | PHASE10-R1 | **Reporting exists** (§4.3g, **Reports**), which makes `Reports` the last dead entry in the navigation to become a link. Five reports over records the platform already held — the question pipeline, generation yield, assessment performance, how the bank is filed on all four axes, and source coverage — on six read models in their own database schema. Every report states **when its data was true** (from the model's own refresh record, never from the clock), **the absolute dates** a relative window resolved to, and **one written formula per metric**. The assessment report **withholds any row covering fewer than five learners**, including the second row needed so the first cannot be derived by subtraction, and **a total that lost rows to suppression reads "Withheld" rather than 0** — a zero there would have said "nobody has taken it". Export produces a CSV with a header block stating scope, as-of, threshold and withheld count, with formula-injection defused, and is audited; a snapshot stores the same header block under a label, and is **not** a published report. Two absences are stated rather than filled: **no "vs previous period" anywhere**, because no history of those figures is stored and two of them could never have one, and **no learner heatmap**, because its read models do not exist, a learner has no department, and most of its cells would be withheld |
 | 2026-09-27 | PHASE10-R2 | **The Reports dashboard is visual** (§4.3g): eight headline figures, a generated-vs-published trend line, a status donut, a department × job role column chart, the **learner performance heatmap**, recent activity from the audit trail, knowledge source health and an AI usage summary. **Two decisions made this possible.** Department and job role are the reporting hierarchy, so the heatmap groups by the department the *questions* were filed under and says so; and coverage history is now recorded — **one coverage snapshot per day**, append-only, never back-filled — so every headline figure carries a real comparison or reads **Not Yet Available**. The heatmap withholds any cell under five learners and any cell derivable from its row or column. The feed names nobody and groups completions. Every panel opens as a full report with its own CSV export and snapshot, and an export now records the period it covered. The two absences R1 stated — no comparisons and no heatmap — are promoted out of §10 |
 | 2026-09-27 | P-5 / OPENAI-CODEX-00 | **Test connection is real for OpenAI** (§4.3f): the credential reference is resolved from the new **local secure store** and the endpoint, key and model are verified with two metadata requests, each result showing what it observed. Rows now show a **Readiness** ladder beside the **Generation gate**, the five **declared capabilities**, and the credential **reference** (never the key). A **Secret sources** panel reports each source's health. Keys enter the store only through `npm run secrets`. Re-saving a provider without re-typing the reference now keeps it; removing it is a checkbox. The button is renamed **Test connection**. AI Usage & Budgets (§4.3c) shows the same readiness. OpenAI still cannot generate |
+| 2026-09-27 | OPENAI-CODEX-01 | **OpenAI can generate — once approved.** The AI Providers row for OpenAI now reads *Generation: yes*. The Configure dialog gains **API style** and **Auth header name**, so a key issued for a corporate gateway can be sent in the gateway's own header. OpenAI stays `BLOCKED_BY_APPROVAL` until T-29 is recorded; once available, its questions are drafts that pass the same checks and the same review and approval as any other. The Generate screen is unchanged |
 | 2026-09-26 | AI-PROVIDER-M1 | **A provider can now be configured through the product** (§4.3f, **Administration → AI Providers**), which is what makes the day a credential arrives a configuration change rather than a release. Every declared provider is listed — including the five that cannot be used — each with the reason and who can clear it, in order of permanence: capability, approval, implementation, credential. **Recording a data-processing approval is its own act and requires a reference** to where the approval is held, because a credential is not authorization and a checkbox beside "Enabled" would be one nobody stopped at. A credential is typed as a `keyvault://` **reference**, never a key: anything key-shaped is refused before storage, the field is write-only, and no read, screen or audit row ever returns it. **Validate** reports five checks with a sentence each and marks the live call **NOT ATTEMPTED** — because nothing in this build can make one, and a green tick here would be read as "authentication successful". A provider that is not AVAILABLE cannot be made active. Also on §4.3c: **Estimated cost** and **Daily budget** joined the KPIs, the provider table gained a **Questions** column, a **Concurrent generation** card shows jobs running against the cap and states that there is no queue, and a **usage heatmap** shades tokens by day, week or month with five labelled bands and an empty square for a period with no activity |
 | 2026-09-26 | Filing | **The question review page has a seventh tab, Filing** (§4.5), showing all four axes a question is filed under and letting **department and role be corrected** while the question is still with its author. Domain and topic are shown read-only with the reason: the domain code is inside the published identifier, and the topic is what the preflight authorized. After submission the whole filing is read-only, because a question is approved as filed. A change creates a new version and an audit entry carrying the previous and new value, and touches no text, so nothing is re-verified. Also fixed: the header badge printed the word "undefined" twice for a question with no filing, and now reads **"No department or role assigned"** — an absent value and a null value render identically |
 | 2026-09-26 | Identity switcher | **Identity switching moved into the header** (§3), on every page of both portals, from the card it used to occupy at the bottom of each home page. A refusal happens where you are, and switching identity is the usual fix, so it should not require navigating away and back |

@@ -113,7 +113,6 @@ export {
   OPENAI_DEFAULT_BASE_URL,
   OPENAI_DEFAULT_HOSTS,
   checkOpenAIReadiness,
-  createOpenAIProvider,
   endpointPermission,
   type CheckReadinessArgs,
   type ReadinessLimits,
@@ -121,6 +120,19 @@ export {
 } from './openai.js';
 
 export { deriveReadiness, type DeriveReadinessInput } from './readiness.js';
+
+// OPENAI-CODEX-01: generation. Proposals only; every gate still applies.
+export {
+  OPENAI_API_STYLES,
+  OPENAI_GENERATION_PROVIDER_VERSION,
+  OPENAI_RESPONSE_SCHEMA,
+  OpenAIGenerationError,
+  createOpenAIGenerationProvider,
+  mapModelAnswer,
+  type CreateOpenAIGenerationProviderArgs,
+  type OpenAIApiStyle,
+  type OpenAICallConfig,
+} from './openai-generation.js';
 
 /** The five capabilities a provider declares, in the administration screen's names. */
 export { declaredCapabilities } from './declared.js';

@@ -24,6 +24,7 @@ import { systemClock } from '@knowzy/observability';
 import {
   createDeterministicProvider,
   createGeneratorRegistry,
+  createOpenAIGenerationProvider,
   type GenerateArgs,
   type GenerationProvider,
   type ProviderGenerateResult,
@@ -70,9 +71,27 @@ const registry = (
   createGeneratorRegistry({
     activeProvider: 'DETERMINISTIC_LOCAL',
     approvedProviders: approved,
+    // OPENAI-CODEX-01: OpenAI is registered, enabled and credentialled here,
+    // so APPROVAL is the one thing a test varies -- exactly the gate T-29 is.
+    factories: {
+      OPENAI: (modelId) =>
+        createOpenAIGenerationProvider({
+          modelId,
+          configure: async () => {
+            throw new Error('the control registry instance is never called');
+          },
+        }),
+    },
+    enabled: { OPENAI: true },
+    credentialPresent: { OPENAI: true },
   });
 
 describeDb('AI generation control layer', () => {
+  // The audit store is append-only, so a scan by correlation id alone reads
+  // every row any EARLIER run wrote -- including rows a since-fixed defect
+  // wrote, which then fail this suite forever on that database. Bounded to
+  // this run instead.
+  const suiteStartedAt = new Date();
   let sourceId = '';
   let documentId = '';
   let domainId = '';
@@ -456,7 +475,7 @@ describeDb('AI generation control layer', () => {
     // action added without its keys fails here rather than in a database
     // column nobody reads.
     const written = await prisma.auditEvent.findMany({
-      where: { correlationId: 'control-test' },
+      where: { correlationId: 'control-test', occurredAt: { gte: suiteStartedAt } },
       select: { action: true, detail: true },
     });
     expect(written.length).toBeGreaterThan(0);
@@ -635,5 +654,167 @@ describeDb('AI generation control layer', () => {
     });
     expect(result.removed).toBe(true);
     expect(result.limits['OPENAI']).toBeUndefined();
+  });
+  // ======================================================= OPENAI-CODEX-01
+  //
+  // A model's proposals, through the UNMODIFIED pipeline. The provider is the
+  // real OpenAI generation client; only `fetch` is fake, answering with what
+  // a model would return. What these tests establish is that nothing a model
+  // says reaches a draft without passing the same gates the deterministic
+  // generator's output passes -- and that a model that breaks leaves a
+  // FAILED job, not a RUNNING one.
+
+  describe('OpenAI proposals through the governance chain', () => {
+    const KEY = 'sk-proj-GOVERNANCE-TEST-KEY-0123456789';
+    const secret = { reveal: () => KEY, toString: () => '[redacted]', toJSON: () => '[redacted]' };
+
+    const openai = (responder: (body: Record<string, unknown>) => Response) => {
+      const calls: string[] = [];
+      const provider = createOpenAIGenerationProvider({
+        modelId: 'gpt-5-codex',
+        configure: async () => ({
+          baseUrl: 'https://api.openai.com/v1',
+          modelId: 'gpt-5-codex',
+          apiKey: secret,
+          allowedHosts: ['api.openai.com'],
+          apiStyle: 'RESPONSES',
+          authHeaderName: 'authorization',
+          temperature: 0.2,
+          maxOutputTokens: 4000,
+        }),
+        fetch: (async (input: RequestInfo | URL, init?: RequestInit) => {
+          calls.push(String(input));
+          return responder(JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>);
+        }) as typeof fetch,
+      });
+      return { provider, calls };
+    };
+
+    const reply = (payload: unknown) =>
+      new Response(
+        JSON.stringify({
+          model: 'gpt-5-codex-2026-09-01',
+          output: [
+            { type: 'message', content: [{ type: 'output_text', text: JSON.stringify(payload) }] },
+          ],
+          usage: { input_tokens: 1234, output_tokens: 321 },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+
+    /** A real, verbatim 60+ character span from the first assessable section. */
+    const firstSection = async () => {
+      const row = await prisma.documentSection.findFirstOrThrow({
+        where: { documentId, isAssessable: true },
+        orderBy: { ordinal: 'asc' },
+      });
+      const text = extractedText.slice(row.startOffset, row.endOffset);
+      const span = text.slice(0, Math.min(text.length, 160)).trim();
+      return { sectionKey: row.sectionKey, span };
+    };
+
+    it('passes a verbatim span, refuses a fabricated one, and records full provenance', async () => {
+      const { sectionKey, span } = await firstSection();
+      const stamp = Date.now().toString(36);
+      const { provider, calls } = openai(() =>
+        reply({
+          questions: [
+            {
+              sectionKey,
+              questionText: `Which statement does the procedure make (governance probe ${stamp})?`,
+              options: {
+                A: `Alpha ${stamp}`,
+                B: `Bravo ${stamp}`,
+                C: `Charlie ${stamp}`,
+                D: `Delta ${stamp}`,
+              },
+              correctOption: 'A',
+              explanation: 'The quoted section states this directly, which is why A is correct.',
+              supportingEvidence: span,
+              modelConfidence: 0.7,
+              difficulty: 'RECALL',
+            },
+            {
+              sectionKey,
+              questionText: `Which invented rule applies here (fabrication probe ${stamp})?`,
+              options: {
+                A: `One ${stamp}`,
+                B: `Two ${stamp}`,
+                C: `Three ${stamp}`,
+                D: `Four ${stamp}`,
+              },
+              correctOption: 'B',
+              explanation:
+                'This explanation cites text that does not exist in the document at all.',
+              supportingEvidence:
+                'Every request must be approved by the Chief Knowledge Officer before noon on Fridays.',
+              modelConfidence: 0.9,
+              difficulty: 'RECALL',
+            },
+          ],
+          insufficient: [],
+        }),
+      );
+
+      const { jobId, error } = await run({ provider, approved: ['DETERMINISTIC_LOCAL', 'OPENAI'] });
+      expect(error).toBeNull();
+      expect(calls).toEqual(['https://api.openai.com/v1/responses']);
+
+      const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } });
+      // The fabricated span is refused by evidence verification -- the gate a
+      // model is most likely to fail, applied exactly as to the deterministic
+      // generator.
+      const rejections = await prisma.generationJobRejection.findMany({ where: { jobId } });
+      expect(rejections.some((r) => r.reason === 'EVIDENCE_UNVERIFIED')).toBe(true);
+      expect(job.acceptedQuestionCount).toBe(1);
+
+      // Provenance: who drafted it, with what, at what estimated and measured cost.
+      expect(job).toMatchObject({
+        providerId: 'OPENAI',
+        modelId: 'gpt-5-codex-2026-09-01',
+        providerVersion: 'openai-generation-01',
+        executionMode: 'PLATFORM_MANAGED',
+        tokenUsageReported: true,
+        inputTokens: 1234,
+        outputTokens: 321,
+      });
+      expect(job.estimatedInputTokens).toBeGreaterThan(0);
+      expect(job.promptVersionId).not.toBeNull();
+
+      const call = await prisma.generationProviderCall.findFirstOrThrow({ where: { jobId } });
+      expect(call).toMatchObject({ providerId: 'OPENAI', outcome: 'SUCCEEDED', inputTokens: 1234 });
+      expect(call.estimatedInputTokens).toBe(job.estimatedInputTokens);
+
+      // A proposal, never a decision: the accepted draft awaits review.
+      const drafts = await prisma.draftQuestion.findMany({ where: { generationJobId: jobId } });
+      expect(drafts).toHaveLength(1);
+      expect(drafts[0]?.providerId).toBe('OPENAI');
+      expect(['APPROVED', 'PUBLISHED']).not.toContain(drafts[0]?.status);
+    });
+
+    it('ends the job FAILED -- not RUNNING -- when the model returns something unparseable', async () => {
+      const { provider } = openai(() => reply({ questions: [{ nonsense: true }] }));
+      const { jobId, error } = await run({ provider, approved: ['DETERMINISTIC_LOCAL', 'OPENAI'] });
+      expect(error).not.toBeNull();
+      const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } });
+      expect(job.status).toBe('FAILED');
+      expect(job.completedAt).not.toBeNull();
+      const audit = await auditFor(jobId, 'AUTHORING.GENERATION.JOB_FAILED');
+      expect((audit?.detail as Record<string, unknown>)['errorClass']).toBe('MALFORMED_OUTPUT');
+      expect(JSON.stringify(audit?.detail)).not.toContain('_droppedKeys');
+      // MALFORMED_OUTPUT is not retried: one attempt, not three.
+      const calls = await prisma.generationProviderCall.count({ where: { jobId } });
+      expect(calls).toBe(1);
+    });
+
+    it('refuses an UNAPPROVED OpenAI before any request is sent', async () => {
+      const { provider, calls } = openai(() => reply({ questions: [], insufficient: [] }));
+      const { jobId, error } = await run({ provider, approved: ['DETERMINISTIC_LOCAL'] });
+      expect(error).toBeInstanceOf(GenerationRefusedError);
+      expect((error as GenerationRefusedError).refusalReason).toBe('PROVIDER_BLOCKED_BY_APPROVAL');
+      expect(calls).toHaveLength(0);
+      const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } });
+      expect(job.status).toBe('REFUSED');
+    });
   });
 });

@@ -159,8 +159,10 @@ export const PROVIDER_CATALOGUE: Readonly<Record<GenerationProviderId, ProviderC
       supportsStructuredOutput: true,
       grantsTools: false,
       maxInputTokens: 128_000,
-      // A readiness client exists (OPENAI-CODEX-00); generation does not.
-      supportsGeneration: false,
+      // OPENAI-CODEX-01: a generation client exists (openai-generation.ts).
+      // Generating still needs an approval, enablement and a resolving key --
+      // the registry checks all three before this flag is read.
+      supportsGeneration: true,
       supportsStreaming: true,
     },
     MICROSOFT_COPILOT: {

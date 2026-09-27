@@ -599,6 +599,8 @@ export const setProviderSettingsAction = async (
     ...text('apiKeyRef'),
     ...numeric('temperature'),
     ...numeric('maxOutputTokens'),
+    ...text('apiStyle'),
+    ...text('authHeaderName'),
     ...(formData.get('removeApiKeyRef') === null ? {} : { removeApiKeyRef: true }),
   };
 
