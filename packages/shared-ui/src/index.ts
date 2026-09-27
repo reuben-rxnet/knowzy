@@ -125,7 +125,14 @@ export {
 export { TraceabilityChain, TraceabilityBar } from './components/Traceability.js';
 export type { TraceStage } from './components/Traceability.js';
 export { BandScale, Meter, type MeterProps, type MeterTone } from './components/Meter.js';
-export { Drawer, Modal, type DrawerProps, type ModalProps } from './components/Overlay.js';
+export {
+  Drawer,
+  Modal,
+  NavDrawer,
+  type DrawerProps,
+  type ModalProps,
+  type NavDrawerProps,
+} from './components/Overlay.js';
 
 // -------------------------------------------------------------- page states
 export {

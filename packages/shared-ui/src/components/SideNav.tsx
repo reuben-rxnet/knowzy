@@ -88,6 +88,13 @@ export interface SideNavProps {
   readonly density?: 'compact' | 'comfortable';
   /** Rendered at the bottom — the brand lock-up in the mockups. */
   readonly footer?: ReactNode;
+  /**
+   * `rail` is the collapsed form for tablet widths: icons only, each still a
+   * real link or a disabled entry, with its label (and status) as the
+   * accessible name and the native tooltip. The full list is one tap away in
+   * the navigation drawer.
+   */
+  readonly variant?: 'full' | 'rail';
 }
 
 /**
@@ -159,7 +166,11 @@ export const SideNav = ({
   ariaLabel,
   density = 'compact',
   footer,
+  variant = 'full',
 }: SideNavProps) => {
+  if (variant === 'rail')
+    return <Rail items={items} currentPath={currentPath} ariaLabel={ariaLabel} />;
+
   const itemPadding = density === 'compact' ? 'py-2' : 'py-2.5';
   const itemText = density === 'compact' ? 'text-base' : 'text-md';
   const activeLabel = activeNavLabel(items, currentPath);
@@ -266,6 +277,79 @@ export const SideNav = ({
       </ul>
 
       {footer === undefined ? null : <div className="mt-auto p-5">{footer}</div>}
+    </nav>
+  );
+};
+
+/** What a rail entry is called: its label, then its status if it has one. */
+const railName = (item: NavItem): string => {
+  const chip = item.preview === true ? PREVIEW_CHIP : CHIP[item.status];
+  return chip === null ? item.label : `${item.label} (${chip})`;
+};
+
+const Rail = ({
+  items,
+  currentPath,
+  ariaLabel,
+}: Pick<SideNavProps, 'items' | 'currentPath' | 'ariaLabel'>) => {
+  const activeLabel = activeNavLabel(items, currentPath);
+  return (
+    <nav
+      aria-label={ariaLabel}
+      className="flex h-full w-sidebar-rail shrink-0 flex-col overflow-y-auto border-r border-line bg-brand-surface"
+    >
+      <ul className="flex flex-col items-center gap-1 py-3">
+        {items.map((item) => {
+          const name = railName(item);
+          const active = item.label === activeLabel;
+          if (!isReachable(item)) {
+            return (
+              <li key={item.label}>
+                <span
+                  aria-disabled="true"
+                  title={name}
+                  className="grid size-target place-items-center rounded-md text-ink-subtle opacity-60"
+                >
+                  <span aria-hidden="true" className="grid size-5 place-items-center">
+                    {item.icon}
+                  </span>
+                  <span className="knowzy-sr-only">
+                    {name}. {UNAVAILABLE_DESCRIPTION[item.status]}
+                  </span>
+                </span>
+              </li>
+            );
+          }
+          return (
+            <li key={item.label}>
+              <a
+                href={item.href}
+                title={name}
+                {...(active ? { 'aria-current': 'page' as const } : {})}
+                className={`relative grid size-target place-items-center rounded-md transition-colors duration-(--duration-fast) ${
+                  active
+                    ? 'bg-success-soft text-success ring-2 ring-inset ring-success'
+                    : 'text-ink-muted hover:bg-surface-hover hover:text-brand-navy-text'
+                }`}
+              >
+                <span aria-hidden="true" className="grid size-5 place-items-center">
+                  {item.icon}
+                </span>
+                {item.preview === true ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-1 top-1 size-2 rounded-pill bg-info"
+                  />
+                ) : null}
+                <span className="knowzy-sr-only">
+                  {name}
+                  {item.preview === true ? `. ${PREVIEW_DESCRIPTION}` : ''}
+                </span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
     </nav>
   );
 };

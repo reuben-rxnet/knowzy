@@ -20,6 +20,7 @@ import type { ReactNode } from 'react';
 import { publicEnvironmentName } from '@knowzy/configuration';
 import { t } from '../copy';
 import { currentSubject } from '../lib/identity';
+import { HeaderMore } from '../components/HeaderMore';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -46,7 +47,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         </a>
         <div className="min-h-dvh">
           <header className="border-b border-line bg-brand-surface">
-            <div className="sync-shell flex flex-wrap items-center justify-between gap-4 py-4">
+            <div className="sync-shell flex flex-wrap items-center justify-between gap-3 py-3 sm:gap-4 sm:py-4">
               <div className="flex items-center gap-3">
                 {/* The mark is a semantic heading, not an image used as one:
                     a screen reader announces the product, and the subtitle
@@ -65,7 +66,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-2xs text-ink-muted">
+              <HeaderMore label={t('header.more')}>
                 <span>
                   {t('header.environment')}: <span className="font-semibold">{environment}</span>
                 </span>
@@ -91,7 +92,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                     </button>
                   ),
                 )}
-              </div>
+              </HeaderMore>
             </div>
           </header>
 

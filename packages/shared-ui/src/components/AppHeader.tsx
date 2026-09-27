@@ -60,6 +60,11 @@ export interface AppHeaderProps {
   readonly tagline?: string;
   /** Placeholder text must describe only what search would actually cover. */
   readonly searchPlaceholder: string;
+  /**
+   * The navigation toggle, rendered first. The shell passes a `NavDrawer`,
+   * which hides its own button at desktop widths where the sidebar is shown.
+   */
+  readonly navToggle?: ReactNode;
   readonly identity: {
     readonly displayName: string;
     readonly roleLabel: string;
@@ -76,14 +81,16 @@ export const AppHeader = ({
   searchPlaceholder,
   identity,
   identityAction,
+  navToggle,
 }: AppHeaderProps) => (
   <header
     role="banner"
     // A 2px green rule under the navy: the brand's accent used as structure,
     // and the line that separates header from workspace without a shadow.
-    className="sticky top-0 flex h-header items-center gap-5 border-b-2 border-brand-green bg-brand-navy px-5 text-white sm:px-7"
+    className="sticky top-0 flex h-header items-center gap-3 border-b-2 border-brand-green bg-brand-navy px-4 text-white sm:gap-5 sm:px-7"
     style={{ zIndex: 'var(--z-header)' }}
   >
+    {navToggle}
     {/* ------------------------------------------------------------- brand
      * §5.1's order: EssilorLuxottica, a hairline, then KNOWZY. shrink-0 — the
      * marks are approved artwork and are never squeezed; without it the
@@ -122,7 +129,7 @@ export const AppHeader = ({
     </div>
 
     {/* ------------------------------------------------------------- right */}
-    <div className="ml-auto flex shrink-0 items-center gap-3">
+    <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
       <button
         type="button"
         disabled
@@ -142,7 +149,9 @@ export const AppHeader = ({
         disabled
         aria-disabled="true"
         title="Notifications are not available in this release"
-        className="grid size-target place-items-center rounded-lg text-white/60 ring-1 ring-inset ring-white/10"
+        // Hidden on a phone: it does nothing in this release, and the header
+        // needs its width for the navigation button and the identity.
+        className="hidden size-target place-items-center rounded-lg text-white/60 ring-1 ring-inset ring-white/10 sm:grid"
       >
         <KnowzyNavIcon name="notification" className="size-5" />
         <span className="knowzy-sr-only">Notifications — not available in this release</span>

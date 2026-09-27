@@ -25,6 +25,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { AppHeader, type AppHeaderProps } from './AppHeader.js';
+import { NavDrawer } from './Overlay.js';
 import { BrandLockup, SideNav, type NavItem } from './SideNav.js';
 
 /**
@@ -211,7 +212,7 @@ export const LEARNER_NAV: readonly NavItem[] = [
 interface ShellProps {
   readonly children: ReactNode;
   readonly currentPath: string;
-  readonly header: Omit<AppHeaderProps, 'searchPlaceholder'>;
+  readonly header: Omit<AppHeaderProps, 'searchPlaceholder' | 'navToggle'>;
   /** Environment name and any local-only disclosure, rendered in the footer. */
   readonly footerNote: ReactNode;
   /** Optional ribbon, only on workflow pages (§11). */
@@ -236,10 +237,31 @@ export const AuthoringShell = ({
       // The placeholder describes only what search would cover if it existed
       // (§8.1); it is disabled, and labelled Planned inside the header.
       searchPlaceholder="Search knowledge, questions, documents..."
+      navToggle={
+        <NavDrawer
+          items={nav}
+          currentPath={currentPath}
+          ariaLabel="Authoring sections"
+          title="Navigation"
+          openLabel="Open navigation"
+          closeLabel="Close navigation"
+          footer={<BrandLockup />}
+        />
+      }
     />
     <div className="flex min-h-0 flex-1">
-      {/* §30: persistent at desktop widths, hidden below — the routes remain
-          reachable, and a narrow-viewport drawer arrives with UI-M2. */}
+      {/* §30, three widths. Desktop (lg and up): the full sidebar. Tablet
+          (md to lg): a collapsed icon rail, every entry still a link, with
+          the full list one tap away behind the header's menu button. Phone:
+          the menu button alone. Only one navigation landmark is ever shown. */}
+      <div className="sticky top-header hidden h-[calc(100vh-var(--spacing-header))] md:block lg:hidden">
+        <SideNav
+          variant="rail"
+          items={nav}
+          currentPath={currentPath}
+          ariaLabel="Authoring sections"
+        />
+      </div>
       <div className="sticky top-header hidden h-[calc(100vh-var(--spacing-header))] lg:block">
         <SideNav
           items={nav}
@@ -275,8 +297,28 @@ export const LearnerShell = ({
       // Learner §5.3: the placeholder must reflect implemented scope. Until a
       // catalog exists, it claims assessments and topics only.
       searchPlaceholder="Search assessments and topics..."
+      navToggle={
+        <NavDrawer
+          items={nav}
+          currentPath={currentPath}
+          ariaLabel="Learning sections"
+          title="Navigation"
+          openLabel="Open navigation"
+          closeLabel="Close navigation"
+          density="comfortable"
+          footer={<BrandLockup />}
+        />
+      }
     />
     <div className="flex min-h-0 flex-1">
+      <div className="sticky top-header hidden h-[calc(100vh-var(--spacing-header))] md:block lg:hidden">
+        <SideNav
+          variant="rail"
+          items={nav}
+          currentPath={currentPath}
+          ariaLabel="Learning sections"
+        />
+      </div>
       <div className="sticky top-header hidden h-[calc(100vh-var(--spacing-header))] lg:block">
         <SideNav
           items={nav}

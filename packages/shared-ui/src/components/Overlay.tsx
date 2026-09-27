@@ -11,8 +11,9 @@
 // repository has no dialog dependency, and the behaviour is small enough to
 // own and to read.
 
-import { useCallback, useEffect, useRef, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Menu, X } from 'lucide-react';
+import { SideNav, type NavItem } from './SideNav.js';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -236,5 +237,128 @@ export const Modal = ({
         </div>
       </div>
     </div>
+  );
+};
+
+export interface NavDrawerProps {
+  readonly items: readonly NavItem[];
+  readonly currentPath: string;
+  /** The navigation landmark's name — the same as the desktop sidebar's. */
+  readonly ariaLabel: string;
+  /** The dialog's name, e.g. "Navigation". */
+  readonly title: string;
+  readonly openLabel: string;
+  readonly closeLabel: string;
+  readonly density?: 'compact' | 'comfortable';
+  readonly footer?: ReactNode;
+}
+
+/** The width at which the persistent sidebar takes over (Tailwind `lg`). */
+const DESKTOP_QUERY = '(min-width: 64rem)';
+
+/**
+ * The navigation drawer for widths below the persistent sidebar.
+ *
+ * Renders its own toggle — the hamburger at the start of the header — and a
+ * modal panel sliding in from the left with the SAME SideNav the desktop
+ * shows, so status chips, notes, previews and the active indicator cannot
+ * differ between the two.
+ *
+ * Keyboard and screen reader behaviour comes from the shared dialog hook
+ * (Escape closes, Tab is trapped, focus returns to the toggle, the page
+ * behind does not scroll), plus two things of its own: focus lands on the
+ * CURRENT page's link, so a keyboard user starts where they are; and the
+ * drawer closes itself if the window grows to desktop width, so a rotated
+ * tablet is never left with a locked page behind an invisible dialog.
+ */
+export const NavDrawer = ({
+  items,
+  currentPath,
+  ariaLabel,
+  title,
+  openLabel,
+  closeLabel,
+  density = 'compact',
+  footer,
+}: NavDrawerProps) => {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => setOpen(false), []);
+  const { panelRef, onKeyDown } = useDialogBehaviour(open, close);
+
+  useEffect(() => {
+    if (!open) return;
+    const current =
+      panelRef.current?.querySelector<HTMLElement>('a[aria-current="page"]') ??
+      panelRef.current?.querySelector<HTMLElement>('nav a');
+    current?.focus();
+
+    const desktop = window.matchMedia(DESKTOP_QUERY);
+    const onChange = (event: MediaQueryListEvent) => {
+      if (event.matches) close();
+    };
+    desktop.addEventListener('change', onChange);
+    return () => desktop.removeEventListener('change', onChange);
+  }, [open, close, panelRef]);
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls="knowzy-nav-drawer"
+        onClick={() => setOpen(true)}
+        className="grid size-target shrink-0 place-items-center rounded-lg text-white ring-1 ring-inset ring-white/25 hover:bg-white/10 lg:hidden"
+      >
+        <Menu aria-hidden="true" className="size-5" />
+        <span className="knowzy-sr-only">{openLabel}</span>
+      </button>
+
+      {open ? (
+        <div
+          className="fixed inset-0 lg:hidden"
+          style={{ zIndex: 'var(--z-drawer)' }}
+          onKeyDown={onKeyDown}
+        >
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            onClick={close}
+            className="absolute inset-0 cursor-default bg-brand-navy/40"
+          />
+          <div
+            ref={panelRef}
+            id="knowzy-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            tabIndex={-1}
+            className="knowzy-slide-in absolute inset-y-0 left-0 flex w-sidebar max-w-[85vw] flex-col bg-brand-surface shadow-overlay"
+          >
+            <div className="flex h-header shrink-0 items-center justify-between gap-3 border-b-2 border-brand-green bg-brand-navy px-4 text-white">
+              <span className="text-base font-semibold">{title}</span>
+              <button
+                type="button"
+                onClick={close}
+                className="grid size-target place-items-center rounded-lg ring-1 ring-inset ring-white/25 hover:bg-white/10"
+              >
+                <X aria-hidden="true" className="size-5" />
+                <span className="knowzy-sr-only">{closeLabel}</span>
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 [&>nav]:w-full [&>nav]:border-r-0">
+              <SideNav
+                items={items}
+                currentPath={currentPath}
+                ariaLabel={ariaLabel}
+                density={density}
+                {...(footer === undefined ? {} : { footer })}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 };

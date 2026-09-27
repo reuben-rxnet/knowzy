@@ -19,6 +19,7 @@ export const copy = {
   'header.lastChecked': 'Last checked',
   'header.never': 'Never tested',
   'header.identity': 'Acting as',
+  'header.more': 'Environment and settings',
   'header.settings': 'Settings',
   'header.help': 'Help',
   'header.notifications': 'Notifications',

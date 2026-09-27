@@ -203,6 +203,20 @@
     border-width: 0;
   }
 
+  /* The navigation drawer slides in from the left. The reduced-motion block
+   * above shortens every animation to nothing, so this needs no guard. */
+  @keyframes knowzy-slide-in {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  .knowzy-slide-in {
+    animation: knowzy-slide-in var(--duration-base, 200ms) ease-out;
+  }
+
   /* The skip link: first focusable element on every page (§7, S2). */
   .knowzy-skip-link {
     position: absolute;

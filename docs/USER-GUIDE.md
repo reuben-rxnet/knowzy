@@ -5,8 +5,8 @@
 Manager, the AI Generation Control Layer, AI provider administration and Phase 10 R1 and R2
 reporting, including PILOT-T1, PILOT-T2, UI-M3, SYNC-M1..M4, AI-CONTROL-M1, AI-PROVIDER-M1,
 PHASE10-R1, PHASE10-R2, P-5 (secret resolution), OPENAI-CODEX-00 (provider readiness) and
-OPENAI-CODEX-01 (OpenAI generation, refused until approved) and LIVE-PREVIEW-M1 (four learner
-preview pages)
+OPENAI-CODEX-01 (OpenAI generation, refused until approved), LIVE-PREVIEW-M1 (four learner
+preview pages) and UX-M1 (navigation at every width)
 **Last updated:** 2026-09-27
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -121,7 +121,22 @@ than faked so nothing pretends to work. Anything marked Planned in this product 
 
 Nothing unavailable is a link, so you cannot land on a dead page, and nothing is hidden either — the
 list is an honest statement of what exists. A preview is the one kind of link to something unbuilt,
-and its page says so at the top. Exactly one destination is highlighted at a time, with a
+and its page says so at the top.
+
+**On a narrower screen** the same destinations are always reachable, in both portals:
+
+| Width | Navigation |
+| --- | --- |
+| **Desktop** (1024 px and wider) | The full sidebar, as above |
+| **Tablet** (768–1023 px) | A **collapsed rail** of icons down the left. Each icon is a link with its name as a tooltip, the current page is outlined in green, and a preview carries a small blue dot. The **menu button** (☰) at the left of the header opens the full list |
+| **Phone** (below 768 px) | The **menu button** alone. It slides the full sidebar in from the left — same entries, same status chips, same notes |
+
+The menu works from the keyboard. It opens with focus on the page you are on, Tab stays inside it,
+**Escape** closes it and puts focus back on the menu button, and choosing an entry goes there. On a
+phone the header also drops the disabled notification bell to make room.
+
+**The SharePoint Sync Manager** (§6) has no sidebar — it is one dashboard. On a phone its header's
+environment, identity and three disabled buttons fold behind one **Environment and settings** button. Exactly one destination is highlighted at a time, with a
 green bar down its left edge as well as a colour change, so it reads without relying on colour.
 
 **On the authoring workflow pages**, a thin ribbon under the header shows the seven stages —
@@ -1243,8 +1258,8 @@ Help names **no** support address, telephone number or hours, and system status 
 channel or status service is connected. There is no learning calendar on My Learnings at all, because
 a dated session nobody scheduled would be invented even inside a frame.
 
-**Badges** and **My Progress** are still plain, unreachable sidebar entries. On a phone the sidebar is
-hidden, as it is for every page, so the previews are reached by address.
+**Badges** and **My Progress** are still plain, unreachable sidebar entries. On a phone or tablet the
+previews are reached through the menu button like every other page (§2.4).
 
 ---
 
@@ -1493,3 +1508,4 @@ the log below.
 | 2026-09-23 | SYNC-M1..M4 | **A third application**, the **SharePoint Sync Manager** on http://localhost:3002 (§6), for whoever keeps the document sources healthy: connection health, five counted figures over a 30-day window, a workflow table with a derived status, and the last 25 runs with who or what started them. New capability behind it: a source can now be **created, edited, paused, resumed and archived** from a screen rather than only seeded, and it can be put on a **schedule** — manual, hourly, daily, weekly, monthly or cron — executed by the job runner. **Sync all** reports each source's outcome and names what it skipped and why. Four things it deliberately does not do, each on screen and disabled with "Requires Microsoft Graph write integration and tenant approval.": a destination, two-way sync, syncing deletions back, writing metadata back — this release synchronizes **into** Knowzy and has no destination model at all. A SharePoint Graph source is listed and disabled because the adapter is not written. A local root path is **typed, not browsed**, and validated server-side against an allow-list. Also fixed, found by the browser test: a dialog taller than the window could not be scrolled, so its buttons were unreachable at 720px — that affected the existing portals too |
 | 2026-09-23 | Acceptance automation | **Nothing about the screens changed.** What changed is that they are now driven by an automated browser suite — sources, generation, review, **gate 13**, publication, and a learner attempt including resume and scoring — so a broken screen is found by the build rather than by the next person to open it. Two things that suite is not: it does not cover refreshers, the revalidation queue or the audit surfaces, because those are not built; and it is not part of `npm run verify`, because it needs the stack running |
 | 2026-09-27 | LIVE-PREVIEW-M1 | **Four learner preview pages** (§5.5): My Learnings, Discover, Knowledge Library and Help & Support are now links with a blue **Preview** chip, at the product owner's request. Each opens with a Preview notice, frames every illustrative block with a visible *Illustrative example* tag, and disables every control inside a frame. Real parts: progress counts and assessment history (My Learnings), the domains published to you (Discover, Knowledge Library), and user guides and FAQs (Help). Badges and My Progress are unchanged. No authoring screen changed: none of them showed a placeholder |
+| 2026-09-27 | UX-M1 | **Navigation at every width** (§2.4). Below desktop width both portals had no navigation at all; there is now a **collapsed icon rail** on a tablet and a **menu button** that slides the full sidebar in on a phone or tablet, keyboard and screen-reader operable, focus starting on the current page. The Sync Manager's header folds behind **Environment and settings** on a phone. Also fixed, found by a review of every screen at phone, tablet and laptop width: **AI Providers** scrolled sideways at every width, the **Reports** dashboard did on a phone, and so did the Sync Manager's identity form |
