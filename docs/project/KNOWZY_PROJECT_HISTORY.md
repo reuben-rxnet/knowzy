@@ -2407,3 +2407,121 @@ The dashboard was exercised in a browser at 1600 px against the running stack: e
 records, four comparisons reading "Not Yet Available" with the date they become available, the two
 learner figures withheld (one learner), AI generations compared with the previous 30 days, the
 heatmap's one cell Suppressed, and no console errors.
+
+---
+
+## P-5 and OPENAI-CODEX-00 — a secret that can be read, and a provider that can be proved
+
+**2026-09-27.** The future AI order was set — OpenAI Codex first, then Claude, then Copilot, then
+Azure OpenAI — and a Codex API subscription exists. Two milestones, deliberately ending before
+generation: **P-5**, the Secret Resolution Layer the provider screen had been reporting as missing,
+and **OPENAI-CODEX-00**, provider readiness for OpenAI. Nothing generates with OpenAI; review,
+approval and publication are untouched.
+
+### What was built
+
+- **The Secret Resolution Layer** (`packages/configuration/src/secrets/`): `SecretValue`, which
+  prints `[redacted]` on every accidental path to text; a `SecretSourceProvider` interface; the
+  **local secure store** (`localstore://{name}`, AES-256-GCM per entry, the secret's name as AAD,
+  local environment only); an **Azure Key Vault** source that is declared and reports
+  `SOURCE_UNAVAILABLE`; and `createSecretResolver`, which routes by scheme, fences by environment,
+  never falls back, never caches, and reports each resolution to an observer given only a source, a
+  reference fingerprint and a status.
+- **`npm run secrets -- init | set | remove | list | status`** — the only way a key enters the
+  store. The value comes from a hidden prompt or stdin, never an argument. `.secrets/` is in
+  `.gitignore` and `.dockerignore`.
+- **An OpenAI readiness client** (`packages/claude-services/src/openai.ts`): `GET /models` and
+  `GET /models/{model}`, allow-listed hosts only, https only, redirects refused, the provider's error
+  message never kept. Registered, and declaring `supportsGeneration: false`.
+- **A nine-check Test connection** — capability, approval, implementation, configuration, secret
+  resolution, endpoint, authentication, model, generation — with the live checks real for OpenAI and
+  each recording what it observed.
+- **Readiness** — `CONFIGURED`, `RESOLVED`, `AUTHENTICATED`, `AVAILABLE`, `UNAVAILABLE`,
+  `BLOCKED_BY_APPROVAL`, `BLOCKED_BY_CONFIGURATION` — derived beside the existing generation gate,
+  shown on AI Providers and AI Usage & Budgets.
+- **Declared capabilities** — `supportsGeneration`, `supportsCostReporting`,
+  `supportsTokenReporting`, `supportsStreaming`, `retrievalFree` — on every provider, explicitly.
+- **Five audit actions**, all in the existing `ADMIN.CONFIGURATION` family with every detail key
+  declared: `SECRET_REFERENCE_CREATED`, `SECRET_REFERENCE_UPDATED`, `SECRET_VALIDATED`,
+  `PROVIDER_ENABLED`, `PROVIDER_DISABLED`. `PROVIDER_VALIDATED` gained `passedChecks`,
+  `readinessState`, `endpointHost` and `httpStatus`.
+- **One route**, `GET /administration/secrets` (89 routes). `architecture.md` §9.0 gained rules 9
+  and 10, amended in the same change, because /docs outranks the code.
+
+### Six decisions, each with a reason that outlives it
+
+**1. Live readiness checks run before the data-processing approval.** They send a key and a model
+name — no prompt, document, question or person. Knowing a Codex key works before Privacy signs off
+T-29 is useful and harmless; *generating* is what the approval governs, and the registry still
+refuses it with `BLOCKED_BY_APPROVAL`. Recorded in architecture.md §9.0 rule 10, and in the
+APPROVAL step's own sentence on every validation.
+
+**2. A key goes only to an allow-listed host, and the list is not on the screen.** The base URL is
+editable in the browser. Without a fence, an administrator could point it at any server and the
+platform would hand that server the key. `LLM_ENDPOINT_ALLOWLIST` is deployment configuration;
+OpenAI's default is `api.openai.com`. The key also travels only over https (loopback excepted, for a
+test double) and a redirect is refused rather than followed.
+
+**3. The provider's error message is thrown away.** OpenAI's 401 body quotes a masked form of the
+key. Only `error.code` and `error.type` survive, as short identifiers. A unit test puts the masked
+key in a 401 body and asserts no fragment of it reaches the result.
+
+**4. Readiness is not a seventh `ProviderState`.** The state is the gate a generation request meets,
+persisted on every validation row. Readiness is the ladder an administrator climbs, derived — never
+stored — and only from a validation whose settings fingerprint matches the settings in force. A
+change to the base URL, model or reference drops a provider back to `CONFIGURED` until it is tested
+again.
+
+**5. The registry reads "can generate" from the registered client, not the catalogue.** The first
+version read `supportsGeneration` from `PROVIDER_CATALOGUE` and broke three registry tests whose
+fixtures registered a generating client under ANTHROPIC. The tests were right: whether this build's
+client can generate is a fact about the client. The day a generating OpenAI client is registered,
+the gate opens without editing the catalogue.
+
+**6. References are shown; values never are.** Before P-5 no read returned a reference at all. An
+administrator configuring a store needs to see *which* secret a provider will read, and a reference
+names a secret without being one. Audit and change rows still carry only a fingerprint, so an
+unscoped audit read remains reference-free, as §3 of the governance document has always promised.
+
+### Defects found
+
+| # | Defect | How it surfaced | Fix |
+| --- | --- | --- | --- |
+| 1 | **Re-saving a provider without re-typing the write-only reference silently DROPPED it** — the settings write replaced the whole entry, and the form omits an empty box | The map of the code before starting | An absent reference now keeps the recorded one; removing it is an explicit checkbox. Asserted end to end |
+| 2 | The generation gate read capability from the catalogue (decision 5) | Three existing registry tests | Read from the registered client |
+| 3 | Two type-only import cycles, `route.ts ↔ platform-secrets.ts` | `lint:boundaries` (B9) | `SecretPlatform` in its own file |
+| 4 | The new contract scan read a file the boundaries test had just deleted | `npm run verify`, once | The scan tolerates a file that vanishes between listing and reading |
+| 5 | A hydration warning on every page screenshotted — `caret-color: transparent` on inputs | The screenshot tool | Not the product: Playwright injects that style to hide the caret, and on a still-hydrating dev page it lands before React. `caret: 'initial'` removes it |
+| 6 | Two browser assertions of mine: "Azure Key Vault" where the page says "Key Vault", and an older strict locator now matching Copilot's reason twice | The browser suite | Both tests corrected; the doubled sentence is the same fact from the gate and the ladder |
+
+| 7 | **The lockfile had been out of step since Phase 10 R1**: `@knowzy/reporting` was declared in api, jobs and domain and never added to `package-lock.json`. If CI's `npm ci` refuses the mismatch, every push since R1 has failed there | Adding this milestone's one new dependency | Its own commit, regenerated with `--package-lock-only`; the CI result still has to be read by a person |
+| 8 | **The authoring portal rendered unstyled** after `npm run build` on the host | The owner, in the browser | Not the code: a host build poisons the containers' `.next`, a trap recorded since 2026-09-21. The repair (`rm -rf apps/*/.next`, restart the web containers, confirm the stylesheet returns 200) was not run straight after the build, and the first full browser run was stopped when it was found. The repair is now part of running a build |
+
+### Guards that were checked by breaking them
+
+The end-to-end suite passed first time, so it was mutated: putting a fragment of the key into a
+step's detail failed it (in the response and in the recorded validation row), and disabling
+reference redaction failed it (in `configuration_change` and `audit_event`). Its leak checks were
+tightened first to catch a *fragment* of the key, not only the whole of it.
+
+### What this milestone did not do, and said so
+
+- **No generation with OpenAI.** A contract test asserts the readiness client names no completion,
+  response, chat or embedding endpoint and makes no POST.
+- **No Key Vault client.** `keyvault://` references are accepted and reported as unreadable here.
+  P-5 is closed **for the local environment only**; deployed environments still need a vault and a
+  managed identity.
+- **No live check was run against the real Codex subscription.** That needs the key in the local
+  store, which is the owner's to put there (§4.3f of the user guide).
+
+### Validated
+
+`npm run verify` green: typecheck 35/35, lint 22/22, boundaries 0 errors, codegen clean, format
+clean, **1045 passing + 12 todo across 54 files** (64 new). `npm run build` 21/21 on the first run.
+The AI Providers and AI Usage browser specs pass (14 tests), and the page was captured at 1600 px
+with no console errors. **The full browser suite: 45 passed, 1 failed, 1 skipped.** The failure is
+`review-approval-publish.spec.ts` "publishing writes to the bank", which found no draft to publish:
+the deterministic generator refuses a corpus it has exhausted, and two browser runs (one stopped by
+the build repair above) had consumed the four fixture documents since verify emptied the drafts.
+Run alone it passes, 4 of 4. Order-dependent, pre-existing in shape, and recorded rather than
+re-run until green.

@@ -596,7 +596,7 @@ nine months, "who cleared this and on the strength of what", has an answer in th
 
 | # | Blocker | Owner |
 | --- | --- | --- |
-| **P-5** | A **secret store**. The platform records a `keyvault://` reference and has no client to resolve one, so a validation reports "recorded, unresolvable here" rather than confirming a credential exists | Platform + InfoSec |
+| **P-5** | A **secret store**. The platform records a `keyvault://` reference and has no client to resolve one, so a validation reports "recorded, unresolvable here" rather than confirming a credential exists. *(2026-09-27: resolver built; **closed for local**, open for deployed — see §12.10)* | Platform + InfoSec |
 
 P-5 is deliberately small and deliberately not faked. Resolving a reference needs a Key Vault (or
 equivalent) and a managed identity with read access to it — both listed in §7 — and until they
@@ -633,3 +633,30 @@ line it cannot support.
 2. **"Department" on the learner heatmap is the questions' department.** If the organisation expects
    learners grouped by their own department, that is a person-to-department mapping the platform
    does not hold, and it is the team model D-1 deferred.
+
+### 12.10 P-5 and OpenAI (Codex) readiness (2026-09-27)
+
+The provider order is now set: **OpenAI Codex first**, then Claude, then Copilot, then Azure OpenAI,
+and a Codex API subscription exists.
+
+| | Status |
+| --- | --- |
+| A secret resolver | **Built.** A `SecretResolver` over pluggable sources; resolutions audited without values or references |
+| Local secure store | **Built**, local environment only. Encrypted file; keys enter it through `npm run secrets` |
+| Azure Key Vault | **Declared, not built.** `keyvault://` references are accepted and report `SOURCE_UNAVAILABLE` |
+| OpenAI readiness | **Built.** Endpoint, authentication and model verified with two metadata requests to an allow-listed host |
+| OpenAI generation | **Not built**, deliberately. The client declares `supportsGeneration: false` and the gate stays `UNAVAILABLE` for generation |
+
+**P-5 is closed for local, open for deployed.** A deployed environment still cannot read a secret:
+it needs the Key Vault and managed identity listed in §7, and a Key Vault source to replace the
+placeholder. That part remains Platform + InfoSec.
+
+**What this changes for the pilot.** The day T-29 is signed, the remaining work for OpenAI is the
+generation client and the recorded comparison — not credential plumbing, not a readiness check, not
+an audit design. And before T-29, an administrator can already prove, on the screen and in the audit
+trail, that the Codex key works and the model is available, without any content leaving the
+platform: the readiness calls carry a key and a model name and nothing else.
+
+**One thing to put in front of Privacy with T-29:** the readiness checks are made **before** an
+approval exists (architecture.md §9.0 rule 10). They process no data; if the reviewers disagree,
+gating them on the approval is a one-line change and the reason for it belongs in their decision.

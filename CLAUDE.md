@@ -82,14 +82,15 @@ Current Status:
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
 - npm run verify passes: typecheck 35/35, lint 22/22,
-  tests 981 passing + 12 todo across 49 files, boundaries 0 errors,
+  tests 1045 passing + 12 todo across 54 files, boundaries 0 errors,
   codegen contract clean, format clean. Re-counted 2026-09-27; see
   docs/project/STATUS_RECONCILIATION_2026-09-23.md for what was stale.
 - `npm run verify`, `test`, `test:integration` and `db:reset` now WARN FIRST
   with the real row counts, what survives and what has to be redone
   (scripts/destructive-warning.ts). Interactive runs ask; CI prints and
   continues. They wiped a live walkthrough mid-click on 2026-09-26.
-- npm run test:e2e passes: 44 passing + 1 skipped across three projects
+- npm run test:e2e: 45 passing + 1 skipped + 1 order-dependent failure (2026-09-27; the
+  publish spec finds no draft once the fixture corpus is exhausted, and passes alone) across three projects
   (45 listed; re-counted 2026-09-27 -- the earlier "47 + 1" did not reconcile),
   driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
@@ -114,7 +115,7 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 88 API routes, every one with a declared
+- 19 of 36 MCP tools registered; 89 API routes, every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
@@ -124,7 +125,7 @@ Current Status:
   approval, active provider and validate), Phase 10 R1 reporting 7 (the
   catalogue, a dataset, an export, a snapshot write, a snapshot list, one
   snapshot, and an on-demand refresh), and R2 2 (coverage history, and an AI
-  usage summary through the governance read).
+  usage summary through the governance read), and P-5 1 (secret-source health).
 
 Environment:
 
@@ -186,8 +187,9 @@ Next Immediate Task:
    blind-stem half needs a person and no credential.
 4. Build the budget and cost layer -- DONE 2026-09-24 (AI-CONTROL-M1), with
    provider administration on top of it 2026-09-26 (AI-PROVIDER-M1). What
-   remains of it is P-5: a SECRET RESOLVER, so a recorded `keyvault://`
-   reference can be confirmed rather than reported as unresolvable.
+   remains of it was P-5: a SECRET RESOLVER -- BUILT 2026-09-27 for the local
+   environment (see "Secret resolution and OpenAI readiness"); a deployed
+   environment still needs Key Vault and a managed identity.
 5. Wire the live Claude generator behind the existing QuestionGenerator port
    (packages/claude-services/src/generator.ts) and run the recorded
    comparison. Blocked on T-29 and T-28. Everything around it is now in place:
@@ -553,9 +555,47 @@ docs/governance/AI_PROVIDER_ADMINISTRATION.md. Specification: architecture.md
   OPENAI_API_KEY_REF, AZURE_OPENAI_KEY_REF, COPILOT_CLIENT_ID_REF. Nothing can
   spend them, so requiring one would block a deployment; declaring them means
   the day one arrives it is validated AS A REFERENCE.
-- P-5 IS A NEW BLOCKER AND IT IS NOT ENGINEERING: there is no secret resolver,
+- P-5 (2026-09-26 text, now superseded -- see the next section): there was no secret resolver,
   so a recorded reference reports "recorded, unresolvable here". Do not treat
   "a reference is recorded" as "a credential works".
+
+## Secret resolution and OpenAI readiness
+
+BUILT 2026-09-27, P-5 and OPENAI-CODEX-00. Provider order agreed: OpenAI Codex,
+then Claude, then Copilot, then Azure OpenAI. Specification: architecture.md
+9.0 rules 9 and 10; detail in docs/governance/AI_PROVIDER_ADMINISTRATION.md
+3.2, 4.1 and 5.1.
+
+- A REFERENCE IS `localstore://{name}` OR `keyvault://{vault}/secrets/{name}`.
+  The local secure store is LOCAL ONLY (the resolver and startup both refuse it
+  elsewhere); Key Vault is declared and reports SOURCE_UNAVAILABLE -- no client.
+- A KEY ENTERS THE STORE ONLY THROUGH `npm run secrets -- set <name>` (hidden
+  prompt or stdin). The store is `.secrets/` at the repo root, in .gitignore
+  AND .dockerignore, seen by the api container at /repo/.secrets
+  (KNOWZY_LOCAL_SECRET_DIR). Never add an upload, route or form field for a key.
+- A RESOLVED SECRET IS A `SecretValue` and `reveal()` is called in ONE
+  production file (openai.ts, the Authorization header). A contract test fails
+  on a second call site. Resolutions are audited as SECRET_VALIDATED with a
+  reference FINGERPRINT, never the reference.
+- OPENAI HAS A READINESS CLIENT, NOT A GENERATOR. `GET /models` and
+  `GET /models/{model}` only; `supportsGeneration: false`, read by the registry
+  FROM THE REGISTERED CLIENT, so the gate stays UNAVAILABLE for generation
+  once approved and "Make active" is refused. A contract test forbids any
+  completion/response/chat endpoint or POST in openai.ts.
+- THE KEY GOES ONLY TO AN ALLOW-LISTED HOST (api.openai.com, plus
+  LLM_ENDPOINT_ALLOWLIST from the deployment, never from the screen), https
+  only (loopback excepted), redirects refused, and the provider's error
+  MESSAGE is discarded -- OpenAI's 401 quotes a masked key.
+- LIVE READINESS CHECKS RUN BEFORE THE T-29 APPROVAL. They carry no data.
+  Generation remains BLOCKED_BY_APPROVAL. Put this in front of Privacy.
+- READINESS (CONFIGURED/RESOLVED/AUTHENTICATED/...) IS DERIVED, NEVER STORED,
+  and only from a validation whose settings fingerprint matches the settings
+  in force. It is not a ProviderState; the gate is unchanged.
+- AN EMPTY CREDENTIAL BOX NOW KEEPS THE RECORDED REFERENCE. Before P-5 a
+  re-save silently dropped it. Removing it is the `removeApiKeyRef` flag.
+- apps/api/test/provider-readiness.test.ts drives the whole path against a
+  FAKE OpenAI on 127.0.0.1 and a temporary store, and RESTORES
+  llm.providerSettings afterwards. The e2e suite assumes OpenAI unconfigured.
 
 ## Taxonomy
 

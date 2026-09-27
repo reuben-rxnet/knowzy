@@ -1,6 +1,11 @@
 # Multi-Provider Generation Architecture
 
-**Status:** DESIGN ONLY. No provider integration implemented. No code written.
+**Status:** DESIGN, partly built. The port, catalogue, registry and control layer were built
+2026-09-24 (architecture.md §9.0). **2026-09-27, OPENAI-CODEX-00:** OpenAI (Codex) — the first
+provider in the agreed order (OpenAI Codex, then Claude, then Copilot, then Azure OpenAI) — is
+registered with a **readiness** client: secret resolution, endpoint, authentication and model
+checks, **no generation** (§9.0 rules 9 and 10). No provider other than the deterministic one can
+generate.
 **Supersedes nothing.** [`LIVE_CLAUDE_IMPLEMENTATION_PLAN.md`](LIVE_CLAUDE_IMPLEMENTATION_PLAN.md)
 remains the build plan for the Anthropic provider; this document is the frame it plugs into.
 **Companion:** [`LIVE_CLAUDE_EVALUATION_PLAN.md`](LIVE_CLAUDE_EVALUATION_PLAN.md) §11 extends the

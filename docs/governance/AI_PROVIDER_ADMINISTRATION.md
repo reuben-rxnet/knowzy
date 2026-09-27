@@ -82,15 +82,20 @@ time instead, where the reason is much harder to find.
 
 ## 3. Secrets
 
+> **Since 2026-09-27 (P-5) a reference can be RESOLVED.** §3.2 describes the Secret Resolution Layer.
+> The rules in the table below still hold, with one deliberate change: a read model now returns the
+> **reference** (it names a secret and is not one), and audit and change rows carry a
+> **fingerprint** of it. The value itself still appears nowhere.
+
 **The platform stores a REFERENCE to a secret. It never stores, returns, logs or displays a
 secret.**
 
 | Rule | Where it is enforced |
 | --- | --- |
-| The value must be `keyvault://{vault}/secrets/{name}` | `SecretReferenceSchema`, `packages/shared-types/src/generation-control.ts` |
+| The value must be `keyvault://{vault}/secrets/{name}` or `localstore://{name}` | `SecretReferenceSchema`, `packages/shared-types/src/generation-control.ts` |
 | A pasted key is refused before storage | the route's `ProviderSettingsSchema.safeParse` |
 | The row is marked as holding a reference | `application_configuration.is_secret_ref = true` |
-| No read model returns it | `readProviderAdministration` reports `credentialConfigured`, a boolean |
+| The reference is shown; the value never is | `readProviderAdministration` returns `credentialReference` and `credentialSource` since P-5; no route returns a value |
 | No audit row can reconstruct it | `redact()` strips `apiKeyRef` before `previousValue`/`newValue`/`detail` are written |
 | No configuration-change row holds it | the same `redact()`, applied to that row too |
 | The form never shows one back | the input is write-only and starts empty, with `autocomplete="off"` |
@@ -116,11 +121,45 @@ for any of them exists in this build, so requiring one in a deployed environment
 deployment on a credential nothing can spend. They are declared now so that the day one arrives it
 is validated **as a reference** — an undeclared variable is one somebody sets to a raw key.
 
+Added 2026-09-27: `KNOWZY_LOCAL_SECRET_DIR` (api, jobs; **forbidden** outside local) names the
+local secure store's directory, and `LLM_ENDPOINT_ALLOWLIST` (api, jobs; optional) adds hosts a
+provider credential may be sent to. A `localstore://` value in any `*_REF` variable is refused at
+startup outside the local environment.
+
+### 3.2 The Secret Resolution Layer (P-5)
+
+| Part | Where | What it does |
+| --- | --- | --- |
+| `SecretValue` | `packages/configuration/src/secrets/secret-value.ts` | Holds a value in a private field. `${v}`, `JSON.stringify`, `console.log` and `util.inspect` all print `[redacted]`; `reveal()` is the one way out |
+| `SecretSourceProvider` | `…/secrets/resolver.ts` | The interface: `resolve(reference)` and `health()` |
+| `LOCAL_SECURE_STORE` | `…/secrets/local-store.ts` | `store.key` (32 random bytes) and `store.json` (AES-256-GCM per entry, fresh IV, the secret's name as AAD). Local only |
+| `AZURE_KEY_VAULT` | `keyVaultPlaceholderSource` | Declared; every resolution is `SOURCE_UNAVAILABLE` with the reason. Needs a managed identity and a client |
+| `SecretResolver` | `createSecretResolver` | Parses the reference, enforces the environment fence, routes by scheme, never falls back, never caches, reports every resolution |
+| The audit observer | `apps/api/src/secrets/platform-secrets.ts` | Writes `ADMIN.CONFIGURATION.SECRET_VALIDATED` with source, reference fingerprint, status, purpose and duration |
+| The operator CLI | `npm run secrets -- init / set / remove / list / status` | The only way a secret enters the store. The value comes from a hidden prompt or stdin, never an argument |
+
+Resolution statuses: `RESOLVED`, `NOT_FOUND`, `SOURCE_UNAVAILABLE`, `SOURCE_FORBIDDEN`,
+`INVALID_REFERENCE`. Secret health (**Secret sources** on the screen,
+`GET /administration/secrets`) reports per source whether it is permitted here, configured and
+reachable, and how many secrets it holds — never their names.
+
+`.secrets/` is in `.gitignore` **and** `.dockerignore`; the API container reads it at
+`/repo/.secrets` through the repository mount.
+
+Verified 2026-09-27 by `apps/api/test/provider-readiness.test.ts`: after a full configure-and-test
+against a fake OpenAI, no `audit_event`, `configuration_change` or `generation_provider_validation`
+row and no response body contains any fragment of the key, and no audit or change row contains a
+`localstore://` reference. Mutating either the key handling or the redaction fails that suite.
+
 ---
 
 ## 4. Test connection, and the line it does not cross
 
-The button is real, the result is real, and **it does not call a provider**.
+> **Superseded in part on 2026-09-27 (P-5, OPENAI-CODEX-00).** The chain below was the one this
+> screen shipped with. It is now nine checks and, for OpenAI, the live ones are real — see §4.1.
+> The rule is unchanged: nothing is claimed that was not observed.
+
+As first built, the button was real, the result was real, and **it did not call a provider**.
 
 No client for any external provider exists in this build ([architecture.md §9.0](../architecture.md)),
 so a validation reports the **configuration chain** — five checks in the order the platform
@@ -150,7 +189,32 @@ result does not claim them."*
 has no secret resolver, so whether it resolves is **unknown**, not known-bad. The difference is
 what an administrator is told to go and check.
 
-### 4.1 One row per attempt
+### 4.1 The chain since P-5 and OPENAI-CODEX-00
+
+| Check | Establishes | Runs when |
+| --- | --- | --- |
+| `CAPABILITY` | the provider performs no retrieval of its own | always |
+| `APPROVAL` | a data-processing approval is recorded | always — and it does **not** gate the checks below |
+| `IMPLEMENTATION` | a client exists (for OpenAI, a readiness client) | always |
+| `CONFIGURATION` | base URL, model and reference are recorded; records a settings fingerprint | always |
+| `SECRET_RESOLUTION` | the reference resolved, from which source | capability, implementation and configuration passed |
+| `ENDPOINT` | the allow-listed host answered, over https, in n ms | the secret resolved |
+| `AUTHENTICATION` | the provider accepted the key (`GET /models` 200, or 429 = accepted and throttled) | the endpoint answered |
+| `MODEL` | the configured model is available to that key (`GET /models/{model}` 200) | the key was accepted |
+| `GENERATION` | always `NOT_ATTEMPTED`: a test never generates, and OpenAI cannot generate in this build | always |
+
+**Why the approval does not gate the live checks.** They send a key and a model name and nothing
+else — no prompt, document, question or person. Knowing a key works before Privacy signs off is
+useful and harmless; *generating* is what the approval governs, and the registry keeps refusing
+that with `BLOCKED_BY_APPROVAL`.
+
+**What is never kept from a response:** the provider's error *message*. OpenAI's 401 body quotes a
+masked form of the key; only `error.code` and `error.type` survive, and only as short identifiers.
+
+**The outcome** is `FAILED` while no approval is recorded, and at best `INCOMPLETE` afterwards,
+because `GENERATION` is never attempted. `PASSED` is reached only by the deterministic provider.
+
+### 4.2 One row per attempt
 
 `generation_provider_validation` records every validation, not a mutable "last validation" column
 — the same reasoning that made `generation_provider_call` an attempt log in 0009. The question is
@@ -188,6 +252,24 @@ is **never persisted**: a stored `OVER_BUDGET` would be false the moment a windo
 a stale state in a durable table is worse than none. The `generation_provider_state` enum in
 migration 0011 therefore has five members, not six.
 
+### 5.1 Readiness — the ladder beside the gate (2026-09-27)
+
+`ProviderState` is the **gate**: would a generation request be refused, and why. **Readiness** is
+the ladder an administrator climbs, derived by `deriveReadiness` from the settings and the latest
+validation — and only when that validation's settings fingerprint matches the settings in force:
+
+| Readiness | Meaning |
+| --- | --- |
+| `BLOCKED_BY_CONFIGURATION` | base URL, model or reference missing; the reference did not resolve; the host is not allowed; or verified and approved but not enabled |
+| `CONFIGURED` | complete; never tested, or changed since the last test |
+| `RESOLVED` | the secret was read; the key was not accepted |
+| `AUTHENTICATED` | the key was accepted; the model is not available |
+| `BLOCKED_BY_APPROVAL` | endpoint, key and model verified; no data-processing approval |
+| `UNAVAILABLE` | cannot ground, no client, endpoint unreachable, or verified, approved and enabled but this build cannot generate with it |
+| `AVAILABLE` | all of the above, and it can generate — today only the deterministic provider |
+
+Never persisted. Shown on this screen and on AI Usage & Budgets, both derived by the same function.
+
 ---
 
 ## 6. Authorization
@@ -206,13 +288,17 @@ required; an identity without `report.read` is refused the page.
 
 ## 7. What this screen does not do
 
-- **It does not call a provider.** See §4. Nothing on it can.
+- **It does not generate.** Test connection makes two metadata requests for OpenAI and nothing for
+  any other external provider (§4.1). No request carries a prompt.
+- **It does not accept a key.** A key enters the local secure store through `npm run secrets` on the
+  machine running the stack; there is no upload, route or form field that writes one.
 - **It does not hide the providers it will not use.** Five of the six are unusable today and all
   six are listed, each with its reason. A table showing only the working one would suggest the
   others do not exist rather than that they are not built yet.
-- **It does not register a stand-in.** `OPENAI` is declared, not registered, and configuring it
-  fully still leaves it `UNAVAILABLE` with "No client for this provider is implemented in this
-  build." A mock behind this screen would be indistinguishable from a working integration.
+- **It does not register a stand-in.** Since OPENAI-CODEX-00, `OPENAI` is registered with a
+  **readiness** client that declares `supportsGeneration: false`, so the gate stays `UNAVAILABLE`
+  for generation once approved and "Make active" stays refused. Every other external provider is
+  declared, not registered.
 - **It does not report a credential rotation date.** The timestamp it shows is the
   `llm.providerSettings` row's, labelled "Provider settings last changed" — nothing records when an
   individual reference changed, and a rotation date inferred from a shared row would be wrong the
@@ -228,3 +314,4 @@ required; an identity without `report.read` is refused the page.
 | Date | Change |
 | --- | --- |
 | 2026-09-26 | Built. Migration 0011, `llm.providerSettings`, four writes, five-check validation, `OVER_BUDGET` as a sixth provider state, three credential-reference environment variables declared. |
+| 2026-09-27 | **P-5 and OPENAI-CODEX-00.** §3.2 the Secret Resolution Layer (local secure store, Key Vault declared, resolver, audited resolutions, `npm run secrets`); §4.1 the nine-check chain with real endpoint, authentication and model checks for OpenAI; §5.1 readiness. References are shown; values never. Five audit actions added: `SECRET_REFERENCE_CREATED`, `SECRET_REFERENCE_UPDATED`, `SECRET_VALIDATED`, `PROVIDER_ENABLED`, `PROVIDER_DISABLED`. Re-saving settings without the reference now keeps it. |

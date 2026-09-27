@@ -185,6 +185,11 @@ would be refused by the daily budget with a confusing reason.
 
 ## 6. Provider model
 
+> **Readiness (2026-09-27).** Each provider row also shows its **readiness** — configured, secret
+> resolved, authenticated — derived by the same `deriveReadiness` and the same latest validation as
+> Administration → AI Providers ([AI_PROVIDER_ADMINISTRATION.md §5.1](AI_PROVIDER_ADMINISTRATION.md)),
+> so the two screens cannot disagree. The state below remains the generation gate.
+
 ### 6.1 Six states, and where each is decided
 
 | State | Meaning | What changes it |
@@ -338,3 +343,4 @@ The API reports `canManageBudgets` in the payload, so the screen renders the con
 | --- | --- |
 | 2026-09-24 | Built. Eight KPIs, budget windows, provider table, usage timeline, generation history, per-provider token limits. |
 | 2026-09-26 | Added the Estimated cost and Daily budget KPIs, a Questions column to the provider breakdown, the Concurrent generation card, and the usage heatmap. `OVER_BUDGET` became a sixth provider state. Provider *configuration* moved to its own screen. |
+| 2026-09-27 | Each provider row shows its readiness beside its state (P-5 / OPENAI-CODEX-00). The response carries a `readiness` map. |
