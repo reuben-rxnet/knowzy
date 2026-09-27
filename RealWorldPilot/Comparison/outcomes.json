@@ -1,0 +1,52 @@
+[
+  {
+    "source": "KNOWZY Real-World Pilot SOP Corpus",
+    "providerId": "DETERMINISTIC_LOCAL",
+    "at": "2026-09-27T11:45:44.320Z",
+    "result": "GENERATED",
+    "jobId": "01a0e2af-7135-73d7-9106-df4f9a6d22c1",
+    "accepted": 4,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 21561,
+      "output": 1084
+    }
+  },
+  {
+    "source": "KNOWZY Generation-Ready Corpus (EVALUATION ONLY)",
+    "providerId": "DETERMINISTIC_LOCAL",
+    "at": "2026-09-27T11:45:49.216Z",
+    "result": "GENERATED",
+    "jobId": "01a0e2af-846c-754c-b674-882c1b7c4202",
+    "accepted": 15,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 18256,
+      "output": 5356
+    }
+  },
+  {
+    "source": "KNOWZY Real-World Pilot SOP Corpus",
+    "providerId": "OPENAI",
+    "at": "2026-09-27T11:47:19.400Z",
+    "result": "REFUSED",
+    "jobId": null,
+    "accepted": null,
+    "refusal": "PROVIDER_CREDENTIAL_UNAVAILABLE",
+    "detail": "OPENAI has no model configured. Set one in Administration -> AI Providers.",
+    "tokens": null
+  },
+  {
+    "source": "KNOWZY Generation-Ready Corpus (EVALUATION ONLY)",
+    "providerId": "OPENAI",
+    "at": "2026-09-27T11:47:22.968Z",
+    "result": "REFUSED",
+    "jobId": null,
+    "accepted": null,
+    "refusal": "PROVIDER_CREDENTIAL_UNAVAILABLE",
+    "detail": "OPENAI has no model configured. Set one in Administration -> AI Providers.",
+    "tokens": null
+  }
+]

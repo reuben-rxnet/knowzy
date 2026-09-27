@@ -82,7 +82,7 @@ Current Status:
   passed for the approver, on screen, which is separation of duties visible in
   the UI.
 - npm run verify passes: typecheck 35/35, lint 22/22,
-  tests 1045 passing + 12 todo across 54 files, boundaries 0 errors,
+  tests 1065 passing + 12 todo across 55 files, boundaries 0 errors,
   codegen contract clean, format clean. Re-counted 2026-09-27; see
   docs/project/STATUS_RECONCILIATION_2026-09-23.md for what was stale.
 - `npm run verify`, `test`, `test:integration` and `db:reset` now WARN FIRST
@@ -100,7 +100,8 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 13 migrations apply from empty; seed is idempotent. 0013 is Phase 10 R2:
+- 14 migrations apply from empty; seed is idempotent. 0014 is OPENAI-CODEX-01:
+  estimated_input_tokens on generation_job and generation_provider_call. 0013 is Phase 10 R2:
   three read models and the append-only daily coverage_snapshot. 0012 is the reporting
   schema: six read models, a refresh ledger, a dataset cache, a snapshot store
   and three triggers on draft_question. 0011 is AI provider
@@ -573,15 +574,27 @@ then Claude, then Copilot, then Azure OpenAI. Specification: architecture.md
   prompt or stdin). The store is `.secrets/` at the repo root, in .gitignore
   AND .dockerignore, seen by the api container at /repo/.secrets
   (KNOWZY_LOCAL_SECRET_DIR). Never add an upload, route or form field for a key.
-- A RESOLVED SECRET IS A `SecretValue` and `reveal()` is called in ONE
-  production file (openai.ts, the Authorization header). A contract test fails
-  on a second call site. Resolutions are audited as SECRET_VALIDATED with a
+- A RESOLVED SECRET IS A `SecretValue` and `reveal()` is called in TWO
+  production files (openai.ts for readiness, openai-generation.ts for
+  generation, each the auth header only). A contract test fails on a third
+  call site. Resolutions are audited as SECRET_VALIDATED with a
   reference FINGERPRINT, never the reference.
-- OPENAI HAS A READINESS CLIENT, NOT A GENERATOR. `GET /models` and
-  `GET /models/{model}` only; `supportsGeneration: false`, read by the registry
-  FROM THE REGISTERED CLIENT, so the gate stays UNAVAILABLE for generation
-  once approved and "Make active" is refused. A contract test forbids any
-  completion/response/chat endpoint or POST in openai.ts.
+- OPENAI GENERATES SINCE OPENAI-CODEX-01 (2026-09-27), and HAS NEVER BEEN RUN
+  LIVE: T-29 is unrecorded and no working credential exists (the owner's key
+  is a gateway subscription key). openai.ts stays readiness-only (GET, a
+  contract test forbids a POST there); openai-generation.ts POSTs ONLY to
+  /responses or /chat/completions with the shared framed prompt, a strict
+  schema, `tools: GENERATION_TOOL_GRANT` and `store: false`. Settings gain
+  `apiStyle` and `authHeaderName` (a gateway's own header). The route takes
+  the job's model from the provider's settings and refuses with no model.
+  Readiness: docs/integrations/OPENAI_CODEX_GENERATION_READINESS.md; results
+  (Arm A measured, Arm B refused): OPENAI_CODEX_EVALUATION_RESULTS.md.
+- A PROVIDER THAT THROWS ENDS ITS JOB FAILED (`recordJobFailure`, audit
+  JOB_FAILED with the error CLASS). Before 0014 anything but a control refusal
+  left the job RUNNING forever. `TimeoutError` classifies as TIMEOUT.
+- THERE ARE TWO PROVIDER REGISTRIES: the control registry decides state inside
+  invokeWithControls; the API registry (apps/api provider-registry.ts)
+  constructs the instance. A new provider must be in both.
 - THE KEY GOES ONLY TO AN ALLOW-LISTED HOST (api.openai.com, plus
   LLM_ENDPOINT_ALLOWLIST from the deployment, never from the screen), https
   only (loopback excepted), redirects refused, and the provider's error
@@ -596,6 +609,9 @@ then Claude, then Copilot, then Azure OpenAI. Specification: architecture.md
 - apps/api/test/provider-readiness.test.ts drives the whole path against a
   FAKE OpenAI on 127.0.0.1 and a temporary store, and RESTORES
   llm.providerSettings afterwards. The e2e suite assumes OpenAI unconfigured.
+- scripts/baseline.ts --generate "<source>" --provider <id> --outcomes <file>
+  runs one comparison arm and records a refusal as the arm's result. --reset
+  KEEPS drafts with published lineage (FK) and says so.
 
 ## Taxonomy
 

@@ -10,6 +10,11 @@
 //   npx tsx scripts/baseline.ts --report                     print the table
 //   npx tsx scripts/baseline.ts --report --json <path>       machine-readable
 //   npx tsx scripts/baseline.ts --report --markdown <path>   the recorded table
+//   npx tsx scripts/baseline.ts --generate "<source>" --provider OPENAI
+//                                             the same run, through another
+//                                             provider (OPENAI-CODEX-01). A
+//                                             refusal is RECORDED as the arm's
+//                                             result, with --outcomes <path>
 //
 // `--reset` exists because of something found while re-measuring on 2026-09-23:
 // `document_section.coverage_status` is a DENORMALIZED CLAIM that outlives the
@@ -65,8 +70,24 @@ const step = (label: string): void => console.log(`\n── ${label}`);
 // Generate
 // ---------------------------------------------------------------------------
 
-const generate = async (sourceName: string): Promise<void> => {
-  step(`Baseline generation over "${sourceName}"`);
+/** What one arm's generation request came back as -- including a refusal. */
+export interface ArmOutcome {
+  readonly source: string;
+  readonly providerId: string;
+  readonly at: string;
+  readonly result: 'GENERATED' | 'REFUSED' | 'SCOPE_EMPTY';
+  readonly jobId: string | null;
+  readonly accepted: number | null;
+  /** The problem code or refusal reason, verbatim from the API. */
+  readonly refusal: string | null;
+  readonly detail: string | null;
+  readonly tokens: { readonly input: number; readonly output: number } | null;
+}
+
+const outcomes: ArmOutcome[] = [];
+
+const generate = async (sourceName: string, providerId: string): Promise<void> => {
+  step(`Baseline generation over "${sourceName}" with ${providerId}`);
 
   const sources = await call<{ sources: { sourceId: string; name: string }[] }>(
     '/api/v1/authoring/sources',
@@ -202,7 +223,19 @@ const generate = async (sourceName: string): Promise<void> => {
         topicId: topic.topicId,
         reasonCode: 'NEW_KNOWLEDGE',
         requestedQuestionCount: requested,
+        providerId,
       },
+    });
+    outcomes.push({
+      source: sourceName,
+      providerId,
+      at: new Date().toISOString(),
+      result: 'GENERATED',
+      jobId: job.jobId,
+      accepted: job.acceptedQuestionCount,
+      refusal: null,
+      detail: null,
+      tokens: job.tokens,
     });
     say(
       `accepted=${job.acceptedQuestionCount}`,
@@ -216,8 +249,48 @@ const generate = async (sourceName: string): Promise<void> => {
     for (const [reason, count] of byReason) say(`  rejected ${reason}: ${count}`);
   } catch (error) {
     const message = (error as Error).message;
-    if (!message.includes('GENERATION_SCOPE_EMPTY')) throw error;
-    say('refused: GENERATION_SCOPE_EMPTY — every assessable section in scope is already covered');
+    if (message.includes('GENERATION_SCOPE_EMPTY')) {
+      say('refused: GENERATION_SCOPE_EMPTY — every assessable section in scope is already covered');
+      outcomes.push({
+        source: sourceName,
+        providerId,
+        at: new Date().toISOString(),
+        result: 'SCOPE_EMPTY',
+        jobId: null,
+        accepted: null,
+        refusal: 'GENERATION_SCOPE_EMPTY',
+        detail: null,
+        tokens: null,
+      });
+      return;
+    }
+    // A PROVIDER refusal is a result of the arm, not a crash of the harness:
+    // "OpenAI was refused BLOCKED_BY_APPROVAL" is the measured outcome while
+    // T-29 is open, and it belongs in the comparison, recorded as such.
+    //
+    // Read by pattern, not JSON.parse: `call` truncates the body at 400
+    // characters, so the problem document is rarely whole -- the first OpenAI
+    // arm crashed here instead of recording its refusal.
+    const code = /"code":"([A-Z_]+)"/.exec(message)?.[1] ?? null;
+    const detail = /"detail":"((?:[^"\\]|\\.)*)"/.exec(message)?.[1] ?? null;
+    if (
+      code === null ||
+      !/^(PROVIDER_|BUDGET_|CONCURRENCY_|GENERATION_REFUSED|RETRY_)/.test(code)
+    ) {
+      throw error;
+    }
+    say(`refused: ${code} — ${detail ?? ''}`);
+    outcomes.push({
+      source: sourceName,
+      providerId,
+      at: new Date().toISOString(),
+      result: 'REFUSED',
+      jobId: null,
+      accepted: null,
+      refusal: code,
+      detail,
+      tokens: null,
+    });
   }
 };
 
@@ -266,9 +339,39 @@ const reset = async (sourceName: string): Promise<void> => {
     );
   }
 
-  const deleted = await prisma.draftQuestion.deleteMany({
-    where: { sourceId: source.id, acquisition: 'GENERATED' },
+  // A RETIRED question keeps its published reference -- published lineage is
+  // never deleted (I15), and the foreign key enforces it. So the advice above,
+  // "retire them first", never made a reset possible: the delete below failed
+  // on that key (found OPENAI-CODEX-01, 2026-09-27). Drafts carrying published
+  // lineage are now KEPT and counted, and the caveat is printed, because they
+  // remain in the duplicate-detection corpus the next run is measured against.
+  const withLineage = await prisma.publishedQuestionReference.findMany({
+    where: {
+      internalQuestionId: {
+        in: (
+          await prisma.draftQuestion.findMany({
+            where: { sourceId: source.id, acquisition: 'GENERATED' },
+            select: { internalQuestionId: true },
+          })
+        ).map((q) => q.internalQuestionId),
+      },
+    },
+    select: { internalQuestionId: true },
   });
+  const kept = withLineage.map((row) => row.internalQuestionId);
+  const deleted = await prisma.draftQuestion.deleteMany({
+    where: {
+      sourceId: source.id,
+      acquisition: 'GENERATED',
+      ...(kept.length === 0 ? {} : { internalQuestionId: { notIn: kept } }),
+    },
+  });
+  if (kept.length > 0) {
+    say(
+      `kept ${kept.length} retired draft(s) with published lineage -- never deleted, and still ` +
+        'in the duplicate corpus: a re-run that proposes the same question is BLOCKED as a duplicate',
+    );
+  }
   const cleared = await prisma.$executeRaw`
     UPDATE document_section s
        SET coverage_status = 'NOT_COVERED',
@@ -687,7 +790,22 @@ const run = async (): Promise<void> => {
     if (resetName !== undefined) await reset(resetName);
 
     const generateName = valueOf(args, '--generate');
-    if (generateName !== undefined) await generate(generateName);
+    const providerId = valueOf(args, '--provider') ?? 'DETERMINISTIC_LOCAL';
+    if (generateName !== undefined) await generate(generateName, providerId);
+    const outcomesPath = valueOf(args, '--outcomes');
+    if (outcomesPath !== undefined && outcomes.length > 0) {
+      const { readFile, writeFile, mkdir } = await import('node:fs/promises');
+      const { dirname } = await import('node:path');
+      await mkdir(dirname(outcomesPath), { recursive: true });
+      let existing: ArmOutcome[] = [];
+      try {
+        existing = JSON.parse(await readFile(outcomesPath, 'utf8')) as ArmOutcome[];
+      } catch {
+        /* first outcome for this file */
+      }
+      await writeFile(outcomesPath, `${JSON.stringify([...existing, ...outcomes], null, 2)}\n`);
+      say(`outcome appended to ${outcomesPath}`);
+    }
 
     if (args.includes('--report') || (resetName === undefined && generateName === undefined)) {
       await report(valueOf(args, '--json'), valueOf(args, '--markdown'));

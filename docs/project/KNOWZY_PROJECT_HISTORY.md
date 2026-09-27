@@ -2525,3 +2525,60 @@ the deterministic generator refuses a corpus it has exhausted, and two browser r
 the build repair above) had consumed the four fixture documents since verify emptied the drafts.
 Run alone it passes, 4 of 4. Order-dependent, pre-existing in shape, and recorded rather than
 re-run until green.
+
+## OPENAI-CODEX-01 — a provider that proposes, and a comparison that has not run
+
+2026-09-27. An OpenAI generation client, placed behind the existing provider port and control
+layer. The owner chose "build all, run nothing live" and "standard OpenAI, configurable header".
+**No live request was sent.** T-29 is unrecorded, and the only key held is a 32-character gateway
+subscription key whose endpoint and header are unknown.
+
+### What was built
+
+- `createOpenAIGenerationProvider`:
+  - the shared framed prompt, unchanged (PromptVersion 1.2.0);
+  - a strict JSON schema mapped back to `GenerationOutputSchema`;
+  - no tools, `store: false`;
+  - Responses or Chat Completions, with a configurable auth header;
+  - the key resolved per call through the audited resolver;
+  - the served model recorded.
+- `apiStyle` and `authHeaderName` settings, with fields in the Configure dialog.
+- The route takes the job's model from the provider's settings.
+- Migration 0014 keeps the control layer's input-token estimate beside the measurement.
+- A comparison harness: `baseline.ts --provider --outcomes`.
+- Two documents: `OPENAI_CODEX_GENERATION_READINESS.md` (a 17-row review) and
+  `OPENAI_CODEX_EVALUATION_RESULTS.md`.
+
+### Defects found by reading the chain before writing the client
+
+| # | Defect | Fix |
+| --- | --- | --- |
+| 1 | A provider error other than a control refusal left the job **RUNNING forever** | `recordJobFailure`: FAILED, audited with the error class. A mutation (disabling it) fails the test |
+| 2 | `AbortSignal.timeout`'s `TimeoutError` classified as UNKNOWN, so it was never retried | Classified TIMEOUT |
+| 3 | The job's model came only from the profile (`claude-sonnet-5`), so an OpenAI job would have recorded and priced the wrong model | Taken from the provider's settings, refused before a job exists when none is set |
+| 4 | The API registry's credential check was a set built at startup, so it was blind to a reference configured afterwards | A per-request check |
+| 5 | The pre-call token estimate was computed and discarded | Migration 0014 |
+| 6 | The new audit keys were added to JOB_COMPLETED only | Added to JOB_FAILED too; the dropped-keys test caught it |
+| 7 | `baseline.ts --reset` crashed on a published draft, and its advice ("retire first") could never work because of the FK | It keeps lineage-bearing drafts and says so |
+| 8 | `provider-readiness.test.ts` still asserted `supportsGeneration: false` | A test encoding the old truth. Updated, not the code |
+
+### Measured
+
+Arm A (deterministic) was run twice on both corpora and reproduced exactly:
+
+| Corpus | Accepted | Coverage | Tokens in / out |
+| --- | ---: | ---: | --- |
+| SOP | 4 | 3.4% | 21,561 / 1,084 (identical to the 2026-09-23 baseline) |
+| GenerationReady | 15 | 21.1% (includes one retained retired draft) | — |
+
+Arm B (OpenAI) was refused on both corpora with `PROVIDER_CREDENTIAL_UNAVAILABLE`. Zero jobs,
+zero calls. No OpenAI figure exists anywhere in the repository.
+
+### Validated
+
+- `npm run verify` green: **1065 passing + 12 todo across 55 files**.
+- `npm run build` 21/21. It first failed on a race: a restarted web container's dev server was
+  writing into the `.next` the host build was reading. Web containers must be **stopped**, not
+  just restarted, before a host build.
+- The browser suite: **46 passed, 1 skipped, 0 failed** (7.2 min). A first attempt failed every AI Providers spec: the
+  api container had lost `fastify` after the host build. `up migrate` and a restart repaired it; the code was unchanged.

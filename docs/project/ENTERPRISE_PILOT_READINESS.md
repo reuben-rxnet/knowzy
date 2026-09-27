@@ -645,14 +645,14 @@ and a Codex API subscription exists.
 | Local secure store | **Built**, local environment only. Encrypted file; keys enter it through `npm run secrets` |
 | Azure Key Vault | **Declared, not built.** `keyvault://` references are accepted and report `SOURCE_UNAVAILABLE` |
 | OpenAI readiness | **Built.** Endpoint, authentication and model verified with two metadata requests to an allow-listed host |
-| OpenAI generation | **Not built**, deliberately. The client declares `supportsGeneration: false` and the gate stays `UNAVAILABLE` for generation |
+| OpenAI generation | **Built 2026-09-27 (OPENAI-CODEX-01), never run live.** Refused `BLOCKED_BY_APPROVAL` until T-29; proposals pass the unchanged gate chain and land as drafts. See docs/integrations/OPENAI_CODEX_GENERATION_READINESS.md |
 
 **P-5 is closed for local, open for deployed.** A deployed environment still cannot read a secret:
 it needs the Key Vault and managed identity listed in §7, and a Key Vault source to replace the
 placeholder. That part remains Platform + InfoSec.
 
 **What this changes for the pilot.** The day T-29 is signed, the remaining work for OpenAI is the
-generation client and the recorded comparison — not credential plumbing, not a readiness check, not
+recorded comparison (the generation client now exists; its credential is a gateway key whose URL and header are still to be confirmed) — not credential plumbing, not a readiness check, not
 an audit design. And before T-29, an administrator can already prove, on the screen and in the audit
 trail, that the Codex key works and the model is available, without any content leaving the
 platform: the readiness calls carry a key and a model name and nothing else.
