@@ -995,36 +995,16 @@ export const copy = {
   'rep.tabSources': 'Sources',
   'rep.heading': 'Reporting & Analytics',
   'rep.intro':
-    'Five reports over the platform\u2019s own records: the question pipeline, generation yield, assessment performance, how the bank is filed, and source coverage. Every figure carries the moment it was true and the formula that produced it.',
-
-  'rep.kpiQuestions': 'Questions',
-  'rep.kpiQuestionsNote': 'Every lifecycle state, counted exactly and in real time',
-  'rep.kpiPublished': 'Published',
-  'rep.kpiAttempts': 'Assessment attempts',
-  'rep.kpiAttemptsNote': 'Scored attempts; a superseded result is not one',
-  'rep.kpiSuppressedNote':
-    '{count} cells withheld \u2014 an assessment below the minimum group size identifies its learners',
-  'rep.kpiGenerationJobs': 'Generation jobs',
-  'rep.kpiGenerationJobsNote': 'Including the ones the control layer refused',
-  'rep.kpiAccepted': 'Questions accepted',
-  'rep.kpiDocuments': 'Documents',
-  'rep.kpiDocumentsNote': 'Active documents across every configured source',
-  'rep.kpiCovered': 'Section coverage',
-  'rep.kpiCoveredNote': '{covered} of {assessable} assessable sections cite a question',
-  'rep.kpiUnfiled': 'Missing an axis',
-  'rep.kpiUnfiledNote': 'Questions with no department or no role',
-
-  'rep.noDeltaNote':
-    'No figure on this page carries a \u201cvs previous period\u201d comparison, and that is deliberate rather than unfinished. The approved design shows one on every card; two of those could never be honest \u2014 section coverage is current state with no history, so there is no earlier value to compare against. Showing six comparisons and omitting two would invite the question, and the answer would be that they were invented. Trends over time live in the day-grained reports, where the underlying rows carry dates.',
+    'Insights across questions, assessments, knowledge sources and AI usage \u2014 every figure from the platform\u2019s own records, with the moment it was true and the formula that produced it.',
 
   'rep.staleHeading': 'Some data is older than it should be',
   'rep.staleBody':
     '{count} read model(s) failed to refresh. The figures below are the last good ones rather than blanks \u2014 a failed refresh raises the age of the data, it never empties a dashboard.',
-  'rep.staleSince': 'last good refresh {at} UTC, {failures} consecutive failure(s)',
+  'rep.staleSince': 'last good refresh {at}, {failures} consecutive failure(s)',
 
   'rep.freshnessHeading': 'Where each figure comes from, and when it was true',
   'rep.freshnessIntro':
-    'Six read models. Five are materialized views refreshed every fifteen minutes; the question pipeline is maintained on write, inside the same transaction as the transition it counts, so it is exact and instant.',
+    'Nine read models and the snapshot ledger. Eight are materialized views refreshed every fifteen minutes; the question pipeline is maintained on write, inside the same transaction as the transition it counts; the coverage snapshot is captured once a day.',
   'rep.colModel': 'Read model',
   'rep.colStatus': 'Status',
   'rep.colRefreshed': 'Data as of',
@@ -1032,35 +1012,133 @@ export const copy = {
   'rep.colDetail': 'Detail',
   'rep.neverRefreshed': 'Never refreshed',
   'rep.onWriteNote': 'Maintained on write by a database trigger, not on a schedule',
-  'rep.unbuiltNote':
-    '{count} model(s) have never refreshed. A report that depends on one reports no as-of date rather than drawing zeros.',
-
-  'rep.catalogueHeading': 'The reports',
-  'rep.catalogueIntro':
-    'Each entry declares its grain, its metrics with their formulas, and where its rows live. An aggregate you cannot decompose is one you cannot audit.',
-  'rep.metricCount': '{count} metrics',
-  'rep.windowed': 'Windowed',
-  'rep.suppressedBadge': 'Suppressed below {size}',
+  'rep.snapshotModelNote':
+    'One row per UTC day, append-only. The time shown is the latest capture.',
   'rep.openReport': 'Open the report',
-
-  'rep.elsewhereHeading': 'Reporting that already exists elsewhere',
-  'rep.elsewhereIntro':
-    'The approved design lists these as reporting screens. They are not duplicated here: one screen reading the data through one path cannot disagree with itself.',
-  'rep.linkAiUsage': 'Governance \u2192 AI Usage & Budgets',
-  'rep.linkAiUsageNote':
-    'Token usage, cost accounting, budget windows, concurrency and provider health \u2014 including the providers that have never run, which report \u201cNot Yet Recorded\u201d rather than a figure.',
-  'rep.linkAudit': 'Governance \u2192 Audit Explorer',
-  'rep.linkAuditNote':
-    'Every recorded event, filterable, with the correlated trace behind any one of them.',
-
-  'rep.learnerHeading': 'Learner performance by department and topic',
-  'rep.learnerPlanned': 'Not built, and blocked on more than code',
-  'rep.learnerBody':
-    'The approved design shows a heatmap of average scores by department and topic. Three things stop it. Its two read models are not built. A learner has no department \u2014 department is a label on a question, not on a person, and the platform\u2019s grouping model for people has no rows and no way to create one. And every cell is an average over a handful of learners, so suppression would withhold most of them: the panel has to be designed knowing that before it is worth building. Topic accuracy without a person grouping is real, and is the next honest step.',
 
   'rep.emptyTitle': 'Nothing has been recorded yet',
   'rep.emptyBody':
     'Generate and approve some questions, or run an assessment, and these reports fill from the records that produces.',
+
+  // -------------------------------------- the dashboard (Phase 10 R2, 2026-09-27)
+  'rep.periodLabel': 'Period',
+  'rep.periodHint':
+    'The headline figures, the learner heatmap and the AI summary cover this period. It resolves to absolute dates, printed under each panel.',
+  'rep.trendRangeLabel': 'Trend range',
+  'rep.trend30': 'Last 30 days, by day',
+  'rep.trend90': 'Last 90 days, by week',
+  'rep.trend365': 'Last 12 months, by month',
+  'rep.panelAsOf': 'Data as of {at}',
+  'rep.panelWindow': '{from} \u2192 {to}',
+
+  'rep.kpiHeading': 'Headline figures',
+  'rep.kpiComparisonNote':
+    'Each comparison states what it is measured against. A count over a period is compared with the same count over the period before it. A figure that describes a moment \u2014 total questions, coverage, sources \u2014 is compared with the coverage snapshot recorded on the day the period began. Snapshots are recorded once a day and never back-filled: the first was taken on {first}, {days} are recorded, and until one is old enough the card reads \u201cNot Yet Available\u201d.',
+
+  // The ONLY comparison phrases in this file. The contract test allow-lists
+  // the `rep.cmp` prefix on the condition that KpiComparison.tsx alone renders
+  // it, and that component prints a movement only for a measured comparison.
+  'rep.cmpVsSnapshot': 'vs the {date} snapshot',
+  'rep.cmpVsPreviousWindow': 'vs previous {days} days',
+  'rep.cmpPoints': '{change} pts',
+  'rep.cmpCurrency': '{change} USD',
+  'rep.cmpCountPercent': '{change} ({percent}%)',
+  'rep.cmpFlat': 'No change',
+  'rep.cmpNotYet': 'Not Yet Available',
+  'rep.cmpSuppressed': 'Comparison withheld',
+  'rep.cmpNotObservable': 'Not observable',
+  'rep.cmpScope': 'Not available for your scope',
+
+  'rep.trendHeading': 'Question generation trend',
+  'rep.trendIntro':
+    'Questions generators produced and the platform kept, beside questions published, per period. Both come from rows that carry their own dates, so a period with nothing in it is a real zero.',
+  'rep.trendChartTitle': 'Generated and published questions',
+  'rep.seriesGenerated': 'Generated questions',
+  'rep.seriesPublished': 'Published questions',
+  'rep.partialPeriod': 'Current period, still in progress',
+
+  'rep.statusHeading': 'Questions by status',
+  'rep.statusIntro':
+    'The design\u2019s five buckets, plus retired and archived, which it leaves out \u2014 so the buckets add up to the total in the centre.',
+  'rep.statusChartTitle': 'Lifecycle distribution',
+  'rep.statusCentre': 'Total questions',
+  'rep.statusPublished': 'Published',
+  'rep.statusApproved': 'Approved',
+  'rep.statusInReview': 'In review',
+  'rep.statusDraft': 'Draft',
+  'rep.statusRejected': 'Rejected',
+  'rep.statusRetired': 'Retired or archived',
+
+  'rep.deptHeading': 'Questions by department and job role',
+  'rep.deptIntro':
+    'Department and job role are the reporting hierarchy. Columns are job roles, stacked by department; \u201cNot filed\u201d is the part of the bank still waiting for either.',
+  'rep.deptChartTitle': 'Questions filed, by job role and department',
+  'rep.deptChartNote': 'Every lifecycle state. The number on each column is its total.',
+  'rep.notFiled': 'Not filed',
+
+  'rep.learnerHeading': 'Learner performance',
+  'rep.learnerIntro':
+    'Scored topic results by department and topic. Cells covering fewer learners than the minimum group size are withheld, and so is any cell that could be worked out from a row or column beside it.',
+  'rep.heatMetricLabel': 'Heatmap measure',
+  'rep.heatAverageScore': 'Average score',
+  'rep.heatPassRate': 'Pass rate',
+  'rep.heatAttemptSuccess': 'Attempt success',
+  'rep.heatNoAttempts': 'No attempts',
+  'rep.heatLearners': 'Learners',
+  'rep.heatAttempts': 'Topic attempts',
+  'rep.learnerCaption': 'Learner performance: {metric} by department and topic',
+  'rep.learnerAttribution':
+    'Department means the department the QUESTIONS were filed under, not the learner\u2019s: learners carry no department. A topic result counts under a department only when every question asked in that topic is filed there; otherwise it counts under \u201cNot filed\u201d or \u201cFiled under several departments\u201d.',
+  'rep.learnerEmptyTitle': 'No scored topic results in this period',
+  'rep.learnerEmptyBody':
+    'The heatmap fills from completed assessments. Nothing was scored in the window, which is a fact rather than a fault.',
+
+  'rep.activityHeading': 'Recent activity',
+  'rep.activityIntro':
+    'From the audit trail, without names. Assessment completions are grouped per assessment per day and shown only when enough learners took part.',
+  'rep.activityEmpty': 'Nothing recorded in the last 30 days.',
+  'rep.viewAll': 'View all in the Audit Explorer',
+  'rep.actAssessmentPublished': 'Assessment published',
+  'rep.actQuestionApproved': 'Question approved',
+  'rep.actQuestionPublished': 'Question published',
+  'rep.actSourceSynchronized': 'Source synchronized',
+  'rep.actProviderValidated': 'AI provider validation recorded',
+  'rep.actQuestionsGenerated': 'Questions generated',
+  'rep.actSourceAdded': 'Knowledge source added',
+  'rep.actAssessmentsCompleted': 'Assessments completed',
+
+  'rep.sourceHeading': 'Knowledge source health',
+  'rep.sourceIntro':
+    'Read-only. Synchronizing, pausing and scheduling belong to the SharePoint Sync Manager; this panel reports what they produced.',
+  'rep.srcSource': 'Source',
+  'rep.srcDocuments': 'Documents',
+  'rep.srcSections': 'Sections',
+  'rep.srcCoverage': 'Coverage',
+  'rep.srcQuestions': 'Questions',
+  'rep.srcLastSync': 'Last sync',
+  'rep.srcStatus': 'Status',
+  'rep.srcNoAssessable': 'No assessable sections',
+  'rep.srcNeverSynced': 'Never synchronized',
+  'rep.sourceStatusNote':
+    'Status is the Sync Manager\u2019s own, derived the same way from the same state, so the two screens cannot disagree. Counts are as of the read model; the last sync is live.',
+
+  'rep.aiHeading': 'AI usage and budgets',
+  'rep.aiIntro':
+    'A summary of Governance \u2192 AI Usage & Budgets, read through the same function. A provider that has never run reads \u201cNot Yet Recorded\u201d, and a cost that cannot be observed says so rather than showing zero.',
+  'rep.aiOpen': 'Open AI Usage & Budgets',
+  'rep.aiGenerations': 'Generations',
+  'rep.aiTokens': 'Tokens',
+  'rep.aiCost': 'Estimated cost',
+  'rep.aiRemaining': 'Daily budget remaining',
+  'rep.aiUtilization': '{percent}% of today\u2019s budget used',
+  'rep.aiProviders': 'Providers',
+  'rep.aiProvider': 'Provider',
+  'rep.aiState': 'State',
+  'rep.aiTokensCol': 'Tokens',
+  'rep.aiCostCol': 'Estimated cost',
+  'rep.aiHealth': 'Health',
+  'rep.aiNote':
+    'Health is UNKNOWN until a provider has been called in the window. Unknown is not healthy. No external provider has a client in this build, so none has a recorded call.',
 
   // ------------------------------------------------------- one report
   'rep.asOf': 'Data as of',

@@ -15,7 +15,7 @@
 //   4. EVERY METRIC'S FORMULA is on the page.
 
 import { expect, test } from '@playwright/test';
-import { actAs, api, ensurePublishedAssessment, IDENTITY } from '../support/portal';
+import { actAs, api, ensureScoredAttempt, IDENTITY } from '../support/portal';
 
 const AUTHORING = process.env['E2E_AUTHORING_URL'] ?? 'http://localhost:3000';
 
@@ -31,45 +31,88 @@ interface Dataset {
 }
 
 test.describe('reports', () => {
-  test('the dashboard shows the API’s own figures, and no fabricated delta', async ({
+  test('the dashboard shows the API’s own figures, and a comparison only where one was measured', async ({
     page,
     request,
   }) => {
+    // R-1: a KPI comparison is real only when the API measured both values.
+    // The assertion is COUNTED against the API: exactly as many movements as
+    // AVAILABLE comparisons, and "Not Yet Available" for each one without a
+    // base. A card that drew a delta the API did not measure fails here.
+    const kpis = await api<{
+      rows: readonly { label: string; comparisonStatus: string }[];
+    }>(request, '/api/v1/authoring/reports/kpis?windowDays=30');
     const pipeline = await api<Dataset>(request, '/api/v1/authoring/reports/question-pipeline');
 
     await actAs(page, IDENTITY.administrator);
-    await page.goto(`${AUTHORING}/reports`);
+    await page.goto(`${AUTHORING}/reports?period=30`);
     await expect(page.getByRole('heading', { name: 'Reporting & Analytics' })).toBeVisible();
 
     const total = pipeline.totals['questionCount'] ?? 0;
     await expect(page.getByText(String(total), { exact: true }).first()).toBeVisible();
 
-    // NO KPI CARD carries a delta, and the reason is STATED rather than left as
-    // an absence a reader assumes is an oversight.
-    //
-    // The assertion is scoped, because the explanation itself quotes the phrase
-    // "vs previous period" -- the first version of this test asserted zero
-    // occurrences on the page and failed on the sentence explaining why there
-    // are none, which is the test misreading its own subject.
-    const explanation = page.getByText(/no figure on this page carries/i);
-    await expect(explanation).toBeVisible();
-    const deltas = page.getByText(/vs previous period/i);
-    await expect(deltas).toHaveCount(1);
-    await expect(deltas.first()).toHaveText(/no figure on this page carries/i);
+    for (const row of kpis.rows) {
+      await expect(page.getByText(row.label, { exact: true }).first()).toBeVisible();
+    }
+    const available = kpis.rows.filter((row) => row.comparisonStatus === 'AVAILABLE').length;
+    const notYet = kpis.rows.filter((row) => row.comparisonStatus === 'NOT_YET_AVAILABLE').length;
+    await expect(page.getByText(/^vs (previous \d+ days|the .+ snapshot)$/)).toHaveCount(available);
+    await expect(page.getByText('Not Yet Available', { exact: true })).toHaveCount(notYet);
+  });
 
-    for (const model of ['rm_question_pipeline', 'rm_filing_coverage', 'rm_source_coverage']) {
-      await expect(page.getByText(model, { exact: true })).toBeVisible();
+  test('the learner heatmap is built, suppressed cell by cell, and says what "department" means', async ({
+    page,
+    request,
+  }) => {
+    const heat = await api<{ rows: readonly Record<string, unknown>[]; suppressionCount: number }>(
+      request,
+      '/api/v1/authoring/reports/learner-performance?windowDays=365',
+    );
+    await actAs(page, IDENTITY.administrator);
+    await page.goto(`${AUTHORING}/reports`);
+    await expect(page.getByRole('heading', { name: 'Learner performance' })).toBeVisible();
+    // D-1: the rows are the department the QUESTIONS were filed under.
+    await expect(page.getByText(/department the QUESTIONS were filed under/)).toBeVisible();
+
+    const hidden = heat.rows.filter((row) => row['averageScore'] === 'SUPPRESSED').length;
+    await expect(page.locator('td[data-suppressed="true"]')).toHaveCount(hidden);
+    if (heat.suppressionCount > 0) {
+      await expect(page.getByText(`${heat.suppressionCount} cells withheld`).first()).toBeVisible();
     }
   });
 
-  test('the learner heatmap is declared as not built, with its reason', async ({ page }) => {
-    // The approved design's most prominent panel. A blank space would read as a
-    // loading failure; the reason is what makes it a decision.
+  test('recent activity is the audit trail, drills into it, and never claims a verified connection', async ({
+    page,
+  }) => {
     await actAs(page, IDENTITY.administrator);
     await page.goto(`${AUTHORING}/reports`);
-    await expect(page.getByRole('heading', { name: /learner performance/i })).toBeVisible();
-    await expect(page.getByText(/blocked on more than code/i)).toBeVisible();
-    await expect(page.getByText(/department is a label on a question/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recent activity' })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: /view all in the audit explorer/i }),
+    ).toHaveAttribute('href', '/governance/audit');
+    await expect(page.getByText(/connection verified/i)).toHaveCount(0);
+  });
+
+  test('every chart carries its numbers as a table', async ({ page }) => {
+    await actAs(page, IDENTITY.administrator);
+    await page.goto(`${AUTHORING}/reports`);
+    for (const caption of [
+      'Generated and published questions',
+      'Lifecycle distribution',
+      'Questions filed, by job role and department',
+    ]) {
+      await expect(page.locator('table caption', { hasText: caption })).toHaveCount(1);
+    }
+  });
+
+  test('a dashboard panel opens as a full report, with its formulas', async ({ page }) => {
+    await actAs(page, IDENTITY.administrator);
+    await page.goto(`${AUTHORING}/reports/source-health`);
+    await expect(page.getByRole('heading', { name: 'Knowledge source health' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: /how every number here is calculated/i }),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /export csv/i })).toBeVisible();
   });
 
   test('a report carries asOf, the resolved window, and a formula per metric', async ({
@@ -102,12 +145,14 @@ test.describe('reports', () => {
     // test reads like coverage in a summary -- which is exactly how the
     // platform's three vacuous suites went unnoticed.
     //
-    // The precondition is an assessment with a scored attempt and fewer than
-    // five distinct learners, which is what the shared helper produces: one
-    // learner, one attempt. Then the read models are REFRESHED, because the
-    // scheduled refresh runs every fifteen minutes and a test cannot wait for
-    // it.
-    await ensurePublishedAssessment(request);
+    // The precondition is a scored attempt with fewer than five distinct
+    // learners: one learner, one attempt, which `ensureScoredAttempt` takes
+    // through the learner API when none exists. (It used to be
+    // `ensurePublishedAssessment`, which takes no attempt at all -- the test
+    // passed on leftovers and failed the first time verify emptied them.)
+    // Then the read models are REFRESHED, because the scheduled refresh runs
+    // every fifteen minutes and a test cannot wait for it.
+    await ensureScoredAttempt(request);
     await api(request, '/api/v1/authoring/reports/refresh', { method: 'POST', body: {} });
 
     const data = await api<Dataset>(request, '/api/v1/authoring/reports/assessments');

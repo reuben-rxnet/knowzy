@@ -426,3 +426,55 @@ export const ensurePublishedAssessment = async (
 
   return { name: `E2E acceptance ${suffix}` };
 };
+
+/**
+ * Guarantees at least one SCORED attempt, taking one as the learner if needed.
+ *
+ * The suppression test used to say its precondition came from
+ * `ensurePublishedAssessment`, which publishes an assessment and takes no
+ * attempt. It passed only while an earlier run's result was still in the
+ * database; after `npm run verify` emptied it, the learner specs created the
+ * first result minutes AFTER the reports spec had refreshed the read models,
+ * and the test failed. The precondition is now provisioned, through the same
+ * learner API the portal calls, answering every question with option A — the
+ * score does not matter, only that a scored result exists.
+ */
+export const ensureScoredAttempt = async (request: APIRequestContext): Promise<void> => {
+  const { name } = await ensurePublishedAssessment(request);
+  const list = await api<{
+    assessments: readonly {
+      assessmentId: string;
+      name: string;
+      startable: boolean;
+      attemptsUsed: number;
+    }[];
+  }>(request, '/api/v1/learning/assessments', { as: IDENTITY.learner });
+  // One is enough, and taking another every run would walk the learner into
+  // an attempt limit.
+  if (list.assessments.some((candidate) => candidate.attemptsUsed > 0)) return;
+  const target =
+    list.assessments.find((candidate) => candidate.name === name && candidate.startable) ??
+    list.assessments.find((candidate) => candidate.startable);
+  if (target === undefined) {
+    throw new Error('No assessment is startable by the learner, so no attempt can be scored.');
+  }
+
+  const session = await api<{ sessionId: string; totalQuestions: number }>(
+    request,
+    '/api/v1/learning/sessions',
+    { method: 'POST', as: IDENTITY.learner, body: { assessmentId: target.assessmentId } },
+  );
+  for (let index = 0; index < session.totalQuestions; index += 1) {
+    await api(request, `/api/v1/learning/sessions/${session.sessionId}/answers`, {
+      method: 'POST',
+      as: IDENTITY.learner,
+      body: { questionIndex: index, selectedOption: 'A' },
+      allowFailure: true,
+    });
+  }
+  await api(request, `/api/v1/learning/sessions/${session.sessionId}/complete`, {
+    method: 'POST',
+    as: IDENTITY.learner,
+    body: {},
+  });
+};

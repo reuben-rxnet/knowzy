@@ -30,8 +30,22 @@
 // Content rule C1 puts EVERY user-visible string in `copy.ts`, which is what
 // makes scanning those two files sufficient: a component cannot smuggle a
 // label past this check without failing the C1 gate instead.
+//
+// ONE NARROW EXCEPTION, since decision R-1 (2026-09-27). Coverage history is
+// now recorded — `reporting.coverage_snapshot`, one row per UTC day — and a
+// flow's previous window is counted from dated rows, so a previous-period
+// comparison CAN be measured. The premise of rule 1 ("no KPI history is stored
+// anywhere") is no longer true for the reporting dashboard, and pretending it
+// was would mean phrasing a real comparison in synonyms to get past a regex,
+// which is this test being gamed rather than obeyed.
+//
+// So comparison phrasing is allowed under the `rep.cmp` prefix ONLY, and only
+// on three conditions this file checks: the keys are rendered by ONE component
+// (`KpiComparison.tsx`) and referenced nowhere else; that component prints a
+// movement only for a comparison whose status is AVAILABLE; and it prints
+// "Not Yet Available" otherwise. Everywhere else rule 1 stands unchanged.
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -99,6 +113,42 @@ const literals = (source: string): readonly { readonly text: string; readonly li
 
 const hasPlaceholder = (text: string): boolean => /\{[a-zA-Z]\w*\}/.test(text);
 
+/** The one prefix whose strings may state a comparison. See the header. */
+const COMPARISON_PREFIX = 'rep.cmp';
+const COMPARISON_COMPONENT = join(
+  REPO_ROOT,
+  'apps',
+  'authoring-web',
+  'src',
+  'components',
+  'KpiComparison.tsx',
+);
+
+/**
+ * The copy key each literal belongs to.
+ *
+ * A key sits on its own line (`'rep.x': 'value'` or `'rep.x':` with the value
+ * on the next line), so the key in force is the last one seen. Keys are
+ * themselves literals and are skipped as values.
+ */
+const keyed = (
+  source: string,
+): readonly { readonly key: string | null; readonly text: string; readonly line: number }[] => {
+  const out: { key: string | null; text: string; line: number }[] = [];
+  let key: string | null = null;
+  source.split('\n').forEach((line, index) => {
+    const declared = /^\s*'([a-z]+\.[A-Za-z0-9]+)'\s*:/.exec(line);
+    if (declared !== null) key = declared[1] ?? null;
+    if (line.trimStart().startsWith('//') || line.trimStart().startsWith('*')) return;
+    for (const match of line.matchAll(/'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g)) {
+      const text = match[1] ?? match[2] ?? '';
+      if (text === '' || text === key) continue;
+      out.push({ key, text, line: index + 1 });
+    }
+  });
+  return out;
+};
+
 describe('no fabricated metrics reach a screen', () => {
   for (const [app, path] of Object.entries(COPY)) {
     const strings = literals(readFileSync(path, 'utf8'));
@@ -110,11 +160,14 @@ describe('no fabricated metrics reach a screen', () => {
     });
 
     it(`${app}: states no comparison against an unrecorded period`, () => {
-      const offences = strings.flatMap(({ text, line }) =>
-        COMPARISONS.filter((rule) => rule.pattern.test(text)).map(
-          (rule) => `${path}:${line} states ${rule.name}: ${JSON.stringify(text)}`,
-        ),
-      );
+      const offences = keyed(readFileSync(path, 'utf8'))
+        // The one exception: measured comparisons, rendered by one component.
+        .filter(({ key }) => key === null || !key.startsWith(COMPARISON_PREFIX))
+        .flatMap(({ text, line }) =>
+          COMPARISONS.filter((rule) => rule.pattern.test(text)).map(
+            (rule) => `${path}:${line} states ${rule.name}: ${JSON.stringify(text)}`,
+          ),
+        );
       expect(offences).toEqual([]);
     });
 
@@ -129,4 +182,39 @@ describe('no fabricated metrics reach a screen', () => {
       expect(offences).toEqual([]);
     });
   }
+});
+
+describe('the one place a comparison may be stated', () => {
+  const component = readFileSync(COMPARISON_COMPONENT, 'utf8');
+  const copyKeys = [
+    ...readFileSync(COPY['authoring-web'], 'utf8').matchAll(/^\s*'(rep\.cmp[A-Za-z0-9]+)'\s*:/gm),
+  ].map((match) => match[1] as string);
+
+  it('exists, so the exception is not vacuous', () => {
+    expect(copyKeys.length).toBeGreaterThan(3);
+  });
+
+  it('is rendered by KpiComparison.tsx and referenced by NO other file', () => {
+    const src = join(REPO_ROOT, 'apps', 'authoring-web', 'src');
+    const files = readdirSync(src, { recursive: true, withFileTypes: true })
+      .filter((entry) => entry.isFile() && /\.(ts|tsx)$/.test(entry.name))
+      .map((entry) => join(entry.parentPath, entry.name))
+      .filter((file) => file !== COPY['authoring-web'] && file !== COMPARISON_COMPONENT);
+    const offenders = files.filter((file) =>
+      copyKeys.some((key) => readFileSync(file, 'utf8').includes(`'${key}'`)),
+    );
+    expect(offenders).toEqual([]);
+    for (const key of copyKeys) expect(component, `${key} is unused`).toContain(`'${key}'`);
+  });
+
+  it('prints a movement ONLY for a measured comparison, and "Not Yet Available" otherwise', () => {
+    // The guard is the first branch of the component, and the movement keys
+    // appear only after it. Moving the guard below them fails this.
+    const guard = component.indexOf("data.comparisonStatus !== 'AVAILABLE'");
+    expect(guard).toBeGreaterThan(-1);
+    for (const key of ['rep.cmpVsSnapshot', 'rep.cmpVsPreviousWindow', 'rep.cmpPoints']) {
+      expect(component.indexOf(`'${key}'`)).toBeGreaterThan(guard);
+    }
+    expect(component).toContain("t('rep.cmpNotYet')");
+  });
 });

@@ -46,7 +46,23 @@ import { ReportExportButton, SnapshotButton } from '../../../components/ReportAc
 import { currentSubject } from '../../../lib/identity';
 import { REPORT_TABS } from '../tabs';
 
-const DATASETS = ['question-pipeline', 'generation', 'assessments', 'filing', 'sources'] as const;
+// The catalogue's names, as the API declares them. R2 added the dashboard's
+// seven panels, each of which opens here as a full table with its export and
+// snapshot — the drill-through from every dashboard panel.
+const DATASETS = [
+  'question-pipeline',
+  'generation',
+  'assessments',
+  'filing',
+  'sources',
+  'kpis',
+  'question-trend',
+  'question-status',
+  'department-role',
+  'learner-performance',
+  'source-health',
+  'activity',
+] as const;
 type DatasetName = (typeof DATASETS)[number];
 
 const isDataset = (value: string): value is DatasetName =>
@@ -78,6 +94,7 @@ interface Dataset {
   readonly totals: Readonly<Record<string, number>>;
   readonly totalsPartial: Readonly<Record<string, boolean>>;
   readonly suppressedCellCount: number;
+  readonly suppressionReason: string | null;
   readonly minimumGroupSize: number;
   readonly drillThrough: string | null;
   readonly windowDays: number | null;
@@ -86,13 +103,32 @@ interface Dataset {
   readonly cached: boolean;
 }
 
+// A dashboard panel's report has no tab of its own; it opens under Dashboard,
+// which is where its panel lives.
 const TAB_HREF: Record<DatasetName, (typeof REPORT_TABS)[number]['href']> = {
   'question-pipeline': '/reports/question-pipeline',
   generation: '/reports/generation',
   assessments: '/reports/assessments',
   filing: '/reports/filing',
   sources: '/reports/sources',
+  kpis: '/reports',
+  'question-trend': '/reports',
+  'question-status': '/reports/question-pipeline',
+  'department-role': '/reports/filing',
+  'learner-performance': '/reports/assessments',
+  'source-health': '/reports/sources',
+  activity: '/reports',
 };
+
+/**
+ * Whether a metric's column total means anything.
+ *
+ * A sum of counts is a total; a sum of percentages or averages is a number
+ * nobody should read — five 80% coverage figures do not make 400%. The API
+ * omits totals entirely for an entry that declares itself not summable.
+ */
+const isTotalMeaningful = (column: string, totals: Readonly<Record<string, number>>): boolean =>
+  column in totals && !/(Percent|Score)$/.test(column);
 
 const WINDOWS = ['7', '30', '90', '365'] as const;
 
@@ -201,7 +237,12 @@ export default async function ReportPage({
                   data.suppressedCellCount === 0
                     ? t('rep.nothingWithheld')
                     : t('rep.cellsWithheld', { count: String(data.suppressedCellCount) }),
-                note: t('rep.minGroup', { size: String(data.minimumGroupSize) }),
+                note:
+                  // The threshold always, and the reason beside it when
+                  // something was withheld: two facts, not one or the other.
+                  data.suppressionReason === null
+                    ? t('rep.minGroup', { size: String(data.minimumGroupSize) })
+                    : `${t('rep.minGroup', { size: String(data.minimumGroupSize) })} — ${data.suppressionReason}`,
               },
             ].map((entry) => (
               <div key={entry.label} className="flex flex-col gap-1">
@@ -264,24 +305,27 @@ export default async function ReportPage({
       {/* -------------------------------------------------------------- totals */}
       {data.rowCount === 0 ? null : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {data.metrics.slice(0, 4).map((metric) => (
-            <KpiCard
-              key={metric.column}
-              label={metric.label}
-              value={
-                data.totalsPartial[metric.column] === true
-                  ? (data.totals[metric.column] ?? 0) === 0
-                    ? t('rep.allWithheld')
-                    : `\u2265 ${(data.totals[metric.column] ?? 0).toLocaleString('en-GB')}`
-                  : (data.totals[metric.column] ?? 0).toLocaleString('en-GB')
-              }
-              // S4, said on the card: a suppressed row contributes to no total,
-              // so a total beside suppressed rows is deliberately understated.
-              caption={
-                data.suppressedCellCount > 0 ? t('rep.totalVisibleOnly') : t('rep.totalAllRows')
-              }
-            />
-          ))}
+          {data.metrics
+            .filter((metric) => isTotalMeaningful(metric.column, data.totals))
+            .slice(0, 4)
+            .map((metric) => (
+              <KpiCard
+                key={metric.column}
+                label={metric.label}
+                value={
+                  data.totalsPartial[metric.column] === true
+                    ? (data.totals[metric.column] ?? 0) === 0
+                      ? t('rep.allWithheld')
+                      : `\u2265 ${(data.totals[metric.column] ?? 0).toLocaleString('en-GB')}`
+                    : (data.totals[metric.column] ?? 0).toLocaleString('en-GB')
+                }
+                // S4, said on the card: a suppressed row contributes to no total,
+                // so a total beside suppressed rows is deliberately understated.
+                caption={
+                  data.suppressedCellCount > 0 ? t('rep.totalVisibleOnly') : t('rep.totalAllRows')
+                }
+              />
+            ))}
         </div>
       )}
 
