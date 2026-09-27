@@ -125,6 +125,9 @@ services:
     environment:
       <<: *node-env
       OTEL_SERVICE_NAME: knowzy-api
+      # P-5: the local secure store, through the repository mount. Created by
+      # `npm run secrets -- init` on the host; gitignored and dockerignored.
+      KNOWZY_LOCAL_SECRET_DIR: /repo/.secrets
     ports:
       - '8080:8080'
     healthcheck:
@@ -178,6 +181,7 @@ services:
     environment:
       <<: *node-env
       OTEL_SERVICE_NAME: knowzy-jobs
+      KNOWZY_LOCAL_SECRET_DIR: /repo/.secrets
     # No ingress at all (architecture.md §12.1).
 
   authoring-web:

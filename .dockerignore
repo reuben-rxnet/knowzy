@@ -42,3 +42,6 @@ fixtures/bank/.state
 .idea
 .DS_Store
 Thumbs.db
+
+# P-5: the local secure store. `COPY . .` would otherwise ship it in an image.
+.secrets/

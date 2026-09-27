@@ -19,6 +19,7 @@
 //      both record null and every surface says "Not observable in this mode".
 
 import { z } from 'zod';
+import { KEY_VAULT_REFERENCE, LOCAL_STORE_REFERENCE, type SecretSource } from './secrets.js';
 import type { GenerationExecutionModeSchema, GenerationProviderSchema } from './enums.js';
 
 // ---------------------------------------------------------------------------
@@ -228,20 +229,22 @@ export type ProviderLimits = z.infer<typeof ProviderLimitsSchema>;
  * executive dashboard can do.
  */
 /**
- * A KEY VAULT REFERENCE, never a secret.
+ * A SECRET REFERENCE, never a secret.
  *
- * The same shape `packages/configuration/src/env.ts` uses for every other
- * credential, and validated here as well so a reference typed into a screen
- * cannot be a key pasted into the wrong box. The three refusals that matter:
- * an `sk-`-style literal, anything with whitespace, and anything long enough
- * to be a token. A secret that reaches `application_configuration` is a secret
- * in a database backup, a diagnostic export and an audit row.
+ * Two forms since P-5 (2026-09-27): `keyvault://{vault}/secrets/{name}` for
+ * Azure Key Vault, and `localstore://{name}` for the local secure store (the
+ * local environment only -- the resolver refuses it elsewhere). Validated here
+ * as well as in `env.ts` so a reference typed into a screen cannot be a key
+ * pasted into the wrong box: an `sk-`-style literal, anything with whitespace
+ * and anything long enough to be a token all fail both patterns. A secret that
+ * reaches `application_configuration` is a secret in a database backup, a
+ * diagnostic export and an audit row.
  */
 export const SecretReferenceSchema = z
   .string()
-  .regex(
-    /^keyvault:\/\/[a-z0-9-]+\/secrets\/[A-Za-z0-9-]+$/,
-    'must be a keyvault://{vault}/secrets/{name} reference, never a secret value',
+  .refine(
+    (value) => LOCAL_STORE_REFERENCE.test(value) || KEY_VAULT_REFERENCE.test(value),
+    'must be a localstore://{name} or keyvault://{vault}/secrets/{name} reference, never a secret value',
   );
 
 /**
@@ -294,6 +297,19 @@ export const PROVIDER_VALIDATION_CHECKS = [
   'CAPABILITY',
   'APPROVAL',
   'IMPLEMENTATION',
+  // P-5 and OPENAI-CODEX-00 (2026-09-27): the chain a real readiness check
+  // runs. CONFIGURATION is the settings; SECRET_RESOLUTION reads the reference;
+  // ENDPOINT, AUTHENTICATION and MODEL are live, metadata-only calls; and
+  // GENERATION is named so that "this provider cannot generate in this build"
+  // is a recorded result rather than an omission.
+  'CONFIGURATION',
+  'SECRET_RESOLUTION',
+  'ENDPOINT',
+  'AUTHENTICATION',
+  'MODEL',
+  'GENERATION',
+  // Before P-5. Kept so validation rows recorded then still parse and render;
+  // no validation writes them any more.
   'CREDENTIAL',
   'LIVE_CALL',
 ] as const;
@@ -319,6 +335,69 @@ export interface ProviderValidationStep {
   readonly result: ValidationCheckResult;
   /** Always present, including on a pass. "Why did this pass" is a fair question. */
   readonly detail: string;
+  /**
+   * Facts the check OBSERVED, never ones it assumed: an HTTP status, a
+   * round-trip time, a rate limit the provider reported in its headers.
+   * Absent when nothing was observed. Never a secret.
+   */
+  readonly facts?: Readonly<Record<string, string | number | boolean>>;
+}
+
+// ---------------------------------------------------------------------------
+// Provider readiness — how far along the path to "usable" a provider is
+// ---------------------------------------------------------------------------
+
+/**
+ * Readiness, which is a different question from `ProviderState`.
+ *
+ * `ProviderState` is the GATE: whether a generation request would be refused
+ * right now and why, persisted on every validation row. Readiness is the
+ * LADDER an administrator climbs to get there, derived from the settings and
+ * the latest recorded validation:
+ *
+ *   BLOCKED_BY_CONFIGURATION  settings incomplete, disabled, or the reference
+ *                             does not resolve
+ *   CONFIGURED                complete, not yet (or not since) validated
+ *   RESOLVED                  the secret was read; authentication unverified
+ *   AUTHENTICATED             the provider accepted the key
+ *   BLOCKED_BY_APPROVAL       technically ready; no data-processing approval
+ *   AVAILABLE                 every check passed and it may generate
+ *   UNAVAILABLE               no client, cannot ground, cannot generate in
+ *                             this build, or the endpoint is unreachable
+ *
+ * Never persisted: a readiness stored beside a validation would be stale the
+ * moment the settings changed.
+ */
+export const PROVIDER_READINESS_STATES = [
+  'CONFIGURED',
+  'RESOLVED',
+  'AUTHENTICATED',
+  'AVAILABLE',
+  'UNAVAILABLE',
+  'BLOCKED_BY_APPROVAL',
+  'BLOCKED_BY_CONFIGURATION',
+] as const;
+export type ProviderReadinessState = (typeof PROVIDER_READINESS_STATES)[number];
+
+export interface ProviderReadiness {
+  readonly state: ProviderReadinessState;
+  /** One sentence naming what would move it up the ladder. */
+  readonly reason: string;
+  /** The validation it was derived from, or null when none applies. */
+  readonly validatedAt: string | null;
+}
+
+/**
+ * What a provider DECLARES it can do, in the names the administration screen
+ * uses. Every provider declares all five explicitly; none is inferred.
+ */
+export interface DeclaredCapabilities {
+  /** Whether THIS BUILD can generate with it. False for a readiness-only client. */
+  readonly supportsGeneration: boolean;
+  readonly supportsCostReporting: boolean;
+  readonly supportsTokenReporting: boolean;
+  readonly supportsStreaming: boolean;
+  readonly retrievalFree: boolean;
 }
 
 export interface ProviderValidationReport {
@@ -420,8 +499,18 @@ export interface ProviderAdminRow {
   readonly groundingSafe: boolean;
   readonly supportedExecutionModes: readonly string[];
   readonly providerVersion: string | null;
-  /** Whether a REFERENCE is recorded. Never the reference's value. */
+  /** Whether a REFERENCE is recorded. */
   readonly credentialConfigured: boolean;
+  /**
+   * The reference itself, which names a secret and is not one (P-5). Shown so
+   * an administrator can see WHICH secret a provider will read. The secret's
+   * value never leaves the API process, and audit and change rows still carry
+   * only a fingerprint of the reference.
+   */
+  readonly credentialReference: string | null;
+  readonly credentialSource: SecretSource | null;
+  readonly capabilities: DeclaredCapabilities;
+  readonly readiness: ProviderReadiness;
   /**
    * When `llm.providerSettings` was last written -- the whole value, not this
    * provider's credential.

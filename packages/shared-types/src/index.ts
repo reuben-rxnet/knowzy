@@ -15,4 +15,5 @@ export * from './envelope.js';
 export * from './normalize.js';
 export * from './question-bank-port.js';
 export * from './sync-schedule.js';
+export * from './secrets.js';
 export * from './generation-control.js';

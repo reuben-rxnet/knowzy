@@ -212,6 +212,12 @@ export const validateStartup = async (input: StartupInput): Promise<StartupRepor
     if (!parsed.success) {
       // The message, never the value: the value may be a credential.
       malformed.push(`${d.name}: ${parsed.error.issues[0]?.message ?? 'invalid'}`);
+    } else if (!isLocal && value.startsWith('localstore://')) {
+      // P-5: the local secure store is a developer convenience. A deployed
+      // service reading one would be reading a file nobody governs.
+      malformed.push(
+        `${d.name}: a localstore:// reference is permitted only in the local environment`,
+      );
     }
   }
 

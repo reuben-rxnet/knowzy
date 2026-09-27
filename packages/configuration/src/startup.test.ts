@@ -164,6 +164,29 @@ describe('fail-fast check 2 — REQUIRED_VARIABLES', () => {
     const problems = outcome(report, 'REQUIRED_VARIABLES').problems.join('\n');
     expect(problems).not.toContain('super-secret-value');
   });
+
+  it('refuses a localstore:// reference outside the local environment (P-5)', async () => {
+    // The local secure store is a developer convenience. A deployed service
+    // configured to read one would be reading a file nobody governs.
+    const report = await validateStartup(
+      baseline({
+        rawEnv: { ...validEnv, OPENAI_API_KEY_REF: 'localstore://openai-api-key' },
+      }),
+    );
+    expect(outcome(report, 'REQUIRED_VARIABLES').problems.join('\n')).toMatch(
+      /OPENAI_API_KEY_REF: a localstore:\/\/ reference is permitted only in the local environment/,
+    );
+    expect(report.fatal).toBe(true);
+  });
+
+  it('refuses KNOWZY_LOCAL_SECRET_DIR outside the local environment (P-5)', async () => {
+    const report = await validateStartup(
+      baseline({ rawEnv: { ...validEnv, KNOWZY_LOCAL_SECRET_DIR: '/repo/.secrets' } }),
+    );
+    expect(outcome(report, 'REQUIRED_VARIABLES').problems.join('\n')).toMatch(
+      /KNOWZY_LOCAL_SECRET_DIR must not be set/,
+    );
+  });
 });
 
 describe('fail-fast check 3 — PUBLIC_VAR_SAFETY', () => {

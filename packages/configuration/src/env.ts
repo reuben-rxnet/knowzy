@@ -8,7 +8,12 @@
 //     startup, because a PUBLIC_ prefix means world-readable
 
 import { z } from 'zod';
-import { KnowzyEnvSchema, type KnowzyEnv } from '@knowzy/shared-types';
+import {
+  KEY_VAULT_REFERENCE,
+  KnowzyEnvSchema,
+  LOCAL_STORE_REFERENCE,
+  type KnowzyEnv,
+} from '@knowzy/shared-types';
 
 // SIX deployables. `sync-web` was added on 2026-09-26: the SharePoint Sync
 // Manager shipped on 2026-09-23 as a third web application and the environment
@@ -25,12 +30,16 @@ export const DEPLOYABLES = [
 ] as const;
 export type Deployable = (typeof DEPLOYABLES)[number];
 
-/** A Key Vault reference, never a value. */
+/**
+ * A secret REFERENCE, never a value: `keyvault://{vault}/secrets/{name}`, or
+ * since P-5 `localstore://{name}` for the local secure store. The startup
+ * check refuses a `localstore://` reference outside the local environment.
+ */
 const secretRef = z
   .string()
-  .regex(
-    /^keyvault:\/\/[a-z0-9-]+\/secrets\/[A-Za-z0-9-]+$/,
-    'must be a keyvault://{vault}/secrets/{name} reference, never a secret value',
+  .refine(
+    (value) => LOCAL_STORE_REFERENCE.test(value) || KEY_VAULT_REFERENCE.test(value),
+    'must be a localstore://{name} or keyvault://{vault}/secrets/{name} reference, never a secret value',
   );
 
 const httpsUrl = z.string().url().startsWith('https://');
@@ -172,6 +181,37 @@ export const ENV_VARS: readonly EnvVarDeclaration[] = [
     requiredIn: [],
     description:
       'A Key Vault reference for a Microsoft Copilot app registration. Optional, and Copilot cannot be used for grounded generation at all: it performs its own retrieval, so it is BLOCKED_BY_CAPABILITY regardless of credential.',
+  },
+  // P-5, 2026-09-27. Where the LOCAL SECURE STORE lives inside the api and
+  // jobs containers. Local only, and FORBIDDEN elsewhere: a deployed
+  // environment resolves `keyvault://` references, and a store directory set
+  // on a deployed host would be a developer convenience reaching production.
+  {
+    name: 'KNOWZY_LOCAL_SECRET_DIR',
+    deployables: ['api', 'jobs'],
+    schema: z.string().min(1),
+    requiredIn: [],
+    forbiddenIn: NON_LOCAL,
+    description:
+      'Directory of the local secure store (store.key + store.json). Local only; created by `npm run secrets -- init`.',
+  },
+  // OPENAI-CODEX-00, 2026-09-27. The hosts a provider's API key may be SENT
+  // to. Deployment configuration, deliberately NOT a screen setting: the base
+  // URL is editable in Administration -> AI Providers, and without a fence an
+  // administrator could point it at any host and the platform would hand that
+  // host the key. Absent means each provider's own documented host only.
+  {
+    name: 'LLM_ENDPOINT_ALLOWLIST',
+    deployables: ['api', 'jobs'],
+    schema: z
+      .string()
+      .regex(
+        /^[a-z0-9.-]+(:[0-9]+)?(,[a-z0-9.-]+(:[0-9]+)?)*$/,
+        'a comma-separated list of host names',
+      ),
+    requiredIn: [],
+    description:
+      'Extra hosts a provider credential may be sent to, comma-separated. Absent: api.openai.com for OpenAI and nothing else.',
   },
   {
     name: 'GRAPH_CREDENTIAL_REF',

@@ -495,7 +495,7 @@ Rules:
 
 ## 9. Generation provider architecture
 
-### 9.0 Provider independence — amended 2026-09-24, extended 2026-09-26
+### 9.0 Provider independence — amended 2026-09-24, extended 2026-09-26 and 2026-09-27
 
 **This section was single-provider until 2026-09-24 and is now provider-independent.** The amendment
 is recorded rather than quietly applied, because
@@ -564,9 +564,32 @@ Eight rules govern it. Rules 7 and 8 were added on 2026-09-26 with provider admi
    exists, `LIVE_CALL` is `NOT_ATTEMPTED` and the result states that authentication, endpoint
    reachability and model availability are **unverified**. A validation that reported success from a
    configuration read would be the false assurance cited during an incident.
+   *(Extended 2026-09-27, P-5 and OPENAI-CODEX-00.)* The chain is now nine checks — capability,
+   approval, implementation, configuration, secret resolution, endpoint, authentication, model,
+   generation — and the live ones are real for a provider with a readiness client. Each records
+   what it **observed** (an HTTP status, a round-trip time), never a claim beyond it.
+9. *(2026-09-27, P-5.)* **A secret reference is resolved by an abstraction, in the API only.** A
+   `SecretResolver` routes a reference by its scheme to a `SecretSourceProvider` —
+   `localstore://{name}` to the local secure store (the **local environment only**) and
+   `keyvault://{vault}/secrets/{name}` to Azure Key Vault (declared; it reports
+   `SOURCE_UNAVAILABLE` until a client exists). It never falls back from one source to another,
+   never caches a value, and reports every resolution to an observer that receives the source, a
+   **fingerprint** of the reference and the status — never the reference and never the value. A
+   resolved value is a `SecretValue` that prints `[redacted]` on every accidental path to text, and
+   `reveal()` is called in one production file.
+10. *(2026-09-27, OPENAI-CODEX-00.)* **A provider may be registered for READINESS without being able
+    to generate.** Its client declares `supportsGeneration: false`; the registry reads that from
+    the registered client and reports the provider `UNAVAILABLE` for generation, so it cannot be
+    made active or reached by a job, and its `generate()` refuses as well. Its readiness calls are
+    metadata-only (for OpenAI, `GET /models` and `GET /models/{model}`), carry no prompt, document
+    or person, and are **not gated by the data-processing approval** — generation is, and remains
+    `BLOCKED_BY_APPROVAL`. A provider credential is sent only to an **allow-listed host**, set by
+    deployment (`LLM_ENDPOINT_ALLOWLIST`) rather than on a screen, only over https (loopback
+    excepted for a test double), with redirects refused.
 
 **A credential is a reference, never a value.** Configuration stores
-`keyvault://{vault}/secrets/{name}`, validated as that shape at the schema, on the row
+`keyvault://{vault}/secrets/{name}` or, locally, `localstore://{name}` (rule 9), validated as that
+shape at the schema, on the row
 (`is_secret_ref`) and on every write path. No read model, screen, audit row or
 `configuration_change` row may contain it: redaction happens at **write** time
 ([audit-model.md §7](audit-model.md)), which is what makes an auditor's unscoped read safe by

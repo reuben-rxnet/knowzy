@@ -25,3 +25,6 @@ Thumbs.db
 tools/e2e/test-results/
 tools/e2e/playwright-report/
 tools/e2e/blob-report/
+
+# P-5: the local secure store (key + encrypted secrets). Never committed.
+.secrets/
