@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@knowzy/claude-services": "*",
+    "@knowzy/configuration": "*",
     "@knowzy/database": "*",
     "@knowzy/observability": "*",
     "@knowzy/shared-types": "*",

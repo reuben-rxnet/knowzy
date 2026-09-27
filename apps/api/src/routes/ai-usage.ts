@@ -17,7 +17,12 @@
 
 import { z } from 'zod';
 import type { FastifyReply } from 'fastify';
-import { readAiUsage, setProviderLimits, ProviderLimitError } from '@knowzy/domain';
+import {
+  readAiUsage,
+  readProviderReadiness,
+  setProviderLimits,
+  ProviderLimitError,
+} from '@knowzy/domain';
 import { GenerationProviderSchema, ProviderLimitsSchema } from '@knowzy/shared-types';
 import type { ErrorCode } from '@knowzy/shared-types';
 import { systemClock } from '@knowzy/observability';
@@ -67,8 +72,18 @@ export const aiUsageRoutes = [
           : {}),
       });
 
+      // The same readiness ladder AI Providers shows, derived by the same
+      // function from the same latest validation (readProviderReadiness), so
+      // the two screens cannot disagree about how far a provider has got.
+      const readiness = await readProviderReadiness({
+        prisma: deps.prisma,
+        assessments: control.registry.describe(),
+        settings: control.providerSettings,
+      });
+
       return {
         ...summary,
+        readiness,
         // The SERVER decides who may change a ceiling, and says so in the
         // payload. The screen then renders the control or not; it never
         // becomes the authority, and the PUT below re-checks regardless.

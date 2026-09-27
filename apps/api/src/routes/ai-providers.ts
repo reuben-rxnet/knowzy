@@ -30,7 +30,17 @@ import {
   setProviderSettings,
   ProviderAdminError,
 } from '@knowzy/domain';
-import { assessProviderHealth, validateProvider } from '@knowzy/claude-services';
+import {
+  PROVIDER_CATALOGUE,
+  assessProviderHealth,
+  checkOpenAIReadiness,
+  deriveReadiness,
+  mayProbe,
+  validateProvider,
+  type ReadinessResult,
+  type SecretCheck,
+} from '@knowzy/claude-services';
+import { REDACTED } from '@knowzy/configuration';
 import {
   GenerationProviderSchema,
   ProviderSettingsSchema,
@@ -43,6 +53,7 @@ import { systemClock } from '@knowzy/observability';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
 import { toProblem } from '../http/problem.js';
 import { loadControlLayer, type ControlLayer } from '../generation/control-layer.js';
+import { allowedHostsFor, auditedResolver, healthResolver } from '../secrets/platform-secrets.js';
 
 const problemReply = (
   reply: FastifyReply,
@@ -174,7 +185,13 @@ export const aiProviderRoutes = [
       // limits form has. `ProviderSettingsSchema` is strict and validates
       // `apiKeyRef` as a keyvault:// reference, so a pasted key is refused
       // here rather than stored.
-      const body = ProviderSettingsSchema.safeParse(request.body ?? {});
+      // `removeApiKeyRef` travels beside the settings rather than inside them:
+      // the credential field is write-only, so an absent reference now means
+      // "keep the recorded one", and removing it is its own explicit gesture.
+      const raw = (request.body ?? {}) as Record<string, unknown>;
+      const removeApiKeyRef = raw['removeApiKeyRef'] === true;
+      const { removeApiKeyRef: _flag, ...settingsBody } = raw;
+      const body = ProviderSettingsSchema.safeParse(settingsBody);
       if (!params.success || !body.success) {
         return problemReply(
           reply,
@@ -193,6 +210,7 @@ export const aiProviderRoutes = [
           ...writeContext(ctx, deps),
           providerId: params.data.providerId,
           settings: body.data,
+          removeApiKeyRef,
         });
       } catch (error) {
         return replyFromAdminError(error, ctx, reply, request.url);
@@ -277,12 +295,30 @@ export const aiProviderRoutes = [
   }),
 
   defineRoute({
+    method: 'GET',
+    url: '/api/v1/authoring/administration/secrets',
+    policy: 'governance.ai.read',
+    portal: 'AUTHORING',
+    summary:
+      'The secret sources this deployable can read, and whether each is reachable. No names, no values.',
+    handler: async (_ctx, _request, _reply, deps) => {
+      const resolver = healthResolver(deps.secrets);
+      return {
+        asOf: systemClock.now().toISOString(),
+        environment: deps.secrets?.environment ?? 'local',
+        sources: await resolver.health(),
+        permitted: resolver.sources,
+      };
+    },
+  }),
+
+  defineRoute({
     method: 'POST',
     url: '/api/v1/authoring/administration/providers/:providerId/validate',
     policy: 'governance.ai.manage',
     portal: 'AUTHORING',
     summary:
-      'Records a readiness validation: capability, approval, implementation, credential. No provider is called.',
+      'Test connection: capability, approval, implementation, configuration, secret resolution, and -- for a provider with a readiness client -- live endpoint, authentication and model checks. Never generates.',
     handler: async (ctx, request, reply, deps) => {
       const params = ProviderParams.safeParse(request.params);
       if (!params.success) {
@@ -297,24 +333,64 @@ export const aiProviderRoutes = [
       const providerId: GenerationProviderId = params.data.providerId;
       const control = await loadControlLayer(deps.prisma);
       const assessment = control.registry.assess(providerId);
+      const capabilities = PROVIDER_CATALOGUE[providerId];
+      const settings = control.providerSettings[providerId];
 
-      const report = validateProvider({
+      // Resolution and the live probe run only when every prerequisite that
+      // would make them meaningless has passed: a provider that cannot ground
+      // a question, has no client, or has no complete configuration is not
+      // sent anywhere. APPROVAL is deliberately not a prerequisite -- see
+      // validation.ts: these calls carry a key and a model name, nothing else.
+      let secret: SecretCheck | null = null;
+      let live: ReadinessResult | null = null;
+      if (mayProbe({ assessment, capabilities, settings }) && settings?.apiKeyRef !== undefined) {
+        const resolution = await auditedResolver(ctx, deps, providerId).resolve(
+          settings.apiKeyRef,
+          'PROVIDER_VALIDATION',
+        );
+        secret = {
+          status: resolution.status,
+          source: resolution.source,
+          detail: resolution.status === 'RESOLVED' ? null : resolution.detail,
+        };
+        // Only OpenAI has a readiness client in this build. Any other
+        // registered provider would reach here with `live` null, and every
+        // live step then reads NOT_ATTEMPTED with the reason.
+        if (resolution.status === 'RESOLVED' && providerId === 'OPENAI') {
+          live = await checkOpenAIReadiness({
+            baseUrl: settings.baseUrl ?? '',
+            modelId: settings.modelId ?? '',
+            apiKey: resolution.value,
+            allowedHosts: allowedHostsFor(providerId, deps.secrets),
+            ...(deps.secrets?.fetch === undefined ? {} : { fetch: deps.secrets.fetch }),
+          });
+        }
+      }
+
+      const report = validateProvider({ assessment, capabilities, settings, secret, live });
+      const readiness = deriveReadiness({
         assessment,
-        settings: control.providerSettings[providerId],
-        // `null`, not `false`: this build has no secret resolver, so whether a
-        // recorded reference resolves is UNKNOWN rather than known-bad. The
-        // difference is what the administrator is told to go and check.
-        credentialResolves: null,
+        capabilities,
+        settings,
+        latestValidation: { steps: report.steps, validatedAt: systemClock.now().toISOString() },
       });
 
       try {
-        return await recordProviderValidation({
+        const recorded = await recordProviderValidation({
           ...writeContext(ctx, deps),
           providerId,
           state: assessment.state,
           outcome: report.outcome,
           steps: report.steps,
+          readinessState: readiness.state,
         });
+        const payload = { ...recorded, readiness, limits: live?.limits ?? null };
+        // Belt and braces: the payload is built from steps that never hold a
+        // value, and this refuses to send one that somehow does.
+        if (JSON.stringify(payload).includes(REDACTED)) {
+          throw new Error('A redacted secret reached a validation payload.');
+        }
+        return payload;
       } catch (error) {
         return replyFromAdminError(error, ctx, reply, request.url);
       }

@@ -13,6 +13,7 @@
 // P4: denials are audited with the policy name and reason — a denial is a
 // security signal, not a 403 to be swallowed.
 
+import type { SecretPlatform } from '../secrets/secret-platform.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DataScope, PortalContext, Subject } from '@knowzy/shared-types';
 import { authorize, type PolicyName } from '@knowzy/authorization';
@@ -47,6 +48,13 @@ export interface RouteDeps {
    * because the credential that backs a provider resolves in this app.
    */
   readonly providers: ProviderRegistry;
+  /**
+   * P-5: the secret sources this deployable has, and the hosts a provider
+   * credential may be sent to. Optional so a test that exercises nothing
+   * secret-shaped need not build one; absent means "no local store, no Key
+   * Vault client", and every resolution says so.
+   */
+  readonly secrets?: SecretPlatform;
   readonly logger: Logger;
   readonly resolveSubject: (
     headers: Readonly<Record<string, string | string[] | undefined>>,

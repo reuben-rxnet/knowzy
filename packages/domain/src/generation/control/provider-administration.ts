@@ -28,6 +28,8 @@
 
 import { createAuditWriter, type PrismaClient, type TransactionClient } from '@knowzy/database';
 import type { Clock } from '@knowzy/observability';
+import { referenceFingerprint } from '@knowzy/configuration';
+import { PROVIDER_CATALOGUE, declaredCapabilities, deriveReadiness } from '@knowzy/claude-services';
 import {
   ProviderSettingsSchema,
   type GenerationProviderId,
@@ -41,6 +43,8 @@ import {
   type ProviderValidationOutcome,
   type ProviderValidationReport,
   type ProviderValidationStep,
+  parseSecretReference,
+  type ProviderReadiness,
 } from '@knowzy/shared-types';
 
 const SETTINGS_KEY = 'llm.providerSettings';
@@ -86,6 +90,18 @@ interface WriteContext {
  * three slightly different ideas of what a configuration change is. U1: if the
  * audit insert fails, the value is not persisted.
  */
+/**
+ * A further audit event a write produces, in the same transaction.
+ *
+ * P-5: changing a provider's settings can ALSO create or replace a secret
+ * reference, and switch the provider on or off. Each of those is its own act
+ * with its own action, written with the configuration change or not at all.
+ */
+export interface ExtraAuditEvent {
+  readonly action: string;
+  readonly detail: Record<string, unknown>;
+}
+
 const writeConfig = async <T>(
   ctx: WriteContext,
   key: string,
@@ -93,6 +109,7 @@ const writeConfig = async <T>(
   nextOf: (previous: unknown) => T,
   detail: (previous: unknown, next: T) => Record<string, unknown>,
   entityLabel: string,
+  extra: (previous: unknown, next: T) => readonly ExtraAuditEvent[] = () => [],
 ): Promise<T> => {
   const auditWriter = createAuditWriter({ clock: ctx.clock });
 
@@ -168,6 +185,24 @@ const writeConfig = async <T>(
       detail: detail(previous, next),
     });
 
+    for (const event of extra(previous, next)) {
+      await auditWriter.write(tx, {
+        action: event.action,
+        outcome: 'SUCCESS',
+        actorType: 'USER',
+        actorUserId: ctx.actor.userId,
+        actorDisplayName: ctx.actor.displayName,
+        actorRoles: [...ctx.actor.roles],
+        entityType: 'ApplicationConfiguration',
+        entityId: key,
+        entityLabel,
+        correlationId: ctx.correlationId,
+        requestId: ctx.requestId,
+        portal: 'AUTHORING',
+        detail: event.detail,
+      });
+    }
+
     return next;
   });
 };
@@ -189,7 +224,15 @@ const redact = (key: string, value: unknown): unknown => {
       continue;
     }
     const { apiKeyRef, ...rest } = settings as Record<string, unknown>;
-    out[providerId] = { ...rest, apiKeyRefConfigured: apiKeyRef !== undefined };
+    out[providerId] = {
+      ...rest,
+      apiKeyRefConfigured: apiKeyRef !== undefined,
+      // P-5: WHICH reference, without naming it -- so a rotation is visible
+      // in the change history and the history still holds no reference.
+      ...(typeof apiKeyRef === 'string'
+        ? { apiKeyRefFingerprint: referenceFingerprint(apiKeyRef) }
+        : {}),
+    };
   }
   return out;
 };
@@ -207,6 +250,13 @@ export interface SetProviderSettingsArgs extends WriteContext {
    * `enabled: false`, which is an administrator saying "off".
    */
   readonly settings: ProviderSettings;
+  /**
+   * P-5: the credential field is WRITE-ONLY and starts empty, so a settings
+   * form re-saved without re-typing the reference would, before this, have
+   * silently dropped it. An absent `apiKeyRef` now KEEPS the recorded one;
+   * removing it is this explicit flag.
+   */
+  readonly removeApiKeyRef?: boolean;
 }
 
 export const setProviderSettings = async (
@@ -219,24 +269,13 @@ export const setProviderSettings = async (
       parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; '),
     );
   }
-  const settings = parsed.data;
-  const removing = Object.values(settings).every((value) => value === undefined);
-
-  // Enabling a provider whose endpoint or model is unknown would produce a
-  // BLOCKED_BY_CONFIGURATION the administrator cannot see the cause of, so it
-  // is refused here with the field named. The deterministic provider needs
-  // neither and is exempt.
-  if (settings.enabled === true && args.providerId !== 'DETERMINISTIC_LOCAL') {
-    const missing = (['baseUrl', 'modelId', 'apiKeyRef'] as const).filter(
-      (field) => settings[field] === undefined,
-    );
-    if (missing.length > 0) {
-      throw new ProviderAdminError(
-        'VALIDATION_FAILED',
-        `Set ${missing.join(', ')} before enabling this provider. An enabled provider with an incomplete configuration is refused at generation time, where the reason is harder to find.`,
-      );
-    }
-  }
+  const submitted = parsed.data;
+  const removing =
+    Object.values(submitted).every((value) => value === undefined) && args.removeApiKeyRef !== true;
+  // The settings actually written, once the recorded reference is carried
+  // over. Assigned inside the transaction, where the previous value is read.
+  let settings: ProviderSettings = submitted;
+  let previousSettings: ProviderSettings | undefined;
 
   await writeConfig(
     args,
@@ -244,6 +283,31 @@ export const setProviderSettings = async (
     'ADMIN.CONFIGURATION.PROVIDER_UPDATED',
     (previous) => {
       const record = { ...((previous ?? {}) as Record<string, unknown>) };
+      previousSettings = record[args.providerId] as ProviderSettings | undefined;
+      const carried =
+        args.removeApiKeyRef === true
+          ? undefined
+          : (submitted.apiKeyRef ?? previousSettings?.apiKeyRef);
+      const { apiKeyRef: _submittedRef, ...rest } = submitted;
+      settings = { ...rest, ...(carried === undefined ? {} : { apiKeyRef: carried }) };
+
+      // Enabling a provider whose endpoint, model or reference is unknown
+      // would produce a BLOCKED_BY_CONFIGURATION the administrator cannot see
+      // the cause of, so it is refused with the field named. Checked AFTER the
+      // carry-over, so re-saving an enabled provider does not trip on its own
+      // write-only field. Thrown inside the transaction: nothing is written.
+      if (settings.enabled === true && args.providerId !== 'DETERMINISTIC_LOCAL') {
+        const missing = (['baseUrl', 'modelId', 'apiKeyRef'] as const).filter(
+          (field) => settings[field] === undefined,
+        );
+        if (missing.length > 0) {
+          throw new ProviderAdminError(
+            'VALIDATION_FAILED',
+            `Set ${missing.join(', ')} before enabling this provider. An enabled provider with an incomplete configuration is refused at generation time, where the reason is harder to find.`,
+          );
+        }
+      }
+
       if (removing) delete record[args.providerId];
       else record[args.providerId] = settings;
       return record;
@@ -261,9 +325,66 @@ export const setProviderSettings = async (
       credentialConfigured: settings.apiKeyRef !== undefined,
     }),
     `${SETTINGS_KEY}.${args.providerId}`,
+    () => settingsEvents(args.providerId, previousSettings, removing ? undefined : settings),
   );
 
   return { providerId: args.providerId, settings, removed: removing };
+};
+
+/**
+ * The acts a settings write performed besides "the settings changed".
+ *
+ * Exported for a table test. A reference going from absent to present is
+ * CREATED; from one to another, or to absent, is UPDATED with REPLACED or
+ * REMOVED; `enabled` crossing true is ENABLED or DISABLED. An undecided
+ * provider saved as `false` is not "disabled" -- it was never on.
+ */
+export const settingsEvents = (
+  providerId: string,
+  previous: ProviderSettings | undefined,
+  next: ProviderSettings | undefined,
+): readonly ExtraAuditEvent[] => {
+  const events: ExtraAuditEvent[] = [];
+  const before = previous?.apiKeyRef;
+  const after = next?.apiKeyRef;
+  const sourceOf = (ref: string) => parseSecretReference(ref)?.source ?? 'UNKNOWN';
+
+  if (before === undefined && after !== undefined) {
+    events.push({
+      action: 'ADMIN.CONFIGURATION.SECRET_REFERENCE_CREATED',
+      detail: {
+        providerId,
+        referenceSource: sourceOf(after),
+        referenceFingerprint: referenceFingerprint(after),
+      },
+    });
+  } else if (before !== undefined && before !== after) {
+    events.push({
+      action: 'ADMIN.CONFIGURATION.SECRET_REFERENCE_UPDATED',
+      detail: {
+        providerId,
+        change: after === undefined ? 'REMOVED' : 'REPLACED',
+        referenceSource: after === undefined ? sourceOf(before) : sourceOf(after),
+        referenceFingerprint: after === undefined ? null : referenceFingerprint(after),
+        previousReferenceFingerprint: referenceFingerprint(before),
+      },
+    });
+  }
+
+  const wasOn = previous?.enabled === true;
+  const isOn = next?.enabled === true;
+  if (!wasOn && isOn) {
+    events.push({
+      action: 'ADMIN.CONFIGURATION.PROVIDER_ENABLED',
+      detail: { providerId, previouslyEnabled: false },
+    });
+  } else if (wasOn && !isOn) {
+    events.push({
+      action: 'ADMIN.CONFIGURATION.PROVIDER_DISABLED',
+      detail: { providerId, previouslyEnabled: true },
+    });
+  }
+  return events;
 };
 
 // ---------------------------------------------------------------------------
@@ -404,6 +525,8 @@ export interface RecordValidationArgs {
   readonly state: ProviderState;
   readonly outcome: ProviderValidationOutcome;
   readonly steps: readonly ProviderValidationStep[];
+  /** The readiness the result produces, for the audit row. */
+  readonly readinessState?: string;
 }
 
 /**
@@ -465,6 +588,12 @@ export const recordProviderValidation = async (
         providerState: persistedState,
         failedChecks: failed.map((step) => step.check),
         notAttemptedChecks: notAttempted.map((step) => step.check),
+        passedChecks: args.steps
+          .filter((step) => step.result === 'PASSED')
+          .map((step) => step.check),
+        ...(args.readinessState === undefined ? {} : { readinessState: args.readinessState }),
+        // What the endpoint answered, when it was reached. Facts, never text.
+        ...endpointFacts(args.steps),
       },
     });
 
@@ -478,6 +607,16 @@ export const recordProviderValidation = async (
     steps: args.steps,
     validatedAt: row.validatedAt.toISOString(),
     validatedByDisplayName: args.actor.displayName,
+  };
+};
+
+const endpointFacts = (steps: readonly ProviderValidationStep[]): Record<string, unknown> => {
+  const endpoint = steps.find((step) => step.check === 'ENDPOINT');
+  const host = endpoint?.facts?.['host'];
+  const status = endpoint?.facts?.['httpStatus'];
+  return {
+    ...(typeof host === 'string' ? { endpointHost: host } : {}),
+    ...(typeof status === 'number' ? { httpStatus: status } : {}),
   };
 };
 
@@ -552,8 +691,28 @@ export const readProviderAdministration = async (
       groundingSafe: assessment.groundingSafe,
       supportedExecutionModes: assessment.supportedExecutionModes,
       providerVersion: assessment.providerVersion,
-      // WHETHER, never which. The reference itself never leaves this module.
       credentialConfigured: settings.apiKeyRef !== undefined,
+      // P-5: the REFERENCE is shown -- it names a secret and is not one, and an
+      // administrator needs to see which secret a provider will read. The
+      // value never leaves the API process.
+      credentialReference: settings.apiKeyRef ?? null,
+      credentialSource:
+        settings.apiKeyRef === undefined
+          ? null
+          : (parseSecretReference(settings.apiKeyRef)?.source ?? null),
+      capabilities: declaredCapabilities(PROVIDER_CATALOGUE[assessment.providerId]),
+      readiness: deriveReadiness({
+        assessment,
+        capabilities: PROVIDER_CATALOGUE[assessment.providerId],
+        settings,
+        latestValidation:
+          validation === undefined
+            ? null
+            : {
+                steps: validation.steps as unknown as readonly ProviderValidationStep[],
+                validatedAt: validation.validatedAt.toISOString(),
+              },
+      }),
       // The CONFIGURATION ROW's timestamp, which covers the whole
       // `llm.providerSettings` value -- so it answers "when was any provider's
       // configuration last changed", never "when was this credential rotated".
@@ -592,4 +751,46 @@ export const readProviderAdministration = async (
     defaults: args.defaults,
     canManage: args.canManage,
   };
+};
+
+/**
+ * Readiness per provider, for a screen that is not this one.
+ *
+ * AI Usage & Budgets shows the same ladder as AI Providers, and derives it the
+ * same way -- through `deriveReadiness`, from the latest validation -- so the
+ * two screens cannot disagree about how far a provider has got.
+ */
+export const readProviderReadiness = async (args: {
+  readonly prisma: PrismaClient;
+  readonly assessments: readonly ProviderStateAssessment[];
+  readonly settings: Readonly<Record<string, unknown>>;
+}): Promise<Readonly<Record<string, ProviderReadiness>>> => {
+  const rows = await args.prisma.generationProviderValidation.findMany({
+    where: { providerId: { in: args.assessments.map((a) => a.providerId as 'OPENAI') } },
+    orderBy: { validatedAt: 'desc' },
+    select: { providerId: true, steps: true, validatedAt: true },
+  });
+  const latest = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) if (!latest.has(row.providerId)) latest.set(row.providerId, row);
+
+  return Object.fromEntries(
+    args.assessments.map((assessment) => {
+      const validation = latest.get(assessment.providerId);
+      return [
+        assessment.providerId,
+        deriveReadiness({
+          assessment,
+          capabilities: PROVIDER_CATALOGUE[assessment.providerId],
+          settings: args.settings[assessment.providerId] as ProviderSettings | undefined,
+          latestValidation:
+            validation === undefined
+              ? null
+              : {
+                  steps: validation.steps as unknown as readonly ProviderValidationStep[],
+                  validatedAt: validation.validatedAt.toISOString(),
+                },
+        }),
+      ];
+    }),
+  );
 };

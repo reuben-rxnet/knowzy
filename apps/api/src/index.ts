@@ -3,6 +3,7 @@
 // Order matters: validate configuration, THEN accept traffic. A fail-fast
 // check failing exits non-zero — environment-and-configuration.md §9.
 
+import { secretPlatformFromEnv } from './secrets/platform-secrets.js';
 import {
   StartupFatalError,
   enforceStartup,
@@ -88,6 +89,10 @@ const main = async (): Promise<void> => {
       // would send an operator looking for a missing key rather than a missing
       // integration.
       providers: createProviderRegistry({ environment }),
+      // P-5: where secrets resolve. The local secure store in `local` only;
+      // elsewhere a keyvault:// reference, which reports SOURCE_UNAVAILABLE
+      // until a Key Vault client exists.
+      secrets: secretPlatformFromEnv(environment === 'unknown' ? 'local' : environment, rawEnv),
       resolveSubject: (headers) => resolver.resolve(headers),
     },
   });

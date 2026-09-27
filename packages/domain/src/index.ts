@@ -111,6 +111,9 @@ export {
 
 export {
   readProviderAdministration,
+  readProviderReadiness,
+  settingsEvents,
+  type ExtraAuditEvent,
   recordProviderValidation,
   setActiveProvider,
   setProviderApproval,

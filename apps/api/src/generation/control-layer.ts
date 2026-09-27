@@ -11,7 +11,11 @@
 // next job to obey it, not the next deployment.
 
 import { resolveControlSettings, CONTROL_CONFIG_KEYS } from '@knowzy/configuration';
-import { createGeneratorRegistry, type GeneratorRegistry } from '@knowzy/claude-services';
+import {
+  createGeneratorRegistry,
+  createOpenAIProvider,
+  type GeneratorRegistry,
+} from '@knowzy/claude-services';
 import type { PrismaClient } from '@knowzy/database';
 import type {
   GenerationProviderId,
@@ -70,11 +74,15 @@ export const loadControlLayer = async (prisma: PrismaClient): Promise<ControlLay
   // storage actually knows -- see `settingsUpdatedAt` in shared-types.
   const settingsRow = rows.find((row) => row.key === 'llm.providerSettings');
 
-  // Factories are NOT passed: no external provider client exists in this
-  // build, so every provider except the deterministic one resolves to
-  // UNAVAILABLE with that stated as the reason. Registering a stand-in here is
-  // the one thing the registry exists to prevent.
+  // ONE factory besides the deterministic provider's: OpenAI's READINESS
+  // client (OPENAI-CODEX-00). It lets validation say truthfully that a client
+  // exists; it declares `supportsGeneration: false`, so the registry keeps it
+  // UNAVAILABLE for generation and `setActiveProvider` refuses it, and its
+  // `generate()` refuses as well. Every other provider stays unregistered.
+  // Registering a stand-in that could generate is the one thing the registry
+  // exists to prevent.
   const registry = createGeneratorRegistry({
+    factories: { OPENAI: (modelId) => createOpenAIProvider(modelId) },
     activeProvider: resolved.activeProvider as GenerationProviderId,
     approvedProviders: resolved.approvedProviders as readonly GenerationProviderId[],
     // The administrator's on/off decision, which the registry treats as part
