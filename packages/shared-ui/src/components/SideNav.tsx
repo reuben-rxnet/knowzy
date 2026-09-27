@@ -15,6 +15,13 @@
 // and nothing is silently hidden either: the sidebar is an honest statement of
 // what the product is and is not.
 //
+// The one exception is a PREVIEW (learner §5.2: "mark planned destinations as
+// preview only when product owners explicitly want them visible", which they
+// asked for on 2026-09-27). A preview item keeps its unreleased status and
+// gains a link to a page that says, before anything else, that nothing on it
+// is live. Its chip reads "Preview", never nothing, so it cannot pass for a
+// released destination.
+//
 // §9: visual hiding is never the authorization control. Nothing here
 // authorizes anything — the server refuses regardless of what this renders.
 
@@ -38,6 +45,12 @@ export interface NavItem {
   readonly note?: string;
   /** A real count, or omitted. Never a placeholder number. */
   readonly count?: number;
+  /**
+   * An unreleased destination with a labelled preview page at `href`. Only
+   * meaningful with a status that is not IMPLEMENTED or PARTIALLY_IMPLEMENTED;
+   * the tokens test refuses the combination.
+   */
+  readonly preview?: true;
 }
 
 const CHIP: Record<CapabilityStatus, string | null> = {
@@ -57,9 +70,14 @@ const UNAVAILABLE_DESCRIPTION: Record<CapabilityStatus, string> = {
   DISABLED_IN_CURRENT_RELEASE: 'Not available in the current release.',
 };
 
+const PREVIEW_CHIP = 'Preview';
+const PREVIEW_DESCRIPTION = 'A preview of a planned capability. Nothing on that page is live yet.';
+
 const isReachable = (item: NavItem): boolean =>
   item.href !== undefined &&
-  (item.status === 'IMPLEMENTED' || item.status === 'PARTIALLY_IMPLEMENTED');
+  (item.status === 'IMPLEMENTED' ||
+    item.status === 'PARTIALLY_IMPLEMENTED' ||
+    item.preview === true);
 
 export interface SideNavProps {
   readonly items: readonly NavItem[];
@@ -155,7 +173,7 @@ export const SideNav = ({
         {items.map((item) => {
           const reachable = isReachable(item);
           const active = item.label === activeLabel;
-          const chip = CHIP[item.status];
+          const chip = item.preview === true ? PREVIEW_CHIP : CHIP[item.status];
 
           const inner = (
             <>
@@ -177,7 +195,13 @@ export const SideNav = ({
                 {chip === null && item.note === undefined ? null : (
                   <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                     {chip === null ? null : (
-                      <span className="rounded-xs bg-surface-sunken px-1.5 py-0.5 text-2xs font-semibold text-ink-subtle">
+                      <span
+                        className={`rounded-xs px-1.5 py-0.5 text-2xs font-semibold ${
+                          item.preview === true
+                            ? 'bg-info-soft text-info'
+                            : 'bg-surface-sunken text-ink-subtle'
+                        }`}
+                      >
                         {chip}
                       </span>
                     )}
@@ -232,6 +256,9 @@ export const SideNav = ({
                 }`}
               >
                 {inner}
+                {item.preview === true ? (
+                  <span className="knowzy-sr-only">{PREVIEW_DESCRIPTION}</span>
+                ) : null}
               </a>
             </li>
           );

@@ -284,6 +284,8 @@ numbers, no charts with fabricated series.
 
 ## B5. My Learnings — `my-learnings.png`
 
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1) at the end.
+
 The entire page depends on models that do not exist. Specification §7.2 lists eleven of them;
 **none** is in the schema.
 
@@ -298,6 +300,8 @@ The entire page depends on models that do not exist. Specification §7.2 lists e
 
 ## B6. Discover — `discover.png`
 
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1) at the end.
+
 | Feature | Status | Required extension | Security & authorization | Milestone |
 | --- | --- | --- | --- | --- |
 | Content-type facets with item counts (124 items) | `REQUIRES_BACKEND_EXTENSION` | Unified catalog model + counts | Counts must reflect **access-trimmed** results, or they leak the existence of inaccessible content | LIVE-FULL-M3 |
@@ -308,6 +312,8 @@ The entire page depends on models that do not exist. Specification §7.2 lists e
 | "Let KNOWZY Copilot suggest a learning path" | `DISABLED_IN_CURRENT_RELEASE` | Copilot + learning paths | §17 restrictions | LIVE-FULL-M7 |
 
 ## B7. Knowledge Library — `knowledge-library.png`
+
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1) at the end.
 
 | Feature | Status | Required extension | Security & authorization | Milestone |
 | --- | --- | --- | --- | --- |
@@ -344,6 +350,8 @@ The entire page depends on models that do not exist. Specification §7.2 lists e
 | Upcoming Learning with Continue / Start | `REQUIRES_BACKEND_EXTENSION` | Assignment + course models | Own data | LIVE-FULL-M2 |
 
 ## B10. Help and Support — `help-and-support.png`
+
+> **Preview since 2026-09-27 (LIVE-PREVIEW-M1).** This page is reachable as a labelled preview. **No status in this table changed**; see [Preview pages](#preview-pages-live-preview-m1) at the end.
 
 | Feature | Status | Required extension | Security & authorization | Milestone |
 | --- | --- | --- | --- | --- |
@@ -427,3 +435,37 @@ are unchanged by this section.
 | Trends, deltas, spend forecast | `DISABLED_IN_CURRENT_RELEASE` | No KPI history is stored, so none is computable. Nothing on the page implies one |
 | Per-user or per-team quotas | `PLANNED` | Budgets are per platform and per provider today |
 | Any external provider | `REQUIRES_BACKEND_EXTENSION` | OpenAI, Anthropic, Azure OpenAI and Gemini are declared and `UNAVAILABLE`; Copilot is `BLOCKED_BY_CAPABILITY` |
+
+---
+
+## Preview pages (LIVE-PREVIEW-M1)
+
+**2026-09-27.** The product owner asked for every learner destination to be clickable, so a
+stakeholder can see the intended finished product. That answers open question 4 of
+[ui-modernization-plan.md §20](ui-modernization-plan.md) for four of the six unbuilt destinations:
+**My Learnings, Discover, Knowledge Library and Help & Support are shown as previews.** Badges and
+My Progress stay unreachable.
+
+**A preview is not a status.** Every feature row in B5, B6, B7 and B10 keeps the status it had. The
+sidebar item keeps `REQUIRES_BACKEND_EXTENSION` and gains `preview: true`. A test refuses a preview
+item whose status is `IMPLEMENTED` or `PARTIALLY_IMPLEMENTED`, and it was checked by mutation.
+
+**What each preview page promotes to real, and it is only what the existing API already serves:**
+
+| Page | Real, from `GET /learning/assessments` or this release's behaviour | Everything else |
+| --- | --- | --- |
+| My Learnings | Three counts (available, attempted, in progress) and an assessment history of attempts used, with Resume | Framed examples |
+| Discover | The domains of the assessments published to the learner, with counts | Framed examples |
+| Knowledge Library | The same domains (permission-trimmed by construction, §13.4) | Framed examples. Every source reads Not connected |
+| Help & Support | User guides and FAQ describing this release (user guide §5) | Framed examples. No address, number, hours or status claim |
+
+**The rules a preview keeps, and what enforces each one:**
+
+| Rule | Enforced by |
+| --- | --- |
+| The page says it is a preview first | `PreviewNotice` (role `note`). e2e `previews.spec.ts` |
+| Illustrative content is fenced and tagged | `ExampleRegion`, with a visible tag on every frame. e2e |
+| Nothing in a frame is actionable | Buttons are disabled with a reason; filters sit in a disabled `fieldset`; no links. e2e asserts all three, and was checked by mutation |
+| No example interpolates a value for an unrecorded concept | Every string is in `apps/live-web/src/copy.ts`, which `no-fabricated-metrics.test.ts` scans |
+| A badge design never reads as earned | `KnowzyBadgeArt` has no earned variant; its artwork is greyed and its alt text ends "Not earned." e2e |
+| No calendar, session or join link | Absent (§7.5) |

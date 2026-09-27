@@ -2582,3 +2582,62 @@ zero calls. No OpenAI figure exists anywhere in the repository.
   just restarted, before a host build.
 - The browser suite: **46 passed, 1 skipped, 0 failed** (7.2 min). A first attempt failed every AI Providers spec: the
   api container had lost `fastify` after the host build. `up migrate` and a restart repaired it; the code was unchanged.
+
+## LIVE-PREVIEW-M1 — four learner previews that cannot pass for the real thing
+
+2026-09-27. The product owner asked for every major area to be clickable, so a stakeholder can see
+the intended finished product: production-style mock pages, with no backend, no fabricated data and
+no fake integrations. That answered open question 4 of the modernization plan, which had been
+waiting since UI-M1.
+
+### What the brief found
+
+- **The authoring portal had nothing to replace.** All twelve sidebar entries and every Governance,
+  Administration and Reports tab already lead to real routes, and no screen shows "Needs backend",
+  "Placeholder" or "Coming soon". The unbuilt parts (revalidation queue, reconciliation, profiles,
+  thresholds, field mappings, most of the report catalogue) have no entry at all. No authoring
+  screen changed.
+- **The learner portal had four of the brief's pages unreachable**, marked "Needs backend": My
+  Learnings, Discover, Knowledge Library and Help & Support. Badges and My Progress were not in the
+  brief and stay unreachable.
+
+### How a preview is kept honest
+
+- **A preview is a flag, not a status.** `NavItem.preview` makes an unreleased item a link with a
+  blue "Preview" chip. Its status is unchanged, and the tokens test refuses a preview marked
+  IMPLEMENTED; a mutation proved that.
+- **Three shared components**:
+  - `PreviewNotice` comes first on the page;
+  - `ExampleRegion` is a dashed frame with a visible *Illustrative example* tag;
+  - `KnowzyBadgeArt` has no earned variant: greyed art, and alt text ending "Not earned."
+- **Nothing in a frame is actionable.** Buttons are disabled with their reason, filters sit in a
+  disabled `fieldset`, and there are no links. The browser spec asserts all three. Enabling the
+  buttons failed it on all four pages.
+- **Every string is in the learner `copy.ts`**, including the examples, so no-fabricated-metrics
+  scans them. Nothing was moved aside to get past it.
+- **Real sections carry a green "Live" tag and use only what the API already serves:**
+  - counts and assessment history from `GET /learning/assessments`;
+  - the domains published to the learner, permission-trimmed by construction;
+  - help guides and FAQs describing this release.
+
+### Refused, from the mockups
+
+These were left out even inside a frame:
+- a learning calendar with join links (§7.5);
+- any learner count or popularity figure;
+- a support address, telephone number or hours (§16.3);
+- "All Systems Operational".
+
+The labels also stay accurate: **Coming in Phase 9** only for badges, certificates, suggestions and
+knowledge search. Learning paths and the catalog are LIVE-FULL milestones and read **Future
+capability**.
+
+### Validated
+
+- Typecheck, lint, format and boundaries are clean.
+- Unit and contract suites pass.
+- The new browser spec passes, 8 of 8.
+- Screenshots at 1600 px and 390 px show no horizontal scroll and no console errors.
+- A screenshot found "1 assessments", which was fixed.
+- `npm run verify` was not run: the change touches no API or database, and verify empties the demo
+  data.

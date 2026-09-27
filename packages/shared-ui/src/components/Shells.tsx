@@ -137,8 +137,14 @@ export const AUTHORING_NAV: readonly NavItem[] = [
  * Home is real. Assessments is partial: the eligible-assessment list lives on
  * Home until UI-M9 gives it its own route, and the note says exactly that. The
  * remaining six need the catalog, recognition, progress, and help capabilities
- * that LIVE-FULL-M1 onward build — none of them is a link, so none is a dead
- * end.
+ * that LIVE-FULL-M1 onward build.
+ *
+ * Four of them are PREVIEWS since 2026-09-27 (LIVE-PREVIEW-M1, at the product
+ * owner's request): My Learnings, Discover, Knowledge Library and Help &
+ * Support link to pages that open with a preview notice and fence every
+ * illustrative block. Their status is UNCHANGED — a preview is not a release —
+ * and the sidebar chip reads "Preview". Badges and My Progress stay plain
+ * unreachable entries.
  */
 /*
  * The icons here are the APPROVED pack's, not Lucide's: the pack covers
@@ -156,8 +162,10 @@ export const LEARNER_NAV: readonly NavItem[] = [
   { label: 'Home', href: '/', icon: <KnowzyNavIcon name="home" />, status: 'IMPLEMENTED' },
   {
     label: 'My Learnings',
+    href: '/my-learnings',
     icon: <KnowzyNavIcon name="myLearnings" />,
     status: 'REQUIRES_BACKEND_EXTENSION',
+    preview: true,
   },
   {
     label: 'Assessments',
@@ -168,14 +176,18 @@ export const LEARNER_NAV: readonly NavItem[] = [
   },
   {
     label: 'Discover',
+    href: '/discover',
     icon: <KnowzyNavIcon name="discover" />,
     status: 'REQUIRES_BACKEND_EXTENSION',
+    preview: true,
   },
   { label: 'Badges', icon: <KnowzyNavIcon name="badges" />, status: 'PLANNED' },
   {
     label: 'Knowledge Library',
+    href: '/knowledge-library',
     icon: <KnowzyNavIcon name="library" />,
     status: 'REQUIRES_BACKEND_EXTENSION',
+    preview: true,
   },
   {
     // The destination is planned — LIVE-UI-M2 adds it. The capability matrix
@@ -189,8 +201,10 @@ export const LEARNER_NAV: readonly NavItem[] = [
   },
   {
     label: 'Help & Support',
+    href: '/help',
     icon: <KnowzyNavIcon name="help" />,
     status: 'REQUIRES_BACKEND_EXTENSION',
+    preview: true,
   },
 ] as const;
 

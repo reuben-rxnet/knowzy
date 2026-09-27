@@ -65,6 +65,22 @@ export const ILLUSTRATIONS = {
 
 export type IllustrationName = keyof typeof ILLUSTRATIONS;
 
+/**
+ * Badge designs, for the My Learnings PREVIEW only.
+ *
+ * No badge is awarded anywhere in this build (Phase 9), so these are drawn
+ * desaturated by `KnowzyBadgeArt` and captioned as designs. Integration spec
+ * §17: an asset may appear in an approved preview, never as an award.
+ */
+export const BADGE_ARTWORK = {
+  assessmentPro: 'badges/badge_assessment_pro.svg',
+  continuousLearner: 'badges/badge_continuous_learner.svg',
+  domainSpecialist: 'badges/badge_domain_specialist.svg',
+  knowledgeExplorer: 'badges/badge_knowledge_explorer.svg',
+} as const;
+
+export type BadgeArtworkName = keyof typeof BADGE_ARTWORK;
+
 /** Decorative page-hero artwork. */
 export const BACKDROPS = {
   wave: 'backgrounds/bg_wave.svg',
@@ -85,6 +101,7 @@ export const SERVED_ASSETS: readonly string[] = [
   ...Object.values(NAV_ICONS),
   ...Object.values(ILLUSTRATIONS),
   ...Object.values(BACKDROPS),
+  ...Object.values(BADGE_ARTWORK),
   FAVICON,
 ];
 

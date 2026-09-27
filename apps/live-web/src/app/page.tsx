@@ -13,35 +13,8 @@ import {
 } from '@knowzy/shared-ui';
 import { ArrowRight, CheckCircle2, Clock, PlayCircle } from 'lucide-react';
 import { t } from '../copy';
-import { api } from '../lib/api';
+import { listAssessments } from '../lib/assessments';
 import { Problem } from '../components/Problem';
-
-interface AssessmentCardData {
-  readonly assessmentId: string;
-  readonly name: string;
-  readonly description: string | null;
-  readonly domain: string;
-  readonly questionCount: number | null;
-  readonly passPercentage: number | null;
-  readonly timeLimitMinutes: number | null;
-  readonly attemptsUsed: number;
-  readonly attemptLimit: number | null;
-  readonly startable: boolean;
-  readonly blockedReason: string | null;
-  /**
-   * The API's own shape, not a guess at it.
-   *
-   * `answeredOf` arrives as a rendered string ("3 of 4"). This interface used
-   * to declare `currentIndex` and `totalQuestions`, which the API never sent —
-   * so the card printed "NaN / " from arithmetic on two undefined fields, and
-   * TypeScript could not catch it because a hand-written interface is an
-   * assertion, not a contract.
-   */
-  readonly inProgressSession: {
-    readonly sessionId: string;
-    readonly answeredOf: string;
-  } | null;
-}
 
 /** "1 of 2" → 50, for the resume bar. Returns null if the shape is not that. */
 const answeredPercent = (answeredOf: string): number | null => {
@@ -75,9 +48,7 @@ const answeredPercent = (answeredOf: string): number | null => {
  * the gap.
  */
 export default async function AssessmentListPage() {
-  const result = await api<{ count: number; assessments: readonly AssessmentCardData[] }>(
-    '/api/v1/learning/assessments',
-  );
+  const result = await listAssessments();
 
   const assessments = result.ok ? result.data.assessments : [];
   const resumable = assessments.filter((item) => item.inProgressSession !== null);

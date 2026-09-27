@@ -88,6 +88,11 @@ describe('navigation cannot create a dead link', () => {
       if (item.href === undefined) {
         // An item without a destination must not claim to be available.
         expect(linkable.has(item.status), `${item.label} has no href`).toBe(false);
+      } else if (item.preview === true) {
+        // A preview links to a labelled preview page and must KEEP an
+        // unreleased status: marking it IMPLEMENTED would drop the chip and let
+        // the preview pass for the real thing.
+        expect(linkable.has(item.status), `${item.label} is a preview`).toBe(false);
       } else {
         // An item with a destination must be one the release actually serves.
         expect(linkable.has(item.status), `${item.label} has an href`).toBe(true);
@@ -217,6 +222,21 @@ describe('exactly one navigation item is ever active', () => {
     // Assessments points at `/` in this release because that is where the list
     // lives; Home is still the destination the learner is on.
     expect(activeNavLabel(LEARNER_NAV, '/')).toBe('Home');
+  });
+
+  it('highlights a preview page as its own destination, and only the four asked for', () => {
+    expect(activeNavLabel(LEARNER_NAV, '/my-learnings')).toBe('My Learnings');
+    expect(activeNavLabel(LEARNER_NAV, '/discover')).toBe('Discover');
+    expect(activeNavLabel(LEARNER_NAV, '/knowledge-library')).toBe('Knowledge Library');
+    expect(activeNavLabel(LEARNER_NAV, '/help')).toBe('Help & Support');
+    expect(LEARNER_NAV.filter((item) => item.preview === true).map((item) => item.label)).toEqual([
+      'My Learnings',
+      'Discover',
+      'Knowledge Library',
+      'Help & Support',
+    ]);
+    // No authoring destination is a preview: every one of them is real.
+    expect(AUTHORING_NAV.some((item) => item.preview === true)).toBe(false);
   });
 
   it('highlights nothing on a route no destination owns', () => {

@@ -26,15 +26,18 @@ export {
 
 // ------------------------------------------------------------ design assets
 export { KnowzyBackdrop, KnowzyIllustration, KnowzyNavIcon } from './components/Asset.js';
+export { ExampleRegion, KnowzyBadgeArt, PreviewNotice } from './components/Preview.js';
 export {
   ASSET_BASE,
   BACKDROPS,
+  BADGE_ARTWORK,
   FAVICON,
   ILLUSTRATIONS,
   NAV_ICONS,
   SERVED_ASSETS,
   assetUrl,
   type BackdropName,
+  type BadgeArtworkName,
   type IllustrationName,
   type NavIconName,
 } from './assets/manifest.js';

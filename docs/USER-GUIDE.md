@@ -5,7 +5,8 @@
 Manager, the AI Generation Control Layer, AI provider administration and Phase 10 R1 and R2
 reporting, including PILOT-T1, PILOT-T2, UI-M3, SYNC-M1..M4, AI-CONTROL-M1, AI-PROVIDER-M1,
 PHASE10-R1, PHASE10-R2, P-5 (secret resolution), OPENAI-CODEX-00 (provider readiness) and
-OPENAI-CODEX-01 (OpenAI generation, refused until approved)
+OPENAI-CODEX-01 (OpenAI generation, refused until approved) and LIVE-PREVIEW-M1 (four learner
+preview pages)
 **Last updated:** 2026-09-27
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -116,9 +117,11 @@ than faked so nothing pretends to work. Anything marked Planned in this product 
 | "Planned" | Not built. Not a link |
 | "Needs backend" | Cannot be built yet: the server capability does not exist |
 | "Unavailable" | Turned off in this release |
+| "Preview" | Not built, but a link: it opens a **preview page** showing how the finished screen is expected to look, labelled as a preview before anything else (§5.5). Learner portal only |
 
 Nothing unavailable is a link, so you cannot land on a dead page, and nothing is hidden either — the
-list is an honest statement of what exists. Exactly one destination is highlighted at a time, with a
+list is an honest statement of what exists. A preview is the one kind of link to something unbuilt,
+and its page says so at the top. Exactly one destination is highlighted at a time, with a
 green bar down its left edge as well as a colour change, so it reads without relying on colour.
 
 **On the authoring workflow pages**, a thin ribbon under the header shows the seven stages —
@@ -1211,6 +1214,38 @@ next step. None of the three is recorded anywhere, so none is shown.
 **Correct answers and explanations are not shown, ever.** The answer key does not leave the server
 for a learner, in the quiz or in the result.
 
+### 5.5 Preview pages — My Learnings, Discover, Knowledge Library, Help & Support
+
+These four sidebar entries carry a blue **Preview** chip and open real pages, added so a stakeholder
+can see what the finished learner portal is expected to look like. **They are not the finished
+screens.** Each one works the same way:
+
+- **A blue Preview notice comes first.** It says what is not live yet and what has to be built
+  before it can be (the milestone, or **Phase 9** for badges, certificates, suggestions and
+  knowledge search).
+- **Everything illustrative sits inside a dashed frame** whose tag reads *Illustrative example — not
+  real data* (or *— not your data*). A frame's chip says **Coming in Phase 9** or **Future
+  capability**. The names, durations and progress figures inside are examples, not records.
+- **Nothing inside a frame works.** Every button in one is disabled and explains why when you hover
+  or focus it; search boxes and filters are disabled as a group; there are no links out of a frame.
+- **Real sections have no frame** and carry a green **Live — from this release** tag.
+
+What is real on each page:
+
+| Page | Real (Live) | Illustrative (framed) |
+| --- | --- | --- |
+| **My Learnings** — `/my-learnings` | Three counts: assessments available to you, attempted, in progress. **Assessment history**: every assessment you have attempted, with attempts used, and **Resume** for one in progress | Active and completed learning paths, badges (the approved designs, greyed and captioned *not earned*), a certificate |
+| **Discover** — `/discover` | **Subjects you can be assessed on**: the domains of the assessments published to you, with a count each | Search and filters, suggested topics (each with the reason it would be suggested), trending topics, popular assessments, suggested paths |
+| **Knowledge Library** — `/knowledge-library` | **Domains**: the same list, from what is published to you | Sources (each **Not connected**), search and filters, resources, categories and topics, a document detail |
+| **Help & Support** — `/help` | **User guides** (taking an assessment, resuming, reading a result) and **Frequently asked questions** — both describe exactly how this release behaves | Help search, tutorials, support channels (each **Not configured**), support hours, system status |
+
+Help names **no** support address, telephone number or hours, and system status claims nothing: no
+channel or status service is connected. There is no learning calendar on My Learnings at all, because
+a dated session nobody scheduled would be invented even inside a frame.
+
+**Badges** and **My Progress** are still plain, unreachable sidebar entries. On a phone the sidebar is
+hidden, as it is for every page, so the previews are reached by address.
+
 ---
 
 ## 6. The SharePoint Sync Manager — http://localhost:3002
@@ -1410,7 +1445,8 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | **A connection test against an AI provider** | **Real for OpenAI** (§4.3f): the secret is resolved and the endpoint, key and model are checked with two metadata requests. Not real for any other external provider, which has no client — its live checks read NOT ATTEMPTED |
 | **Generating questions with OpenAI (Codex)** | **Built, not yet run.** The generation client exists and its proposals go through the full gate chain, but it is refused until the T-29 approval is recorded, and no working credential is configured. The Generate screen does not offer it yet. See docs/integrations/OPENAI_CODEX_EVALUATION_RESULTS.md |
 | **Azure Key Vault** | Not real. `keyvault://` references are accepted and reported as unreadable here; the local secure store works in the local environment only |
-| **Badges and certificates** | Not built |
+| **Badges and certificates** | Not built. My Learnings shows the badge designs and a certificate as a labelled **preview** (§5.5); nothing is awarded |
+| **My Learnings, Discover, Knowledge Library, Help & Support** | **Previews only** (§5.5). Each shows the finished design with every illustrative block framed and every control in a frame disabled; the parts built from your assessments, and the help guides and FAQ, are real |
 | **Refreshers** | Not built |
 | **The assessment builder** | One form on the Publish page, not the specified builder |
 | **Email** | Captured by Mailpit; nothing is sent anywhere |
@@ -1456,3 +1492,4 @@ the log below.
 | 2026-09-24 | AI-CONTROL-M1 | **Generation now has ceilings, and a page that shows them** (§4.3c, **Governance → AI Usage & Budgets**). Every generation call — including the deterministic one — now passes through a provider-independent control layer: a per-job token ceiling checked from the prompt estimate **before** any call, daily, weekly and monthly token budgets that count retries, a concurrency cap, and a retry policy with jittered backoff and a hard attempt cap. A ceiling that stops a job produces a **refusal with the numbers in it** and a job recorded as `REFUSED` rather than `FAILED`, because a decision is not a failure. The new page reports usage, cost, budget consumption, provider states and provider health, and a **KNOWZY Administrator can set a token limit per provider from it**. Two things it deliberately will not do: show a zero for a metric nothing has recorded (it says **Not Yet Recorded**), and show a cost that cannot be known (it says **Not observable** with the reason — a per-seat licence and a user-managed run have no observable cost, and the deterministic generator's zero is the one case where 0 is a measurement). OpenAI is now a declared provider, visible on the page as `UNAVAILABLE` with its reason; nothing external is enabled and no credential exists |
 | 2026-09-23 | SYNC-M1..M4 | **A third application**, the **SharePoint Sync Manager** on http://localhost:3002 (§6), for whoever keeps the document sources healthy: connection health, five counted figures over a 30-day window, a workflow table with a derived status, and the last 25 runs with who or what started them. New capability behind it: a source can now be **created, edited, paused, resumed and archived** from a screen rather than only seeded, and it can be put on a **schedule** — manual, hourly, daily, weekly, monthly or cron — executed by the job runner. **Sync all** reports each source's outcome and names what it skipped and why. Four things it deliberately does not do, each on screen and disabled with "Requires Microsoft Graph write integration and tenant approval.": a destination, two-way sync, syncing deletions back, writing metadata back — this release synchronizes **into** Knowzy and has no destination model at all. A SharePoint Graph source is listed and disabled because the adapter is not written. A local root path is **typed, not browsed**, and validated server-side against an allow-list. Also fixed, found by the browser test: a dialog taller than the window could not be scrolled, so its buttons were unreachable at 720px — that affected the existing portals too |
 | 2026-09-23 | Acceptance automation | **Nothing about the screens changed.** What changed is that they are now driven by an automated browser suite — sources, generation, review, **gate 13**, publication, and a learner attempt including resume and scoring — so a broken screen is found by the build rather than by the next person to open it. Two things that suite is not: it does not cover refreshers, the revalidation queue or the audit surfaces, because those are not built; and it is not part of `npm run verify`, because it needs the stack running |
+| 2026-09-27 | LIVE-PREVIEW-M1 | **Four learner preview pages** (§5.5): My Learnings, Discover, Knowledge Library and Help & Support are now links with a blue **Preview** chip, at the product owner's request. Each opens with a Preview notice, frames every illustrative block with a visible *Illustrative example* tag, and disables every control inside a frame. Real parts: progress counts and assessment history (My Learnings), the domains published to you (Discover, Knowledge Library), and user guides and FAQs (Help). Badges and My Progress are unchanged. No authoring screen changed: none of them showed a placeholder |

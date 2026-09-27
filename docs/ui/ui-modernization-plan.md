@@ -169,7 +169,7 @@ Learner specification §5.2 lists eight destinations. Four have routes today.
 | 8 | Help & Support | `/help` | LIVE-FULL-M6 |
 
 §5.2 says *do not create dead links*, so until a destination ships, its nav entry is **hidden** —
-not disabled — unless a product owner explicitly wants it visible as a preview.
+not disabled — unless a product owner explicitly wants it visible as a preview. *(2026-09-27: the product owner asked for exactly that, for four of them — open question 4 in §20.)*
 
 ### 4.3 Authoring navigation reconciliation
 
@@ -736,8 +736,10 @@ are used as supplied. If the official marks arrive later, they replace these fil
    labelled placeholders. A dashboard of mostly-empty "Planned" cards would have been a worse
    answer than a smaller dashboard that is entirely true. The specified KPIs that need an aggregate
    read model remain in UI-M10.
-4. **Unreleased navigation** — hide the six unbuilt learner destinations (the §5.2 default), or show
-   them as explicit previews for demonstration purposes?
+4. ~~**Unreleased navigation**~~ — **answered 2026-09-27 (LIVE-PREVIEW-M1):** show them as explicit
+   previews. My Learnings, Discover, Knowledge Library and Help & Support link to labelled preview
+   pages; Badges and My Progress stay unreachable. See the capability matrix's *Preview pages*
+   section.
 5. **Asset filenames** — rename `ai-quiz-qeneration.png` to `ai-quiz-generation.png` and
    `settings.png` to `administration.png`, and update `ui-modernization.md`?
 6. **Demo domains** — RxNet, MES 360, VisionStar and the rest appear throughout both mockup sets.

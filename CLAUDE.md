@@ -755,6 +755,16 @@ Three things a redesign will be tempted to do and must not:
 
 Do not implement fake functionality merely to match a mockup.
 
+LEARNER PREVIEW PAGES (LIVE-PREVIEW-M1, 2026-09-27, product owner's request):
+/my-learnings, /discover, /knowledge-library and /help are PREVIEWS. The nav
+item keeps its unreleased status and gains `preview: true` (a test refuses a
+preview marked IMPLEMENTED). Illustrative content goes ONLY inside
+`ExampleRegion` (dashed, tagged on screen), every control in one is disabled,
+and every string -- examples included, under `ex.*` -- lives in
+apps/live-web/src/copy.ts so no-fabricated-metrics scans it. Real sections use
+only GET /learning/assessments and carry the "Live" tag. Promoting a preview to
+real means removing its frames, not relabelling them.
+
 Before implementing a learner feature, classify it as:
 
 - IMPLEMENTED
