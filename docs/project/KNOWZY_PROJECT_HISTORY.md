@@ -2890,3 +2890,56 @@ was written for (14×) and not on GenerationReady (3.5×).
 - The deterministic generator was re-run after the comparison so reviewers see both providers in the
   queue. It reproduced Arm A exactly, and is recorded apart.
 - `npm run verify` was not run: it would have deleted the drafts under review.
+
+## UX-M2 — product polish, and no new capability
+
+2026-09-28, at the owner's request: "each of the interfaces need to look more polished and make it
+simple and yet easy to use and understand." Usability and presentation only. No integration, no
+reporting feature, no AI feature. The review, findings F1–F14 and debt D1–D8 are in
+`docs/ui/UX_M2_PRODUCT_POLISH_REVIEW.md`.
+
+### What changed
+
+- **Generate.**
+  - Plainer step names, and **Check documents** in place of *Run preflight*.
+  - The source is stated once.
+  - Step 3 opens with **Before you generate**: documents, model, how many (a ceiling, never
+    padded), status, and what happens next. It shows only what the form will send, and it re-reads
+    the DOM after React's post-action form reset.
+- **Review Queue.**
+  - A generator badge (**AI · model**, **Template generator**, **Imported from a file**).
+  - The filing on the same line, and an evidence excerpt in every row.
+  - 25 rows first, with **Show 25 more**.
+  - The section hash moves to a tooltip, and scores show two decimals.
+- **AI Providers.**
+  - **At a glance**: one card per provider, with a plain status, *If chosen on Generate* and *Why*.
+  - An unapproved provider that is also unbuilt says approval alone will not make it usable.
+  - Capabilities sit behind a disclosure.
+  - The overview is a card list, not a table, because the specs locate provider rows by id with
+    `.first()`.
+- **Reports.** The eight KPI formulas and the comparison rule sit in one **How these figures are
+  calculated** disclosure.
+- **Refusals.**
+  - `Problem.tsx` adds **What you can do** for seventeen codes.
+  - Ten control codes render as refusals, not errors.
+- **AI Usage & Budgets.** A plainer introduction, and what a token limit does when it is reached.
+
+### Validated
+
+- Format clean.
+- Typecheck 35/35 and lint 22/22.
+- Build 21/21, followed by the usual volume repair. It took two `up migrate` rounds before the api
+  found its modules.
+- The contract project: 213 passed and 12 todo.
+- The full browser suite: 79 passed, 1 skipped and 0 failed, across all three applications.
+- No sideways scroll at 390px or 820px on Generate, Review, Published, AI Providers, Reports or the
+  dashboard.
+
+### Also
+
+- **The browser suite had two tests that assumed OpenAI was unapproved.** Both failed once OpenAI
+  was approved and active. Both now choose their provider from the state they find:
+  - *cannot be made active* now uses Anthropic;
+  - the AI Usage test reads the first `BLOCKED_BY_APPROVAL` provider from the API.
+- `npm run verify` was **not** run: it would delete the Codex evaluation drafts under review.
+

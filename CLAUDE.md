@@ -89,8 +89,8 @@ Current Status:
   with the real row counts, what survives and what has to be redone
   (scripts/destructive-warning.ts). Interactive runs ask; CI prints and
   continues. They wiped a live walkthrough mid-click on 2026-09-26.
-- npm run test:e2e: 79 passing + 1 skipped, 0 failed (2026-09-27, after UX-M1 and
-  LIVE-PREVIEW-M2; 2026-09-28 the AI Providers spec was made state-independent) across three projects, driving all three applications against the running stack. It is NOT part of verify —
+- npm run test:e2e: 79 passing + 1 skipped, 0 failed (re-run 2026-09-28 after UX-M2,
+  with OpenAI approved and active; two specs that assumed it was not were made state-independent) across three projects, driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
   as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
 - The integration project is 189 of those tests, and until 2026-09-21 three of
@@ -790,6 +790,17 @@ Three things a redesign will be tempted to do and must not:
    forbids it; it would defeat separation of duties).
 
 Do not implement fake functionality merely to match a mockup.
+
+UX-M2 PRODUCT POLISH (2026-09-28): docs/ui/UX_M2_PRODUCT_POLISH_REVIEW.md
+records the findings, the changes and the remaining debt (D1-D8). Four
+things a later change must keep: the Generate "Before you generate" panel
+shows only what the form will SEND (it re-reads the DOM after React's
+post-action reset); the AI Providers "At a glance" overview is a CARD LIST,
+not a table, because the e2e specs locate provider rows by id with
+`.first()` and a second grid of rows would take their matches; the KPI
+formulas live in one disclosure under the cards, not in each caption; and
+`components/Problem.tsx` maps codes to a "What you can do" sentence, with
+generation controls rendered as REFUSALS, never as errors.
 
 LEARNER PREVIEW PAGES (LIVE-PREVIEW-M1, 2026-09-27, product owner's request):
 /my-learnings, /discover, /knowledge-library and /help are PREVIEWS. The nav
