@@ -47,7 +47,7 @@ import {
   Tr,
 } from '@knowzy/shared-ui';
 import { Cpu, KeyRound, ShieldCheck, Sparkles } from 'lucide-react';
-import { t } from '../../../copy';
+import { t, type CopyKey } from '../../../copy';
 import { api } from '../../../lib/api';
 import { Problem } from '../../../components/Problem';
 import {
@@ -169,6 +169,23 @@ const READINESS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral
   BLOCKED_BY_APPROVAL: 'warning',
   BLOCKED_BY_CONFIGURATION: 'warning',
   UNAVAILABLE: 'neutral',
+};
+
+/**
+ * UX-M2: each gate state in plain words -- what it means, and what happens if
+ * somebody picks the provider on Generate. Derived from the state alone; the
+ * technical reason stays in the table below for whoever has to act on it.
+ */
+const PLAIN_STATE: Record<string, { readonly meaning: CopyKey; readonly ifChosen: CopyKey }> = {
+  AVAILABLE: { meaning: 'prov.plainAvailable', ifChosen: 'prov.ifAvailable' },
+  OVER_BUDGET: { meaning: 'prov.plainOverBudget', ifChosen: 'prov.ifOverBudget' },
+  BLOCKED_BY_CONFIGURATION: {
+    meaning: 'prov.plainConfiguration',
+    ifChosen: 'prov.ifConfiguration',
+  },
+  BLOCKED_BY_APPROVAL: { meaning: 'prov.plainApproval', ifChosen: 'prov.ifApproval' },
+  BLOCKED_BY_CAPABILITY: { meaning: 'prov.plainCapability', ifChosen: 'prov.ifCapability' },
+  UNAVAILABLE: { meaning: 'prov.plainUnavailable', ifChosen: 'prov.ifUnavailable' },
 };
 
 const CAPABILITY_LABEL = [
@@ -307,6 +324,63 @@ export default async function AiProvidersPage() {
         </CardBody>
       </Card>
 
+      {/* UX-M2: the page in one table a non-technical reader can use --
+          can it be used, and what happens if it is chosen. */}
+      <Card>
+        <CardHeader title={t('prov.plainHeading')} description={t('prov.plainIntro')} />
+        <CardBody>
+          {/* A list of cards, not a table: the technical table below finds
+              its rows by provider id, and a second grid of rows would be one
+              more place to read the same state from. */}
+          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {data.providers.map((row) => {
+              const plain = PLAIN_STATE[row.state];
+              return (
+                <li
+                  key={row.providerId}
+                  data-plain-provider={row.providerId}
+                  className="flex flex-col gap-2 rounded-md border border-line bg-surface p-4"
+                >
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-ink">
+                      {row.providerId === 'DETERMINISTIC_LOCAL'
+                        ? t('prov.plainDeterministicName')
+                        : row.displayName}
+                    </span>
+                    {row.providerId === data.activeProvider ? (
+                      <Badge tone="info" withIcon={false}>
+                        {t('prov.isActive')}
+                      </Badge>
+                    ) : null}
+                  </span>
+                  <span>
+                    <Badge tone={STATE_TONE[row.state] ?? 'neutral'} withIcon={false}>
+                      {t(plain?.meaning ?? 'prov.plainUnavailable')}
+                    </Badge>
+                  </span>
+                  <span className="text-sm text-ink">
+                    <span className="font-semibold">{t('prov.plainColIfChosen')}: </span>
+                    {row.providerId === 'DETERMINISTIC_LOCAL'
+                      ? t('prov.ifDeterministic')
+                      : t(plain?.ifChosen ?? 'prov.ifUnavailable')}
+                  </span>
+                  {/* The checks run most-permanent first, so an unapproved
+                      provider reads as waiting for approval even when it is
+                      not built either. Say so, or an approval looks sufficient. */}
+                  {row.state === 'BLOCKED_BY_APPROVAL' && !row.registered ? (
+                    <span className="text-sm text-warning">{t('prov.plainAlsoNotBuilt')}</span>
+                  ) : null}
+                  <span className="text-2xs text-ink-muted">
+                    <span className="font-semibold">{t('prov.plainWhy')}: </span>
+                    {row.stateReason}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </CardBody>
+      </Card>
+
       <Card>
         <CardHeader title={t('prov.tableHeading')} description={t('prov.tableIntro')} />
         <CardBody>
@@ -348,21 +422,25 @@ export default async function AiProvidersPage() {
                       {/* The five declared capabilities, each stated -- none
                           inferred from another, and a "no" is as visible as a
                           "yes". */}
-                      <span className="text-2xs font-semibold text-ink-subtle">
-                        {t('prov.capabilitiesLabel')}
-                      </span>
-                      <span className="flex max-w-56 flex-wrap gap-1">
-                        {CAPABILITY_LABEL.map(([field, label]) => (
-                          <Badge
-                            key={field}
-                            tone={row.capabilities[field] ? 'success' : 'neutral'}
-                            withIcon={false}
-                          >
-                            {t(label)}:{' '}
-                            {row.capabilities[field] ? t('prov.capYes') : t('prov.capNo')}
-                          </Badge>
-                        ))}
-                      </span>
+                      {/* UX-M2: behind a disclosure -- five badges per row made
+                          every row tall, and they are reference, not action. */}
+                      <details className="text-2xs">
+                        <summary className="cursor-pointer font-semibold text-info underline">
+                          {t('prov.capabilitiesLabel')}
+                        </summary>
+                        <span className="mt-1 flex max-w-56 flex-wrap gap-1">
+                          {CAPABILITY_LABEL.map(([field, label]) => (
+                            <Badge
+                              key={field}
+                              tone={row.capabilities[field] ? 'success' : 'neutral'}
+                              withIcon={false}
+                            >
+                              {t(label)}:{' '}
+                              {row.capabilities[field] ? t('prov.capYes') : t('prov.capNo')}
+                            </Badge>
+                          ))}
+                        </span>
+                      </details>
                     </span>
                   </Th>
                   <Td>

@@ -24,7 +24,7 @@ export const copy = {
   'nav.aiUsage': 'AI Usage & Budgets',
   'ai.heading': 'AI Usage & Budgets',
   'ai.intro':
-    'Token usage, cost accounting, budget consumption and provider health for question generation. Every figure is a count of records that exist: where nothing has been recorded it says so, and where a cost cannot be observed it says that instead of showing zero.',
+    'How much AI generation has been used, what it cost where that can be measured, and how close each provider is to its limits. Every figure is counted from records that exist. Where nothing has been recorded the page says so, and a cost that cannot be measured is shown as not observable, never as zero.',
   'ai.notRecorded': 'Not Yet Recorded',
   'ai.notObservable': 'Not observable',
   'ai.activeProvider': 'Active provider',
@@ -52,7 +52,7 @@ export const copy = {
 
   'ai.budgetsHeading': 'Budget windows',
   'ai.budgetsNote':
-    'Tokens, not money: tokens are the one quantity every provider reports, and cost often cannot be observed at all. A window counts every attempt the control layer recorded, so retries count against it. Jobs generated before 2026-09-24 appear in the activity totals above and not in these windows, because the per-attempt accounting starts there.',
+    'Limits are set in tokens (units of text sent to and returned by a model), not money, because every provider reports tokens and cost often cannot be measured at all. When a limit is reached, generation with that provider is refused until the period rolls over. A window counts every attempt the control layer recorded, so retries count against it. Jobs generated before 2026-09-24 appear in the activity totals above and not in these windows, because the per-attempt accounting starts there.',
   'ai.windowDaily': 'Daily',
   'ai.windowWeekly': 'Weekly (rolling 7 days)',
   'ai.windowMonthly': 'Monthly (rolling 30 days)',
@@ -1062,7 +1062,34 @@ export const copy = {
 
   'prov.readinessLabel': 'Readiness',
   'prov.gateLabel': 'Generation gate',
-  'prov.capabilitiesLabel': 'Declares',
+  'prov.capabilitiesLabel': 'Declared capabilities',
+  'prov.plainHeading': 'At a glance',
+  'prov.plainIntro':
+    'Whether each provider can be used today, and what happens if somebody chooses it on Generate. The full technical detail is in the table below.',
+  'prov.plainWhy': 'Why',
+  'prov.plainAlsoNotBuilt':
+    'Also not included in this release: an approval alone will not make it usable.',
+  'prov.plainColIfChosen': 'If chosen on Generate',
+  'prov.plainDeterministicName': 'Template generator (built in)',
+  'prov.plainAvailable': 'Ready to use',
+  'prov.plainOverBudget': 'Paused — budget spent',
+  'prov.plainConfiguration': 'Not set up yet',
+  'prov.plainApproval': 'Waiting for approval',
+  'prov.plainCapability': 'Not suitable for this use',
+  'prov.plainUnavailable': 'Not included in this release',
+  'prov.ifDeterministic':
+    'Drafts are built from the documents by fixed templates. No AI, no network and no cost — useful for trying the workflow.',
+  'prov.ifAvailable':
+    'The provider drafts questions from the selected documents only. The drafts go to the Review Queue; nothing is published without human approval.',
+  'prov.ifOverBudget':
+    'Generation is refused until the budget period rolls over or an administrator raises the limit on AI Usage & Budgets.',
+  'prov.ifConfiguration':
+    'Generation is refused and nothing is sent. An administrator has to finish the setup (Configure) first.',
+  'prov.ifApproval':
+    'Generation is refused and no document content leaves the platform until a data-processing approval is recorded.',
+  'prov.ifCapability':
+    'Always refused. It cannot keep to only the documents you choose, so no setting can make it suitable.',
+  'prov.ifUnavailable': 'It cannot be chosen — Generate lists it as not available.',
   'prov.capGeneration': 'Generation',
   'prov.capCost': 'Cost reporting',
   'prov.capTokens': 'Token reporting',

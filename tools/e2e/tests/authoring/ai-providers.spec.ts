@@ -197,6 +197,8 @@ test.describe('administration: AI providers', () => {
     await page.goto(PAGE);
     const row = page.getByRole('row', { name: /^\s*OPENAI/ }).first();
     await expect(row.locator('[data-readiness="BLOCKED_BY_CONFIGURATION"]')).toBeVisible();
+    // UX-M2: the capabilities sit behind a disclosure.
+    await row.getByText('Declared capabilities').click();
     await expect(row.getByText('Generation: yes')).toBeVisible();
     await expect(row.getByText('Retrieval-free: yes')).toBeVisible();
 
@@ -281,8 +283,11 @@ test.describe('administration: AI providers', () => {
 
     // The button carries its reason in its accessible name while disabled,
     // which is how this design system reports a refusal without a submit.
+    // ANTHROPIC, not OPENAI: OpenAI may be the ACTIVE provider on a machine
+    // that has approved and enabled it, and the active row has no Make active
+    // button at all. Nothing can make Anthropic runnable in this build.
     const makeActive = page
-      .getByRole('row', { name: /^\s*OPENAI/ })
+      .getByRole('row', { name: /^\s*ANTHROPIC/ })
       .first()
       .getByRole('button', { name: /make active/i });
     await expect(makeActive).toBeDisabled();

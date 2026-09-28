@@ -78,13 +78,19 @@ test.describe('governance: AI usage and budgets', () => {
       page.getByText('performs its own retrieval', { exact: false }).first(),
     ).toBeVisible();
 
-    // And the provider nobody has approved says so in those words, rather than
-    // as a generic "unavailable".
-    // `exact` matters: 'OPENAI' is a substring of 'AZURE_OPENAI', so a loose
-    // match resolves to two rows and the assertion becomes a strict-mode error
-    // rather than a check.
-    await expect(page.getByText('OPENAI', { exact: true })).toBeVisible();
-    await expect(page.getByText('BLOCKED_BY_APPROVAL').first()).toBeVisible();
+    // And a provider nobody has approved says so in those words, rather than
+    // as a generic "unavailable". Which one is read from the API: OpenAI
+    // carries a real approval on a machine that has recorded one, and is then
+    // named in several places on this page.
+    const unapproved = usage.providers.find((row) => row.state === 'BLOCKED_BY_APPROVAL');
+    expect(unapproved).toBeDefined();
+    await expect(
+      page
+        .getByRole('row', { name: new RegExp(`^\\s*${unapproved?.providerId ?? ''}`) })
+        .first()
+        .getByText('BLOCKED_BY_APPROVAL')
+        .first(),
+    ).toBeVisible();
   });
 
   test('never prints a zero where a cost cannot be observed', async ({ page }) => {

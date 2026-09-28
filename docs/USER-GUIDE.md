@@ -759,7 +759,15 @@ Administrator (`platform.configure`).
 Every generation provider the platform declares, whether it can run a job, and what to do about it
 if not. Reached from **Administration → AI Providers**, beside Knowledge Domains.
 
-**The providers you cannot use are listed too.** Five of the six are unusable today, and each row
+**At a glance** (UX-M2) opens the page for anyone who is not configuring anything: one card per
+provider, with a plain status — **Ready to use**, **Waiting for approval**, **Not set up yet**,
+**Paused — budget spent**, **Not suitable for this use** or **Not included in this release** — then
+**If chosen on Generate** (what would actually happen) and **Why** (the platform's own reason). A
+provider waiting for approval that is also not built says *Also not included in this release: an
+approval alone will not make it usable*. The technical table follows; each row's five declared
+capabilities are now behind **Declared capabilities**.
+
+**The providers you cannot use are listed too.** Most are unusable today, and each row
 carries the reason rather than being hidden. That matters because the reasons need four different
 people:
 
