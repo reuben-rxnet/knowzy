@@ -621,6 +621,10 @@ export const copy = {
   'generate.providerDeterministicNote':
     'Sentence matching over the selected sections. No model call, no cost, and no credential.',
   'generate.providerNotAvailable': 'not available',
+  'generate.sourceChoiceLabel': 'Knowledge source',
+  'generate.sourceChoiceHint':
+    'The documents below come from this source. With a network provider selected, it decides which documents are sent to it.',
+  'generate.sourceChoiceApply': 'Use this source',
   'review.generatedBy': 'Drafted by {model}',
   'review.generatedByImport': 'import (no model)',
   'generate.justificationLabel': 'Justification',

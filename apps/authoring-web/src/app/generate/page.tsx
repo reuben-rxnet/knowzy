@@ -1,4 +1,4 @@
-import { EmptyState, KeyValue, PageHero } from '@knowzy/shared-ui';
+import { Button, EmptyState, Field, KeyValue, PageHero, Select } from '@knowzy/shared-ui';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -41,7 +41,12 @@ interface Item {
  * decision, and the refusals are unchanged — and still no Publish button and
  * no difficulty control, both of which §15 forbids here.
  */
-export default async function GeneratePage() {
+export default async function GeneratePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ source?: string }>;
+}) {
+  const query = await searchParams;
   const sources = await api<{ sources: readonly SourceRow[] }>('/api/v1/authoring/sources');
   if (!sources.ok) {
     return (
@@ -52,7 +57,14 @@ export default async function GeneratePage() {
     );
   }
 
-  const source = sources.data.sources.find((candidate) => candidate.usableForGeneration);
+  // EVAL-M1: the source is CHOSEN, not implied. Until 2026-09-28 the wizard
+  // always took the first usable source, and with a network provider active
+  // that silently decided which company documents were sent to it. The choice
+  // is a plain GET form (`?source=`), so it needs no client state and a link
+  // to a source's Generate page is shareable. An unknown or unusable id falls
+  // back to the first usable source rather than to an error page.
+  const usable = sources.data.sources.filter((candidate) => candidate.usableForGeneration);
+  const source = usable.find((candidate) => candidate.sourceId === query.source) ?? usable[0];
   if (source === undefined) {
     return (
       <div className="flex flex-col gap-6">
@@ -121,11 +133,35 @@ export default async function GeneratePage() {
         }
       />
 
+      {usable.length > 1 ? (
+        <form method="get" className="flex flex-wrap items-end gap-3">
+          <Field
+            id="source"
+            label={t('generate.sourceChoiceLabel')}
+            hint={t('generate.sourceChoiceHint')}
+          >
+            <Select id="source" name="source" defaultValue={source.sourceId}>
+              {usable.map((candidate) => (
+                <option key={candidate.sourceId} value={candidate.sourceId}>
+                  {candidate.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Button tone="secondary" size="sm">
+            {t('generate.sourceChoiceApply')}
+          </Button>
+        </form>
+      ) : null}
+
       {!containers.ok ? <Problem problem={containers.problem} /> : null}
       {!taxonomy.ok ? <Problem problem={taxonomy.problem} /> : null}
 
       {taxonomy.ok ? (
         <GenerateWizard
+          // A different source is a different wizard: no preflight or
+          // selection carries over from the last one.
+          key={source.sourceId}
           sourceId={source.sourceId}
           documents={documents}
           domains={taxonomy.data.domains}
