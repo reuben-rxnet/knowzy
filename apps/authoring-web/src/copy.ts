@@ -652,6 +652,9 @@ export const copy = {
   'review.generatorImported': 'Imported from a file',
   'review.generatorApply': 'Show',
   'review.showingOf': 'Showing {shown} of {total}, lowest confidence first.',
+  'review.showMore': 'Show 25 more',
+  'review.badgeTemplate': 'Template generator',
+  'review.badgeModel': 'AI · {model}',
   'review.generatedByImport': 'import (no model)',
   'generate.justificationLabel': 'Justification',
   'generate.justificationHint':

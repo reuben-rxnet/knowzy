@@ -1,11 +1,11 @@
 import {
+  AiBadge,
   Badge,
   Button,
   Field,
   Select,
   BlockedBadge,
   ButtonLink,
-  CellNote,
   DataTable,
   EmptyState,
   PageHero,
@@ -34,6 +34,8 @@ interface QueueItem {
   readonly confidence: { readonly score: number };
   /** Which job and model drafted it. Null model: imported, not generated. */
   readonly generatedBy?: { readonly jobId: string | null; readonly modelId: string | null };
+  /** The verbatim span the question rests on. */
+  readonly evidence?: { readonly span: string | null; readonly mode: string | null };
   readonly duplicate: {
     readonly maxSimilarityScore: number | null;
     readonly disposition: string | null;
@@ -90,7 +92,12 @@ const QUEUE_LABEL: Record<Queue, CopyKey> = {
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ queue?: string; documentId?: string; generator?: string }>;
+  searchParams: Promise<{
+    queue?: string;
+    documentId?: string;
+    generator?: string;
+    limit?: string;
+  }>;
 }) {
   const query = await searchParams;
   const queue: Queue = isQueue(query.queue) ? query.queue : 'author';
@@ -103,10 +110,12 @@ export default async function ReviewQueuePage({
     (documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`) +
     (generator === undefined ? '' : `&generator=${generator}`);
   const suffix = filters;
-  // Up to 100 per page (the API's ceiling). The count beside each tab is the
-  // TRUE total, which the page states when it holds more than fits.
+  // UX-M2: 25 rows first, then "Show more" in steps of 25 up to the API's 100.
+  // A hundred tall rows at once made a very long page. The count beside
+  // each tab is the TRUE total, and the page says when it holds more.
+  const limit = Math.min(100, Math.max(25, Number(query.limit) || 25));
   const queueUrl = (name: string) =>
-    `/api/v1/authoring/questions/review?queue=${name}&limit=100${filters}`;
+    `/api/v1/authoring/questions/review?queue=${name}&limit=${name === queue ? limit : 1}${filters}`;
 
   // All five counts, so the tabs say where the work is instead of making an
   // author click each one to find out. Same endpoint the page already uses; a
@@ -226,18 +235,22 @@ export default async function ReviewQueuePage({
           <TBody>
             {result.data.items.map((item) => (
               <Tr key={item.questionId}>
-                <Th scope="row" className="max-w-xl">
+                <Th scope="row" className="max-w-2xl">
                   <span className="block font-semibold">{item.questionText}</span>
-                  <CellNote>
-                    {item.domain.name} · {item.topic}
-                  </CellNote>
-                  {/* GEN-PROVIDER-M1: which model drafted it, so a queue with
-                      questions from two generators can be read apart. */}
-                  <CellNote>
-                    {t('review.generatedBy', {
-                      model: item.generatedBy?.modelId ?? t('review.generatedByImport'),
-                    })}
-                  </CellNote>
+                  {/* UX-M2: who drafted it and where it is filed on one line,
+                      then the evidence it rests on -- so a reviewer can judge
+                      a row without opening it. */}
+                  <span className="mt-1.5 flex flex-wrap items-center gap-1.5 text-sm font-normal text-ink-muted">
+                    <GeneratorBadge modelId={item.generatedBy?.modelId ?? null} />
+                    <span>
+                      {item.domain.name} · {item.topic}
+                    </span>
+                  </span>
+                  {item.evidence?.span ? (
+                    <span className="mt-1.5 block border-l-2 border-line-strong pl-2 text-sm font-normal italic text-ink-muted">
+                      “{excerpt(item.evidence.span)}”
+                    </span>
+                  ) : null}
                 </Th>
                 <Td>
                   <span className="flex flex-wrap items-center gap-1.5">
@@ -248,17 +261,18 @@ export default async function ReviewQueuePage({
                 {/* Computed by the platform, and it authorizes nothing — the
                     gates do. Sorted ascending by it, so the weakest drafts are
                     read first. */}
-                <Td numeric>{Number(item.confidence.score).toFixed(3)}</Td>
+                <Td numeric>{Number(item.confidence.score).toFixed(2)}</Td>
                 <Td>
-                  {item.source.documentName}
-                  <CellNote>{item.source.sectionKey.slice(0, 12)}</CellNote>
+                  {/* The section hash is an internal key; it stays in the
+                      element's title for anyone tracing lineage. */}
+                  <span title={item.source.sectionKey}>{item.source.documentName}</span>
                 </Td>
                 <Td>
                   {item.duplicate.maxSimilarityScore === null ? (
                     <span className="text-ink-subtle">—</span>
                   ) : (
                     <span className="font-mono tabular-nums">
-                      {Number(item.duplicate.maxSimilarityScore).toFixed(3)}
+                      {Number(item.duplicate.maxSimilarityScore).toFixed(2)}
                     </span>
                   )}
                   {item.duplicate.blocksApproval ? (
@@ -284,6 +298,40 @@ export default async function ReviewQueuePage({
           </TBody>
         </DataTable>
       ) : null}
+
+      {result.ok && result.data.items.length < result.data.count && limit < 100 ? (
+        <div>
+          <ButtonLink
+            tone="secondary"
+            size="sm"
+            href={`/review?queue=${queue}${suffix}&limit=${limit + 25}`}
+          >
+            {t('review.showMore')}
+          </ButtonLink>
+        </div>
+      ) : null}
     </div>
   );
 }
+
+/** The first ~160 characters of a span, cut at a word. */
+const excerpt = (span: string): string => {
+  const flat = span.replace(/\s+/g, ' ').trim();
+  if (flat.length <= 160) return flat;
+  const cut = flat.slice(0, 160);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 120))}…`;
+};
+
+/** Which generator drafted the question, as a badge a reviewer can scan for. */
+const GeneratorBadge = ({ modelId }: { readonly modelId: string | null }) =>
+  modelId === null ? (
+    <Badge tone="neutral" withIcon={false}>
+      {t('review.generatorImported')}
+    </Badge>
+  ) : modelId.startsWith('knowzy-deterministic') ? (
+    <Badge tone="neutral" withIcon={false}>
+      {t('review.badgeTemplate')}
+    </Badge>
+  ) : (
+    <AiBadge>{t('review.badgeModel', { model: modelId })}</AiBadge>
+  );
