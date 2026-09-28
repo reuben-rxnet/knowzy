@@ -90,7 +90,7 @@ Current Status:
   (scripts/destructive-warning.ts). Interactive runs ask; CI prints and
   continues. They wiped a live walkthrough mid-click on 2026-09-26.
 - npm run test:e2e: 79 passing + 1 skipped, 0 failed (2026-09-27, after UX-M1 and
-  LIVE-PREVIEW-M2) across three projects, driving all three applications against the running stack. It is NOT part of verify —
+  LIVE-PREVIEW-M2; 2026-09-28 the AI Providers spec was made state-independent) across three projects, driving all three applications against the running stack. It is NOT part of verify —
   it needs the stack up. On a network that blocks cdn.playwright.dev, run it
   as E2E_BROWSER_CHANNEL=chrome npm run test:e2e.
 - The integration project is 189 of those tests, and until 2026-09-21 three of
@@ -572,10 +572,10 @@ then Claude, then Copilot, then Azure OpenAI. Specification: architecture.md
   prompt or stdin). The store is `.secrets/` at the repo root, in .gitignore
   AND .dockerignore, seen by the api container at /repo/.secrets
   (KNOWZY_LOCAL_SECRET_DIR). Never add an upload, route or form field for a key.
-- A RESOLVED SECRET IS A `SecretValue` and `reveal()` is called in TWO
-  production files (openai.ts for readiness, openai-generation.ts for
-  generation, each the auth header only). A contract test fails on a third
-  call site. Resolutions are audited as SECRET_VALIDATED with a
+- A RESOLVED SECRET IS A `SecretValue` and `reveal()` is called in ONE
+  production file since GATEWAY-M1: packages/claude-services/src/
+  provider-request.ts (`providerFetch`), which BOTH Test connection and
+  generation send through. A contract test fails on a second call site. Resolutions are audited as SECRET_VALIDATED with a
   reference FINGERPRINT, never the reference.
 - OPENAI GENERATES SINCE OPENAI-CODEX-01 (2026-09-27), and HAS NEVER BEEN RUN
   LIVE: T-29 is unrecorded and no working credential exists (the owner's key
@@ -607,6 +607,18 @@ then Claude, then Copilot, then Azure OpenAI. Specification: architecture.md
 - apps/api/test/provider-readiness.test.ts drives the whole path against a
   FAKE OpenAI on 127.0.0.1 and a temporary store, and RESTORES
   llm.providerSettings afterwards. The e2e suite assumes OpenAI unconfigured.
+- GATEWAY-M1 (2026-09-28): the Azure APIM Codex gateway. Settings gain
+  `authLocation` (HEADER | QUERY_PARAMETER, no fallback), `authQueryParameterName`
+  and `extraHeaders` (non-secret, max 5, credential-shaped/protocol names
+  refused). `sanitizeUrl` redacts CREDENTIAL_QUERY_PARAMETERS by exact name.
+  LLM_ENDPOINT_ALLOWLIST=dev-apim-ai.luxottica.com on the compose api service.
+  The gateway answers 404 for /models WITH AND WITHOUT the key, so Test
+  connection cannot observe authentication: it reports AUTHENTICATION
+  NOT_ATTEMPTED, MODEL SKIPPED, readiness RESOLVED. That is correct; do not
+  "fix" it with a Responses call. MODEL_EXECUTION is a tenth check, always
+  NOT_ATTEMPTED; SKIPPED is never a pass. The AI Providers e2e spec SAVES,
+  CLEARS and RESTORES OpenAI's settings, and never touches its approval.
+  OpenAI is configured, APPROVED (Teams message, 2026-09-28) and DISABLED.
 - scripts/baseline.ts --generate "<source>" --provider <id> --outcomes <file>
   runs one comparison arm and records a refusal as the arm's result. --reset
   KEEPS drafts with published lineage (FK) and says so.

@@ -2706,3 +2706,69 @@ After the fixes, all 60 screen-and-width combinations measure 0 px of sideways s
   work; the order-dependent publish failure did not recur.
 - Mutation: with the drawer's "focus the current page" line disabled, the phone drawer spec fails on
   `toBeFocused`. It was restored with no diff.
+
+## GATEWAY-M1 — speaking to the Azure API Management Codex gateway
+
+2026-09-28. The approved Codex route became known: **Azure OpenAI through the EssilorLuxottica API
+Management gateway**, `https://dev-apim-ai.luxottica.com/codex/openai/v1`, deployment
+`gpt-5.3-codex_codeassist`, Responses API, key as the `subscription-key` **query parameter**, and a
+fixed `x-openai-supplier: EssilorLuxottica` header. The platform could express none of the last
+three.
+
+### What was built
+
+- **Authentication location** (`HEADER` or `QUERY_PARAMETER`) and a query-parameter name, with no
+  fallback. The schema refuses two authentication settings at once.
+- **Fixed non-secret headers**:
+  - at most five;
+  - printable values only;
+  - credential-shaped names refused;
+  - protocol headers, duplicates and the auth header refused.
+- **One request builder** (`provider-request.ts`) for Test connection and generation. It is now the
+  only production file that calls `reveal()`; before this there were two.
+- **`sanitizeUrl`**: credential-bearing parameters are redacted by exact name.
+- **Classified transport failures**: DNS, timeout, TLS trust (*NODE_EXTRA_CA_CERTS configuration
+  required*), certificate, refused, reset, redirect.
+- **`MODEL_EXECUTION`** as a tenth check, and **`SKIPPED`** as a result.
+- **Authentication by comparison** when `/models` is absent: a keyed and an anonymous request.
+- UI fields on the Configure dialog.
+- The gateway host is on `LLM_ENDPOINT_ALLOWLIST` for the local API.
+
+### What was found
+
+| # | Finding | Fix |
+| --- | --- | --- |
+| 1 | **Test connection and generation had drifted apart.** Generation honoured the configured auth header; Test connection always sent `Authorization: Bearer`, and the route never passed the header in. A gateway key would have failed the test and worked in production | One builder, used by both |
+| 2 | A Bearer-only readiness probe meant the ladder could never reach AUTHENTICATED for a gateway | Same fix |
+| 3 | **The gateway answers 404 for `/models` with AND without the key**: APIM matches the route before it checks the subscription. So no content-free request can observe whether the key is accepted | Reported honestly: Authentication NOT ATTEMPTED, model discovery SKIPPED, readiness RESOLVED. A Responses call would answer it, and a test connection may not make one |
+| 4 | `\b` in a contract-test regex written through a Python edit became a literal BACKSPACE, so the assertion matched nothing. Lint's `no-control-regex` caught it, the third time this trap has appeared | Explicit alternation; every edited file scanned for control characters |
+| 5 | Four AI Providers browser specs assumed OpenAI unconfigured and unapproved. On a machine where it is configured for real, they failed, and their Test connection click made a real call | The spec saves OpenAI's settings, clears them, and restores them exactly. The approval test moved to Anthropic, so no test writes to a real approval's audit history |
+| 6 | The integration suite expected `SECRET_REFERENCE_CREATED`; on a configured machine it is `UPDATED` | Either accepted |
+| 7 | The Manage approval dialog has no way to replace a reference, and after a withdraw it still showed "Approval recorded" beside "Approval withdrawn" | Found by the owner. Recorded; to be fixed with the Generate-screen provider choice |
+
+### The approval
+
+The owner received the key and the approval in a Teams message, with no ticket. The first reference
+recorded, "Approved by EssilorLuxottica", named no person, date or place. It was withdrawn and
+re-recorded as *"Teams message from Reuben Dsouza, 2026-09-28 — Azure OpenAI (Codex) via
+EssilorLuxottica APIM approved for Knowzy."* Both entries are in the audit trail. OpenAI remains
+**disabled**, so generation is still refused (`BLOCKED_BY_CONFIGURATION`).
+
+### Validated
+
+- Format, lint, typecheck, boundaries and codegen are clean.
+- **Unit and contract: 784 passing + 12 todo across 37 files.**
+- Integration: `provider-readiness` 11/11 (a fake APIM gateway on 127.0.0.1) and
+  `generation-control` 15/15. Both only touch rows they create and restore.
+- `npm run verify` was **not** run: the owner was using the portal throughout.
+- `npm run build` passed 21/21. The API lost modules afterwards; a second `up migrate` fixed it (the
+  known trap).
+- Browser: the full suite passed 75 with 1 skipped. The 4 failures were finding 5. After the fix,
+  all 9 AI Providers specs pass. Two first timed out on a cold dev server; both passed on re-run.
+- **Mutations:**
+  - with `sanitizeUrl` disabled, its test fails;
+  - with the registry's approval check disabled, 7 tests fail across the unit and integration
+    suites, including "refuses an unapproved OpenAI before any request is sent".
+- **The real key appears nowhere.** A throwaway script loaded it and printed counts only, then was
+  deleted. It checked 7,719 audit rows, 60 configuration changes, 26 validations, 65 configuration
+  rows and the API container log: 0 matches for the key, 0 credential-bearing URLs.

@@ -28,6 +28,34 @@ lives — that file does not exist).
 Neither is engineering. Both are stated in the results document as the reason the OpenAI arm is
 **not run**.
 
+**Update 2026-09-28 (GATEWAY-M1) — C-1, the credential.** The approved route is now known: **Azure
+OpenAI through the EssilorLuxottica API Management gateway**,
+`https://dev-apim-ai.luxottica.com/codex/openai/v1`, deployment `gpt-5.3-codex_codeassist`, Responses
+API, key as the `subscription-key` **query parameter**, fixed header `x-openai-supplier:
+EssilorLuxottica`. Knowzy could not express that before; GATEWAY-M1 added query-parameter
+authentication, fixed non-secret headers and one request builder for Test connection and generation
+(see [AI_PROVIDER_ADMINISTRATION.md §4.3](../governance/AI_PROVIDER_ADMINISTRATION.md)). The host is
+allow-listed on the local API service. OpenAI is configured with exactly those settings, **disabled**,
+and **no approval is recorded**.
+
+The first real Test connection, 2026-09-28 10:40 UTC. Content-free: two `GET …/models` requests,
+one with the key and one without, no body:
+
+| Check | Result | Observed |
+| --- | --- | --- |
+| Secret resolution | PASSED | `localstore://openai-api-key` resolved; value not recorded |
+| Endpoint | PASSED | `dev-apim-ai.luxottica.com` answered over https in 721 ms — so **DNS resolves and TLS is trusted** from the API container; no `NODE_EXTRA_CA_CERTS` change is needed |
+| Authentication | **NOT ATTEMPTED** | The gateway answered **404 both with and without the key**, so the comparison proves nothing: APIM matches the route before it checks the subscription |
+| Model discovery | SKIPPED | The gateway exposes no `/models` route |
+| Model execution | NOT ATTEMPTED | A test sends no prompt |
+| Generation | NOT ATTEMPTED | — |
+
+Readiness: **RESOLVED** (the key was read; the gateway reached; authentication unverified). Gate:
+**BLOCKED_BY_APPROVAL**. **Whether the key is accepted cannot be observed without a request the
+gateway routes — for this gateway, only a Responses call — and a Responses call is exactly what a
+test connection may not make.** The key is first exercised by the first generation run, which T-29
+governs. Nothing was retried by weakening TLS, widening the allow-list or exposing the key.
+
 ---
 
 ## 1. Component review
