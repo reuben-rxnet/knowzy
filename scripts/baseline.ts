@@ -330,12 +330,15 @@ const reset = async (sourceName: string): Promise<void> => {
   });
   const published = generated.filter((q) => q.status === 'PUBLISHED');
   if (published.length > 0) {
-    // Refused rather than handled: deleting a published question would orphan
-    // a bank item and a QuestionID that has already left this platform.
-    throw new Error(
-      `${published.length} generated question(s) for this source are PUBLISHED. ` +
-        'Reset refuses to delete published lineage — retire them first, or measure on a clean ' +
-        'database as the evaluation plan requires for the controlled arm.',
+    // Published lineage is never deleted -- a bank item and a QuestionID have
+    // already left this platform. Until EVAL-M1 (2026-09-28) that REFUSED the
+    // reset and told the operator to retire them, which meant retiring
+    // questions in a working demo bank (and possibly its assessments) just to
+    // take a measurement. They are now KEPT, exactly like the retired drafts
+    // below, and the caveat is printed: they stay in the duplicate corpus.
+    say(
+      `${published.length} PUBLISHED question(s) from this source are kept -- published lineage ` +
+        'is never deleted, and they remain in the duplicate corpus',
     );
   }
 
@@ -368,7 +371,7 @@ const reset = async (sourceName: string): Promise<void> => {
   });
   if (kept.length > 0) {
     say(
-      `kept ${kept.length} retired draft(s) with published lineage -- never deleted, and still ` +
+      `kept ${kept.length} draft(s) with published lineage (published or retired) -- never deleted, and still ` +
         'in the duplicate corpus: a re-run that proposes the same question is BLOCKED as a duplicate',
     );
   }

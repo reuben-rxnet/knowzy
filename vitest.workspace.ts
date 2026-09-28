@@ -46,7 +46,9 @@ export default defineWorkspace([
     resolve: { alias: workspaceAliases },
     test: {
       name: 'unit',
-      include: ['packages/*/src/**/*.test.ts'],
+      // scripts/**: the pure helpers behind the evaluation tooling (EVAL-M1).
+      // The scripts themselves are not in any package, so their tests run here.
+      include: ['packages/*/src/**/*.test.ts', 'scripts/**/*.test.ts'],
       environment: 'node',
       passWithNoTests: true,
     },
