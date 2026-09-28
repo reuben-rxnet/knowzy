@@ -142,6 +142,21 @@ test.describe('generation', () => {
       });
     }
 
+    // After the submission React resets the form. The dropdown and the note
+    // beneath it must still describe the SAME provider -- they did not
+    // (2026-09-28): the reset showed the first option while the note still
+    // described the active network provider.
+    const shown = await select.inputValue();
+    const note = page.getByText(
+      /sentence matching over the selected sections|the selected sections are sent to/i,
+    );
+    await expect(note.first()).toBeVisible();
+    if (shown === 'DETERMINISTIC_LOCAL') {
+      await expect(page.getByText(/sentence matching over the selected sections/i)).toBeVisible();
+    } else {
+      await expect(page.getByText(/the selected sections are sent to/i)).toBeVisible();
+    }
+
     const after = await api<{ count: number; items: { status: string }[] }>(
       request,
       '/api/v1/authoring/questions/review?queue=author',

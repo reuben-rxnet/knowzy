@@ -621,6 +621,11 @@ export const copy = {
   'generate.providerDeterministicNote':
     'Sentence matching over the selected sections. No model call, no cost, and no credential.',
   'generate.providerNotAvailable': 'not available',
+  'review.generatedBy': 'Drafted by {model}',
+  'review.generatedByImport': 'import (no model)',
+  'generate.justificationLabel': 'Justification',
+  'generate.justificationHint':
+    'Required for PUBLISHER_REQUESTED: why these sections are being regenerated, in at least 20 characters. Recorded on the job.',
   'generate.providerNetworkNote':
     'The selected sections are sent to {provider}. Every question it proposes goes through the same checks as any other — verbatim evidence, duplicates, integrity — and arrives as a draft for review.',
   'generate.providerWhyUnavailable': 'Why {count} providers cannot be chosen',

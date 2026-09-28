@@ -16,7 +16,7 @@
 // preflight checks are a real table; and there is still no Publish button and
 // no difficulty control, because §15 forbids both here.
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   AiBadge,
@@ -36,6 +36,7 @@ import {
   Select,
   StatusBadge,
   TextInput,
+  Textarea,
   TextLink,
   statusTone,
   type BadgeTone,
@@ -296,6 +297,7 @@ export const GenerateWizard = ({
     providers.find((choice) => choice.active && choice.available)?.providerId ??
     'DETERMINISTIC_LOCAL';
   const [chosenProvider, setChosenProvider] = useState(defaultProvider);
+  const [reasonCode, setReasonCode] = useState('NEW_KNOWLEDGE');
   const chosen = providers.find((choice) => choice.providerId === chosenProvider);
   const unavailable = providers.filter((choice) => !choice.available);
   // Third argument: the permalink. See SourceActions on what it does and does
@@ -311,6 +313,19 @@ export const GenerateWizard = ({
     '/generate',
   );
   const [jobState, submitJob, jobPending] = useActionState(runGeneration, null, '/generate');
+
+  // React resets the job form once its action completes, WITHOUT firing the
+  // form's reset event, so any state mirroring a field goes stale. After every
+  // submission the mirrors are re-read from the fields themselves, so the
+  // provider note and the justification box always match what is on screen
+  // -- and what the next submission will send.
+  useEffect(() => {
+    if (jobState === null) return;
+    const provider = document.getElementById('providerId');
+    if (provider instanceof HTMLSelectElement) setChosenProvider(provider.value);
+    const reason = document.getElementById('reasonCode');
+    if (reason instanceof HTMLSelectElement) setReasonCode(reason.value);
+  }, [jobState]);
 
   const [domainId, setDomainId] = useState<string>(domains[0]?.domainId ?? '');
   const topics = domains.find((domain) => domain.domainId === domainId)?.topics ?? [];
@@ -692,7 +707,13 @@ export const GenerateWizard = ({
             icon={<Step n={3} />}
             actions={<AiBadge>{t('generate.aiBadge')}</AiBadge>}
           />
-          <form action={submitJob}>
+          <form
+            action={submitJob}
+            onReset={() => {
+              setChosenProvider(defaultProvider);
+              setReasonCode('NEW_KNOWLEDGE');
+            }}
+          >
             <CardBody>
               <input type="hidden" name="preflightId" value={preflight.preflightId} />
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -753,7 +774,12 @@ export const GenerateWizard = ({
                   </Select>
                 </Field>
                 <Field id="reasonCode" label={t('generate.reasonCodeLabel')}>
-                  <Select id="reasonCode" name="reasonCode" defaultValue="NEW_KNOWLEDGE">
+                  <Select
+                    id="reasonCode"
+                    name="reasonCode"
+                    defaultValue="NEW_KNOWLEDGE"
+                    onChange={(event) => setReasonCode(event.target.value)}
+                  >
                     {REASON_CODES.map((code) => (
                       <option key={code} value={code}>
                         {code}
@@ -761,16 +787,38 @@ export const GenerateWizard = ({
                     ))}
                   </Select>
                 </Field>
+                {/* PUBLISHER_REQUESTED needs a written justification of at
+                    least 20 characters (job-creation precondition 9). The form
+                    offered the reason with nowhere to write it, so choosing it
+                    could only be refused. Shown only for that reason. */}
+                {reasonCode === 'PUBLISHER_REQUESTED' ? (
+                  <div className="md:col-span-2 xl:col-span-3">
+                    <Field
+                      id="justification"
+                      label={t('generate.justificationLabel')}
+                      hint={t('generate.justificationHint')}
+                    >
+                      <Textarea id="justification" name="justification" rows={2} required />
+                    </Field>
+                  </div>
+                ) : null}
                 {/* Provider (GEN-PROVIDER-M1). Every declared provider is listed;
                     one the gate would refuse is a DISABLED option with its
                     reason beneath, so the list says what exists and what
                     stands in the way without offering a choice that cannot be
                     honoured. The server re-checks the gate on submit. */}
                 <Field id="providerId" label={t('generate.providerLabel')}>
+                  {/* UNCONTROLLED, with the default as its defaultValue. React
+                      resets a form after its action runs; a controlled select
+                      was put back on the FIRST option by that reset while the
+                      component still held the previous choice, so the screen
+                      showed one provider and described another. Now the reset
+                      restores the default, and onReset (on the form) puts the
+                      note back to match it. */}
                   <Select
                     id="providerId"
                     name="providerId"
-                    value={chosenProvider}
+                    defaultValue={defaultProvider}
                     onChange={(event) => setChosenProvider(event.target.value)}
                   >
                     {providers.map((choice) => (

@@ -154,6 +154,9 @@ export const runGeneration = async (
         ? {}
         : { jobRoleId: String(formData.get('jobRoleId')) }),
       reasonCode: String(formData.get('reasonCode') ?? 'NEW_KNOWLEDGE'),
+      ...(String(formData.get('justification') ?? '').trim().length === 0
+        ? {}
+        : { justification: String(formData.get('justification')).trim() }),
       requestedQuestionCount: Number(formData.get('requestedQuestionCount') ?? 5),
       providerId: String(formData.get('providerId') ?? 'DETERMINISTIC_LOCAL'),
       executionMode: String(formData.get('executionMode') ?? 'PLATFORM_MANAGED'),

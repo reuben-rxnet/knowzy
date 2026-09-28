@@ -29,6 +29,8 @@ interface QueueItem {
   readonly domain: { readonly code: string; readonly name: string };
   readonly source: { readonly documentName: string; readonly sectionKey: string };
   readonly confidence: { readonly score: number };
+  /** Which job and model drafted it. Null model: imported, not generated. */
+  readonly generatedBy?: { readonly jobId: string | null; readonly modelId: string | null };
   readonly duplicate: {
     readonly maxSimilarityScore: number | null;
     readonly disposition: string | null;
@@ -168,6 +170,13 @@ export default async function ReviewQueuePage({
                   <span className="block font-semibold">{item.questionText}</span>
                   <CellNote>
                     {item.domain.name} · {item.topic}
+                  </CellNote>
+                  {/* GEN-PROVIDER-M1: which model drafted it, so a queue with
+                      questions from two generators can be read apart. */}
+                  <CellNote>
+                    {t('review.generatedBy', {
+                      model: item.generatedBy?.modelId ?? t('review.generatedByImport'),
+                    })}
                   </CellNote>
                 </Th>
                 <Td>
