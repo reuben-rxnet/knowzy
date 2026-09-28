@@ -1,0 +1,170 @@
+{
+  "capturedAt": "2026-09-28T14:01:56.870Z",
+  "corpora": [
+    {
+      "source": "KNOWZY Generation-Ready Corpus (EVALUATION ONLY)",
+      "documents": 7,
+      "sections": 78,
+      "assessable": 76,
+      "attempted": 76,
+      "generated": 42,
+      "refused": 32,
+      "unresolved": 2,
+      "coveragePercent": 0.5526,
+      "questions": 51,
+      "evidence": {
+        "accepted": 51,
+        "strict": 51,
+        "exactSpans": 51,
+        "unverifiedRejections": 1,
+        "successRate": 0.9808,
+        "meanSpanChars": 239
+      },
+      "duplicates": {
+        "flagged": 0,
+        "blocked": 0,
+        "dispositioned": 0,
+        "rate": 0,
+        "maxSimilarity": 0.597
+      },
+      "confidence": {
+        "mean": 0.925,
+        "min": 0.722,
+        "max": 0.989,
+        "components": {
+          "duplicateDistance": 0.805,
+          "evidenceMatchQuality": 0.992,
+          "metadataCompleteness": 1,
+          "modelDeclaredConfidence": 0.971,
+          "optionDistinctness": 0.886,
+          "sectionCoverageAdequacy": 0.821
+        }
+      },
+      "rejectionsByReason": {
+        "INSUFFICIENT_EVIDENCE": 482,
+        "EVIDENCE_UNVERIFIED": 1
+      }
+    },
+    {
+      "source": "KNOWZY Imported Question Banks",
+      "documents": 1,
+      "sections": 1,
+      "assessable": 1,
+      "attempted": 0,
+      "generated": 0,
+      "refused": 0,
+      "unresolved": 1,
+      "coveragePercent": 0,
+      "questions": 0,
+      "evidence": {
+        "accepted": 0,
+        "strict": 0,
+        "exactSpans": 0,
+        "unverifiedRejections": 0,
+        "successRate": null,
+        "meanSpanChars": null
+      },
+      "duplicates": {
+        "flagged": 0,
+        "blocked": 0,
+        "dispositioned": 0,
+        "rate": null,
+        "maxSimilarity": null
+      },
+      "confidence": {
+        "mean": null,
+        "min": null,
+        "max": null,
+        "components": {}
+      },
+      "rejectionsByReason": {}
+    },
+    {
+      "source": "KNOWZY Real-World Pilot SOP Corpus",
+      "documents": 36,
+      "sections": 250,
+      "assessable": 122,
+      "attempted": 93,
+      "generated": 52,
+      "refused": 39,
+      "unresolved": 31,
+      "coveragePercent": 0.4262,
+      "questions": 56,
+      "evidence": {
+        "accepted": 56,
+        "strict": 56,
+        "exactSpans": 56,
+        "unverifiedRejections": 3,
+        "successRate": 0.9492,
+        "meanSpanChars": 206
+      },
+      "duplicates": {
+        "flagged": 0,
+        "blocked": 0,
+        "dispositioned": 0,
+        "rate": 0,
+        "maxSimilarity": 0.217
+      },
+      "confidence": {
+        "mean": 0.922,
+        "min": 0.772,
+        "max": 0.986,
+        "components": {
+          "duplicateDistance": 0.893,
+          "evidenceMatchQuality": 1,
+          "metadataCompleteness": 1,
+          "modelDeclaredConfidence": 0.956,
+          "optionDistinctness": 0.902,
+          "sectionCoverageAdequacy": 0.714
+        }
+      },
+      "rejectionsByReason": {
+        "EVIDENCE_UNVERIFIED": 3,
+        "INSUFFICIENT_EVIDENCE": 128
+      }
+    },
+    {
+      "source": "Mock Support Operations",
+      "documents": 4,
+      "sections": 17,
+      "assessable": 17,
+      "attempted": 17,
+      "generated": 16,
+      "refused": 1,
+      "unresolved": 0,
+      "coveragePercent": 0.9412,
+      "questions": 23,
+      "evidence": {
+        "accepted": 23,
+        "strict": 23,
+        "exactSpans": 23,
+        "unverifiedRejections": 0,
+        "successRate": 1,
+        "meanSpanChars": 191
+      },
+      "duplicates": {
+        "flagged": 0,
+        "blocked": 0,
+        "dispositioned": 0,
+        "rate": 0,
+        "maxSimilarity": 0.412
+      },
+      "confidence": {
+        "mean": 0.862,
+        "min": 0.663,
+        "max": 0.99,
+        "components": {
+          "duplicateDistance": 0.842,
+          "evidenceMatchQuality": 0.974,
+          "metadataCompleteness": 1,
+          "modelDeclaredConfidence": 0.863,
+          "optionDistinctness": 0.735,
+          "sectionCoverageAdequacy": 0.689
+        }
+      },
+      "rejectionsByReason": {
+        "INSUFFICIENT_EVIDENCE": 432
+      }
+    }
+  ]
+}

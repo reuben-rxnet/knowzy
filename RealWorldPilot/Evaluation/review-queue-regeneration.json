@@ -1,0 +1,30 @@
+[
+  {
+    "source": "KNOWZY Real-World Pilot SOP Corpus",
+    "providerId": "DETERMINISTIC_LOCAL",
+    "at": "2026-09-28T14:02:58.347Z",
+    "result": "GENERATED",
+    "jobId": "01a0e853-71c2-7895-95ae-f48ff30d95c3",
+    "accepted": 4,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 22862,
+      "output": 1084
+    }
+  },
+  {
+    "source": "KNOWZY Generation-Ready Corpus (EVALUATION ONLY)",
+    "providerId": "DETERMINISTIC_LOCAL",
+    "at": "2026-09-28T14:03:02.426Z",
+    "result": "GENERATED",
+    "jobId": "01a0e853-80dc-7d88-b354-3c3d50a7f678",
+    "accepted": 14,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 19391,
+      "output": 5120
+    }
+  }
+]

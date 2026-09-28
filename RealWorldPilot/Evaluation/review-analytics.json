@@ -1,0 +1,38 @@
+{
+  "measuredAt": "2026-09-28T14:03:04.771Z",
+  "providers": [
+    {
+      "providerId": "DETERMINISTIC_LOCAL",
+      "drafts": 26,
+      "byStatus": {
+        "PUBLISHED": 6,
+        "APPROVED": 1,
+        "SUBMITTED_FOR_APPROVAL": 1,
+        "DRAFT": 18
+      },
+      "approvalDecisions": {
+        "APPROVED": 7
+      },
+      "decided": 7,
+      "approvalRate": 1,
+      "rejectionRate": 0,
+      "changeRequests": 0,
+      "reviewComments": 1,
+      "medianHoursToFirstDecision": 0.03530277777777778
+    },
+    {
+      "providerId": "OPENAI",
+      "drafts": 122,
+      "byStatus": {
+        "DRAFT": 122
+      },
+      "approvalDecisions": {},
+      "decided": 0,
+      "approvalRate": null,
+      "rejectionRate": null,
+      "changeRequests": 0,
+      "reviewComments": 0,
+      "medianHoursToFirstDecision": null
+    }
+  ]
+}

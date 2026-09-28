@@ -1,0 +1,124 @@
+﻿Item,Question ID,Provider,Model,Source document
+B-001,01a0e84e-8c0a-7e33-b52c-4ba81bf5af38,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,TRTF - How to Verify whether the Order reprocessed with HeadCapeAngle.md
+B-002,01a0e850-fdbb-7219-9066-9b36dfd76c77,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-003,01a0e850-fe3e-763b-8de1-29bbcb367f08,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-004,01a0e852-2a8b-7a09-923c-72cb7e54a50a,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-005,01a0e850-fdcc-757a-b003-9ccb53ba5768,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-006,01a0e852-2abb-7a36-a752-4d85364b01dc,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-007,01a0e850-fec8-730e-89c4-2da22b440665,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.docx
+B-008,01a0e852-2c55-7c26-889d-b2f3aa4b98c5,OPENAI,gpt-5.3-codex_codeassist,TRTF - How to Verify whether the Order reprocessed with HeadCapeAngle.md
+B-009,01a0e852-2a6a-73b9-b5db-24e79853b936,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-010,01a0e850-ff69-72db-8c72-409d1690aabd,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's.docx
+B-011,01a0e850-fdb3-7b0e-af13-febf7fa1cf75,OPENAI,gpt-5.3-codex_codeassist,EOLP Support SOP.pdf
+B-012,01a0e84e-8bca-738d-b3af-bf9cbe9574d0,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,TRACELAB_Support_SOP.md
+B-013,01a0e850-fdd5-7742-890d-a70f94831405,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-014,01a0e852-2cf0-73d2-9cff-8d1b1f6c9be7,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's (SAP Rx-MES Interface Reference).md
+B-015,01a0e852-2af1-7a32-8671-719e264302d4,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-016,01a0e84e-7d54-7934-ba06-72ce6db28c9f,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Order Cancellation RxNet.docx
+B-017,01a0e84e-8b67-7a60-b57b-f24a6d30eb16,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Order Cancellation RxNet.md
+B-018,01a0e850-ffa7-72af-a66b-6f26919ae94b,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's.docx
+B-019,01a0e850-ff16-71ef-aba4-2a75f794fde3,OPENAI,gpt-5.3-codex_codeassist,SOP for Handling TRTF Job Failure Alerts.docx
+B-020,01a0e852-2ada-7a98-b10d-7de537ade0ab,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-021,01a0e850-fd97-7ed2-92f1-24d99fef28f3,OPENAI,gpt-5.3-codex_codeassist,EOLP Support SOP.pdf
+B-022,01a0e850-fedf-707e-8e1e-e8a12e500765,OPENAI,gpt-5.3-codex_codeassist,SOP for Handling TRTF Job Failure Alerts.docx
+B-023,01a0e852-2c73-7e1e-84a2-21e50002b1db,OPENAI,gpt-5.3-codex_codeassist,TRTF - How to Verify whether the Order reprocessed with HeadCapeAngle.md
+B-024,01a0e850-fdfb-750a-86e0-86cc246942cb,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-025,01a0e850-fd80-778b-9c80-7035c054c1db,OPENAI,gpt-5.3-codex_codeassist,EOLP Support SOP.pdf
+B-026,01a0e850-fe79-779d-ac77-607fe49362e0,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.docx
+B-027,01a0e84e-8bff-7a7f-8c57-995badef5bff,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,TRACELAB_Support_SOP.md
+B-028,01a0e850-fe20-7fb2-aec8-456be8b868c9,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-029,01a0e852-2cbb-74eb-86e7-29cf2ea444f3,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's (SAP Rx-MES Interface Reference).md
+B-030,01a0e84e-8bf2-7952-99fd-63e48cdf4579,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,TRACELAB_Support_SOP.md
+B-031,01a0e84e-8b76-70c3-9381-792d319f1f9f,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Order Cancellation RxNet.md
+B-032,01a0e850-fd4d-7d15-a151-0a32d84c47f5,OPENAI,gpt-5.3-codex_codeassist,ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx
+B-033,01a0e84e-7d63-72fd-b676-1290cd0104b5,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,Tickets SOP's.docx
+B-034,01a0e852-2c28-7622-bc2a-11541ebb113e,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.md
+B-035,01a0e852-2a27-7ed4-bd1c-4d564260f684,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-036,01a0e84e-7d6f-7ccd-8c0f-be433b1afe54,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,Tickets SOP's.docx
+B-037,01a0e850-fd3c-73c7-afe3-0ebdfe46fc4c,OPENAI,gpt-5.3-codex_codeassist,ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx
+B-038,01a0e84e-8b99-75cf-8cba-506700931b8b,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Order Cancellation RxNet.md
+B-039,01a0e850-fef7-7766-908a-f0f95ab4bfa2,OPENAI,gpt-5.3-codex_codeassist,SOP for Handling TRTF Job Failure Alerts.docx
+B-040,01a0e84e-8c18-78f4-83bf-478fd48e74d8,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,Tickets SOP's (SAP Rx-MES Interface Reference).md
+B-041,01a0e852-2b18-7efd-9eec-4beedd4fc507,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.md
+B-042,01a0e852-2b93-7fc1-a15e-3d6b1e12da81,OPENAI,gpt-5.3-codex_codeassist,SOP - Printer Management.md
+B-043,01a0e850-ff33-7fee-b23b-ae9d01d50300,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.docx
+B-044,01a0e850-fd8f-709d-9955-02096a39c3c3,OPENAI,gpt-5.3-codex_codeassist,EOLP Support SOP.pdf
+B-045,01a0e852-2c1a-7350-afd0-d88f07bfe682,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.md
+B-046,01a0e850-feb2-7626-86c9-6b1896c2ddd6,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.docx
+B-047,01a0e852-2b0b-7c84-b9ea-3b1321113290,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.md
+B-048,01a0e850-feeb-75b4-a896-728442044315,OPENAI,gpt-5.3-codex_codeassist,SOP for Handling TRTF Job Failure Alerts.docx
+B-049,01a0e852-2bbd-70bc-9762-41f185013642,OPENAI,gpt-5.3-codex_codeassist,SOP - Printer Management.md
+B-050,01a0e84e-8be4-7404-bbad-54134f12fceb,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,TRACELAB_Support_SOP.md
+B-051,01a0e850-fd71-7f30-b6be-5ce4f0876382,OPENAI,gpt-5.3-codex_codeassist,EMEA SQL Server Patching – Implementation Plan.docx
+B-052,01a0e850-ff05-76ef-a114-9ebc71897c3c,OPENAI,gpt-5.3-codex_codeassist,SOP for Handling TRTF Job Failure Alerts.docx
+B-053,01a0e84e-8bbd-7370-99f4-72dfa269e532,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Printer Management.md
+B-054,01a0e850-ff77-704d-8426-bd8c261d4de5,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's.docx
+B-055,01a0e850-fd57-7a15-924b-d5b0912dea3e,OPENAI,gpt-5.3-codex_codeassist,ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx
+B-056,01a0e84e-7d38-7f8b-9510-a27128ec02cb,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Order Cancellation RxNet.docx
+B-057,01a0e850-fde6-7307-a0ca-711daebdfce2,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-058,01a0e850-fdaa-74a5-aa33-af83e4eb601a,OPENAI,gpt-5.3-codex_codeassist,EOLP Support SOP.pdf
+B-059,01a0e850-fe2e-734b-81bf-af387cc2c5c7,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-060,01a0e850-fd78-7186-a2c7-f0ee7338dda9,OPENAI,gpt-5.3-codex_codeassist,EMEA SQL Server Patching – Implementation Plan.docx
+B-061,01a0e850-fdf1-75df-9c28-3fc92ebc1992,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-062,01a0e852-2a44-7621-9ed7-7810299a2c31,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-063,01a0e850-ff44-77f3-9926-966445fc8779,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.docx
+B-064,01a0e850-fdc4-716b-92c1-e90aefe10f03,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-065,01a0e850-febc-7eb4-826b-31e1be2fdfdc,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.docx
+B-066,01a0e850-ff24-79d3-b626-bc7ff2a01d1f,OPENAI,gpt-5.3-codex_codeassist,SOP_Check_Email_Recipients_Alerts.docx
+B-067,01a0e852-2cdf-7996-b483-78a8574497ab,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's (SAP Rx-MES Interface Reference).md
+B-068,01a0e850-ff88-7fc5-9420-bf4e268e5440,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's.docx
+B-069,01a0e84e-8ba6-793f-a816-ee7d4457b4dc,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Printer Management.md
+B-070,01a0e852-2a36-7e8b-9be9-17ffea1ba974,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-071,01a0e850-fe8b-7694-91e3-2fdc03a86d0c,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.docx
+B-072,01a0e852-2a5e-7251-82a8-67afbc6ec680,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-073,01a0e850-fda0-7837-8a7e-e802a24861e8,OPENAI,gpt-5.3-codex_codeassist,EOLP Support SOP.pdf
+B-074,01a0e852-2b80-7f3b-b666-2f2e380b3862,OPENAI,gpt-5.3-codex_codeassist,SOP - Printer Management.md
+B-075,01a0e850-fd88-72f7-bda9-58daf36c07ff,OPENAI,gpt-5.3-codex_codeassist,EOLP Support SOP.pdf
+B-076,01a0e852-2c93-78f7-aefa-40d4167e1fda,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's (SAP Rx-MES Interface Reference).md
+B-077,01a0e850-fd5f-7b83-a088-460c59b91eca,OPENAI,gpt-5.3-codex_codeassist,ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx
+B-078,01a0e852-2c46-7304-881e-761f03e3cd3d,OPENAI,gpt-5.3-codex_codeassist,TRTF - How to Verify whether the Order reprocessed with HeadCapeAngle.md
+B-079,01a0e852-2b32-7a6f-b0e1-97828369aeda,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.md
+B-080,01a0e850-fd22-7862-8f85-19d8263cdfbd,OPENAI,gpt-5.3-codex_codeassist,ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx
+B-081,01a0e852-2bcd-7923-9ca2-1b29ef4bb08a,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.md
+B-082,01a0e852-2a97-73cb-b208-19fcf6cfd9d8,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-083,01a0e850-fd2c-76ce-8f81-1113155618e8,OPENAI,gpt-5.3-codex_codeassist,ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx
+B-084,01a0e852-2acc-776c-b11a-816a0c31b823,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-085,01a0e852-2b40-7e41-a6cb-0512cc8ea361,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.md
+B-086,01a0e852-2b50-7596-aae7-d99c6f4f3b20,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.md
+B-087,01a0e850-ff55-72df-a2dd-9962870afb08,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's.docx
+B-088,01a0e850-fd44-7a9e-a5e3-e95f258c244c,OPENAI,gpt-5.3-codex_codeassist,ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx
+B-089,01a0e850-fd34-7620-b6ba-80ee6af9fe17,OPENAI,gpt-5.3-codex_codeassist,ELTL_Lab_Orders_Stuck_in_Awaiting_Calculation_SOP.docx
+B-090,01a0e852-2c64-7b4d-a40d-9a568e1ba057,OPENAI,gpt-5.3-codex_codeassist,TRTF - How to Verify whether the Order reprocessed with HeadCapeAngle.md
+B-091,01a0e850-fe4d-704b-9d87-04c89537980c,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-092,01a0e852-2a50-7f70-b53b-66bacfa44544,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-093,01a0e852-2ba8-75ad-983e-7c505e537ffa,OPENAI,gpt-5.3-codex_codeassist,SOP - Printer Management.md
+B-094,01a0e852-2c37-7ccb-80fe-b0a49ce07093,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.md
+B-095,01a0e852-2bfb-7017-a695-1cf1f937613b,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.md
+B-096,01a0e852-2ca5-737c-8e04-8c46cd6fea7c,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's (SAP Rx-MES Interface Reference).md
+B-097,01a0e852-2b60-75c6-8462-b8992cc90c85,OPENAI,gpt-5.3-codex_codeassist,SOP - Printer Management.md
+B-098,01a0e852-2bde-7f84-a71b-620804a529e3,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.md
+B-099,01a0e852-2aff-779b-9b0b-b7b230ff6b95,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-100,01a0e850-fe13-7ff3-902c-a13628754607,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-101,01a0e852-2b24-7f86-97c9-44b985a1a592,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.md
+B-102,01a0e850-ff98-7d63-9f08-933b11f78cec,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's.docx
+B-103,01a0e852-2b6f-7c06-906e-3e5e800a0b80,OPENAI,gpt-5.3-codex_codeassist,SOP - Printer Management.md
+B-104,01a0e852-2aa2-744e-99d2-00c834753ec7,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-105,01a0e850-fe5b-723c-819c-237803d7b88e,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.docx
+B-106,01a0e84e-8b82-74fe-b5e0-cc78726b6232,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Order Cancellation RxNet.md
+B-107,01a0e850-fddd-7fc4-916d-327fd84c35d6,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-108,01a0e850-ffb6-7cd3-980c-3caf7484e052,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's.docx
+B-109,01a0e84e-8bb2-708c-8510-7efc51b86132,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,SOP - Printer Management.md
+B-110,01a0e852-2ccd-7aa3-aeee-aa9d12c5a717,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's (SAP Rx-MES Interface Reference).md
+B-111,01a0e852-2a75-73fc-ad1a-28804ebcbd5c,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-112,01a0e852-2c82-7298-8fdf-9ef74c0f409d,OPENAI,gpt-5.3-codex_codeassist,Tickets SOP's (SAP Rx-MES Interface Reference).md
+B-113,01a0e850-fe06-72fe-b541-7251b9555f98,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.docx
+B-114,01a0e84e-8bd8-75db-96bc-24724b4624f9,DETERMINISTIC_LOCAL,knowzy-deterministic-local-1,TRACELAB_Support_SOP.md
+B-115,01a0e850-fea3-7a2b-901d-727504970e6b,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.docx
+B-116,01a0e852-2a80-79aa-8802-36c741d9ec84,OPENAI,gpt-5.3-codex_codeassist,RxNet_L2_SSL_Certificate_Renewal_SOP.md
+B-117,01a0e852-2bed-7ae1-ae30-34149fab2eed,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.md
+B-118,01a0e852-2aad-7d76-98a5-2cda7dab04d2,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-119,01a0e850-fe68-7ff9-a137-e70a060c3cc5,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.docx
+B-120,01a0e852-2ae5-7ae0-a91b-b814f878bfa4,OPENAI,gpt-5.3-codex_codeassist,Rxnet Eolp Database Connection Pool Exhaustion Sop.md
+B-121,01a0e850-fed3-794f-a81d-456b4edd0cdf,OPENAI,gpt-5.3-codex_codeassist,SOP - Order Cancellation RxNet.docx
+B-122,01a0e850-fd68-7789-b730-706bb48c89cd,OPENAI,gpt-5.3-codex_codeassist,EMEA SQL Server Patching – Implementation Plan.docx
+B-123,01a0e852-2c09-729f-96b7-d12a44dae35b,OPENAI,gpt-5.3-codex_codeassist,TRACELAB_Support_SOP.md

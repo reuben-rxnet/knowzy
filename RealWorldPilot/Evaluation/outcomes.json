@@ -1,0 +1,58 @@
+[
+  {
+    "source": "KNOWZY Real-World Pilot SOP Corpus",
+    "providerId": "DETERMINISTIC_LOCAL",
+    "at": "2026-09-28T13:57:33.593Z",
+    "result": "GENERATED",
+    "jobId": "01a0e84e-7ce6-7fc7-8d89-68670305a309",
+    "accepted": 4,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 21561,
+      "output": 1084
+    }
+  },
+  {
+    "source": "KNOWZY Generation-Ready Corpus (EVALUATION ONLY)",
+    "providerId": "DETERMINISTIC_LOCAL",
+    "at": "2026-09-28T13:57:37.144Z",
+    "result": "GENERATED",
+    "jobId": "01a0e84e-8b3f-7295-8cc0-8e48801f4c90",
+    "accepted": 14,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 18288,
+      "output": 5120
+    }
+  },
+  {
+    "source": "KNOWZY Real-World Pilot SOP Corpus",
+    "providerId": "OPENAI",
+    "at": "2026-09-28T14:00:17.891Z",
+    "result": "GENERATED",
+    "jobId": "01a0e84f-9f3b-7bac-8d9b-09bee1f25298",
+    "accepted": 56,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 22023,
+      "output": 13466
+    }
+  },
+  {
+    "source": "KNOWZY Generation-Ready Corpus (EVALUATION ONLY)",
+    "providerId": "OPENAI",
+    "at": "2026-09-28T14:01:34.915Z",
+    "result": "GENERATED",
+    "jobId": "01a0e851-120d-7e5c-ba3c-fccd85ad6b77",
+    "accepted": 49,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 16195,
+      "output": 11109
+    }
+  }
+]
