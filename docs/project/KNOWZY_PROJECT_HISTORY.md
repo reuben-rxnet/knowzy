@@ -2822,3 +2822,71 @@ screen and a first run on synthetic content.
 - Unit and contract: 784 + 12 todo. Integration: readiness 12/12, generation-control 15/15.
 - Browser: AI Providers 9/9 and sources-and-generation 3/3, first attempt.
 - Format, lint and typecheck are clean.
+
+## EVAL-M1 — the formal Codex evaluation
+
+2026-09-28. The question: *is Codex materially better than the deterministic generator?* Both arms
+were run on the same day against the same pinned scope:
+- 10 SOP documents (93 sections) and 7 GenerationReady documents (76);
+- 50 questions requested per job;
+- PromptVersion 1.2.0 and the unmodified gates.
+
+### Before a number could be trusted
+
+- **The SOP corpus had been silently replaced by fixtures.**
+  - When the stack was restarted that morning, `PILOT_CORPUS_HOST_PATH` was unset, so the `/corpus`
+    mount fell back to `fixtures/pilot-mirror`.
+  - A browser-suite synchronize then added 6 fixture files to the real SOP source.
+  - The first Arm A run measured those (4 sections in scope) and was discarded.
+  - Found because the numbers did not reproduce the baseline. The mirror path now lives in the
+    git-ignored `infrastructure/compose/.env`, and the source re-synchronized: 30 scanned, 30
+    unchanged. The SOP arm then reproduced the 2026-09-23 and 2026-09-27 baselines to the digit.
+- **The reset refused on 2 published browser-test fixtures.** Yesterday one was retired to get past
+  this. Today the reset **keeps** published lineage instead, rather than retiring demo-bank
+  questions to take a measurement.
+- **A full sync did not mark the 6 vanished fixture files deleted.** Recorded as an open finding.
+
+### What was measured
+
+| | Deterministic SOP | Deterministic GenerationReady | Codex SOP | Codex GenerationReady |
+| --- | ---: | ---: | ---: | ---: |
+| Accepted (of 50 requested) | 4 | 14 | **56** | **49** |
+| Sections covered | 4 (3.4%) | 14 (18.4%) | **52 (44.1%)** | **40 (52.6%)** |
+| Documents reached | 2 / 10 | 5 / 7 | 10 / 10 | 7 / 7 |
+| Rejected by the evidence gate | 0 | 0 | 3 | 1 |
+| Mean confidence | 0.734 | 0.709 | 0.922 | 0.933 |
+| Distractor distinctness | 0.256 | 0.168 | 0.902 | 0.886 |
+| Duplicates | 0 | 0 | 0 | 0 |
+| Tokens in / out | 21,561 / 1,084 (est.) | 18,288 / 5,120 (est.) | 22,023 / 13,466 | 16,195 / 11,109 |
+| Cost | 0.000000 | 0.000000 | not observable | not observable |
+
+### Built for the review that has not happened yet
+
+- **`scripts/evaluation.ts`**: preservation export, per-arm review packets (CSV that is Excel-safe
+  and formula-safe, Markdown, JSON), the blind-stem packet with a separate key, and review analytics
+  by provider.
+- **The packets:** 18 deterministic and 105 Codex questions. The blind packet holds 123 stems in a
+  seeded order, with provider, options and answer hidden.
+- **A contract test asserts the blind packet hides what it says it hides.** A mutation that leaked
+  the provider failed it.
+
+### The answer, as far as it goes
+
+Codex is materially better on every automated measure:
+- 13× the SOP coverage and 14× the SOP yield;
+- distinct distractors;
+- real question stems;
+- 5.1% and 2.0% evidence refusals, all caught by the gate.
+
+Under the pre-registered rule it is **not yet adoptable**. Criteria 1, 2 and 5 need human review.
+Criterion 7 needs a price and a threshold nobody has stated. Criterion 3 is met on the SOP scope it
+was written for (14×) and not on GenerationReady (3.5×).
+
+### Also
+
+- A **source selector** on Generate: the source is chosen, never implied.
+- Findings F1–F5 are in the results document §9, including that the requested count is not a cap
+  (Codex accepted 56 of a requested 50).
+- The deterministic generator was re-run after the comparison so reviewers see both providers in the
+  queue. It reproduced Arm A exactly, and is recorded apart.
+- `npm run verify` was not run: it would have deleted the drafts under review.

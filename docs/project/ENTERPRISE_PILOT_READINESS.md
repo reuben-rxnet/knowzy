@@ -645,7 +645,7 @@ and a Codex API subscription exists.
 | Local secure store | **Built**, local environment only. Encrypted file; keys enter it through `npm run secrets` |
 | Azure Key Vault | **Declared, not built.** `keyvault://` references are accepted and report `SOURCE_UNAVAILABLE` |
 | OpenAI readiness | **Built.** Endpoint, authentication and model verified with two metadata requests to an allow-listed host |
-| OpenAI generation | **Built 2026-09-27 (OPENAI-CODEX-01), never run live.** Refused `BLOCKED_BY_APPROVAL` until T-29; proposals pass the unchanged gate chain and land as drafts. See docs/integrations/OPENAI_CODEX_GENERATION_READINESS.md |
+| OpenAI generation | **Live since 2026-09-28** through the Azure APIM gateway, approved (Teams message) and active. Evaluated the same day (§12.11). See docs/integrations/OPENAI_CODEX_EVALUATION_RESULTS.md |
 
 **P-5 is closed for local, open for deployed.** A deployed environment still cannot read a secret:
 it needs the Key Vault and managed identity listed in §7, and a Key Vault source to replace the
@@ -660,3 +660,30 @@ platform: the readiness calls carry a key and a model name and nothing else.
 **One thing to put in front of Privacy with T-29:** the readiness checks are made **before** an
 approval exists (architecture.md §9.0 rule 10). They process no data; if the reviewers disagree,
 gating them on the approval is a one-line change and the reason for it belongs in their decision.
+
+### 12.11 The formal Codex evaluation (2026-09-28)
+
+Both arms were run on the same pinned scope, the same prompt and the unmodified gate chain. The SOP
+arm reproduced the earlier deterministic baselines to the digit, which is the evidence the corpus is
+the same one.
+
+| | Deterministic SOP | Deterministic GenerationReady | Codex SOP | Codex GenerationReady |
+| --- | ---: | ---: | ---: | ---: |
+| Accepted (of 50 requested) | 4 | 14 | **56** | **49** |
+| Sections covered | 4 (3.4%) | 14 (18.4%) | **52 (44.1%)** | **40 (52.6%)** |
+| Documents reached | 2 / 10 | 5 / 7 | 10 / 10 | 7 / 7 |
+| Rejected by the evidence gate | 0 | 0 | 3 | 1 |
+| Mean confidence | 0.734 | 0.709 | 0.922 | 0.933 |
+| Distractor distinctness | 0.256 | 0.168 | 0.902 | 0.886 |
+| Duplicates | 0 | 0 | 0 | 0 |
+| Tokens in / out | 21,561 / 1,084 (est.) | 18,288 / 5,120 (est.) | 22,023 / 13,466 | 16,195 / 11,109 |
+| Cost | 0.000000 | 0.000000 | not observable | not observable |
+
+**What it changes for the pilot.** The generation bottleneck that opened the live-model workstream
+is broken on the real SOPs: 3.4% coverage becomes 44.1%, and every document yields questions. The
+evidence gate caught four Codex citations that were not verbatim. **Adoption is still gated by the
+pre-registered rule.** Its three human criteria — rubric quality, blind-stem groundedness and SME
+approval ≥ 50% — are unmeasured, cost is unobservable until a price is set, and the
+GenerationReady yield (3.5×) is below the rule's 5×. The review packets and the blind-stem packet
+are prepared (`RealWorldPilot/Evaluation/`). **The critical path is now a subject-matter expert's
+time, not engineering.**

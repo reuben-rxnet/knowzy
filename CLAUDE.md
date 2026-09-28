@@ -211,6 +211,19 @@ Working Commands:
 
 Gotchas learned by execution (each of these cost real time):
 
+- THE SOP SOURCE READS /corpus, WHICH FALLS BACK TO fixtures/pilot-mirror WHEN
+  PILOT_CORPUS_HOST_PATH IS UNSET -- silently, 12 fixture files instead of the
+  real SharePoint mirror. The path now lives in the git-ignored
+  infrastructure/compose/.env. Before any measurement check
+  `docker compose ... exec mcp sh -c 'find /corpus -type f | wc -l'` reads 32,
+  not 12. A FULL sync does NOT mark vanished documents deleted (six fixture
+  rows remain on the SOP source; EVAL-M1 finding F2).
+- THE CODEX EVALUATION (EVAL-M1, 2026-09-28): Codex 56 / 49 accepted vs the
+  deterministic 4 / 14 on the SOP / GenerationReady scope; coverage 44.1% vs
+  3.4% on the SOPs. NOT yet adoptable under LIVE_CLAUDE_EVALUATION_PLAN.md 7:
+  rubric, blind-stem and SME approval are unmeasured, cost is unobservable.
+  Packets in RealWorldPilot/Evaluation/; tooling scripts/evaluation.ts. Never
+  relax a 7 criterion after seeing results -- iterate the PROMPT instead.
 - A host `npm install` DESYNCS the container's node_modules volume. Symptoms:
   "Cannot find module tsx/dist/preflight.cjs" or "@prisma/client did not
   initialize yet". Fix: docker compose ... up migrate (it runs npm ci and
