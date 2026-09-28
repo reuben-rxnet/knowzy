@@ -579,9 +579,13 @@ then Claude, then Copilot, then Azure OpenAI. Specification: architecture.md
   provider-request.ts (`providerFetch`), which BOTH Test connection and
   generation send through. A contract test fails on a second call site. Resolutions are audited as SECRET_VALIDATED with a
   reference FINGERPRINT, never the reference.
-- OPENAI GENERATES SINCE OPENAI-CODEX-01 (2026-09-27), and HAS NEVER BEEN RUN
-  LIVE: T-29 is unrecorded and no working credential exists (the owner's key
-  is a gateway subscription key). openai.ts stays readiness-only (GET, a
+- OPENAI GENERATES SINCE OPENAI-CODEX-01 (2026-09-27), and FIRST RAN LIVE on
+  2026-09-28 through the Azure APIM Codex gateway, on the SYNTHETIC Mock
+  Support Operations source only: 17/17 accepted, 0 rejected, all STRICT
+  evidence, 3,564/3,234 tokens, cost not observable (no price). The approval
+  is a Teams message, recorded with that reference. OpenAI is ENABLED and
+  the ACTIVE provider, so the Generate screen now defaults to Codex -- and its
+  source is the FIRST usable one (the GenerationReady corpus), not Mock. openai.ts stays readiness-only (GET, a
   contract test forbids a POST there); openai-generation.ts POSTs ONLY to
   /responses or /chat/completions with the shared framed prompt, a strict
   schema, `tools: GENERATION_TOOL_GRANT` and `store: false`. Settings gain
@@ -620,7 +624,7 @@ then Claude, then Copilot, then Azure OpenAI. Specification: architecture.md
   "fix" it with a Responses call. MODEL_EXECUTION is a tenth check, always
   NOT_ATTEMPTED; SKIPPED is never a pass. The AI Providers e2e spec SAVES,
   CLEARS and RESTORES OpenAI's settings, and never touches its approval.
-  OpenAI is configured, APPROVED (Teams message, 2026-09-28) and DISABLED.
+  OpenAI is configured, APPROVED (Teams message, 2026-09-28), ENABLED and ACTIVE.
 - GEN-PROVIDER-M1: the Generate screen lists every provider, unavailable ones
   DISABLED with their reason, defaulting to the ACTIVE provider when it can
   run. A job with no providerId still defaults to DETERMINISTIC_LOCAL in the

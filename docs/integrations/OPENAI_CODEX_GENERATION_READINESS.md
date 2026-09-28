@@ -56,6 +56,29 @@ gateway routes — for this gateway, only a Responses call — and a Responses c
 test connection may not make.** The key is first exercised by the first generation run, which T-29
 governs. Nothing was retried by weakening TLS, widening the allow-list or exposing the key.
 
+**Update 2026-09-28, later — the first real generation.** The approval arrived as a Teams message and
+is recorded with a traceable reference. OpenAI was enabled and made active, and the first generation
+ran — on synthetic content, as the owner chose, before any SOP text. **It answers what Test connection
+could not: the key, the deployment name and the Responses format all work through the gateway.**
+
+| Measure | Value |
+| --- | --- |
+| Source | **Mock Support Operations** — the synthetic fixture corpus, 4 documents, 17 assessable sections in scope. No SOP content was sent |
+| Job | `01a0e7d3-af2d-…` **PARTIAL** (one section judged insufficient), provider OPENAI, model `gpt-5.3-codex_codeassist`, PLATFORM_MANAGED |
+| Attempts | **1**, SUCCEEDED, 21 s, provider version `openai-generation-01` |
+| Accepted | **17 of 17 requested**; **0 rejected** by evidence, integrity or duplicate checks |
+| Evidence | Every draft **STRICT**-verified; shortest quoted span 98 characters |
+| Confidence | mean **0.911** |
+| Duplicates | highest similarity to an existing question **0.313** — none flagged |
+| Tokens | **3,564 in / 3,234 out**, reported by the gateway; the pre-call estimate was 3,276 input |
+| Cost | **Not observable** — no price is configured in `llm.tokenPrices` |
+| State | all 17 are **DRAFT**: nothing was approved or published |
+| Secrets | key found in 0 audit, job, attempt, draft, configuration or validation rows and 0 log lines; no credential URL anywhere |
+
+C-1 is therefore **resolved**. What remains before the recorded comparison on the SOP and
+GenerationReady corpora is a **price** for the deployment (or cost stays not observable) and the
+review of these 17 drafts by a person.
+
 ---
 
 ## 1. Component review

@@ -2772,3 +2772,53 @@ EssilorLuxottica APIM approved for Knowzy."* Both entries are in the audit trail
 - **The real key appears nowhere.** A throwaway script loaded it and printed counts only, then was
   deleted. It checked 7,719 audit rows, 60 configuration changes, 26 validations, 65 configuration
   rows and the API container log: 0 matches for the key, 0 credential-bearing URLs.
+
+## GEN-PROVIDER-M1 and the first real Codex generation
+
+2026-09-28. The owner asked for Codex to be easier to use, choosing the provider on the Generate
+screen and a first run on synthetic content.
+
+### What was built
+
+- **`GET /authoring/generation/providers`**, under `question.generate`: the Generate screen's provider
+  menu, readable by an author. It names the provider, model, gate state, reason and the active one,
+  and nothing configurational.
+- **On the Generate screen:**
+  - every provider is listed, with unavailable ones disabled and their reasons one click away;
+  - the default is the active provider when it can run;
+  - a network provider says the sections will be sent to it.
+- **"Enable and make active"** on AI Providers: two audited writes, each refused with its reason.
+- **"Replace reference"** on Manage approval.
+- A fix for the dialog showing "Approval recorded" beside "Approval withdrawn".
+
+### Found on the way
+
+- **The browser generation spec would have sent real documents to Codex.** It relied on the screen's
+  default provider, which now follows the active provider. It now pins the deterministic generator.
+  The API was already safe: a job with no `providerId` defaults to the deterministic generator.
+- **The readiness integration suite assumed OpenAI unapproved.** It now establishes that premise and
+  restores the real approval exactly, without writing to that approval's audit history.
+- **The API container did not reload on a route change.** This is the same bind-mount watching gap
+  as the web containers; it needs a restart.
+
+### The first real run
+
+| Measure | Value |
+| --- | --- |
+| Source | **Mock Support Operations** — the synthetic fixture corpus, 4 documents, 17 assessable sections in scope. No SOP content was sent |
+| Job | `01a0e7d3-af2d-…` **PARTIAL** (one section judged insufficient), provider OPENAI, model `gpt-5.3-codex_codeassist`, PLATFORM_MANAGED |
+| Attempts | **1**, SUCCEEDED, 21 s, provider version `openai-generation-01` |
+| Accepted | **17 of 17 requested**; **0 rejected** by evidence, integrity or duplicate checks |
+| Evidence | Every draft **STRICT**-verified; shortest quoted span 98 characters |
+| Confidence | mean **0.911** |
+| Duplicates | highest similarity to an existing question **0.313** — none flagged |
+| Tokens | **3,564 in / 3,234 out**, reported by the gateway; the pre-call estimate was 3,276 input |
+| Cost | **Not observable** — no price is configured in `llm.tokenPrices` |
+| State | all 17 are **DRAFT**: nothing was approved or published |
+| Secrets | key found in 0 audit, job, attempt, draft, configuration or validation rows and 0 log lines; no credential URL anywhere |
+
+### Validated
+
+- Unit and contract: 784 + 12 todo. Integration: readiness 12/12, generation-control 15/15.
+- Browser: AI Providers 9/9 and sources-and-generation 3/3, first attempt.
+- Format, lint and typecheck are clean.

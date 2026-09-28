@@ -48,5 +48,19 @@
     "refusal": "PROVIDER_CREDENTIAL_UNAVAILABLE",
     "detail": "OPENAI has no model configured. Set one in Administration -> AI Providers.",
     "tokens": null
+  },
+  {
+    "source": "Mock Support Operations",
+    "providerId": "OPENAI",
+    "at": "2026-09-28T11:43:46.307Z",
+    "result": "GENERATED",
+    "jobId": "01a0e7d3-af2d-72cb-a8f0-2a6ce847566f",
+    "accepted": 17,
+    "refusal": null,
+    "detail": null,
+    "tokens": {
+      "input": 3564,
+      "output": 3234
+    }
   }
 ]
