@@ -52,6 +52,7 @@ import { api } from '../../../lib/api';
 import { Problem } from '../../../components/Problem';
 import {
   ActivateProviderButton,
+  EnableAndActivateButton,
   ProviderApprovalButton,
   ProviderSettingsButton,
   ValidateProviderButton,
@@ -549,6 +550,19 @@ export default async function AiProvidersPage() {
                         <ProviderApprovalButton provider={values(row)} actingAs={subject.label} />
                         <ProviderLimitButton providerId={row.providerId} actingAs={subject.label} />
                         <ValidateProviderButton provider={values(row)} actingAs={subject.label} />
+                        {/* GEN-PROVIDER-M1: the one-step path, for an approved,
+                            configured provider that is off or not yet active. */}
+                        {row.providerId !== 'DETERMINISTIC_LOCAL' &&
+                        row.approved &&
+                        row.credentialConfigured &&
+                        row.baseUrl !== null &&
+                        row.modelId !== null &&
+                        !(row.enabled && row.providerId === data.activeProvider) ? (
+                          <EnableAndActivateButton
+                            provider={values(row)}
+                            actingAs={subject.label}
+                          />
+                        ) : null}
                         {row.providerId === data.activeProvider ? null : (
                           <ActivateProviderButton provider={values(row)} actingAs={subject.label} />
                         )}

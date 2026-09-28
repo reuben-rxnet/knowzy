@@ -4,6 +4,7 @@ import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
 import {
   GenerateWizard,
+  type GenerationProviderChoice,
   type WizardDocument,
   type WizardDomain,
 } from '../../components/GenerateWizard';
@@ -103,6 +104,13 @@ export default async function GeneratePage() {
     }
   }
 
+  // GEN-PROVIDER-M1: the providers an author may choose. If the read fails the
+  // wizard falls back to the deterministic generator alone, which is always
+  // available -- never to a list it cannot vouch for.
+  const providers = await api<{ providers: readonly GenerationProviderChoice[] }>(
+    '/api/v1/authoring/generation/providers',
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <PageHero
@@ -131,6 +139,7 @@ export default async function GeneratePage() {
             code: row.code,
             name: row.name,
           }))}
+          {...(providers.ok ? { providers: providers.data.providers } : {})}
         />
       ) : null}
     </div>

@@ -115,6 +115,23 @@ test.describe('generation', () => {
     await page.getByRole('button', { name: /record decision/i }).click();
     await expect(page.getByRole('heading', { name: /step 3/i })).toBeVisible({ timeout: 60_000 });
 
+    // GEN-PROVIDER-M1: the provider list. Every option the server calls
+    // unavailable is DISABLED, whatever this machine's configuration is; the
+    // deterministic generator is always selectable.
+    const providers = await api<{
+      providers: readonly { providerId: string; available: boolean }[];
+    }>(request, '/api/v1/authoring/generation/providers');
+    const select = page.locator('select#providerId');
+    for (const provider of providers.providers) {
+      const option = select.locator(`option[value="${provider.providerId}"]`);
+      if (provider.available) await expect(option).toBeEnabled();
+      else await expect(option).toBeDisabled();
+    }
+    // PINNED to the deterministic generator. Once a network provider is the
+    // active one, the default would be it -- and this suite must never send a
+    // real document to an external model.
+    await select.selectOption('DETERMINISTIC_LOCAL');
+
     // Step 3: generate. The outcome is drafts, so that is what is asserted --
     // first the run's own accounting, then the queue the drafts must reach.
     const generate = page.getByRole('button', { name: /^generate questions$/i });

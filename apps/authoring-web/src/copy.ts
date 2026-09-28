@@ -620,6 +620,10 @@ export const copy = {
   'generate.providerDeterministic': 'Deterministic local generator',
   'generate.providerDeterministicNote':
     'Sentence matching over the selected sections. No model call, no cost, and no credential.',
+  'generate.providerNotAvailable': 'not available',
+  'generate.providerNetworkNote':
+    'The selected sections are sent to {provider}. Every question it proposes goes through the same checks as any other — verbatim evidence, duplicates, integrity — and arrives as a draft for review.',
+  'generate.providerWhyUnavailable': 'Why {count} providers cannot be chosen',
   'generate.providerUnavailableNote':
     'Other providers are declared but not available here. A request for one is refused with the reason, never served by a substitute.',
   'generate.executionModeLabel': 'Execution mode',
@@ -992,11 +996,19 @@ export const copy = {
   'prov.approvalReferenceHint':
     'A document id, a ticket, or a signed decision. Required, and retained in the audit trail: the question asked in nine months is “who cleared this, and on the strength of what”.',
   'prov.approvalRecorded': 'Approval recorded.',
+  'prov.approvalReplaceLabel': 'Replace the reference',
+  'prov.approvalReplaceHint':
+    'Where the approval is held, if the recorded reference is wrong or incomplete. The previous reference stays in the audit trail.',
+  'prov.approvalReplace': 'Replace reference',
   'prov.withdrawBody':
     'Withdrawing returns the provider to BLOCKED_BY_APPROVAL. Questions already generated are unaffected; new requests for this provider are refused.',
   'prov.withdraw': 'Withdraw approval',
   'prov.approvalWithdrawn': 'Approval withdrawn.',
 
+  'prov.enableAndActivate': 'Enable and make active',
+  'prov.enableAndActivateHint':
+    'Approved and configured. Turns it on and makes it the provider Generate uses by default. Both steps are audited, and refused with the reason if the gate would refuse them.',
+  'prov.enabledAndActive': 'Enabled and active.',
   'prov.activate': 'Make active',
   'prov.activateBlocked':
     'Only an AVAILABLE provider can be made active. Generation would be refused for every job, so the switch is refused instead.',

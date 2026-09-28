@@ -248,12 +248,39 @@ export interface OrgOption {
   readonly name: string;
 }
 
+/**
+ * A provider an author may choose (GEN-PROVIDER-M1), from
+ * `GET /authoring/generation/providers`. A MENU, not the control: creating the
+ * job re-checks the gate, so a choice that went stale is refused there.
+ */
+export interface GenerationProviderChoice {
+  readonly providerId: string;
+  readonly displayName: string;
+  readonly modelId: string | null;
+  readonly available: boolean;
+  readonly reason: string;
+  readonly active: boolean;
+}
+
+/** The deterministic generator, when the provider list could not be read. */
+const DETERMINISTIC_ONLY: readonly GenerationProviderChoice[] = [
+  {
+    providerId: 'DETERMINISTIC_LOCAL',
+    displayName: 'DETERMINISTIC_LOCAL',
+    modelId: 'knowzy-deterministic-local-1',
+    available: true,
+    reason: '',
+    active: true,
+  },
+];
+
 export const GenerateWizard = ({
   sourceId,
   documents,
   domains,
   departments,
   jobRoles,
+  providers = DETERMINISTIC_ONLY,
 }: {
   sourceId: string;
   documents: readonly WizardDocument[];
@@ -261,7 +288,16 @@ export const GenerateWizard = ({
   /** Active departments and roles. Both are optional on a job. */
   departments: readonly OrgOption[];
   jobRoles: readonly OrgOption[];
+  providers?: readonly GenerationProviderChoice[];
 }) => {
+  // The active provider when it can run; otherwise the deterministic one,
+  // which always can. Never a provider the gate would refuse.
+  const defaultProvider =
+    providers.find((choice) => choice.active && choice.available)?.providerId ??
+    'DETERMINISTIC_LOCAL';
+  const [chosenProvider, setChosenProvider] = useState(defaultProvider);
+  const chosen = providers.find((choice) => choice.providerId === chosenProvider);
+  const unavailable = providers.filter((choice) => !choice.available);
   // Third argument: the permalink. See SourceActions on what it does and does
   // not buy.
   const [preflightState, submitPreflight, preflightPending] = useActionState(
@@ -725,24 +761,56 @@ export const GenerateWizard = ({
                     ))}
                   </Select>
                 </Field>
-                {/* Provider and execution mode.
-                    Only the deterministic generator is registered, so this is
-                    a single honest option rather than a list of choices the
-                    platform cannot honour. The note says what the other
-                    providers do instead of greying out controls that would
-                    imply they are nearly ready. */}
+                {/* Provider (GEN-PROVIDER-M1). Every declared provider is listed;
+                    one the gate would refuse is a DISABLED option with its
+                    reason beneath, so the list says what exists and what
+                    stands in the way without offering a choice that cannot be
+                    honoured. The server re-checks the gate on submit. */}
                 <Field id="providerId" label={t('generate.providerLabel')}>
-                  <Select id="providerId" name="providerId" defaultValue="DETERMINISTIC_LOCAL">
-                    <option value="DETERMINISTIC_LOCAL">
-                      {t('generate.providerDeterministic')}
-                    </option>
+                  <Select
+                    id="providerId"
+                    name="providerId"
+                    value={chosenProvider}
+                    onChange={(event) => setChosenProvider(event.target.value)}
+                  >
+                    {providers.map((choice) => (
+                      <option
+                        key={choice.providerId}
+                        value={choice.providerId}
+                        disabled={!choice.available}
+                      >
+                        {choice.providerId === 'DETERMINISTIC_LOCAL'
+                          ? t('generate.providerDeterministic')
+                          : choice.displayName}
+                        {choice.modelId === null || choice.providerId === 'DETERMINISTIC_LOCAL'
+                          ? ''
+                          : ` — ${choice.modelId}`}
+                        {choice.available ? '' : ` (${t('generate.providerNotAvailable')})`}
+                      </option>
+                    ))}
                   </Select>
                   <p className="mt-1 text-2xs text-ink-muted">
-                    {t('generate.providerDeterministicNote')}
+                    {chosenProvider === 'DETERMINISTIC_LOCAL'
+                      ? t('generate.providerDeterministicNote')
+                      : t('generate.providerNetworkNote', {
+                          provider: chosen?.displayName ?? chosenProvider,
+                        })}
                   </p>
-                  <p className="mt-1 text-2xs text-ink-subtle">
-                    {t('generate.providerUnavailableNote')}
-                  </p>
+                  {unavailable.length === 0 ? null : (
+                    <details className="mt-1 text-2xs text-ink-subtle">
+                      <summary className="cursor-pointer">
+                        {t('generate.providerWhyUnavailable', { count: unavailable.length })}
+                      </summary>
+                      <ul className="mt-1 flex flex-col gap-1">
+                        {unavailable.map((choice) => (
+                          <li key={choice.providerId}>
+                            <span className="font-semibold">{choice.displayName}</span>:{' '}
+                            {choice.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </Field>
                 <Field id="executionMode" label={t('generate.executionModeLabel')}>
                   <Select id="executionMode" name="executionMode" defaultValue="PLATFORM_MANAGED">

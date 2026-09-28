@@ -673,6 +673,72 @@ export const setProviderApprovalAction = async (
 };
 
 /** Switches the provider generation uses. Refused unless it is AVAILABLE. */
+/**
+ * GEN-PROVIDER-M1: enable a provider and make it the active one, in one step.
+ *
+ * Two ordinary, audited writes -- the settings write with `enabled: true`,
+ * then the active-provider write -- each refused by the server with its own
+ * reason if the gate would refuse it. The settings are re-sent as recorded
+ * (the settings write replaces the whole entry), read back from the same
+ * administration read the page shows, so nothing else changes.
+ */
+export const enableAndActivateProviderAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const providerId = String(formData.get('providerId') ?? '');
+  const read = await api<{ providers: readonly Record<string, unknown>[] }>(
+    '/api/v1/authoring/administration/providers',
+  );
+  if (!read.ok) return failed(read.problem);
+  const row = read.data.providers.find((entry) => entry['providerId'] === providerId);
+  if (row === undefined) {
+    return failed({
+      status: 404,
+      code: 'NOT_FOUND',
+      title: 'Not a declared provider',
+      detail: `${providerId} is not a declared provider.`,
+    });
+  }
+
+  const settings: Record<string, unknown> = { enabled: true };
+  const copy = (from: string, to = from) => {
+    const value = row[from];
+    if (value !== null && value !== undefined) settings[to] = value;
+  };
+  copy('displayName');
+  copy('baseUrl');
+  copy('modelId');
+  copy('temperature');
+  copy('maxOutputTokens');
+  copy('apiStyle');
+  if (row['authLocation'] === 'QUERY_PARAMETER') {
+    settings['authLocation'] = 'QUERY_PARAMETER';
+    copy('authQueryParameterName');
+  } else {
+    copy('authHeaderName');
+  }
+  const headers = row['extraHeaders'] as Record<string, string> | undefined;
+  if (headers !== undefined && Object.keys(headers).length > 0) settings['extraHeaders'] = headers;
+  // The credential reference is NOT re-sent: an absent reference keeps the
+  // recorded one (P-5), so this write never touches it.
+
+  const enabled = await api<unknown>(
+    `/api/v1/authoring/administration/providers/${providerId}/settings`,
+    { method: 'PUT', body: settings },
+  );
+  if (!enabled.ok) return failed(enabled.problem);
+
+  const active = await api<unknown>('/api/v1/authoring/administration/active-provider', {
+    method: 'PUT',
+    body: { providerId },
+  });
+  revalidatePath('/administration/providers');
+  revalidatePath('/governance/ai-usage');
+  revalidatePath('/generate');
+  return active.ok ? { ok: true, data: active.data } : failed(active.problem);
+};
+
 export const setActiveProviderAction = async (
   _previous: ActionState | null,
   formData: FormData,

@@ -35,6 +35,7 @@ import {
 import { KeyRound, PlugZap, ShieldCheck, Sliders } from 'lucide-react';
 import { t } from '../copy';
 import {
+  enableAndActivateProviderAction,
   setActiveProviderAction,
   setProviderApprovalAction,
   setProviderSettingsAction,
@@ -289,12 +290,20 @@ export const ProviderApprovalButton = ({
   const [open, setOpen] = useState(false);
   const [state, submit, pending] = useActionState(setProviderApprovalAction, null);
   const id = provider.providerId;
+  // GEN-PROVIDER-M1: whether an approval is recorded NOW, taken from the last
+  // write's own response when there is one. Reading it only from the page's
+  // props showed "Approval recorded" beside "Approval withdrawn" until the
+  // dialog was closed and the page re-read.
+  const written = state?.ok === true ? (state.data as { approvedProviders?: unknown }) : null;
+  const approvedNow = Array.isArray(written?.approvedProviders)
+    ? (written.approvedProviders as readonly string[]).includes(id)
+    : provider.approved;
 
   return (
     <>
       <Button tone="secondary" size="sm" onClick={() => setOpen(true)}>
         <ShieldCheck className="size-4" aria-hidden="true" />
-        {provider.approved ? t('prov.approvalManage') : t('prov.approvalRecord')}
+        {approvedNow ? t('prov.approvalManage') : t('prov.approvalRecord')}
       </Button>
 
       <Modal
@@ -306,54 +315,94 @@ export const ProviderApprovalButton = ({
         <div className="flex flex-col gap-4">
           <p className="flex items-center gap-2 text-sm">
             <StatusBadge
-              status={provider.approved ? t('prov.approvalHeld') : t('prov.approvalAbsent')}
-              tone={provider.approved ? 'success' : 'warning'}
+              status={approvedNow ? t('prov.approvalHeld') : t('prov.approvalAbsent')}
+              tone={approvedNow ? 'success' : 'warning'}
             />
           </p>
 
-          {provider.approved ? (
-            <form action={submit} className="flex flex-col gap-3">
+          {state === null || state.ok || state.problem === undefined ? null : (
+            <Problem problem={state.problem} actingAs={actingAs} />
+          )}
+          {state?.ok === true ? (
+            <p role="status" className="text-sm font-semibold text-success">
+              {approvedNow ? t('prov.approvalRecorded') : t('prov.approvalWithdrawn')}
+            </p>
+          ) : null}
+
+          {/* Recording, or -- when one is already recorded -- REPLACING the
+              reference. Both write an audited approval change, so the previous
+              reference stays in the history and the new one is in force. */}
+          <form action={submit} className="flex flex-col gap-3">
+            <input type="hidden" name="providerId" value={id} />
+            <input type="hidden" name="approved" value="true" />
+            <Field
+              id={`approvalReference-${id}`}
+              label={approvedNow ? t('prov.approvalReplaceLabel') : t('prov.approvalReference')}
+              hint={approvedNow ? t('prov.approvalReplaceHint') : t('prov.approvalReferenceHint')}
+            >
+              <TextInput
+                id={`approvalReference-${id}`}
+                name="approvalReference"
+                maxLength={200}
+                placeholder="T-29 / DPIA-2026-014"
+              />
+            </Field>
+            <div>
+              <Button tone={approvedNow ? 'secondary' : 'primary'} disabled={pending}>
+                {approvedNow ? t('prov.approvalReplace') : t('prov.approvalRecord')}
+              </Button>
+            </div>
+          </form>
+
+          {approvedNow ? (
+            <form action={submit} className="flex flex-col gap-3 border-t border-line pt-4">
               <input type="hidden" name="providerId" value={id} />
               <input type="hidden" name="approved" value="false" />
               <p className="max-w-prose text-sm text-ink-muted">{t('prov.withdrawBody')}</p>
-              {state === null || state.ok || state.problem === undefined ? null : (
-                <Problem problem={state.problem} actingAs={actingAs} />
-              )}
-              {outcome(state, t('prov.approvalWithdrawn'))}
               <div>
                 <Button tone="danger" disabled={pending}>
                   {t('prov.withdraw')}
                 </Button>
               </div>
             </form>
-          ) : (
-            <form action={submit} className="flex flex-col gap-3">
-              <input type="hidden" name="providerId" value={id} />
-              <input type="hidden" name="approved" value="true" />
-              <Field
-                id={`approvalReference-${id}`}
-                label={t('prov.approvalReference')}
-                hint={t('prov.approvalReferenceHint')}
-              >
-                <TextInput
-                  id={`approvalReference-${id}`}
-                  name="approvalReference"
-                  maxLength={200}
-                  placeholder="T-29 / DPIA-2026-014"
-                />
-              </Field>
-              {state === null || state.ok || state.problem === undefined ? null : (
-                <Problem problem={state.problem} actingAs={actingAs} />
-              )}
-              {outcome(state, t('prov.approvalRecorded'))}
-              <div>
-                <Button disabled={pending}>{t('prov.approvalRecord')}</Button>
-              </div>
-            </form>
-          )}
+          ) : null}
         </div>
       </Modal>
     </>
+  );
+};
+
+// ------------------------------------------------------ enable and activate
+
+/**
+ * GEN-PROVIDER-M1: one step from "approved and configured" to "generating".
+ *
+ * Shown only for a provider that is APPROVED, has its endpoint, model and
+ * credential reference recorded, and is not yet the active, enabled one. It
+ * enables it and makes it active; the server refuses either step with its
+ * reason if the gate would, so the button cannot skip a control -- it only
+ * saves two dialogs.
+ */
+export const EnableAndActivateButton = ({
+  provider,
+  actingAs,
+}: {
+  readonly provider: ProviderFormValues;
+  readonly actingAs: string;
+}): React.JSX.Element => {
+  const [state, submit, pending] = useActionState(enableAndActivateProviderAction, null);
+  return (
+    <form action={submit} className="flex flex-col items-start gap-2">
+      <input type="hidden" name="providerId" value={provider.providerId} />
+      <Button tone="primary" size="sm" disabled={pending}>
+        {t('prov.enableAndActivate')}
+      </Button>
+      <p className="max-w-56 text-2xs text-ink-muted">{t('prov.enableAndActivateHint')}</p>
+      {state === null || state.ok || state.problem === undefined ? null : (
+        <Problem problem={state.problem} actingAs={actingAs} />
+      )}
+      {outcome(state, t('prov.enabledAndActive'))}
+    </form>
   );
 };
 

@@ -87,6 +87,8 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
   let app: ReturnType<typeof buildServer>;
   let previousSettings: unknown = undefined;
   let hadRow = false;
+  /** llm.approvedProviders as found, restored exactly afterwards. */
+  let previousApproved: unknown = undefined;
   const startedAt = new Date();
 
   beforeAll(async () => {
@@ -140,6 +142,26 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
     hadRow = row !== null;
     previousSettings = row?.value;
 
+    // THE SUITE ASSUMES OPENAI UNAPPROVED (APPROVAL is expected to FAIL and the
+    // gate to read BLOCKED_BY_APPROVAL). On a machine where a real approval is
+    // recorded -- as since 2026-09-28 -- that premise is ESTABLISHED here, not
+    // assumed: the value is set for the suite and restored exactly afterwards.
+    // Written directly, like the settings row above, so the real approval's
+    // AUDIT HISTORY is never touched by a test.
+    const approved = await prisma.applicationConfiguration.findFirst({
+      where: { key: 'llm.approvedProviders', scope: 'PLATFORM', scopeId: null },
+      select: { value: true },
+    });
+    previousApproved = approved?.value;
+    if (approved !== null) {
+      await prisma.applicationConfiguration.updateMany({
+        where: { key: 'llm.approvedProviders', scope: 'PLATFORM', scopeId: null },
+        data: {
+          value: ((approved.value as unknown[]) ?? []).filter((id) => id !== 'OPENAI') as never,
+        },
+      });
+    }
+
     const deps: RouteDeps = {
       prisma: prisma as never,
       auditWriter: createAuditWriter({ clock: systemClock }),
@@ -177,6 +199,12 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
   });
 
   afterAll(async () => {
+    if (previousApproved !== undefined) {
+      await prisma.applicationConfiguration.updateMany({
+        where: { key: 'llm.approvedProviders', scope: 'PLATFORM', scopeId: null },
+        data: { value: previousApproved as never },
+      });
+    }
     // Restore the provider settings exactly as found.
     if (hadRow) {
       await prisma.applicationConfiguration.updateMany({
@@ -397,6 +425,34 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
     expect(response.statusCode).toBe(400);
     expect(response.body).toMatch(/looks like a credential/);
     expect(response.body).not.toContain(KEY_FRAGMENT);
+  });
+
+  it('GEN-PROVIDER-M1: an AUTHOR can read the provider choices, and nothing configurational leaks', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/authoring/generation/providers',
+      headers: { 'x-knowzy-subject': 'author@local.invalid' },
+    });
+    expect(response.statusCode, response.body).toBe(200);
+    for (const secretish of [
+      KEY_FRAGMENT,
+      'localstore://',
+      '127.0.0.1',
+      'subscription-key',
+      'x-openai-supplier',
+    ]) {
+      expect(response.body, secretish).not.toContain(secretish);
+    }
+    const body = JSON.parse(response.body) as {
+      activeProvider: string;
+      providers: { providerId: string; available: boolean; state: string; reason: string }[];
+    };
+    const deterministic = body.providers.find((p) => p.providerId === 'DETERMINISTIC_LOCAL');
+    expect(deterministic?.available).toBe(true);
+    // OpenAI is disabled and unapproved in this suite: listed, with its reason, and not available.
+    const openai = body.providers.find((p) => p.providerId === 'OPENAI');
+    expect(openai?.available).toBe(false);
+    expect(openai?.reason.length).toBeGreaterThan(10);
   });
 
   it('GATEWAY-M1: no log line holds the key or a credential-bearing URL', () => {

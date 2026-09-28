@@ -114,7 +114,7 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 89 API routes, every one with a declared
+- 19 of 36 MCP tools registered; 90 API routes, every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
@@ -124,7 +124,9 @@ Current Status:
   approval, active provider and validate), Phase 10 R1 reporting 7 (the
   catalogue, a dataset, an export, a snapshot write, a snapshot list, one
   snapshot, and an on-demand refresh), and R2 2 (coverage history, and an AI
-  usage summary through the governance read), and P-5 1 (secret-source health).
+  usage summary through the governance read), and P-5 1 (secret-source health), and GEN-PROVIDER-M1 1 (GET
+  /authoring/generation/providers, under question.generate: the Generate
+  screen's provider menu -- a menu, never the control).
 
 Environment:
 
@@ -619,6 +621,13 @@ then Claude, then Copilot, then Azure OpenAI. Specification: architecture.md
   NOT_ATTEMPTED; SKIPPED is never a pass. The AI Providers e2e spec SAVES,
   CLEARS and RESTORES OpenAI's settings, and never touches its approval.
   OpenAI is configured, APPROVED (Teams message, 2026-09-28) and DISABLED.
+- GEN-PROVIDER-M1: the Generate screen lists every provider, unavailable ones
+  DISABLED with their reason, defaulting to the ACTIVE provider when it can
+  run. A job with no providerId still defaults to DETERMINISTIC_LOCAL in the
+  API, so only the screen's default follows the active provider. THE E2E
+  GENERATION SPEC PINS DETERMINISTIC_LOCAL -- once a network provider is
+  active it would otherwise send real documents out. "Enable and make active"
+  and "Replace reference" are on AI Providers.
 - scripts/baseline.ts --generate "<source>" --provider <id> --outcomes <file>
   runs one comparison arm and records a refusal as the arm's result. --reset
   KEEPS drafts with published lineage (FK) and says so.

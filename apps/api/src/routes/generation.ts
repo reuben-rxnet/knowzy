@@ -175,6 +175,43 @@ const callTool = async <T>(
   });
 
 export const generationRoutes = [
+  // GEN-PROVIDER-M1 (2026-09-28): the providers an AUTHOR may choose from on
+  // the Generate screen. Under `question.generate` -- the permission creating
+  // a job needs -- because the administration read needs governance.ai.read,
+  // which an author does not hold. It says only what the choice needs: the
+  // name, the model, whether the gate would let a job run and why not, and
+  // which provider is active. No endpoint, reference, header or setting.
+  //
+  // It is a MENU, not the control. Creating a job re-checks the gate through
+  // the control layer, so a stale or edited choice is refused there.
+  defineRoute({
+    method: 'GET',
+    url: '/api/v1/authoring/generation/providers',
+    policy: 'question.generate',
+    portal: 'AUTHORING',
+    summary:
+      'The generation providers an author may choose: name, model, whether each can run now and why not, and the active one.',
+    handler: async (_ctx, _request, _reply, deps) => {
+      const control = await loadControlLayer(deps.prisma);
+      const providers = control.registry.describe().map((assessment) => {
+        const settings = control.providerSettings[assessment.providerId];
+        return {
+          providerId: assessment.providerId,
+          displayName: settings?.displayName ?? assessment.providerId,
+          modelId:
+            assessment.providerId === 'DETERMINISTIC_LOCAL'
+              ? 'knowzy-deterministic-local-1'
+              : (settings?.modelId ?? null),
+          state: assessment.state,
+          reason: assessment.reason,
+          available: assessment.state === 'AVAILABLE',
+          active: assessment.providerId === control.activeProvider,
+        };
+      });
+      return { activeProvider: control.activeProvider, providers };
+    },
+  }),
+
   defineRoute({
     method: 'POST',
     url: '/api/v1/authoring/generation/preflight',
