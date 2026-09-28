@@ -128,6 +128,12 @@ services:
       # P-5: the local secure store, through the repository mount. Created by
       # `npm run secrets -- init` on the host; gitignored and dockerignored.
       KNOWZY_LOCAL_SECRET_DIR: /repo/.secrets
+      # GATEWAY-M1: hosts a provider credential may be sent to, beyond each
+      # provider's own (api.openai.com for OpenAI). Deployment configuration,
+      # deliberately NOT editable from a screen: the base URL is, and without
+      # this fence an administrator could hand the key to any host they typed.
+      # The EssilorLuxottica Azure API Management gateway for Codex.
+      LLM_ENDPOINT_ALLOWLIST: dev-apim-ai.luxottica.com
     ports:
       - '8080:8080'
     healthcheck:
