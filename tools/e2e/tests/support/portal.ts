@@ -122,7 +122,7 @@ const identityLabel = (identity: Identity): string => {
 };
 
 interface ApiOptions {
-  readonly method?: 'GET' | 'POST' | 'PATCH';
+  readonly method?: 'GET' | 'POST' | 'PATCH' | 'PUT';
   readonly as?: Identity;
   readonly body?: unknown;
   /** Accept a non-2xx response instead of failing. */

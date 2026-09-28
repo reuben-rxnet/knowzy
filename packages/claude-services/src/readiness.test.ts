@@ -62,7 +62,7 @@ const ladder = (report: ReturnType<typeof validateProvider>, a = assessment(), s
   });
 
 describe('validateProvider', () => {
-  it('runs the nine checks in order, and GENERATION is never PASSED for a readiness-only client', () => {
+  it('runs the ten checks in order, and neither model execution nor GENERATION is ever PASSED by a test', () => {
     const report = run();
     expect(report.steps.map((step) => step.check)).toEqual([
       'CAPABILITY',
@@ -73,9 +73,12 @@ describe('validateProvider', () => {
       'ENDPOINT',
       'AUTHENTICATION',
       'MODEL',
+      'MODEL_EXECUTION',
       'GENERATION',
     ]);
     expect(report.steps.at(-1)?.result).toBe('NOT_ATTEMPTED');
+    // GATEWAY-M1: a test connection sends no prompt, so the model never ran.
+    expect(report.steps.find((s) => s.check === 'MODEL_EXECUTION')?.result).toBe('NOT_ATTEMPTED');
   });
 
   it('is FAILED while unapproved even when every live check passed -- and says the live checks still ran', () => {
@@ -144,6 +147,39 @@ describe('deriveReadiness — the ladder', () => {
       latestValidation: null,
     });
     expect(r.state).toBe('CONFIGURED');
+  });
+
+  it('GATEWAY-M1: a SKIPPED model discovery is never a pass -- the outcome is not PASSED and the ladder says the model is unverified', () => {
+    const skipped: ReadinessResult = {
+      ...livePass,
+      model: {
+        check: 'MODEL',
+        result: 'SKIPPED',
+        detail: 'Model discovery is not exposed by this gateway.',
+      },
+    };
+    const report = run({ live: skipped, assessment: assessment({ approved: true }) });
+    expect(report.outcome).toBe('INCOMPLETE');
+    expect(report.steps.find((s) => s.check === 'MODEL')?.result).toBe('SKIPPED');
+
+    const unapproved = ladder(run({ live: skipped }));
+    expect(unapproved.state).toBe('BLOCKED_BY_APPROVAL');
+    expect(unapproved.reason).toMatch(/model is unverified/);
+  });
+
+  it('GATEWAY-M1: back to CONFIGURED when the authentication location or a fixed header changed', () => {
+    const report = run();
+    expect(
+      ladder(report, assessment(), {
+        ...settings,
+        authLocation: 'QUERY_PARAMETER',
+        authQueryParameterName: 'subscription-key',
+      }).state,
+    ).toBe('CONFIGURED');
+    expect(
+      ladder(report, assessment(), { ...settings, extraHeaders: { 'x-openai-supplier': 'X' } })
+        .state,
+    ).toBe('CONFIGURED');
   });
 
   it('back to CONFIGURED when the model changed since the last test', () => {

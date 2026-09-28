@@ -28,6 +28,7 @@ import {
   Field,
   Modal,
   Select,
+  Textarea,
   StatusBadge,
   TextInput,
 } from '@knowzy/shared-ui';
@@ -51,6 +52,10 @@ export interface ProviderFormValues {
   readonly maxOutputTokens: number | null;
   readonly apiStyle: string | null;
   readonly authHeaderName: string | null;
+  /** GATEWAY-M1. */
+  readonly authLocation: 'HEADER' | 'QUERY_PARAMETER';
+  readonly authQueryParameterName: string | null;
+  readonly extraHeaders: Readonly<Record<string, string>>;
   readonly credentialConfigured: boolean;
   /** The reference, shown: it names a secret and is not one. */
   readonly credentialReference: string | null;
@@ -183,6 +188,53 @@ export const ProviderSettingsButton = ({
                   autoComplete="off"
                 />
               </Field>
+              {/* GATEWAY-M1: where the key travels. There is no fallback
+                  between the two, so the name for the location NOT chosen
+                  must be left empty -- the server refuses both at once. */}
+              <Field
+                id={`authLocation-${id}`}
+                label={t('prov.authLocation')}
+                hint={t('prov.authLocationHint')}
+              >
+                <Select
+                  id={`authLocation-${id}`}
+                  name="authLocation"
+                  defaultValue={provider.authLocation}
+                >
+                  <option value="HEADER">{t('prov.authLocationHeader')}</option>
+                  <option value="QUERY_PARAMETER">{t('prov.authLocationQuery')}</option>
+                </Select>
+              </Field>
+              <Field
+                id={`authQueryParameterName-${id}`}
+                label={t('prov.authQueryParameterName')}
+                hint={t('prov.authQueryParameterNameHint')}
+              >
+                <TextInput
+                  id={`authQueryParameterName-${id}`}
+                  name="authQueryParameterName"
+                  placeholder="subscription-key"
+                  defaultValue={provider.authQueryParameterName ?? ''}
+                  autoComplete="off"
+                />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field
+                  id={`extraHeaders-${id}`}
+                  label={t('prov.extraHeaders')}
+                  hint={t('prov.extraHeadersHint')}
+                >
+                  <Textarea
+                    id={`extraHeaders-${id}`}
+                    name="extraHeaders"
+                    rows={2}
+                    placeholder="x-openai-supplier: EssilorLuxottica"
+                    defaultValue={Object.entries(provider.extraHeaders)
+                      .map(([name, value]) => `${name}: ${value}`)
+                      .join('\n')}
+                  />
+                </Field>
+              </div>
             </div>
           )}
 

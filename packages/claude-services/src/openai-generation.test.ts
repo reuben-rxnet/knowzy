@@ -57,7 +57,8 @@ const config = (overrides: Partial<OpenAICallConfig> = {}): OpenAICallConfig => 
   apiKey: secret,
   allowedHosts: ['api.openai.com'],
   apiStyle: 'RESPONSES',
-  authHeaderName: 'authorization',
+  auth: { location: 'HEADER', headerName: 'authorization' },
+  extraHeaders: {},
   temperature: 0.2,
   maxOutputTokens: 4000,
   ...overrides,
@@ -136,14 +137,65 @@ describe('the request', () => {
     expect(headers['authorization']).toBe(`Bearer ${KEY}`);
 
     const gateway = fake(() => json(200, responsesBody(JSON.stringify(answer))));
-    await provider(gateway.fetch, { authHeaderName: 'Ocp-Apim-Subscription-Key' }).generate(
-      args,
-      ctx,
-    );
+    await provider(gateway.fetch, {
+      auth: { location: 'HEADER', headerName: 'Ocp-Apim-Subscription-Key' },
+    }).generate(args, ctx);
     const gh = gateway.calls[0]?.init.headers as Record<string, string>;
     expect(gh['ocp-apim-subscription-key']).toBe(KEY);
     expect(gh['authorization']).toBeUndefined();
     expect(gateway.calls[0]?.init.redirect).toBe('error');
+  });
+
+  it('GATEWAY-M1: puts the key in the query parameter at request time, with the fixed header, and nowhere else', async () => {
+    const gateway = fake(() => json(200, responsesBody(JSON.stringify(answer))));
+    await provider(gateway.fetch, {
+      baseUrl: 'https://dev-apim-ai.luxottica.com/codex/openai/v1',
+      allowedHosts: ['dev-apim-ai.luxottica.com'],
+      modelId: 'gpt-5.3-codex_codeassist',
+      auth: { location: 'QUERY_PARAMETER', parameterName: 'subscription-key' },
+      extraHeaders: { 'x-openai-supplier': 'EssilorLuxottica' },
+    }).generate(args, ctx);
+
+    const call = gateway.calls[0];
+    const url = new URL(call?.url ?? '');
+    expect(`${url.origin}${url.pathname}`).toBe(
+      'https://dev-apim-ai.luxottica.com/codex/openai/v1/responses',
+    );
+    expect(url.searchParams.get('subscription-key')).toBe(KEY);
+    const headers = call?.init.headers as Record<string, string>;
+    expect(headers['x-openai-supplier']).toBe('EssilorLuxottica');
+    // No fallback: the key is not ALSO in a header.
+    expect(headers['authorization']).toBeUndefined();
+    expect(JSON.stringify(headers)).not.toContain(KEY);
+    // And the body is the prompt, never the key.
+    expect(String(call?.init.body)).not.toContain(KEY);
+    expect(call?.init.redirect).toBe('error');
+  });
+
+  it('GATEWAY-M1: a network failure is thrown as a classified sentence, never the raw error', async () => {
+    const failing = (async () => {
+      const cause = Object.assign(
+        new Error('getaddrinfo ENOTFOUND dev-apim-ai.luxottica.com?subscription-key=' + KEY),
+        {
+          code: 'ENOTFOUND',
+        },
+      );
+      throw Object.assign(new TypeError('fetch failed'), { cause });
+    }) as typeof fetch;
+    const thrown = await provider(failing, {
+      baseUrl: 'https://dev-apim-ai.luxottica.com/codex/openai/v1',
+      allowedHosts: ['dev-apim-ai.luxottica.com'],
+      auth: { location: 'QUERY_PARAMETER', parameterName: 'subscription-key' },
+    })
+      .generate(args, ctx)
+      .then(
+        () => null,
+        (error: unknown) => error as OpenAIGenerationError,
+      );
+    expect(thrown?.code).toBe('DNS');
+    expect(thrown?.message).not.toContain(KEY);
+    expect(thrown?.message).not.toContain('subscription-key=');
+    expect(JSON.stringify({ message: thrown?.message, code: thrown?.code })).not.toContain(KEY);
   });
 
   it('never calls a host that is not allow-listed', async () => {

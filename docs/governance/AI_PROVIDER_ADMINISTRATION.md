@@ -199,9 +199,10 @@ what an administrator is told to go and check.
 | `CONFIGURATION` | base URL, model and reference are recorded; records a settings fingerprint | always |
 | `SECRET_RESOLUTION` | the reference resolved, from which source | capability, implementation and configuration passed |
 | `ENDPOINT` | the allow-listed host answered, over https, in n ms | the secret resolved |
-| `AUTHENTICATION` | the provider accepted the key (`GET /models` 200, or 429 = accepted and throttled) | the endpoint answered |
-| `MODEL` | the configured model is available to that key (`GET /models/{model}` 200) | the key was accepted |
-| `GENERATION` | always `NOT_ATTEMPTED`: a test never generates, and OpenAI cannot generate in this build | always |
+| `AUTHENTICATION` | the provider accepted the key (`GET /models` 200, or 429 = accepted and throttled). Behind a gateway with no `/models` (404): accepted only if the same request **without** the key is refused (401/403) | the endpoint answered |
+| `MODEL` | the configured model is available to that key (`GET /models/{model}` 200). **`SKIPPED`** when the gateway exposes no model discovery — never `PASSED` | the key was accepted |
+| `MODEL_EXECUTION` | always `NOT_ATTEMPTED`: running the model takes a prompt, and a test sends none (GATEWAY-M1) | always |
+| `GENERATION` | always `NOT_ATTEMPTED`: a test never generates | always |
 
 **Why the approval does not gate the live checks.** They send a key and a model name and nothing
 else — no prompt, document, question or person. Knowing a key works before Privacy signs off is
@@ -212,7 +213,42 @@ that with `BLOCKED_BY_APPROVAL`.
 masked form of the key; only `error.code` and `error.type` survive, and only as short identifiers.
 
 **The outcome** is `FAILED` while no approval is recorded, and at best `INCOMPLETE` afterwards,
-because `GENERATION` is never attempted. `PASSED` is reached only by the deterministic provider.
+because `MODEL_EXECUTION` and `GENERATION` are never attempted, and a `SKIPPED` check is not a pass.
+
+### 4.3 Request authentication and fixed headers (GATEWAY-M1, 2026-09-28)
+
+An Azure API Management gateway in front of Azure OpenAI takes its subscription key as a **query
+parameter** and wants a fixed **routing header**. Both are settings, so a gateway is configuration:
+
+| Setting | Values | Rule |
+| --- | --- | --- |
+| `authLocation` | `HEADER` (default) or `QUERY_PARAMETER` | No fallback. The name for the location not chosen must be absent, or the save is refused |
+| `authHeaderName` | e.g. `authorization` (Bearer), `api-key` | `HEADER` only |
+| `authQueryParameterName` | e.g. `subscription-key` | `QUERY_PARAMETER` only; required there |
+| `extraHeaders` | up to 5 `name: value` pairs | Non-secret configuration, visible in the change history. Refused: credential-shaped names (`authorization`, `cookie`, `proxy-authorization`, anything containing `api-key`, `subscription-key`, `token`, `secret`, `credential`, `password`), protocol headers (`host`, `content-length`, `content-type`, `connection`, `transfer-encoding`, …), duplicates, the auth header itself, empty or unprintable values |
+
+**One request builder.** Test connection and generation both send through `providerFetch`
+(`packages/claude-services/src/provider-request.ts`), the only production file that calls
+`reveal()` — a contract test fails on a second. It attaches the key to the configured header **or**
+query parameter at request time, adds the fixed headers, refuses redirects and applies the timeout.
+Before this, Test connection always sent `Authorization: Bearer` while generation honoured the
+configured header, so a gateway key would have failed the test and worked in production.
+
+**A credential URL exists only inside that function.** It is never returned, stored, logged or
+thrown. `sanitizeUrl` replaces the values of credential-bearing query parameters
+(`CREDENTIAL_QUERY_PARAMETERS`: `subscription-key`, `api-key`, `apikey`, `key`, `token`,
+`access_token`, `sig`, `client_secret`, `password` — exact names, so `keyword` is left alone) before
+any URL is described, and a base URL that already carries one is refused: *the key was not sent*.
+
+**Transport failures are classified, not quoted.** DNS, timeout, TLS trust (an internal certificate
+authority: *NODE_EXTRA_CA_CERTS configuration required* — verification is never disabled), an
+invalid certificate, a refused or reset connection, a refused redirect. HTTP: 401 authentication
+rejected, 403 access denied, 404 on `/models` model discovery not exposed, 429 rate limited, 502/503/504
+service unavailable. The error's own message and the gateway's body are discarded. In generation, a
+reset or unexplained failure stays retryable; DNS, TLS, redirect and refusal are permanent.
+
+**The allow-list** gains the gateway host through `LLM_ENDPOINT_ALLOWLIST` on the API service
+(`infrastructure/compose/docker-compose.yml` locally), never through a screen. `PASSED` is reached only by the deterministic provider.
 
 ### 4.2 One row per attempt
 
@@ -318,3 +354,4 @@ required; an identity without `report.read` is refused the page.
 | 2026-09-26 | Built. Migration 0011, `llm.providerSettings`, four writes, five-check validation, `OVER_BUDGET` as a sixth provider state, three credential-reference environment variables declared. |
 | 2026-09-27 | **P-5 and OPENAI-CODEX-00.** §3.2 the Secret Resolution Layer (local secure store, Key Vault declared, resolver, audited resolutions, `npm run secrets`); §4.1 the nine-check chain with real endpoint, authentication and model checks for OpenAI; §5.1 readiness. References are shown; values never. Five audit actions added: `SECRET_REFERENCE_CREATED`, `SECRET_REFERENCE_UPDATED`, `SECRET_VALIDATED`, `PROVIDER_ENABLED`, `PROVIDER_DISABLED`. Re-saving settings without the reference now keeps it. |
 | 2026-09-27 | **OPENAI-CODEX-01.** OpenAI's readiness-only client is replaced by a generation client (see [OPENAI_CODEX_GENERATION_READINESS.md](../integrations/OPENAI_CODEX_GENERATION_READINESS.md)). Two settings: **API style** (Responses or Chat Completions) and **Auth header name** (a gateway may need its own). Readiness can now reach AVAILABLE for OpenAI. |
+| 2026-09-28 | **GATEWAY-M1.** §4.3: query-parameter authentication, fixed non-secret headers, one request builder for Test connection and generation, credential-URL sanitization, classified transport failures. §4.1: `MODEL_EXECUTION` added (always `NOT_ATTEMPTED`) and `SKIPPED` as a result, for a gateway without model discovery. The Codex gateway host is allow-listed locally. |

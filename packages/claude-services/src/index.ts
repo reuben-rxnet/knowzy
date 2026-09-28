@@ -113,7 +113,6 @@ export {
   OPENAI_DEFAULT_BASE_URL,
   OPENAI_DEFAULT_HOSTS,
   checkOpenAIReadiness,
-  endpointPermission,
   type CheckReadinessArgs,
   type ReadinessLimits,
   type ReadinessResult,
@@ -159,3 +158,15 @@ export {
   unobservableCost,
   type CostInput,
 } from './accounting.js';
+
+// GATEWAY-M1: one request builder for readiness and generation.
+export {
+  authFromSettings,
+  classifyTransportError,
+  endpointPermission,
+  providerFetch,
+  sanitizeUrl,
+  type ProviderAuth,
+  type ProviderEndpoint,
+  type TransportFailureCause,
+} from './provider-request.js';

@@ -115,6 +115,10 @@ interface ProviderRow {
   readonly maxOutputTokens: number | null;
   readonly apiStyle: string | null;
   readonly authHeaderName: string | null;
+  /** GATEWAY-M1. */
+  readonly authLocation: 'HEADER' | 'QUERY_PARAMETER';
+  readonly authQueryParameterName: string | null;
+  readonly extraHeaders: Readonly<Record<string, string>>;
   readonly limits: {
     readonly perJobTokenBudget?: number;
     readonly dailyTokenBudget?: number;
@@ -194,6 +198,9 @@ const RESULT_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> 
   PASSED: 'success',
   FAILED: 'danger',
   NOT_ATTEMPTED: 'neutral',
+  // GATEWAY-M1: a check the endpoint does not support. Not a pass, so never
+  // the success tone.
+  SKIPPED: 'warning',
 };
 
 const DASH = '—';
@@ -240,6 +247,9 @@ export default async function AiProvidersPage() {
     maxOutputTokens: row.maxOutputTokens,
     apiStyle: row.apiStyle,
     authHeaderName: row.authHeaderName,
+    authLocation: row.authLocation,
+    authQueryParameterName: row.authQueryParameterName,
+    extraHeaders: row.extraHeaders,
     credentialConfigured: row.credentialConfigured,
     credentialReference: row.credentialReference,
     approved: row.approved,
@@ -395,7 +405,34 @@ export default async function AiProvidersPage() {
                   <Td>
                     <span className="flex flex-col gap-0.5 text-2xs">
                       <span className="font-mono">{row.modelId ?? DASH}</span>
-                      <span className="text-ink-muted">{row.baseUrl ?? t('prov.noEndpoint')}</span>
+                      <span className="break-all text-ink-muted">
+                        {row.baseUrl ?? t('prov.noEndpoint')}
+                      </span>
+                      {/* GATEWAY-M1: how the key travels and what rides with
+                          it. Names only -- the key itself never reaches this
+                          page, and a fixed header is not a secret. */}
+                      {row.providerId === 'DETERMINISTIC_LOCAL' ? null : (
+                        <>
+                          <span className="text-ink-muted">
+                            {t('prov.authSummary')}:{' '}
+                            {row.authLocation === 'QUERY_PARAMETER'
+                              ? t('prov.authViaQuery', {
+                                  name: row.authQueryParameterName ?? DASH,
+                                })
+                              : t('prov.authViaHeader', {
+                                  name: row.authHeaderName ?? 'authorization',
+                                })}
+                          </span>
+                          <span className="break-all text-ink-muted">
+                            {t('prov.fixedHeaders')}:{' '}
+                            {Object.keys(row.extraHeaders).length === 0
+                              ? t('prov.fixedHeadersNone')
+                              : Object.entries(row.extraHeaders)
+                                  .map(([name, value]) => `${name}: ${value}`)
+                                  .join(' · ')}
+                          </span>
+                        </>
+                      )}
                       <span className="text-ink-muted">
                         {row.providerVersion === null
                           ? t('prov.noVersion')

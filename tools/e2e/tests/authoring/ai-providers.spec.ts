@@ -43,7 +43,73 @@ interface Administration {
   readonly canManage: boolean;
 }
 
+/**
+ * OpenAI's settings as the settings route accepts them, from the row the
+ * administration read returns. The credential REFERENCE is on the row (it
+ * names a secret and is not one), so a configured provider can be put back
+ * exactly -- the key itself is never involved.
+ */
+const settingsOf = (row: Record<string, unknown>): Record<string, unknown> => {
+  const out: Record<string, unknown> = { enabled: row['enabled'] === true };
+  const copy = (from: string, to = from) => {
+    const value = row[from];
+    if (value !== null && value !== undefined) out[to] = value;
+  };
+  copy('displayName');
+  copy('baseUrl');
+  copy('modelId');
+  copy('credentialReference', 'apiKeyRef');
+  copy('temperature');
+  copy('maxOutputTokens');
+  copy('apiStyle');
+  if (row['authLocation'] === 'QUERY_PARAMETER') {
+    out['authLocation'] = 'QUERY_PARAMETER';
+    copy('authQueryParameterName');
+  } else {
+    copy('authHeaderName');
+  }
+  const headers = row['extraHeaders'] as Record<string, string> | undefined;
+  if (headers !== undefined && Object.keys(headers).length > 0) out['extraHeaders'] = headers;
+  return out;
+};
+
 test.describe('administration: AI providers', () => {
+  // THE SHIPPED STATE IS ESTABLISHED, NOT ASSUMED (GATEWAY-M1, 2026-09-28).
+  // These assertions describe OpenAI with nothing configured. On a machine
+  // where somebody has configured it for real -- the Codex gateway, since
+  // 2026-09-28 -- the suite would otherwise fail, and worse, its Test
+  // connection click would make a real call. So OpenAI's settings are saved,
+  // cleared for the suite, and restored exactly afterwards.
+  let savedOpenAI: Record<string, unknown> | null = null;
+
+  test.beforeAll(async ({ request }) => {
+    const admin = await api<{ providers: readonly Record<string, unknown>[] }>(
+      request,
+      '/api/v1/authoring/administration/providers',
+    );
+    const row = admin.providers.find((entry) => entry['providerId'] === 'OPENAI');
+    const configured =
+      row !== undefined &&
+      (row['baseUrl'] !== null || row['modelId'] !== null || row['credentialConfigured'] === true);
+    if (configured) {
+      savedOpenAI = settingsOf(row);
+      // An empty object REMOVES the entry: the provider back to its declared,
+      // unconfigured defaults.
+      await api(request, '/api/v1/authoring/administration/providers/OPENAI/settings', {
+        method: 'PUT',
+        body: {},
+      });
+    }
+  });
+
+  test.afterAll(async ({ request }) => {
+    if (savedOpenAI === null) return;
+    await api(request, '/api/v1/authoring/administration/providers/OPENAI/settings', {
+      method: 'PUT',
+      body: savedOpenAI,
+    });
+  });
+
   test('lists every declared provider with the reason it cannot be used', async ({
     page,
     request,
@@ -195,7 +261,12 @@ test.describe('administration: AI providers', () => {
     await actAs(page, IDENTITY.administrator);
     await page.goto(PAGE);
 
-    const row = page.getByRole('row', { name: /^\s*OPENAI/ }).first();
+    // ANTHROPIC, not OPENAI: this asserts the RULE (an approval needs a
+    // reference), and OpenAI may carry a real, recorded approval on a machine
+    // that has one -- a test must not withdraw and re-record a real approval
+    // to make its own assertion, which would write test noise into that
+    // approval's audit history. Nobody approves Anthropic in this build.
+    const row = page.getByRole('row', { name: /^\s*ANTHROPIC/ }).first();
 
     // Approval, with the reference left blank.
     await row.getByRole('button', { name: /record approval/i }).click();

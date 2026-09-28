@@ -14,8 +14,10 @@
 //
 // FIVE RULES ABOUT THE KEY
 //
-//   1. It arrives as a `RevealableSecret` and is revealed in exactly one place:
-//      the Authorization header below.
+//   1. It arrives as a `RevealableSecret` and is revealed in exactly one
+//      production file, `provider-request.ts`, which both this probe and the
+//      generation client send through (GATEWAY-M1). It goes in the configured
+//      header OR the configured query parameter, never both.
 //   2. It is sent ONLY to an allow-listed host. The base URL is editable on a
 //      screen; the allow-list is deployment configuration. Without the fence,
 //      an administrator could point the base URL at any server and the
@@ -30,12 +32,19 @@
 //      only when they are short identifiers.
 
 import type { ProviderValidationStep, RevealableSecret } from '@knowzy/shared-types';
+import {
+  classifyTransportError,
+  endpointPermission,
+  providerFetch,
+  type ProviderAuth,
+  type ProviderEndpoint,
+} from './provider-request.js';
+
+export { endpointPermission } from './provider-request.js';
 
 /** OpenAI's documented API host. The allow-list default for this provider. */
 export const OPENAI_DEFAULT_HOSTS = ['api.openai.com'] as const;
 export const OPENAI_DEFAULT_BASE_URL = 'https://api.openai.com/v1';
-
-const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
 
 export interface ReadinessLimits {
   /** As the provider reported in `x-ratelimit-limit-requests`, or null. */
@@ -57,6 +66,10 @@ export interface CheckReadinessArgs {
   readonly apiKey: RevealableSecret;
   /** Hosts the key may be sent to, `host` or `host:port`. */
   readonly allowedHosts: readonly string[];
+  /** GATEWAY-M1. Absent means `Authorization: Bearer`. */
+  readonly auth?: ProviderAuth;
+  /** Fixed, non-secret headers from the provider's settings. */
+  readonly extraHeaders?: Readonly<Record<string, string>>;
   readonly fetch?: typeof fetch;
   readonly timeoutMs?: number;
   readonly now?: () => number;
@@ -92,52 +105,22 @@ const numberHeader = (response: Response, name: string): number | null => {
 };
 
 /**
- * Whether the key may be sent to this URL, and why not if not.
+ * Checks that the endpoint can be reached, accepts the credential, and offers
+ * the model -- with GET requests that carry no content.
  *
- * Exported for a table test: this is the control that keeps a key from being
- * delivered to a host somebody typed.
- */
-export const endpointPermission = (
-  baseUrl: string,
-  allowedHosts: readonly string[],
-):
-  | { readonly allowed: true; readonly url: URL }
-  | { readonly allowed: false; readonly reason: string } => {
-  let url: URL;
-  try {
-    url = new URL(baseUrl);
-  } catch {
-    return { allowed: false, reason: 'The base URL is not a URL.' };
-  }
-  const allowed = allowedHosts.map((host) => host.toLowerCase());
-  const host = url.host.toLowerCase();
-  if (!allowed.includes(host) && !allowed.includes(url.hostname.toLowerCase())) {
-    return {
-      allowed: false,
-      reason: `${url.hostname} is not an allowed host for this provider's credential (allowed: ${allowedHosts.join(', ')}). The key was not sent. Hosts are set by the deployment in LLM_ENDPOINT_ALLOWLIST, not on this screen.`,
-    };
-  }
-  if (url.protocol !== 'https:' && !LOOPBACK.has(url.hostname)) {
-    return { allowed: false, reason: 'The base URL is not https. The key was not sent.' };
-  }
-  if (url.username !== '' || url.password !== '') {
-    return {
-      allowed: false,
-      reason: 'The base URL carries credentials of its own. The key was not sent.',
-    };
-  }
-  return { allowed: true, url };
-};
-
-/**
- * Checks that OpenAI can be reached, accepts the key, and offers the model.
+ * Each step records what it OBSERVED (a status code, a round-trip time) and
+ * never a claim beyond it. A check that could not run says NOT_ATTEMPTED and
+ * names what stopped it; a check the endpoint does not support says SKIPPED.
  *
- * Three steps, each with what it OBSERVED -- a status code, a round-trip time
- * -- and never a claim beyond it. A check that could not run says
- * NOT_ATTEMPTED and names what stopped it.
+ * GATEWAY-M1: an API gateway may expose no `/models` route. A 404 there is
+ * not proof the credential failed, and not proof it worked. The probe then
+ * repeats the same GET WITHOUT the credential: if the gateway refuses that
+ * (401/403) while it answered the keyed request with 404, the credential
+ * demonstrably got past its authentication, and AUTHENTICATION passes on that
+ * observed difference. Model discovery is reported SKIPPED -- never PASSED --
+ * because nothing confirmed the model.
  */
 export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<ReadinessResult> => {
-  const doFetch = args.fetch ?? fetch;
   const now = args.now ?? Date.now;
   const timeoutMs = args.timeoutMs ?? 10_000;
   const noLimits: ReadinessLimits = { requestsPerMinute: null, tokensPerMinute: null };
@@ -159,19 +142,22 @@ export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<Re
       limits: noLimits,
     };
   }
+  const host = permission.url.hostname;
 
-  const base = permission.url.toString().replace(/\/+$/, '');
-  const get = async (path: string) => {
+  const endpoint: ProviderEndpoint = {
+    baseUrl: args.baseUrl,
+    allowedHosts: args.allowedHosts,
+    auth: args.auth ?? { location: 'HEADER', headerName: 'authorization' },
+    extraHeaders: args.extraHeaders ?? {},
+    apiKey: args.apiKey,
+  };
+  const get = async (path: string, withCredential = true) => {
     const started = now();
-    const response = await doFetch(`${base}${path}`, {
+    const response = await providerFetch(endpoint, permission.url, path, {
       method: 'GET',
-      redirect: 'error',
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: {
-        // THE one place the key is revealed.
-        authorization: `Bearer ${args.apiKey.reveal()}`,
-        accept: 'application/json',
-      },
+      withCredential,
+      timeoutMs,
+      ...(args.fetch === undefined ? {} : { fetch: args.fetch }),
     });
     return { response, elapsedMs: now() - started };
   };
@@ -181,16 +167,13 @@ export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<Re
   try {
     list = await get('/models');
   } catch (error) {
-    const timedOut =
-      (error as Error).name === 'TimeoutError' || (error as Error).name === 'AbortError';
+    const failure = classifyTransportError(error, host, timeoutMs);
     return {
       endpoint: {
         check: 'ENDPOINT',
         result: 'FAILED',
-        detail: timedOut
-          ? `No response from ${permission.url.hostname} within ${timeoutMs} ms.`
-          : `${permission.url.hostname} could not be reached (network error, TLS failure or a refused redirect).`,
-        facts: { cause: timedOut ? 'TIMEOUT' : 'UNREACHABLE', host: permission.url.hostname },
+        detail: failure.detail,
+        facts: { cause: failure.cause, host },
       },
       authentication: notAttempted(
         'AUTHENTICATION',
@@ -202,11 +185,11 @@ export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<Re
   }
 
   const status = list.response.status;
-  const endpoint: ProviderValidationStep = {
+  const reached: ProviderValidationStep = {
     check: 'ENDPOINT',
     result: 'PASSED',
-    detail: `${permission.url.hostname} responded over ${permission.url.protocol.replace(':', '')} in ${list.elapsedMs} ms.`,
-    facts: { host: permission.url.hostname, httpStatus: status, elapsedMs: list.elapsedMs },
+    detail: `${host} responded over ${permission.url.protocol.replace(':', '')} in ${list.elapsedMs} ms.`,
+    facts: { host, httpStatus: status, elapsedMs: list.elapsedMs },
   };
   const limits: ReadinessLimits = {
     requestsPerMinute: numberHeader(list.response, 'x-ratelimit-limit-requests'),
@@ -216,28 +199,74 @@ export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<Re
   if (status === 401 || status === 403) {
     const ids = await errorIdentifiers(list.response);
     return {
-      endpoint,
+      endpoint: reached,
       authentication: {
         check: 'AUTHENTICATION',
         result: 'FAILED',
         detail:
           status === 401
-            ? 'The provider refused the key (401). Check that the secret in the store is the current key for this organization.'
-            : 'The provider accepted the key but refused access (403). The key may lack permission for this project or organization.',
-        facts: { httpStatus: status, ...ids },
+            ? 'The endpoint refused the credential (401). Check that the secret in the store is the current key, and that the authentication location and name match what the endpoint expects.'
+            : 'The endpoint refused access (403): the gateway or provider did not authorize this credential for this API, or its quota is exhausted.',
+        facts: {
+          httpStatus: status,
+          cause: status === 401 ? 'AUTH_REJECTED' : 'ACCESS_DENIED',
+          ...ids,
+        },
       },
-      model: notAttempted('MODEL', 'Not attempted: the key was not accepted.'),
+      model: notAttempted('MODEL', 'Not attempted: the credential was not accepted.'),
       limits,
     };
   }
-  if (status >= 500 || (status !== 200 && status !== 429)) {
+
+  if (status === 404) {
     await list.response.body?.cancel();
     return {
       endpoint: {
-        ...endpoint,
+        ...reached,
+        detail: `${reached.detail} It has no /models route (404).`,
+      },
+      authentication: await authenticationByComparison(get, host, timeoutMs),
+      model: {
+        check: 'MODEL',
+        result: 'SKIPPED',
+        detail:
+          'Model discovery is not exposed by this gateway. The model or deployment name is unverified until the first generation call. If this endpoint is not a gateway, check the base URL.',
+        facts: { httpStatus: 404, modelId: args.modelId },
+      },
+      limits,
+    };
+  }
+
+  if (status === 429) {
+    const ids = await errorIdentifiers(list.response);
+    return {
+      endpoint: reached,
+      authentication: {
+        check: 'AUTHENTICATION',
+        result: 'PASSED',
+        detail:
+          'The endpoint accepted the credential and then refused the request for rate or quota (429). Authentication is established; the quota is not.',
+        facts: { httpStatus: 429, cause: 'RATE_LIMITED', ...ids },
+      },
+      model: notAttempted('MODEL', 'Not attempted: the endpoint is rate limiting this credential.'),
+      limits,
+    };
+  }
+
+  if (status !== 200) {
+    await list.response.body?.cancel();
+    const unavailable = status === 502 || status === 503 || status === 504;
+    return {
+      endpoint: {
+        ...reached,
         result: 'FAILED',
-        detail: `${permission.url.hostname} answered ${status}, which is not a models listing. Check the base URL (it normally ends in /v1).`,
-        facts: { ...endpoint.facts, cause: 'UNEXPECTED_STATUS' },
+        detail: unavailable
+          ? `${host} answered ${status}: the service behind it is unavailable. Try again later.`
+          : `${host} answered ${status}, which is not a models listing. Check the base URL (it normally ends in /v1).`,
+        facts: {
+          ...reached.facts,
+          cause: unavailable ? 'SERVICE_UNAVAILABLE' : 'UNEXPECTED_STATUS',
+        },
       },
       authentication: notAttempted(
         'AUTHENTICATION',
@@ -248,22 +277,13 @@ export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<Re
     };
   }
 
-  const authentication: ProviderValidationStep =
-    status === 429
-      ? {
-          check: 'AUTHENTICATION',
-          result: 'PASSED',
-          detail:
-            'The provider accepted the key and then refused the request for rate or quota (429). Authentication is established; the quota is not.',
-          facts: { httpStatus: 429, ...(await errorIdentifiers(list.response)) },
-        }
-      : {
-          check: 'AUTHENTICATION',
-          result: 'PASSED',
-          detail: 'The provider accepted the key and listed the models it can use.',
-          facts: { httpStatus: 200 },
-        };
-  if (status === 200) await list.response.body?.cancel();
+  await list.response.body?.cancel();
+  const authentication: ProviderValidationStep = {
+    check: 'AUTHENTICATION',
+    result: 'PASSED',
+    detail: 'The endpoint accepted the credential and listed the models it can use.',
+    facts: { httpStatus: 200 },
+  };
 
   // -------------------------------------------------------------------- model
   let model: ProviderValidationStep;
@@ -277,7 +297,7 @@ export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<Re
         ? {
             check: 'MODEL',
             result: 'PASSED',
-            detail: `The model ${args.modelId} is available to this key.`,
+            detail: `The model ${args.modelId} is available to this credential.`,
             facts: { httpStatus: 200, modelId: args.modelId },
           }
         : {
@@ -285,18 +305,60 @@ export const checkOpenAIReadiness = async (args: CheckReadinessArgs): Promise<Re
             result: 'FAILED',
             detail:
               code === 404
-                ? `The model ${args.modelId} is not available to this key (404). Check the model name, or whether this organization has access to it.`
+                ? `The model ${args.modelId} is not available to this credential (404). Check the model name -- on Azure, the deployment name -- or whether this organization has access to it.`
                 : `The model lookup answered ${code}.`,
             facts: { httpStatus: code, modelId: args.modelId, ...ids },
           };
-  } catch {
+  } catch (error) {
+    const failure = classifyTransportError(error, host, timeoutMs);
     model = {
       check: 'MODEL',
       result: 'FAILED',
-      detail: 'The model lookup did not complete (network error or timeout).',
-      facts: { cause: 'UNREACHABLE', modelId: args.modelId },
+      detail: `The model lookup did not complete. ${failure.detail}`,
+      facts: { cause: failure.cause, modelId: args.modelId },
     };
   }
 
-  return { endpoint, authentication, model, limits };
+  return { endpoint: reached, authentication, model, limits };
+};
+
+/**
+ * Authentication established by the difference between a keyed and an
+ * anonymous request to the same route. Only an observed refusal of the
+ * anonymous request counts; anything else leaves authentication unproven.
+ */
+const authenticationByComparison = async (
+  get: (
+    path: string,
+    withCredential?: boolean,
+  ) => Promise<{ response: Response; elapsedMs: number }>,
+  host: string,
+  timeoutMs: number,
+): Promise<ProviderValidationStep> => {
+  let anonymousStatus: number;
+  try {
+    const anonymous = await get('/models', false);
+    anonymousStatus = anonymous.response.status;
+    await anonymous.response.body?.cancel();
+  } catch (error) {
+    const failure = classifyTransportError(error, host, timeoutMs);
+    return notAttempted(
+      'AUTHENTICATION',
+      `Not established: the comparison request without the credential did not complete. ${failure.detail}`,
+    );
+  }
+  if (anonymousStatus === 401 || anonymousStatus === 403) {
+    return {
+      check: 'AUTHENTICATION',
+      result: 'PASSED',
+      detail: `Without the credential the gateway answered ${anonymousStatus}; with it, 404 for /models. The credential got past the gateway's authentication.`,
+      facts: { httpStatus: 404, anonymousHttpStatus: anonymousStatus },
+    };
+  }
+  return {
+    check: 'AUTHENTICATION',
+    result: 'NOT_ATTEMPTED',
+    detail: `Not established: the gateway answered ${anonymousStatus} without the credential and 404 with it, so the difference proves nothing about the key. It is unverified until the first generation call.`,
+    facts: { httpStatus: 404, anonymousHttpStatus: anonymousStatus },
+  };
 };

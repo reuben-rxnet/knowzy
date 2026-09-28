@@ -957,6 +957,24 @@ export const copy = {
   'prov.authHeaderName': 'Auth header name',
   'prov.authHeaderNameHint':
     'Empty sends the key as a Bearer token in Authorization. A gateway may need its own header, such as api-key or Ocp-Apim-Subscription-Key.',
+  'prov.authLocation': 'Authentication location',
+  'prov.authLocationHint':
+    'Where the key travels. A header by default; an Azure API Management gateway may expect a query parameter. Leave the other location’s name empty.',
+  'prov.authLocationHeader': 'Header',
+  'prov.authLocationQuery': 'Query parameter',
+  'prov.authQueryParameterName': 'Authentication query-parameter name',
+  'prov.authQueryParameterNameHint':
+    'For query-parameter authentication, e.g. subscription-key. The key is added only when a request is sent, and never stored or shown in a URL.',
+  'prov.extraHeaders': 'Fixed extra headers (not secret)',
+  'prov.extraHeadersHint':
+    'One per line as name: value, sent on every request. Ordinary configuration, recorded in the change history — a name that looks like a credential is refused. At most five.',
+  'prov.authSummary': 'Authentication',
+  'prov.authViaHeader': 'Header {name}',
+  'prov.authViaQuery': 'Query parameter {name}',
+  'prov.credentialParameter': 'Credential parameter',
+  'prov.fixedHeaders': 'Fixed headers',
+  'prov.fixedHeadersNone': 'None',
+  'prov.checkSkipped': 'Skipped',
   'prov.temperature': 'Temperature',
   'prov.maxOutputTokens': 'Maximum output tokens',
   'prov.save': 'Save provider',

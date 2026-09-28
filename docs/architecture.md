@@ -597,6 +597,13 @@ Eight rules govern it. Rules 7 and 8 were added on 2026-09-26 with provider admi
     integrity, duplicate detection and confidence exactly as the deterministic generator's does, and
     becomes a DRAFT awaiting review. A provider that breaks ends its job `FAILED`, never `RUNNING`. It
     still may not run without a recorded approval, an enablement and a configured credential.
+12. *(2026-09-28, GATEWAY-M1.)* **One request builder, and a credential in a URL never leaves it.**
+    Test connection and generation send through the same function, which attaches the resolved key
+    to the configured header or query parameter (no fallback between them) at request time, adds
+    fixed non-secret headers, refuses redirects and applies the timeout. A URL carrying a credential
+    is never returned, stored, logged or thrown; credential-bearing parameters are redacted by exact
+    name before any URL is described. A test connection may skip a check the endpoint does not
+    support, and a skip is never reported as a pass.
 
 **A credential is a reference, never a value.** Configuration stores
 `keyvault://{vault}/secrets/{name}` or, locally, `localstore://{name}` (rule 9), validated as that

@@ -28,10 +28,11 @@
 //   CHAT_COMPLETIONS   POST {base}/chat/completions   -- what most gateways
 //                                                        pass through
 //
-// and a configurable AUTH HEADER: `authorization` sends `Bearer <key>`; any
-// other name (e.g. `api-key`, `Ocp-Apim-Subscription-Key`) sends the key as
-// that header's value. Both are provider settings, so adapting to the gateway
-// is configuration.
+// and configurable AUTHENTICATION (GATEWAY-M1): a header -- `authorization`
+// sends `Bearer <key>`, any other name carries the key as its value -- or a
+// query parameter such as Azure API Management's `subscription-key`, plus
+// fixed non-secret headers. The request itself is built by `providerFetch`,
+// the same function Test connection uses, so the two cannot drift again.
 //
 // FAILURES ARE CLASSIFIED FOR THE CONTROL LAYER, not handled here. A 429 or a
 // 5xx is thrown with its status, so `classifyError` marks it retryable and the
@@ -45,7 +46,12 @@ import type { RevealableSecret } from '@knowzy/shared-types';
 import { frameGenerationPrompt, GENERATION_TOOL_GRANT } from './framing.js';
 import type { GenerateArgs } from './generator.js';
 import { GenerationOutputSchema, type GenerationOutput } from './output-schema.js';
-import { endpointPermission } from './openai.js';
+import {
+  classifyTransportError,
+  endpointPermission,
+  providerFetch,
+  type ProviderAuth,
+} from './provider-request.js';
 import {
   PROVIDER_CATALOGUE,
   type ExecutionContext,
@@ -63,8 +69,10 @@ export interface OpenAICallConfig {
   readonly apiKey: RevealableSecret;
   readonly allowedHosts: readonly string[];
   readonly apiStyle: OpenAIApiStyle;
-  /** `authorization` sends a Bearer token; any other name carries the key as its value. */
-  readonly authHeaderName: string;
+  /** GATEWAY-M1: where the credential travels. No fallback between the two. */
+  readonly auth: ProviderAuth;
+  /** Fixed, non-secret headers from the provider's settings. */
+  readonly extraHeaders: Readonly<Record<string, string>>;
   readonly temperature: number | null;
   readonly maxOutputTokens: number | null;
 }
@@ -328,7 +336,6 @@ export const createOpenAIGenerationProvider = (
     }
 
     const framed = frameGenerationPrompt(generateArgs);
-    const base = permission.url.toString().replace(/\/+$/, '');
     const style = config.apiStyle;
     const schema = { name: 'knowzy_generation', strict: true, schema: OPENAI_RESPONSE_SCHEMA };
     const body =
@@ -358,30 +365,29 @@ export const createOpenAIGenerationProvider = (
               : { max_completion_tokens: config.maxOutputTokens }),
           };
 
-    const header = config.authHeaderName.toLowerCase();
+    const timeoutMs = args.timeoutMs ?? 120_000;
     let response: Response;
     try {
-      response = await (args.fetch ?? fetch)(
-        `${base}${style === 'RESPONSES' ? '/responses' : '/chat/completions'}`,
+      response = await providerFetch(
+        {
+          baseUrl: config.baseUrl,
+          allowedHosts: config.allowedHosts,
+          auth: config.auth,
+          extraHeaders: config.extraHeaders,
+          apiKey: config.apiKey,
+        },
+        permission.url,
+        style === 'RESPONSES' ? '/responses' : '/chat/completions',
         {
           method: 'POST',
-          redirect: 'error',
-          signal: AbortSignal.timeout(args.timeoutMs ?? 120_000),
-          headers: {
-            'content-type': 'application/json',
-            accept: 'application/json',
-            // The one place this module reveals the key.
-            [header]:
-              header === 'authorization'
-                ? `Bearer ${config.apiKey.reveal()}`
-                : config.apiKey.reveal(),
-          },
           body: JSON.stringify(body),
+          timeoutMs,
+          ...(args.fetch === undefined ? {} : { fetch: args.fetch }),
         },
       );
     } catch (error) {
-      const name = (error as Error).name;
-      if (name === 'TimeoutError' || name === 'AbortError') {
+      const failure = classifyTransportError(error, permission.url.hostname, timeoutMs);
+      if (failure.cause === 'TIMEOUT') {
         const timeout = new OpenAIGenerationError(
           'The provider did not respond in time.',
           null,
@@ -390,7 +396,16 @@ export const createOpenAIGenerationProvider = (
         timeout.name = 'TimeoutError';
         throw timeout;
       }
-      throw new OpenAIGenerationError('The provider could not be reached.', null, 'ECONNRESET');
+      // The classified sentence, never the exception's own message. A reset
+      // or an unexplained network failure keeps the retryable ECONNRESET code
+      // it always had; DNS, TLS, a refused redirect or a refused connection
+      // will not change on a retry, so they carry their own (permanent) code.
+      const transient = failure.cause === 'CONNECTION_RESET' || failure.cause === 'UNREACHABLE';
+      throw new OpenAIGenerationError(
+        failure.detail,
+        null,
+        transient ? 'ECONNRESET' : failure.cause,
+      );
     }
 
     if (!response.ok) {

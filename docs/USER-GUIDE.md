@@ -6,9 +6,10 @@ Manager, the AI Generation Control Layer, AI provider administration and Phase 1
 reporting, including PILOT-T1, PILOT-T2, UI-M3, SYNC-M1..M4, AI-CONTROL-M1, AI-PROVIDER-M1,
 PHASE10-R1, PHASE10-R2, P-5 (secret resolution), OPENAI-CODEX-00 (provider readiness) and
 OPENAI-CODEX-01 (OpenAI generation, refused until approved), LIVE-PREVIEW-M1 (four learner
-preview pages), UX-M1 (navigation at every width) and LIVE-PREVIEW-M2 (Badges and My Progress
-previews; every learner destination opens)
-**Last updated:** 2026-09-27
+preview pages), UX-M1 (navigation at every width), LIVE-PREVIEW-M2 (Badges and My Progress
+previews; every learner destination opens) and GATEWAY-M1 (Azure API Management
+gateway authentication)
+**Last updated:** 2026-09-28
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -774,7 +775,22 @@ cost reporting, token reporting, streaming and retrieval-free, each yes or no.
   output tokens, and whether it is **Enabled**. For an external provider there are two more:
   **API style** (Responses, the default and the only one Codex models are served on, or Chat
   Completions) and **Auth header name** (empty sends the key as a Bearer token; a gateway may need
-  its own header, such as `api-key` or `Ocp-Apim-Subscription-Key`). Enabling one needs its endpoint, model and
+  its own header, such as `api-key` or `Ocp-Apim-Subscription-Key`). Since GATEWAY-M1 there are
+  three more, for a gateway in front of the model:
+  - **Authentication location** — **Header** (the default) or **Query parameter**. An Azure API
+    Management gateway may take its subscription key as a query parameter. There is no fallback:
+    leave the other location's name empty, or the save is refused.
+  - **Authentication query-parameter name** — e.g. `subscription-key`. The key is added to the
+    request only as it is sent; it is never stored in, or shown as part of, a URL.
+  - **Fixed extra headers (not secret)** — one per line as `name: value`, e.g.
+    `x-openai-supplier: EssilorLuxottica`, sent on every request. They are ordinary configuration
+    and appear in the change history, so a name that looks like a credential (`authorization`,
+    `cookie`, anything containing `api-key`, `subscription-key`, `token`, `secret` or
+    `credential`) is refused, as are headers the HTTP client controls (`host`, `content-type`, …),
+    a duplicate, and more than five.
+
+  The row shows the authentication (*Header authorization* or *Query parameter subscription-key*)
+  and the fixed headers under the endpoint. Enabling one needs its endpoint, model and
   credential reference set first: an incomplete provider is refused at generation time, where the
   reason is much harder to find.
 - **Record approval** — a separate dialog, on purpose, and it **requires a reference** to where the
@@ -804,23 +820,42 @@ names only; `status` says whether the store is readable. The store lives in `.se
 repository root, which is never committed and never copied into an image. It works in the local
 environment only — a deployed environment reads Key Vault, which this build cannot read yet.
 
-**Test connection makes real calls now, and reports only what it saw.** Nine checks, each PASSED,
-FAILED or NOT ATTEMPTED, with a sentence and, for the live ones, what was observed (HTTP status,
-time taken):
+**Test connection makes real calls now, and reports only what it saw.** Ten checks, each PASSED,
+FAILED, NOT ATTEMPTED or SKIPPED, with a sentence and, for the live ones, what was observed (HTTP
+status, time taken):
 
 1. **Capability**, **Approval**, **Implementation**, **Configuration** — as the gate above.
 2. **Secret resolution** — reads the reference from its store. The value is used and discarded.
-3. **Endpoint**, **Authentication**, **Model** — for OpenAI, two requests: list the models, then
-   look up the configured one. They carry the key and the model name, nothing else. They run even
+3. **Endpoint** (reachable), **Authentication** (accepted), **Model** (discovery) — for OpenAI, two
+   GET requests: list the models, then look up the configured one. They carry the key, the fixed
+   headers and the model name, nothing else — no prompt, no document, no question. They run even
    without an approval, because they process no data; generating is what the approval governs.
-4. **Generation** — always NOT ATTEMPTED. A test never generates, and OpenAI cannot in this build.
+
+   **Behind a gateway with no `/models` route** (common for Azure API Management), the gateway
+   answers 404. Knowzy then repeats the same request **without** the key. If that one is refused
+   (401 or 403), the key demonstrably got past the gateway, and **Authentication** passes on that
+   difference. **Model** then reads **SKIPPED** — *"Model discovery is not exposed by this
+   gateway."* — never PASSED: the deployment name is unverified until the first generation call.
+4. **Model execution** — always NOT ATTEMPTED. Running the model means sending it a prompt, and a
+   test sends none.
+5. **Generation** — always NOT ATTEMPTED. A test never generates.
+
+When a call cannot connect, **Endpoint** says why, in plain words and without the key or any URL:
+the host could not be resolved (DNS — often the VPN or corporate DNS), no response in time, a
+refused redirect, or a certificate this server does not trust. The last reads **"NODE_EXTRA_CA_CERTS
+configuration required"**: the gateway uses an internal certificate authority, and the API container
+needs that authority's certificate. TLS verification is never switched off to get past it. A 401
+means the key was refused, a 403 that the gateway refused access, a 429 a rate limit, and a 502, 503
+or 504 that the service behind it is unavailable. The gateway's own error text is never shown.
 
 Two safeguards you may meet: the key is sent **only** to an allowed host (for OpenAI,
-`api.openai.com`; other hosts are added by the deployment, not on this screen) and only over
-https. A base URL pointing anywhere else fails **Endpoint** with *"The key was not sent."*
+`api.openai.com`; other hosts are added by the deployment in `LLM_ENDPOINT_ALLOWLIST`, not on this
+screen — the local stack allows the EssilorLuxottica Codex gateway, `dev-apim-ai.luxottica.com`) and
+only over https. A base URL pointing anywhere else, or one with a key already in its query string,
+fails **Endpoint** with *"The key was not sent."*
 
 The overall result is `FAILED` while no approval is recorded and at best `INCOMPLETE` after it —
-never `PASSED` for an external provider, because Generation was not attempted. After a run, the
+never `PASSED` for an external provider, because model execution and generation were not attempted. After a run, the
 button reports the new readiness and any rate limits the provider reported.
 
 **Secret sources**, at the bottom of the page, shows each place secrets can come from — the local
@@ -1465,7 +1500,7 @@ For showing the product end to end from an empty state. Roughly fifteen minutes.
 | **Trends and deltas** | **Real** (§4.3g). Counts over a period are compared with the period before; figures describing a moment are compared with the daily coverage snapshot. Snapshots began on 2026-09-27 and are never back-filled, so those four comparisons read **Not Yet Available** until a snapshot old enough exists |
 | **The learner performance heatmap** | **Real** (§4.3g), by the department the questions were filed under. With few learners most cells read **Suppressed**, which is correct |
 | **AI provider configuration** | **Real** (§4.3f). A provider's endpoint, model, credential reference, ceilings, enablement and its recorded data-processing approval are all set from **Administration → AI Providers**, with no deployment. What remains a release is *writing a client* for a provider — see the Claude row above |
-| **A connection test against an AI provider** | **Real for OpenAI** (§4.3f): the secret is resolved and the endpoint, key and model are checked with two metadata requests. Not real for any other external provider, which has no client — its live checks read NOT ATTEMPTED |
+| **A connection test against an AI provider** | **Real for OpenAI** (§4.3f), directly or through an Azure API Management gateway: the secret is resolved and the endpoint, key and model are checked with content-free GET requests. Behind a gateway with no model discovery, the model check reads SKIPPED. Not real for any other external provider, which has no client — its live checks read NOT ATTEMPTED |
 | **Generating questions with OpenAI (Codex)** | **Built, not yet run.** The generation client exists and its proposals go through the full gate chain, but it is refused until the T-29 approval is recorded, and no working credential is configured. The Generate screen does not offer it yet. See docs/integrations/OPENAI_CODEX_EVALUATION_RESULTS.md |
 | **Azure Key Vault** | Not real. `keyvault://` references are accepted and reported as unreadable here; the local secure store works in the local environment only |
 | **Badges and certificates** | Not built. **Badges** and My Learnings show the badge designs and a certificate as labelled **previews** (§5.5); nothing is awarded |
@@ -1518,3 +1553,4 @@ the log below.
 | 2026-09-27 | LIVE-PREVIEW-M1 | **Four learner preview pages** (§5.5): My Learnings, Discover, Knowledge Library and Help & Support are now links with a blue **Preview** chip, at the product owner's request. Each opens with a Preview notice, frames every illustrative block with a visible *Illustrative example* tag, and disables every control inside a frame. Real parts: progress counts and assessment history (My Learnings), the domains published to you (Discover, Knowledge Library), and user guides and FAQs (Help). Badges and My Progress are unchanged. No authoring screen changed: none of them showed a placeholder |
 | 2026-09-27 | UX-M1 | **Navigation at every width** (§2.4). Below desktop width both portals had no navigation at all; there is now a **collapsed icon rail** on a tablet and a **menu button** that slides the full sidebar in on a phone or tablet, keyboard and screen-reader operable, focus starting on the current page. The Sync Manager's header folds behind **Environment and settings** on a phone. Also fixed, found by a review of every screen at phone, tablet and laptop width: **AI Providers** scrolled sideways at every width, the **Reports** dashboard did on a phone, and so did the Sync Manager's identity form |
 | 2026-09-27 | LIVE-PREVIEW-M2 | **Badges and My Progress previews** (§5.5), so **every learner destination now opens** a working screen or a labelled preview, and none reads "Needs backend". Badges is entirely illustrative (categories, gallery, criteria, how an award would be listed, progress toward one), because nothing is awarded; My Progress shows real **assessment completion** beside framed examples of progress by topic and domain, competency and a learning journey. The six previews now share one hero style |
+| 2026-09-28 | GATEWAY-M1 | **An Azure API Management gateway can be configured and tested** (§4.3f). The Configure dialog gains **Authentication location** (header or query parameter), **Authentication query-parameter name** and **Fixed extra headers (not secret)**; the row shows the authentication and the fixed headers. **Test connection now sends exactly what generation would** (before, it always sent a Bearer header). It has ten checks: **Model execution** is new and always NOT ATTEMPTED, and **Model** can read **SKIPPED** when a gateway exposes no model discovery — authentication is then established by comparing a keyed and an anonymous request. Connection failures name their cause (DNS, timeout, TLS trust with *NODE_EXTRA_CA_CERTS configuration required*, redirect, rate limit, service unavailable) without the key, a URL or the gateway's text. Generation stays refused until a data-processing approval is recorded |

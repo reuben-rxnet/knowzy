@@ -33,6 +33,7 @@ import {
 import {
   PROVIDER_CATALOGUE,
   assessProviderHealth,
+  authFromSettings,
   checkOpenAIReadiness,
   deriveReadiness,
   mayProbe,
@@ -362,6 +363,10 @@ export const aiProviderRoutes = [
             modelId: settings.modelId ?? '',
             apiKey: resolution.value,
             allowedHosts: allowedHostsFor(providerId, deps.secrets),
+            // GATEWAY-M1: the configured authentication and fixed headers, so
+            // Test connection sends exactly what a generation call would.
+            auth: authFromSettings(settings),
+            extraHeaders: settings.extraHeaders ?? {},
             ...(deps.secrets?.fetch === undefined ? {} : { fetch: deps.secrets.fetch }),
           });
         }

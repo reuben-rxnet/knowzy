@@ -20,6 +20,7 @@
 // rather than retrying a key that is not there.
 
 import {
+  authFromSettings,
   createOpenAIGenerationProvider,
   OpenAIGenerationError,
   type GenerationProvider,
@@ -108,7 +109,10 @@ export const createOpenAIForJob = (args: {
         apiKey: resolution.value,
         allowedHosts: allowedHostsFor('OPENAI', args.secrets),
         apiStyle: settings.apiStyle ?? 'RESPONSES',
-        authHeaderName: settings.authHeaderName ?? 'authorization',
+        // GATEWAY-M1: the same settings Test connection reads, through the same
+        // builder, so the two cannot disagree about how the key travels.
+        auth: authFromSettings(settings),
+        extraHeaders: settings.extraHeaders ?? {},
         temperature: settings.temperature ?? null,
         maxOutputTokens: settings.maxOutputTokens ?? null,
       };

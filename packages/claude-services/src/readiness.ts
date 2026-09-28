@@ -115,15 +115,23 @@ export const deriveReadiness = (input: DeriveReadinessInput): ProviderReadiness 
     );
   }
 
+  // GATEWAY-M1: a gateway that exposes no model discovery SKIPS the model
+  // check. That is not a failure of the provider, so it does not hold the
+  // ladder at AUTHENTICATED -- but every sentence above that rung says the
+  // model is unverified, because it is.
   const model = step('MODEL');
-  if (model?.result !== 'PASSED') {
+  const modelSkipped = model?.result === 'SKIPPED';
+  if (model?.result !== 'PASSED' && !modelSkipped) {
     return is('AUTHENTICATED', model?.detail ?? 'Authenticated; the model was not confirmed.');
   }
+  const verified = modelSkipped
+    ? 'Endpoint and key are verified; the model is unverified because this gateway exposes no model discovery.'
+    : 'Endpoint, key and model are verified.';
 
   if (!assessment.approved) {
     return is(
       'BLOCKED_BY_APPROVAL',
-      'Endpoint, key and model are verified. No data-processing approval is recorded, so it will not be used to generate.',
+      `${verified} No data-processing approval is recorded, so it will not be used to generate.`,
     );
   }
   if (settings?.enabled !== true) {

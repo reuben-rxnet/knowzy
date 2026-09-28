@@ -18,6 +18,15 @@
 //   * the fake received the key ONLY in an Authorization header;
 //   * a reference re-saved without the key box keeps the recorded reference.
 //
+// GATEWAY-M1 adds a FAKE AZURE API MANAGEMENT GATEWAY on the same server,
+// under /gateway: it takes the key as a `subscription-key` QUERY PARAMETER,
+// wants a fixed `x-openai-supplier` header, exposes no /models route (404 with
+// the key, 401 without), and quotes the key in its error body. The suite then
+// checks that Test connection reports that honestly -- authentication by
+// comparison, model discovery SKIPPED -- sends no body and no content, and
+// that no response, audit row, configuration change or LOG LINE holds the key
+// or a credential-bearing URL.
+//
 // The provider settings row is restored afterwards: this suite shares the
 // development database with everything else.
 
@@ -31,7 +40,7 @@ import { PrismaClient } from '@prisma/client';
 import { createSubjectResolver } from '@knowzy/authentication';
 import { createAuditWriter, subjectLookupRepository } from '@knowzy/database';
 import { createLocalSecureStore } from '@knowzy/configuration';
-import { nullLogger, systemClock } from '@knowzy/observability';
+import { systemClock, type Logger } from '@knowzy/observability';
 import { buildServer } from '../src/server.js';
 import type { RouteDeps } from '../src/http/route.js';
 
@@ -50,9 +59,25 @@ const prisma = new PrismaClient(
 
 interface Received {
   readonly path: string;
+  readonly method: string;
   readonly authorization: string | undefined;
+  readonly supplier: string | undefined;
+  readonly contentLength: string | undefined;
   readonly rawHeaders: string;
 }
+
+/** Every line the API logs during the suite, so "no log holds the key" is checked, not assumed. */
+const logged: string[] = [];
+const capture = (level: string) => (message: string, context?: unknown) => {
+  logged.push(`${level} ${message} ${JSON.stringify(context ?? {})}`);
+};
+const captureLogger: Logger = {
+  debug: capture('debug'),
+  info: capture('info'),
+  warn: capture('warn'),
+  error: capture('error'),
+  child: () => captureLogger,
+};
 
 describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
   let fake: Server;
@@ -68,11 +93,27 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
     fake = createServer((request: IncomingMessage, response) => {
       received.push({
         path: request.url ?? '',
+        method: request.method ?? '',
         authorization: request.headers['authorization'],
+        supplier: request.headers['x-openai-supplier'] as string | undefined,
+        contentLength: request.headers['content-length'],
         rawHeaders: request.rawHeaders.join('\n'),
       });
-      const ok = request.headers['authorization'] === `Bearer ${KEY}`;
       response.setHeader('content-type', 'application/json');
+
+      // GATEWAY-M1: the fake API Management gateway.
+      if ((request.url ?? '').startsWith('/gateway/')) {
+        const url = new URL(request.url ?? '', 'http://127.0.0.1');
+        const keyed = url.searchParams.get('subscription-key') === KEY;
+        const routed = request.headers['x-openai-supplier'] === 'EssilorLuxottica';
+        response.statusCode = keyed && routed ? 404 : 401;
+        response.end(
+          JSON.stringify({ statusCode: response.statusCode, message: `denied for ${KEY}` }),
+        );
+        return;
+      }
+
+      const ok = request.headers['authorization'] === `Bearer ${KEY}`;
       if (!ok) {
         response.statusCode = 401;
         response.end(JSON.stringify({ error: { code: 'invalid_api_key', message: 'nope' } }));
@@ -102,7 +143,7 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
     const deps: RouteDeps = {
       prisma: prisma as never,
       auditWriter: createAuditWriter({ clock: systemClock }),
-      logger: nullLogger,
+      logger: captureLogger,
       mcp: {} as never,
       providers: {} as never,
       secrets: {
@@ -127,7 +168,7 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
       findings: [],
     };
     app = buildServer({
-      logger: nullLogger,
+      logger: captureLogger,
       environment: 'local',
       startupReport: report,
       readiness: async () => report,
@@ -264,6 +305,106 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
     expect(response.body).not.toContain(KEY);
   });
 
+  it('GATEWAY-M1: Test connection speaks to an APIM gateway -- query-parameter key, fixed header, honest SKIP', async () => {
+    received.length = 0;
+    const put = await call('PUT', '/api/v1/authoring/administration/providers/OPENAI/settings', {
+      enabled: false,
+      displayName: 'Codex via Azure APIM',
+      baseUrl: `http://127.0.0.1:${port}/gateway/codex/openai/v1`,
+      modelId: 'gpt-5.3-codex_codeassist',
+      apiKeyRef: REFERENCE,
+      apiStyle: 'RESPONSES',
+      authLocation: 'QUERY_PARAMETER',
+      authQueryParameterName: 'subscription-key',
+      extraHeaders: { 'x-openai-supplier': 'EssilorLuxottica' },
+    });
+    expect(put.statusCode, put.body).toBe(200);
+    expect(put.body).not.toContain(KEY_FRAGMENT);
+
+    const response = await call(
+      'POST',
+      '/api/v1/authoring/administration/providers/OPENAI/validate',
+    );
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.body).not.toContain(KEY_FRAGMENT);
+    expect(response.body).not.toContain('subscription-key=');
+    expect(response.body).not.toContain('denied for');
+    const report = JSON.parse(response.body);
+    const result = (check: string) =>
+      report.steps.find((step: { check: string }) => step.check === check)?.result;
+    expect(result('SECRET_RESOLUTION')).toBe('PASSED');
+    expect(result('ENDPOINT')).toBe('PASSED');
+    expect(result('AUTHENTICATION')).toBe('PASSED');
+    expect(result('MODEL')).toBe('SKIPPED');
+    expect(result('MODEL_EXECUTION')).toBe('NOT_ATTEMPTED');
+    expect(result('GENERATION')).toBe('NOT_ATTEMPTED');
+    expect(result('APPROVAL')).toBe('FAILED');
+    expect(report.outcome).not.toBe('PASSED');
+    expect(report.readiness.state).toBe('BLOCKED_BY_APPROVAL');
+    expect(report.readiness.reason).toMatch(/model is unverified/);
+
+    // Exactly two content-free GETs to /models: keyed, then anonymous. No
+    // body, no prompt, no Authorization header, and the fixed header on both.
+    expect(received.map((r) => r.method)).toEqual(['GET', 'GET']);
+    expect(received.every((r) => r.contentLength === undefined)).toBe(true);
+    expect(
+      received.every(
+        (r) => new URL(r.path, 'http://x').pathname === '/gateway/codex/openai/v1/models',
+      ),
+    ).toBe(true);
+    expect(received.every((r) => r.supplier === 'EssilorLuxottica')).toBe(true);
+    expect(received.every((r) => r.authorization === undefined)).toBe(true);
+    expect(new URL(received[0]?.path ?? '', 'http://x').searchParams.get('subscription-key')).toBe(
+      KEY,
+    );
+    expect(received[1]?.path).not.toContain(KEY);
+
+    // The screen's read shows the configuration and never the key.
+    const read = await call('GET', '/api/v1/authoring/administration/providers');
+    expect(read.body).not.toContain(KEY_FRAGMENT);
+    const openai = JSON.parse(read.body).providers.find(
+      (row: { providerId: string }) => row.providerId === 'OPENAI',
+    );
+    expect(openai).toMatchObject({
+      authLocation: 'QUERY_PARAMETER',
+      authQueryParameterName: 'subscription-key',
+      extraHeaders: { 'x-openai-supplier': 'EssilorLuxottica' },
+      credentialConfigured: true,
+      state: 'BLOCKED_BY_APPROVAL',
+    });
+  });
+
+  it('GATEWAY-M1: generation stays blocked without an approval -- it cannot even be made active', async () => {
+    const response = await call('PUT', '/api/v1/authoring/administration/active-provider', {
+      providerId: 'OPENAI',
+    });
+    expect(response.statusCode).not.toBe(200);
+    expect(response.body).not.toContain(KEY_FRAGMENT);
+  });
+
+  it('GATEWAY-M1: refuses a fixed header that would carry a secret, and names it', async () => {
+    const response = await call(
+      'PUT',
+      '/api/v1/authoring/administration/providers/OPENAI/settings',
+      {
+        baseUrl: `http://127.0.0.1:${port}/gateway/codex/openai/v1`,
+        modelId: 'gpt-5.3-codex_codeassist',
+        authLocation: 'QUERY_PARAMETER',
+        authQueryParameterName: 'subscription-key',
+        extraHeaders: { 'Ocp-Apim-Subscription-Key': KEY },
+      },
+    );
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toMatch(/looks like a credential/);
+    expect(response.body).not.toContain(KEY_FRAGMENT);
+  });
+
+  it('GATEWAY-M1: no log line holds the key or a credential-bearing URL', () => {
+    const all = logged.join('\n');
+    expect(all).not.toContain(KEY_FRAGMENT);
+    expect(all).not.toContain('subscription-key=');
+  });
+
   it('wrote the audit trail P-5 declares -- and no row holds the key or the reference', async () => {
     const audits = await prisma.$queryRawUnsafe<{ action: string; row: string; detail: string }[]>(
       `SELECT action, row_to_json(a)::text AS row, detail::text AS detail
@@ -274,14 +415,24 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
     const actions = audits.map((a) => a.action);
     for (const expected of [
       'ADMIN.CONFIGURATION.PROVIDER_UPDATED',
-      'ADMIN.CONFIGURATION.SECRET_REFERENCE_CREATED',
       'ADMIN.CONFIGURATION.SECRET_VALIDATED',
       'ADMIN.CONFIGURATION.PROVIDER_VALIDATED',
     ]) {
       expect(actions, expected).toContain(expected);
     }
+    // CREATED on a database where OpenAI had no reference, UPDATED where one
+    // was already configured (as on a development machine that has run Test
+    // connection for real). Either is the reference change being audited.
+    expect(
+      actions.some(
+        (action) =>
+          action === 'ADMIN.CONFIGURATION.SECRET_REFERENCE_CREATED' ||
+          action === 'ADMIN.CONFIGURATION.SECRET_REFERENCE_UPDATED',
+      ),
+    ).toBe(true);
     for (const audit of audits) {
       expect(audit.row, audit.action).not.toContain(KEY_FRAGMENT);
+      expect(audit.row, audit.action).not.toContain('subscription-key=');
       expect(audit.row, audit.action).not.toContain('localstore://');
       expect(audit.detail, `${audit.action} dropped a key`).not.toContain('_droppedKeys');
     }

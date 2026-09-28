@@ -14,6 +14,8 @@
 //   ENDPOINT           did the allow-listed host answer
 //   AUTHENTICATION     did the provider accept the key
 //   MODEL              is the configured model available to that key
+//                      (SKIPPED when the endpoint exposes no model discovery)
+//   MODEL_EXECUTION    never tested here: that would take a prompt
 //   GENERATION         can this build generate with it
 //
 // THE RULE IS UNCHANGED: no step may claim more than was observed. The live
@@ -88,6 +90,14 @@ export const settingsFingerprint = (settings: ProviderSettings | undefined): str
         settings?.baseUrl ?? null,
         settings?.modelId ?? null,
         settings?.apiKeyRef ?? null,
+        // GATEWAY-M1: how the key travels and what rides with it. A test run
+        // with a header key says nothing about a query-parameter one.
+        settings?.authLocation ?? 'HEADER',
+        settings?.authHeaderName ?? null,
+        settings?.authQueryParameterName ?? null,
+        Object.entries(settings?.extraHeaders ?? {})
+          .map(([name, value]) => [name.trim().toLowerCase(), value])
+          .sort(),
       ]),
     )
     .digest('hex')
@@ -115,6 +125,7 @@ export const validateProvider = (input: ValidateProviderInput): ValidateProvider
     inProcess('ENDPOINT', 'It runs in this process; there is no network endpoint.');
     inProcess('AUTHENTICATION', 'There is nothing to authenticate to.');
     inProcess('MODEL', 'The model is the platform’s own: knowzy-deterministic-local-1.');
+    inProcess('MODEL_EXECUTION', 'It runs in this process on every generation.');
     inProcess('GENERATION', 'It generates in this build.');
     return { outcome: 'PASSED', steps };
   }
@@ -239,6 +250,14 @@ export const validateProvider = (input: ValidateProviderInput): ValidateProvider
     steps.push(input.live.endpoint, input.live.authentication, input.live.model);
   }
 
+  // -------------------------------------------------------- model execution
+  steps.push({
+    check: 'MODEL_EXECUTION',
+    result: 'NOT_ATTEMPTED',
+    detail:
+      'Not tested: running the model means sending it a prompt, and a test connection sends no content. The first generation call is the first execution.',
+  });
+
   // ------------------------------------------------------------- generation
   steps.push(
     input.capabilities.supportsGeneration
@@ -268,6 +287,10 @@ export const validateProvider = (input: ValidateProviderInput): ValidateProvider
  */
 export const outcomeOf = (steps: readonly ProviderValidationStep[]): ProviderValidationOutcome => {
   if (steps.some((step) => step.result === 'FAILED')) return 'FAILED';
-  if (steps.some((step) => step.result === 'NOT_ATTEMPTED')) return 'INCOMPLETE';
+  // SKIPPED is not a pass: a check the endpoint cannot answer is as unproven
+  // as one that was not run.
+  if (steps.some((step) => step.result === 'NOT_ATTEMPTED' || step.result === 'SKIPPED')) {
+    return 'INCOMPLETE';
+  }
   return 'PASSED';
 };

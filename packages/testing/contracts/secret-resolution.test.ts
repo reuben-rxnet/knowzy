@@ -57,7 +57,7 @@ describe('OPENAI-CODEX-00 ends before generation', () => {
 });
 
 describe('a secret is revealed in exactly one place', () => {
-  it('calls reveal() only in the readiness client', () => {
+  it('calls reveal() only in the shared provider request builder', () => {
     // A file can vanish between listing and reading: boundaries.test.ts plants
     // and removes a temporary violation file while the contract project runs.
     const read = (file: string): string => {
@@ -68,13 +68,50 @@ describe('a secret is revealed in exactly one place', () => {
       }
     };
     const callers = productionSources().filter((file) => /\.reveal\(\)/.test(read(file)));
-    // TWO since OPENAI-CODEX-01: the readiness probe's Authorization header,
-    // and the generation client's auth header. A third is a third place a key
-    // can escape, and should be a decision taken here, not an accident.
-    expect(callers.sort()).toEqual([
-      'packages/claude-services/src/openai-generation.ts',
-      'packages/claude-services/src/openai.ts',
-    ]);
+    // ONE since GATEWAY-M1 (it was two after OPENAI-CODEX-01, and the two had
+    // drifted apart). Test connection and generation both send through
+    // `providerFetch`, which reveals the key into the configured header OR
+    // query parameter. A second file is a second place a key can escape, and
+    // should be a decision taken here, not an accident.
+    expect(callers.sort()).toEqual(['packages/claude-services/src/provider-request.ts']);
+  });
+});
+
+describe('GATEWAY-M1: one request builder, and the key never leaves it', () => {
+  const source = readFileSync(
+    join(ROOT, 'packages/claude-services/src/provider-request.ts'),
+    'utf8',
+  );
+  const readiness = readFileSync(join(ROOT, 'packages/claude-services/src/openai.ts'), 'utf8');
+  const generation = readFileSync(
+    join(ROOT, 'packages/claude-services/src/openai-generation.ts'),
+    'utf8',
+  );
+
+  it('refuses redirects for every request it sends', () => {
+    expect(source).toContain("redirect: 'error'");
+  });
+
+  it('logs nothing and returns only the Response -- never the URL it built', () => {
+    for (const forbidden of ['console.', 'logger', 'process.stdout', 'process.stderr']) {
+      expect(source, forbidden).not.toContain(forbidden);
+    }
+    // The signature: providerFetch resolves to a Response, nothing else.
+    expect(source).toMatch(/export const providerFetch = \([\s\S]*?\): Promise<Response> =>/);
+  });
+
+  it('is the only way either client reaches a provider', () => {
+    expect(readiness).toContain('providerFetch(');
+    expect(generation).toContain('providerFetch(');
+    for (const client of [readiness, generation]) {
+      expect(client).not.toMatch(/\(args\.fetch \?\? fetch\)\(/);
+      expect(client).not.toMatch(/(^|[^A-Za-z])doFetch\(/);
+    }
+  });
+
+  it('keeps Test connection to GET', () => {
+    expect(readiness).toContain("method: 'GET'");
+    expect(readiness).not.toContain("method: 'POST'");
   });
 });
 
@@ -101,8 +138,8 @@ describe('OPENAI-CODEX-01 generates through one endpoint, with no tools', () => 
     expect(source).toContain('frameGenerationPrompt(generateArgs)');
   });
 
-  it('refuses redirects, like the readiness probe', () => {
-    expect(source).toContain("redirect: 'error'");
+  it('sends through the shared builder, which refuses redirects', () => {
+    expect(source).toContain('providerFetch(');
   });
 });
 

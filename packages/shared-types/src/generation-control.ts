@@ -256,6 +256,96 @@ export const SecretReferenceSchema = z
  * enforced on every provider including the deterministic one while these are
  * the settings of a provider that makes a network call.
  */
+// ---------------------------------------------------------------------------
+// Request authentication and fixed headers — GATEWAY-M1 (2026-09-28)
+// ---------------------------------------------------------------------------
+//
+// An Azure API Management gateway in front of Azure OpenAI takes its
+// subscription key as a QUERY PARAMETER (`subscription-key`) and wants a fixed,
+// non-secret routing header (`x-openai-supplier`). Both are provider settings
+// rather than code, so a gateway is configuration. The rules below are the
+// ones that keep that configuration from becoming a place to put a secret.
+
+/** Where the resolved credential travels. There is no fallback between them. */
+export const PROVIDER_AUTH_LOCATIONS = ['HEADER', 'QUERY_PARAMETER'] as const;
+export type ProviderAuthLocation = (typeof PROVIDER_AUTH_LOCATIONS)[number];
+
+/**
+ * Query parameters that carry a credential, matched EXACTLY and
+ * case-insensitively. `sanitizeUrl` replaces their values before any URL is
+ * put in a diagnostic; everything else in a query string is left alone, so a
+ * harmless parameter is never redacted into uselessness.
+ */
+export const CREDENTIAL_QUERY_PARAMETERS = [
+  'subscription-key',
+  'api-key',
+  'apikey',
+  'key',
+  'token',
+  'access_token',
+  'sig',
+  'client_secret',
+  'password',
+] as const;
+
+export const isCredentialQueryParameter = (name: string): boolean =>
+  (CREDENTIAL_QUERY_PARAMETERS as readonly string[]).includes(name.trim().toLowerCase());
+
+/** At most this many fixed headers per provider. Small and explicit. */
+export const MAX_EXTRA_HEADERS = 5;
+
+/** Headers the HTTP client owns. Setting one would corrupt the request. */
+export const PROTOCOL_HEADERS = [
+  'host',
+  'content-length',
+  'content-type',
+  'connection',
+  'transfer-encoding',
+  'keep-alive',
+  'upgrade',
+  'te',
+  'trailer',
+  'accept',
+  'expect',
+] as const;
+
+/** Header names that are, or look like, a credential. Refused outright. */
+const CREDENTIAL_HEADERS_EXACT = ['authorization', 'cookie', 'set-cookie', 'proxy-authorization'];
+const CREDENTIAL_HEADER_FRAGMENTS = [
+  'api-key',
+  'apikey',
+  'subscription-key',
+  'token',
+  'secret',
+  'credential',
+  'password',
+];
+
+const HEADER_NAME = /^[a-z][a-z0-9-]{0,63}$/;
+/** Printable ASCII, no leading or trailing space, at most 256 characters. */
+const HEADER_VALUE = /^[\x21-\x7e](?:[\x20-\x7e]{0,254}[\x21-\x7e])?$/;
+
+/** Why a fixed header is refused, or null when it is acceptable. */
+export const extraHeaderProblem = (rawName: string, value: string): string | null => {
+  const name = rawName.trim().toLowerCase();
+  if (name === '') return 'a header name is required';
+  if (!HEADER_NAME.test(name)) return `${rawName} is not a valid header name`;
+  if ((PROTOCOL_HEADERS as readonly string[]).includes(name)) {
+    return `${name} is controlled by the HTTP client and cannot be set`;
+  }
+  if (
+    CREDENTIAL_HEADERS_EXACT.includes(name) ||
+    CREDENTIAL_HEADER_FRAGMENTS.some((fragment) => name.includes(fragment))
+  ) {
+    return `${name} looks like a credential. A fixed header is ordinary configuration and may not carry a secret; a credential goes in the credential reference`;
+  }
+  if (value === '') return `${name} needs a value`;
+  if (!HEADER_VALUE.test(value)) {
+    return `the value of ${name} must be printable text without leading or trailing spaces, at most 256 characters`;
+  }
+  return null;
+};
+
 export const ProviderSettingsSchema = z
   .object({
     /**
@@ -287,8 +377,72 @@ export const ProviderSettingsSchema = z
       .string()
       .regex(/^[A-Za-z][A-Za-z0-9-]{1,63}$/, 'a header name: letters, digits and hyphens')
       .optional(),
+    /**
+     * GATEWAY-M1: where the credential travels. Absent means HEADER. There is
+     * no fallback: a QUERY_PARAMETER provider never sends the key in a header,
+     * and a HEADER provider never puts it in a URL.
+     */
+    authLocation: z.enum(PROVIDER_AUTH_LOCATIONS).optional(),
+    /** The query parameter the credential travels in, for QUERY_PARAMETER. */
+    authQueryParameterName: z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_.-]{0,63}$/, 'a parameter name: letters, digits, _ . -')
+      .optional(),
+    /**
+     * Fixed, NON-SECRET headers sent on every request to this provider, e.g.
+     * a gateway's routing header. Ordinary configuration: they appear in the
+     * configuration history and the audit trail, which is exactly why a
+     * credential-shaped name is refused.
+     */
+    extraHeaders: z.record(z.string(), z.string()).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((settings, context) => {
+    const issue = (path: (string | number)[], message: string) =>
+      context.addIssue({ code: z.ZodIssueCode.custom, path, message });
+    const location = settings.authLocation ?? 'HEADER';
+
+    if (location === 'QUERY_PARAMETER') {
+      if (settings.authQueryParameterName === undefined) {
+        issue(
+          ['authQueryParameterName'],
+          'query-parameter authentication needs the parameter name',
+        );
+      }
+      if (settings.authHeaderName !== undefined) {
+        issue(
+          ['authHeaderName'],
+          'the credential travels in a query parameter, so an auth header name would be a second, unused authentication setting',
+        );
+      }
+    } else if (settings.authQueryParameterName !== undefined) {
+      issue(
+        ['authQueryParameterName'],
+        'the credential travels in a header, so a query-parameter name would be a second, unused authentication setting',
+      );
+    }
+
+    const headers = Object.entries(settings.extraHeaders ?? {});
+    if (headers.length > MAX_EXTRA_HEADERS) {
+      issue(['extraHeaders'], `at most ${MAX_EXTRA_HEADERS} fixed headers`);
+    }
+    const seen = new Set<string>();
+    const authHeader =
+      location === 'HEADER' ? (settings.authHeaderName ?? 'authorization').toLowerCase() : null;
+    for (const [name, value] of headers) {
+      const normalized = name.trim().toLowerCase();
+      const problem = extraHeaderProblem(name, value);
+      if (problem !== null) issue(['extraHeaders', name], problem);
+      if (seen.has(normalized)) issue(['extraHeaders', name], `${normalized} is configured twice`);
+      if (authHeader !== null && normalized === authHeader) {
+        issue(
+          ['extraHeaders', name],
+          `${normalized} is the authentication header and cannot also be a fixed header`,
+        );
+      }
+      seen.add(normalized);
+    }
+  });
 export type ProviderSettings = z.infer<typeof ProviderSettingsSchema>;
 
 // ---------------------------------------------------------------------------
@@ -323,6 +477,10 @@ export const PROVIDER_VALIDATION_CHECKS = [
   'ENDPOINT',
   'AUTHENTICATION',
   'MODEL',
+  // GATEWAY-M1: named so "the model was never asked to run" is a recorded
+  // result. A test connection sends no prompt, so this is always NOT_ATTEMPTED
+  // for a network provider.
+  'MODEL_EXECUTION',
   'GENERATION',
   // Before P-5. Kept so validation rows recorded then still parse and render;
   // no validation writes them any more.
@@ -332,7 +490,12 @@ export const PROVIDER_VALIDATION_CHECKS = [
 export const ProviderValidationCheckSchema = z.enum(PROVIDER_VALIDATION_CHECKS);
 export type ProviderValidationCheck = z.infer<typeof ProviderValidationCheckSchema>;
 
-export const VALIDATION_CHECK_RESULTS = ['PASSED', 'FAILED', 'NOT_ATTEMPTED'] as const;
+/**
+ * SKIPPED (GATEWAY-M1) is a check the endpoint does not support -- a gateway
+ * that exposes no `/models` route. It is not a pass and not a failure, and it
+ * makes the outcome INCOMPLETE, never PASSED.
+ */
+export const VALIDATION_CHECK_RESULTS = ['PASSED', 'FAILED', 'NOT_ATTEMPTED', 'SKIPPED'] as const;
 export const ValidationCheckResultSchema = z.enum(VALIDATION_CHECK_RESULTS);
 export type ValidationCheckResult = z.infer<typeof ValidationCheckResultSchema>;
 
@@ -544,6 +707,11 @@ export interface ProviderAdminRow {
   /** OPENAI-CODEX-01. Null means the default: RESPONSES, `authorization`. */
   readonly apiStyle: 'RESPONSES' | 'CHAT_COMPLETIONS' | null;
   readonly authHeaderName: string | null;
+  /** GATEWAY-M1. HEADER unless configured otherwise. */
+  readonly authLocation: 'HEADER' | 'QUERY_PARAMETER';
+  readonly authQueryParameterName: string | null;
+  /** Fixed, non-secret headers. Shown as configured, because they are not secrets. */
+  readonly extraHeaders: Readonly<Record<string, string>>;
   readonly limits: ProviderLimits;
   readonly health: ProviderHealthState;
   readonly healthReason: string;

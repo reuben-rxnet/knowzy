@@ -572,6 +572,30 @@ export const setTopicActiveAction = async (
  * stored. An EMPTY box keeps the recorded reference (P-5); removing it is the
  * separate `removeApiKeyRef` checkbox, sent beside the settings.
  */
+/**
+ * `name: value`, one per line, into the settings' `extraHeaders`.
+ *
+ * Parsing only. Every rule -- printable, no protocol or credential-shaped
+ * name, no duplicate, a small maximum -- is the server's, so a line this does
+ * not understand is passed through for the server to refuse by name rather
+ * than silently dropped.
+ */
+const extraHeadersOf = (raw: string): { extraHeaders?: Record<string, string> } => {
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  if (lines.length === 0) return {};
+  const headers: Record<string, string> = {};
+  for (const line of lines) {
+    const colon = line.indexOf(':');
+    const name = (colon < 0 ? line : line.slice(0, colon)).trim();
+    const value = colon < 0 ? '' : line.slice(colon + 1).trim();
+    headers[name in headers ? `${name} ` : name] = value;
+  }
+  return { extraHeaders: headers };
+};
+
 export const setProviderSettingsAction = async (
   _previous: ActionState | null,
   formData: FormData,
@@ -601,6 +625,13 @@ export const setProviderSettingsAction = async (
     ...numeric('maxOutputTokens'),
     ...text('apiStyle'),
     ...text('authHeaderName'),
+    // GATEWAY-M1. HEADER is the default and is not sent, so a provider that
+    // never chose a location keeps no setting for it.
+    ...(String(formData.get('authLocation') ?? '') === 'QUERY_PARAMETER'
+      ? { authLocation: 'QUERY_PARAMETER' }
+      : {}),
+    ...text('authQueryParameterName'),
+    ...extraHeadersOf(String(formData.get('extraHeaders') ?? '')),
     ...(formData.get('removeApiKeyRef') === null ? {} : { removeApiKeyRef: true }),
   };
 
