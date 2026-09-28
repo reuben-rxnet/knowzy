@@ -22,7 +22,7 @@
 // governance working as designed.
 
 import { ErrorState, RefusalState, ServiceUnavailableState } from '@knowzy/shared-ui';
-import { t } from '../copy';
+import { t, type CopyKey } from '../copy';
 import type { ApiProblem } from '../lib/api';
 
 /** Refusals: the server understood the request and declined it. */
@@ -34,7 +34,43 @@ const REFUSAL_CODES = new Set([
   'DUPLICATE_BLOCKS_APPROVAL',
   'ELIGIBILITY_REFUSED',
   'GENERATION_SCOPE_EMPTY',
+  // UX-M2: generation controls. Each is a control holding, not a fault.
+  'GENERATION_JUSTIFICATION_REQUIRED',
+  'PREFLIGHT_REQUIRED',
+  'PROVIDER_NOT_APPROVED',
+  'PROVIDER_NOT_GROUNDING_SAFE',
+  'PROVIDER_NOT_REGISTERED',
+  'PROVIDER_CREDENTIAL_UNAVAILABLE',
+  'BUDGET_EXCEEDED',
+  'GENERATION_CONCURRENCY_LIMIT',
+  'TAXONOMY_INACTIVE',
+  'TAXONOMY_MAPPING_REQUIRED',
 ]);
+
+/**
+ * UX-M2: what the reader can DO about the commonest refusals, in plain words.
+ * The server's detail stays as the reason; this is the next step, which the
+ * detail -- written for an audit row -- rarely states.
+ */
+const NEXT_STEP: Readonly<Record<string, CopyKey>> = {
+  FORBIDDEN: 'problem.nextForbidden',
+  SEPARATION_OF_DUTIES: 'problem.nextSeparation',
+  GATE_FAILED: 'problem.nextGate',
+  GENERATION_JUSTIFICATION_REQUIRED: 'problem.nextJustification',
+  PREFLIGHT_REQUIRED: 'problem.nextPreflight',
+  GENERATION_SELECTION_REQUIRED: 'problem.nextSelection',
+  GENERATION_SCOPE_EMPTY: 'problem.nextScopeEmpty',
+  PROVIDER_NOT_APPROVED: 'problem.nextProviderApproval',
+  PROVIDER_NOT_GROUNDING_SAFE: 'problem.nextProviderCapability',
+  PROVIDER_NOT_REGISTERED: 'problem.nextProviderUnavailable',
+  PROVIDER_CREDENTIAL_UNAVAILABLE: 'problem.nextProviderConfiguration',
+  BUDGET_EXCEEDED: 'problem.nextBudget',
+  GENERATION_CONCURRENCY_LIMIT: 'problem.nextConcurrency',
+  LLM_UNAVAILABLE: 'problem.nextRetry',
+  REQUEST_TIMEOUT: 'problem.nextRetry',
+  MCP_UNAVAILABLE: 'problem.nextRetry',
+  VERSION_CONFLICT: 'problem.nextReload',
+};
 
 const UNAVAILABLE_CODES = new Set(['MCP_UNAVAILABLE', 'SOURCE_UNAVAILABLE', 'UPSTREAM_TIMEOUT']);
 
@@ -87,15 +123,25 @@ export const Problem = ({
       <p className="text-sm text-ink-muted">{t('error.actingAs', { identity: actingAs })}</p>
     );
 
+  const nextKey = NEXT_STEP[problem.code];
+  const nextStep =
+    nextKey === undefined ? undefined : (
+      <p className="text-sm text-ink">
+        <span className="font-semibold">{t('problem.nextLabel')}: </span>
+        {t(nextKey)}
+      </p>
+    );
+
   const shared = {
     title,
     reason: problem.detail,
     code,
-    ...(gates === undefined && identityHint === undefined
+    ...(gates === undefined && identityHint === undefined && nextStep === undefined
       ? {}
       : {
           details: (
             <div className="flex flex-col gap-3">
+              {nextStep}
               {identityHint}
               {gates}
             </div>
@@ -107,7 +153,12 @@ export const Problem = ({
     return <RefusalState {...shared} />;
   }
   if (problem.status === 503 || UNAVAILABLE_CODES.has(problem.code)) {
-    return <ServiceUnavailableState title={title} reason={problem.detail} />;
+    return (
+      <ServiceUnavailableState
+        title={title}
+        reason={nextKey === undefined ? problem.detail : `${problem.detail} ${t(nextKey)}`}
+      />
+    );
   }
   return <ErrorState {...shared} />;
 };

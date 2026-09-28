@@ -65,7 +65,7 @@ import {
   Trophy,
   UploadCloud,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { t, type CopyKey } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -442,18 +442,34 @@ export default async function ReportsDashboardPage({
                   icon={KPI_ICON[row.kpi]?.icon}
                   tone={KPI_ICON[row.kpi]?.tone ?? 'info'}
                   comparison={<KpiComparison data={row} windowDays={windowDays} />}
-                  caption={row.formula}
                 />
               ))}
             </div>
             <AsOf asOf={kpis.data.asOf} window={kpis.data.sourceWindow} />
             <Withheld data={kpis.data} />
-            <p className="max-w-prose text-2xs text-ink-muted">
-              {t('rep.kpiComparisonNote', {
-                first: history.ok ? day(history.data.sourceWindow.from) : DASH,
-                days: history.ok ? history.data.sourceWindow.days : 0,
-              })}
-            </p>
+            {/* UX-M2: the formulas and the comparison rule, one click away
+                rather than printed under every card. Eight cards of formula
+                text read as fine print in a demonstration; nothing is hidden
+                that a native disclosure does not reveal to a keyboard. */}
+            <details className="max-w-prose text-2xs text-ink-muted">
+              <summary className="cursor-pointer font-semibold text-info underline">
+                {t('rep.kpiHowHeading')}
+              </summary>
+              <dl className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-[12rem_1fr]">
+                {kpis.data.rows.map((row) => (
+                  <Fragment key={row.kpi}>
+                    <dt className="font-semibold text-ink">{row.label}</dt>
+                    <dd>{row.formula}</dd>
+                  </Fragment>
+                ))}
+              </dl>
+              <p className="mt-2">
+                {t('rep.kpiComparisonNote', {
+                  first: history.ok ? day(history.data.sourceWindow.from) : DASH,
+                  days: history.ok ? history.data.sourceWindow.days : 0,
+                })}
+              </p>
+            </details>
           </>
         ) : (
           <Problem problem={kpis.problem} actingAs={subject.label} />

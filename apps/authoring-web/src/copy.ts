@@ -1165,6 +1165,35 @@ export const copy = {
   'rep.panelWindow': '{from} \u2192 {to}',
 
   'rep.kpiHeading': 'Headline figures',
+  'rep.kpiHowHeading': 'How these figures are calculated',
+
+  // UX-M2: the next step for the commonest refusals (components/Problem.tsx).
+  'problem.nextLabel': 'What you can do',
+  'problem.nextForbidden':
+    'Switch to an identity that holds this permission (the menu in the header), or ask an administrator to grant it.',
+  'problem.nextSeparation':
+    'A different person has to do this step. Switch identity, or hand the question to a colleague.',
+  'problem.nextGate': 'Fix each check listed below in the draft, save it, then try again.',
+  'problem.nextJustification':
+    'Explain in the justification box, in at least 20 characters, why these documents are being generated again.',
+  'problem.nextPreflight': 'Run Check documents first, then choose what to do.',
+  'problem.nextSelection': 'Choose at least one document, then run Check documents.',
+  'problem.nextScopeEmpty':
+    'The chosen documents have nothing left to generate from. Choose other documents, or pick a different action.',
+  'problem.nextProviderApproval':
+    'Choose the template generator, or ask an administrator to record the data-processing approval under Administration → AI Providers.',
+  'problem.nextProviderCapability':
+    'Choose a different provider. This one can never be used to generate from selected documents.',
+  'problem.nextProviderUnavailable':
+    'Choose a different provider. This one is not included in this release.',
+  'problem.nextProviderConfiguration':
+    'Choose a different provider, or ask an administrator to finish its setup under Administration → AI Providers.',
+  'problem.nextBudget':
+    'Wait for the budget period to roll over, or ask an administrator to raise the limit under Governance → AI Usage & Budgets.',
+  'problem.nextConcurrency':
+    'Another generation is running. Wait for it to finish, then try again.',
+  'problem.nextRetry': 'A service did not answer in time. Try again in a minute.',
+  'problem.nextReload': 'Somebody changed this since you opened it. Reload the page and try again.',
   'rep.kpiComparisonNote':
     'Each comparison states what it is measured against. A count over a period is compared with the same count over the period before it. A figure that describes a moment \u2014 total questions, coverage, sources \u2014 is compared with the coverage snapshot recorded on the day the period began. Snapshots are recorded once a day and never back-filled: the first was taken on {first}, {days} are recorded, and until one is old enough the card reads \u201cNot Yet Available\u201d.',
 
