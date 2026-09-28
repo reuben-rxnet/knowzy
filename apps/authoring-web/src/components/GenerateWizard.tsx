@@ -142,6 +142,8 @@ interface GenerationResponse {
   }[];
   readonly rejectionCounts: Readonly<Record<string, number>>;
   readonly tokens: { readonly input: number; readonly output: number };
+  /** Proposals beyond the requested count, not used. Absent from older responses. */
+  readonly surplusCandidates?: number;
 }
 
 const SCOPES = ['ENTIRE_DOCUMENT', 'MODIFIED_SECTIONS_ONLY', 'UNCOVERED_SECTIONS_ONLY'] as const;
@@ -917,6 +919,16 @@ export const GenerateWizard = ({
                     label: t('generate.insufficient'),
                     value: job.insufficientEvidenceSections.length,
                   },
+                  ...((job.surplusCandidates ?? 0) > 0
+                    ? [
+                        {
+                          label: t('generate.surplus'),
+                          value: t('generate.surplusValue', {
+                            count: job.surplusCandidates ?? 0,
+                          }),
+                        },
+                      ]
+                    : []),
                   { label: t('generate.jobRef'), value: job.jobId, mono: true },
                   {
                     label: t('generate.tokens'),

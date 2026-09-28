@@ -447,6 +447,8 @@ export const generationRoutes = [
           rejections: result.rejections,
           insufficientEvidenceSections: result.insufficientEvidenceSections,
           rejectionCounts: result.rejectionCounts,
+          // Proposed beyond the requested count and not used (EVAL-M1 F3).
+          surplusCandidates: result.surplusCandidates,
           tokens: { input: result.inputTokens, output: result.outputTokens },
         };
       } catch (error) {
@@ -530,6 +532,9 @@ export const generationRoutes = [
           // reports that approved or published questions already cite a
           // document, and the next question an author asks is WHICH.
           documentId: z.string().uuid().optional(),
+          // Which generator drafted it (EVAL-M1): a provider id, or IMPORTED
+          // for a question brought in from a file, which no model drafted.
+          generator: z.union([GenerationProviderSchema, z.literal('IMPORTED')]).optional(),
           limit: z.coerce.number().int().min(1).max(100).default(25),
         })
         .safeParse(request.query ?? {});
@@ -578,27 +583,41 @@ export const generationRoutes = [
         sourceDocumentId = document.sourceDocumentId;
       }
 
-      const questions = await deps.prisma.draftQuestion.findMany({
-        where: {
-          ...(statuses === null ? {} : { status: { in: [...statuses] } }),
-          ...(sourceDocumentId === undefined ? {} : { sourceDocumentId }),
-          // P3: the caller's own scope, threaded in rather than re-derived.
-          // Empty means unrestricted on the dimension (access-control.md §5).
-          ...(ctx.scope.domainIds.length > 0 ? { domainId: { in: [...ctx.scope.domainIds] } } : {}),
-          ...(query.data.domainId === undefined ? {} : { domainId: query.data.domainId }),
-          ...(query.data.jobId === undefined ? {} : { generationJobId: query.data.jobId }),
-        },
-        orderBy: [{ confidenceScore: 'asc' }, { createdAt: 'asc' }],
-        take: query.data.limit,
-        include: {
-          domain: { select: { code: true, name: true } },
-          topic: { select: { name: true } },
-        },
-      });
+      const generator = query.data.generator;
+      const where = {
+        ...(statuses === null ? {} : { status: { in: [...statuses] } }),
+        ...(generator === undefined
+          ? {}
+          : generator === 'IMPORTED'
+            ? { acquisition: 'IMPORTED' as const }
+            : { providerId: generator, acquisition: 'GENERATED' as const }),
+        ...(sourceDocumentId === undefined ? {} : { sourceDocumentId }),
+        // P3: the caller's own scope, threaded in rather than re-derived.
+        // Empty means unrestricted on the dimension (access-control.md §5).
+        ...(ctx.scope.domainIds.length > 0 ? { domainId: { in: [...ctx.scope.domainIds] } } : {}),
+        ...(query.data.domainId === undefined ? {} : { domainId: query.data.domainId }),
+        ...(query.data.jobId === undefined ? {} : { generationJobId: query.data.jobId }),
+      };
+      // The TRUE total, not the page: `count` used to be the page length, so
+      // every tab read "25" whatever was behind it (EVAL-M1), and a queue of
+      // 122 Codex drafts sorted by confidence showed none of them.
+      const [total, questions] = await Promise.all([
+        deps.prisma.draftQuestion.count({ where }),
+        deps.prisma.draftQuestion.findMany({
+          where,
+          orderBy: [{ confidenceScore: 'asc' }, { createdAt: 'asc' }],
+          take: query.data.limit,
+          include: {
+            domain: { select: { code: true, name: true } },
+            topic: { select: { name: true } },
+          },
+        }),
+      ]);
 
       return {
         queue: query.data.queue,
-        count: questions.length,
+        count: total,
+        shown: questions.length,
         items: questions.map((question) => {
           const payload = question.answerPayload as {
             options: Record<string, string>;

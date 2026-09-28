@@ -152,6 +152,13 @@ export interface GenerationRunResult {
   readonly rejectionCounts: Readonly<Record<string, number>>;
   readonly inputTokens: number;
   readonly outputTokens: number;
+  /**
+   * Candidates the generator proposed BEYOND the requested count, not
+   * processed (EVAL-M1 finding F3: Codex returned 56 for a request of 50). The
+   * requested count is a ceiling for every provider; a surplus is counted and
+   * reported, never silently dropped and never accepted.
+   */
+  readonly surplusCandidates: number;
 }
 
 export class ContentDriftError extends Error {
@@ -561,6 +568,7 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     (section) => ({ ...section }),
   );
   const acceptedQuestionIds: string[] = [];
+  let surplusCandidates = 0;
 
   if ('result' in output) {
     // §2.7: a first-class success result, not an error. The generator already
@@ -574,6 +582,13 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     const perSection = new Map<string, number>();
 
     for (const candidate of output.questions) {
+      // The requested count is a CEILING (EVAL-M1 F3). Checked first, so a
+      // surplus candidate is neither accepted nor counted as a gate
+      // rejection -- the gates did not refuse it; the request was full.
+      if (acceptedQuestionIds.length >= args.requestedQuestionCount) {
+        surplusCandidates += 1;
+        continue;
+      }
       const sectionKeysInScope = new Set(scopeSectionKeys(scope));
       if (!sectionKeysInScope.has(candidate.sectionKey)) {
         rejections.push({
@@ -989,6 +1004,7 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
         estimatedCost: controlled.cost.amount,
         costObservable: controlled.cost.observable,
         attemptCount: controlled.attemptCount,
+        surplusCandidates,
       },
     });
   });
@@ -1002,5 +1018,6 @@ export const runGenerationJob = async (args: RunGenerationArgs): Promise<Generat
     rejectionCounts,
     inputTokens,
     outputTokens,
+    surplusCandidates,
   };
 };

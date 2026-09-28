@@ -1,5 +1,8 @@
 import {
   Badge,
+  Button,
+  Field,
+  Select,
   BlockedBadge,
   ButtonLink,
   CellNote,
@@ -39,6 +42,16 @@ interface QueueItem {
 }
 
 const QUEUES = ['author', 'approval', 'publish', 'published', 'all'] as const;
+
+/** The generators a question can come from, as the filter offers them. */
+const GENERATORS = [
+  { id: 'OPENAI', label: 'review.generatorOpenai' },
+  { id: 'DETERMINISTIC_LOCAL', label: 'review.generatorDeterministic' },
+  { id: 'IMPORTED', label: 'review.generatorImported' },
+] as const;
+type Generator = (typeof GENERATORS)[number]['id'];
+const isGenerator = (value: string | undefined): value is Generator =>
+  GENERATORS.some((option) => option.id === value);
 type Queue = (typeof QUEUES)[number];
 
 const isQueue = (value: string | undefined): value is Queue =>
@@ -77,22 +90,31 @@ const QUEUE_LABEL: Record<Queue, CopyKey> = {
 export default async function ReviewQueuePage({
   searchParams,
 }: {
-  searchParams: Promise<{ queue?: string; documentId?: string }>;
+  searchParams: Promise<{ queue?: string; documentId?: string; generator?: string }>;
 }) {
   const query = await searchParams;
   const queue: Queue = isQueue(query.queue) ? query.queue : 'author';
   const documentId = query.documentId;
+  // EVAL-M1: which generator drafted the questions. Carried on every tab, so
+  // "Codex only" stays chosen from the author queue to publication.
+  const generator = isGenerator(query.generator) ? query.generator : undefined;
 
-  const suffix = documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`;
+  const filters =
+    (documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`) +
+    (generator === undefined ? '' : `&generator=${generator}`);
+  const suffix = filters;
+  // Up to 100 per page (the API's ceiling). The count beside each tab is the
+  // TRUE total, which the page states when it holds more than fits.
   const queueUrl = (name: string) =>
-    `/api/v1/authoring/questions/review?queue=${name}` +
-    (documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`);
+    `/api/v1/authoring/questions/review?queue=${name}&limit=100${filters}`;
 
   // All five counts, so the tabs say where the work is instead of making an
   // author click each one to find out. Same endpoint the page already uses; a
   // refused count is omitted rather than shown as zero.
   const [result, ...counts] = await Promise.all([
-    api<{ queue: string; count: number; items: readonly QueueItem[] }>(queueUrl(queue)),
+    api<{ queue: string; count: number; shown?: number; items: readonly QueueItem[] }>(
+      queueUrl(queue),
+    ),
     ...QUEUES.map((name) => api<{ count: number }>(queueUrl(name))),
   ]);
 
@@ -128,6 +150,44 @@ export default async function ReviewQueuePage({
           };
         })}
       />
+
+      {/* The generator filter: a plain GET form, so it needs no client state
+          and a filtered view is a link. */}
+      <form method="get" className="flex flex-wrap items-end gap-3">
+        <input type="hidden" name="queue" value={queue} />
+        {documentId === undefined ? null : (
+          <input type="hidden" name="documentId" value={documentId} />
+        )}
+        <Field id="generator" label={t('review.generatorFilter')}>
+          <Select id="generator" name="generator" defaultValue={generator ?? ''}>
+            <option value="">{t('review.generatorAll')}</option>
+            {GENERATORS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {t(option.label)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Button tone="secondary" size="sm">
+          {t('review.generatorApply')}
+        </Button>
+        {generator === undefined ? null : (
+          <TextLink
+            href={`/review?queue=${queue}${documentId === undefined ? '' : `&documentId=${encodeURIComponent(documentId)}`}`}
+          >
+            {t('review.clearFilter')}
+          </TextLink>
+        )}
+      </form>
+
+      {result.ok && (result.data.shown ?? result.data.items.length) < result.data.count ? (
+        <p className="text-sm text-ink-muted" role="status">
+          {t('review.showingOf', {
+            shown: result.data.shown ?? result.data.items.length,
+            total: result.data.count,
+          })}
+        </p>
+      ) : null}
 
       {documentId === undefined ? null : (
         <div

@@ -793,6 +793,54 @@ describeDb('AI generation control layer', () => {
       expect(['APPROVED', 'PUBLISHED']).not.toContain(drafts[0]?.status);
     });
 
+    it('EVAL-M1 F3: accepts no more than the requested count, and reports the surplus', async () => {
+      // The run helper requests 2. The model proposes 3 VALID questions, each
+      // with a verbatim span, so only the ceiling can explain a missing one.
+      const rows = await prisma.documentSection.findMany({
+        where: { documentId, isAssessable: true },
+        orderBy: { ordinal: 'asc' },
+        take: 3,
+      });
+      const stamp = Date.now().toString(36);
+      const nouns = ['lighthouse', 'orchard', 'glacier'];
+      const questions = [0, 1, 2].map((n) => {
+        const row = rows[n % rows.length];
+        if (row === undefined) throw new Error('the test document needs an assessable section');
+        const text = extractedText.slice(row.startOffset, row.endOffset);
+        return {
+          sectionKey: row.sectionKey,
+          questionText: `Ceiling probe ${stamp}: what does the ${nouns[n]} passage require?`,
+          options: {
+            A: `${nouns[n]} first ${stamp}`,
+            B: `${nouns[n]} second ${stamp}`,
+            C: `${nouns[n]} third ${stamp}`,
+            D: `${nouns[n]} fourth ${stamp}`,
+          },
+          correctOption: 'A',
+          explanation: 'The quoted section states this directly, which is why A is correct.',
+          supportingEvidence: text.slice(0, Math.min(text.length, 160)).trim(),
+          modelConfidence: 0.7,
+          difficulty: 'RECALL',
+        };
+      });
+      const { provider } = openai(() => reply({ questions, insufficient: [] }));
+
+      const { jobId, error } = await run({ provider, approved: ['DETERMINISTIC_LOCAL', 'OPENAI'] });
+      expect(error).toBeNull();
+      const job = await prisma.generationJob.findUniqueOrThrow({ where: { id: jobId } });
+      expect(job.requestedQuestionCount).toBe(2);
+      expect(job.acceptedQuestionCount).toBe(2);
+      // A surplus is not a gate rejection: nothing refused it.
+      const rejections = await prisma.generationJobRejection.findMany({ where: { jobId } });
+      expect(rejections).toHaveLength(0);
+      // ...and it is reported, not silently dropped.
+      const audit = await auditFor(jobId, [
+        'AUTHORING.GENERATION.JOB_COMPLETED',
+        'AUTHORING.GENERATION.JOB_PARTIAL',
+      ]);
+      expect((audit?.detail as Record<string, unknown>)['surplusCandidates']).toBe(1);
+    });
+
     it('ends the job FAILED -- not RUNNING -- when the model returns something unparseable', async () => {
       const { provider } = openai(() => reply({ questions: [{ nonsense: true }] }));
       const { jobId, error } = await run({ provider, approved: ['DETERMINISTIC_LOCAL', 'OPENAI'] });

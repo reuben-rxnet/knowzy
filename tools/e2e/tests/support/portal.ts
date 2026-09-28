@@ -277,9 +277,13 @@ export const generateDraft = async (
   // The generator refuses a section it cannot build a question from, and on a
   // corpus it has already exhausted it refuses everything. Fall back to a
   // draft that already exists rather than reporting a product failure.
+  // DETERMINISTIC_LOCAL only (EVAL-M1). The queue now also holds real Codex
+  // drafts of company SOPs, and this fallback's draft is approved and
+  // PUBLISHED by the suite -- a test must never turn a reviewer's real draft
+  // into a fixture in the bank.
   const queue = await api<{ items: { questionId: string; status: string }[] }>(
     request,
-    '/api/v1/authoring/questions/review?queue=author',
+    '/api/v1/authoring/questions/review?queue=author&generator=DETERMINISTIC_LOCAL&limit=100',
   );
   const draft = queue.items.find((candidate) => candidate.status === 'DRAFT');
   if (draft === undefined) {

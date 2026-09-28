@@ -277,6 +277,7 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     // its message, and the pre-call estimate beside the measurement.
     'errorClass',
     'estimatedInputTokens',
+    'surplusCandidates',
   ],
   'AUTHORING.GENERATION.JOB_REFUSED': [
     'refusalReason',
@@ -325,6 +326,7 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     // caught it on the new failure path.
     'errorClass',
     'estimatedInputTokens',
+    'surplusCandidates',
   ],
   // M4 review and approval. Counts, ids, hashes, decisions and field NAMES —
   // never question text, option text, evidence spans, or comment bodies. The
