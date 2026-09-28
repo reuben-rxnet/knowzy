@@ -1,4 +1,4 @@
-import { Button, EmptyState, Field, KeyValue, PageHero, Select } from '@knowzy/shared-ui';
+import { Button, EmptyState, Field, PageHero, Select } from '@knowzy/shared-ui';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -125,15 +125,17 @@ export default async function GeneratePage({
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHero
-        title={t('generate.heading')}
-        purpose={t('generate.intro')}
-        secondaryText={
-          <KeyValue items={[{ label: t('generate.sourceLabel'), value: source.name }]} />
-        }
-      />
+      <PageHero title={t('generate.heading')} purpose={t('generate.intro')} />
 
-      {usable.length > 1 ? (
+      {/* The source, stated once (UX-M2). It was in the hero AND in a
+          free-standing selector below it; now one control says which source
+          the documents come from, and is a selector only when there is a
+          choice to make. */}
+      {usable.length <= 1 ? (
+        <p className="text-base text-ink">
+          <span className="font-semibold">{t('generate.sourceFixed')}:</span> {source.name}
+        </p>
+      ) : (
         <form method="get" className="flex flex-wrap items-end gap-3">
           <Field
             id="source"
@@ -152,7 +154,7 @@ export default async function GeneratePage({
             {t('generate.sourceChoiceApply')}
           </Button>
         </form>
-      ) : null}
+      )}
 
       {!containers.ok ? <Problem problem={containers.problem} /> : null}
       {!taxonomy.ok ? <Problem problem={taxonomy.problem} /> : null}

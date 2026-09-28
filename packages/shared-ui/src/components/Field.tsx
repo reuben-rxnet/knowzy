@@ -116,6 +116,7 @@ export const TextInput = ({
   autoComplete,
   required = false,
   placeholder,
+  onChange,
 }: {
   readonly id: string;
   readonly name: string;
@@ -130,11 +131,14 @@ export const TextInput = ({
   readonly autoComplete?: 'off' | 'on';
   readonly required?: boolean;
   readonly placeholder?: string;
+  /** For a client form that mirrors the value (e.g. a summary). Stays uncontrolled. */
+  readonly onChange?: ChangeEventHandler<HTMLInputElement>;
 }) => (
   <input
     id={id}
     name={name}
     type={type}
+    {...(onChange === undefined ? {} : { onChange })}
     required={required}
     {...(defaultValue === undefined ? {} : { defaultValue })}
     {...(min === undefined ? {} : { min })}

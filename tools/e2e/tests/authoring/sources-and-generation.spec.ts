@@ -101,7 +101,7 @@ test.describe('generation', () => {
     // behind the verdict, and a recommendation the author has to RECORD before
     // anything may be generated -- "a preflight authorizes nothing until an
     // action is recorded against it".
-    await page.getByRole('button', { name: /run preflight/i }).click();
+    await page.getByRole('button', { name: /check documents/i }).click();
     await expect(page.getByRole('heading', { name: /step 2/i })).toBeVisible({ timeout: 60_000 });
     await expect(
       page

@@ -300,6 +300,9 @@ export const GenerateWizard = ({
     'DETERMINISTIC_LOCAL';
   const [chosenProvider, setChosenProvider] = useState(defaultProvider);
   const [reasonCode, setReasonCode] = useState('NEW_KNOWLEDGE');
+  // Mirrors the count field for the summary. Re-read after every submission,
+  // like the other mirrors, because the form's reset does not fire an event.
+  const [requestedCount, setRequestedCount] = useState('5');
   const chosen = providers.find((choice) => choice.providerId === chosenProvider);
   const unavailable = providers.filter((choice) => !choice.available);
   // Third argument: the permalink. See SourceActions on what it does and does
@@ -327,6 +330,8 @@ export const GenerateWizard = ({
     if (provider instanceof HTMLSelectElement) setChosenProvider(provider.value);
     const reason = document.getElementById('reasonCode');
     if (reason instanceof HTMLSelectElement) setReasonCode(reason.value);
+    const count = document.getElementById('requestedQuestionCount');
+    if (count instanceof HTMLInputElement) setRequestedCount(count.value);
   }, [jobState]);
 
   const [domainId, setDomainId] = useState<string>(domains[0]?.domainId ?? '');
@@ -718,6 +723,60 @@ export const GenerateWizard = ({
           >
             <CardBody>
               <input type="hidden" name="preflightId" value={preflight.preflightId} />
+              {/* UX-M2: the five questions a first-time user has, answered in
+                  one place before the button -- which documents, which model,
+                  how many, whether anything blocks it, and what happens next.
+                  Every value is what the form will send. */}
+              <section
+                aria-labelledby="generate-summary"
+                className="mb-5 rounded-md border border-line bg-surface-sunken p-4"
+              >
+                <h3
+                  id="generate-summary"
+                  className="mb-3 text-base font-semibold text-brand-navy-text"
+                >
+                  {t('generate.summaryHeading')}
+                </h3>
+                <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
+                  <dt className="font-semibold text-ink-muted">{t('generate.summaryDocuments')}</dt>
+                  <dd className="text-ink">
+                    {t('generate.summaryDocumentsValue', {
+                      count: preflight.documents.length,
+                      names: preflight.documents
+                        .slice(0, 3)
+                        .map((document) => document.documentName)
+                        .join(', '),
+                    })}
+                    {preflight.documents.length > 3
+                      ? ` ${t('generate.summaryMore', { count: preflight.documents.length - 3 })}`
+                      : ''}
+                  </dd>
+                  <dt className="font-semibold text-ink-muted">{t('generate.summaryModel')}</dt>
+                  <dd className="text-ink">
+                    {chosenProvider === 'DETERMINISTIC_LOCAL'
+                      ? t('generate.providerDeterministic')
+                      : `${chosen?.displayName ?? chosenProvider}${chosen?.modelId === null || chosen?.modelId === undefined ? '' : ` — ${chosen.modelId}`}`}
+                  </dd>
+                  <dt className="font-semibold text-ink-muted">{t('generate.summaryCount')}</dt>
+                  <dd className="text-ink">
+                    {t('generate.summaryCountValue', { count: requestedCount })}
+                  </dd>
+                  <dt className="font-semibold text-ink-muted">{t('generate.summaryStatus')}</dt>
+                  <dd
+                    className={
+                      reasonCode === 'PUBLISHER_REQUESTED'
+                        ? 'text-warning'
+                        : 'font-semibold text-success'
+                    }
+                  >
+                    {reasonCode === 'PUBLISHER_REQUESTED'
+                      ? t('generate.summaryNeedsJustification')
+                      : t('generate.summaryReady')}
+                  </dd>
+                  <dt className="font-semibold text-ink-muted">{t('generate.summaryNext')}</dt>
+                  <dd className="text-ink">{t('generate.summaryNextValue')}</dd>
+                </dl>
+              </section>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 <Field id="domainId" label={t('generate.domainLabel')}>
                   <Select
@@ -876,6 +935,7 @@ export const GenerateWizard = ({
                     min={1}
                     max={50}
                     defaultValue={5}
+                    onChange={(event) => setRequestedCount(event.target.value)}
                   />
                 </Field>
               </div>
