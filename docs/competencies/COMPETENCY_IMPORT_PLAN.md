@@ -55,8 +55,11 @@ style findings: `Full Name`, `Name`, `Employee number`, `Sr #`, `Role`, `Critica
    sub-headers sit under their bands. **Row 4 is never a candidate**: on the reference workbook it
    is the first person row, and a fully rated person row is as dense as a header. A row whose cells
    are mostly rating codes is refused as a header for the same reason.
-3. **Category band row.** The densest row above the header row. Row 1 on some sheets, row 2 on
-   others — both occur.
+3. **Category band row.** The densest row above the header row. On every team sheet of the
+   reference workbook this is **row 2**. Three sheets (Rx.NET, QA, DevSecOps) have an empty
+   4.5-point spacer written as a self-closing `<row r="1" .../>`; until XLSX-INTEGRITY-M1 the
+   reader took that tag for an opening one, swallowed row 2, and reported those bands as row 1.
+   The cell references (`AX2`) always said row 2. Nothing was persisted from the earlier reading.
 4. **Category spans.** A band label covers its own column up to the column before the next band
    label, or its merged range if one is declared. The last band extends to the last header column.
 5. **A band with no sub-header** (a vertically merged `DevOps` cell) is its own competency, recorded

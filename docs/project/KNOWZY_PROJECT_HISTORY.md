@@ -3061,3 +3061,78 @@ a fully rated person row is as dense as a header. The search now covers rows 1�
 - `npm run verify` and the full integration project. Both delete the Codex evaluation drafts under
   review.
 - The browser suite. No screen changed.
+
+## XLSX-INTEGRITY-M1 — cells placed by reference, and the defects of the same shape
+
+**2026-09-29.** Commits `80fd038` (question-import splitter), `85f79b5` (extractor), and the commit
+carrying this entry. Detail: [`XLSX_EXTRACTION_CORRECTION.md`](../migrations/XLSX_EXTRACTION_CORRECTION.md);
+normative rule [`knowledge-source-adapters.md` §2.4 X9](../knowledge-source-adapters.md#24-normative-extraction-requirements).
+
+### What was wrong
+
+The defect COMPETENCY-M1 found in `readXlsxGrid` was a **class**, not one regex. Every XLSX element
+was matched as `<x\b([^>]*)>…<\/x>`, and `[^>]*` accepts a `/`, so every self-closing element could
+be read as an opening tag that swallowed its neighbour. Reading the code for the brief found three
+more instances beyond the cell:
+
+- **`<row/>`.** A spacer row swallowed the row below it. On the competency workbook this is why three
+  sheets' band labels read as row 1 when their own cell references say row 2. The COMPETENCY-M1
+  entry, and its import-plan section 3, described "band on row 1 on some sheets": that was the bug
+  talking. Nothing persisted from it; the only apply went to a scratch database.
+- **`<si/>`.** An empty shared string was skipped, shifting every later index by one. That gives a
+  wrong word in the right place, and nothing on screen would flag it.
+- **`<t xml:space="preserve"/>`.** It swallowed the following run.
+
+Writing the question-bank fixture found a **second, independent defect** in question import.
+Consecutive blank cells normalize to hyphens sharing single spaces (`C - - - Topic`), and
+`split(' - ')` returned `[C, '-', Topic]`. A literal `-` became the Explanation, and Topic slid into
+Difficulty.
+
+### What changed
+
+- **One element scanner and one row parser in `xlsx.ts`**, used by both `extractXlsx` and
+  `readXlsxGrid`, with a parity test. The competency importer still decodes no row past its limit.
+- **Question import** splits the normalized form on every ` -` followed by a space.
+- **X9 added** to the extraction requirements.
+
+### Measured impact: none, and why that is believed
+
+| Check | Result |
+| --- | --- |
+| Synchronized XLSX documents | 2, both in the Real-World Pilot SOP source: `Quiz_Question_Bank_Template.xlsx` and `renewal-windows.xlsx` (a fixture-mirror row left by EVAL-M1 F2) |
+| Recomputed vs stored content hash | Identical for both; every section key and section hash identical |
+| Drafts, published questions, evidence spans referencing them | 0, 0, 0 (by document id and by section key, v1 included) |
+| **Control:** old vs new extractor | Competency workbook 143 of 380 lines differ; both pilot files and `policy.xlsx` 0. So the method sees a change when there is one |
+| Why the Quiz template is untouched | 73 styled empty cells, none followed by a valued cell in the same row |
+| Competency importer re-run | Every count unchanged (71 competencies, 297 person rows counted and not read, 0 blocking); three band cells now correctly report row 2 |
+| Leak check against the new plan output | Unchanged: no name, number or rating; the same five generic role and product words |
+
+**Re-synchronization was therefore not performed.** It would have been a no-op with a sync's worth of
+risk. A before-and-after snapshot of every document's content hash and section keys, and of every
+draft's state and evidence offsets, brackets the build and restart; the result is recorded below.
+
+### A gap this exposed, recorded rather than papered over
+
+The brief asked that affected drafts be "marked" for re-review. **Nothing in the platform writes
+`draft_question.needsRevalidation`.** Gate 12 reads it, and no revalidation queue exists (as
+tools/e2e/README.md already says). The real protection is gate 12 re-locating the evidence against
+the section's *current* text at approval, which refuses a span that no longer verifies. That is
+enforcement at approval, not proactive marking. A writer for the flag on the sync path is follow-up
+work, and the migration document says so instead of describing a mechanism that does not exist.
+
+### Validated
+
+- Typecheck 35/35; lint 22/22; boundaries 0 errors; codegen clean; format clean.
+- Unit and contract: **923 passed and 12 todo across 45 files**, up from 874 plus 13. The COMPETENCY-M1
+  `it.todo` for this defect is now a real test.
+- The competency integration suite: 6/6.
+- **Mutation.** Ignoring the cell reference fails 14 tests; treating `/>` as an opening tag fails 15;
+  restoring `split(' - ')` fails 3.
+- `npm run verify` and the full integration project were **not** run: they would delete the Codex
+  evaluation drafts under review.
+- **Build.** 21/21, repaired straight afterwards: `.next` removed and six services restarted (no
+  dependency or schema change, so no `up migrate`). All three portals served a linked stylesheet
+  returning 200 with a 53–56 KB body, and the api was healthy.
+- **Before-and-after snapshot.** Every document's content hash, version counter, section keys and
+  section hashes (48 documents of all types), every draft's id, state and evidence offset (167), and
+  the published count (13) were compared across the change. They are **byte-identical**.

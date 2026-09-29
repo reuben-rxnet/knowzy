@@ -707,3 +707,16 @@ person row read. Specification:
 question generation, is **not** assumed to cover it. Raise it in the same conversation as T-29.
 Person-level competency data (CP-1..CP-4) needs Privacy, HR and Legal, and possibly works-council
 review, before any of it is held.
+
+### 12.13 XLSX extraction integrity (2026-09-29)
+
+A class of XLSX parsing defect was found and fixed: a self-closing element read as an opening tag
+could put a neighbouring cell's value or a shared-string index into extracted text, in the wrong
+column. Question import also lost consecutive blank columns. Measured against the pilot: **the two
+synchronized XLSX documents extract identically before and after**, and no draft, published question
+or evidence span depends on either. Detail:
+[XLSX_EXTRACTION_CORRECTION.md](../migrations/XLSX_EXTRACTION_CORRECTION.md).
+
+The pilot may claim that spreadsheet cells are placed by their real cell reference, under test. It
+must not claim that a draft is proactively flagged when its source section changes: the flag has no
+writer, and the control that holds is the re-verification at approval (gate 12).

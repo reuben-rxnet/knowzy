@@ -181,13 +181,11 @@ Still Open:
 
 Next Immediate Task:
 
-0. FIX THE extractXlsx SELF-CLOSING-CELL DEFECT (found 2026-09-29, it.todo in
-   packages/content-extraction/src/extractors/xlsx-grid.test.ts). sheetLines()
-   tries the open-tag branch first, so `<c r="G1" s="5"/>` swallows the next
-   cell and puts its shared-string INDEX into extracted text. readXlsxGrid is
-   fixed; the generation extractor is not, because the fix changes the text and
-   section hashes of the two ingested pilot XLSX documents -- do it when the
-   Codex evaluation drafts are no longer under review, and re-sync.
+0. XLSX-INTEGRITY-M1 is DONE (2026-09-29): cells placed by reference through
+   one shared row parser; measured impact on the pilot was zero, so no re-sync.
+   Open follow-up it exposed: NOTHING WRITES draft_question.needsRevalidation,
+   so a draft is not proactively flagged when its section changes; gate 12
+   re-verifying the evidence at approval is the control that actually holds.
 1. SEND the T-29 request, and raise CP-5 (Document Studio: restructuring whole
    documents is a DIFFERENT processing purpose, not covered by the Codex
    generation approval) in the same conversation. It is drafted at
@@ -357,6 +355,14 @@ packages/<name>`, then restart api. The tests do not see this, because
   on the host. Symptom: `PrismaClientValidationError: Unknown field X for
 select statement on model Y` from the api while the host typechecks clean.
   Fix: docker compose ... up migrate, then restart api mcp jobs.
+- NEVER MATCH AN XML ELEMENT WITH A `<x\b([^>]*)>...</x>` REGEX. `[^>]*` takes
+  the `/` of a self-closing `<x .../>`, which then "opens" and swallows its
+  neighbour. It hit XLSX `<c>`, `<row>`, `<si>` and `<t>` (XLSX-INTEGRITY-M1).
+  Use elementsOf() in content-extraction/src/extractors/xlsx.ts: `/>` is empty,
+  otherwise read to the element's OWN closing tag. A "no change" impact result
+  is believed only beside a control run that shows a change.
+- CONSECUTIVE BLANK CELLS NORMALIZE TO `- - -` WITH SHARED SPACES, and
+  split(' - ') loses them. question-import's splitRow splits on / -(?= )/.
 - `\b` INSIDE A JAVASCRIPT STRING LITERAL IS A BACKSPACE, not a regex word
   boundary. `new RegExp('^Author\b')` matches nothing and prints as
   /^Author/ in the failure message, so the character is invisible in the log
