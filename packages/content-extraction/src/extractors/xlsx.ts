@@ -31,7 +31,14 @@
 // reports insufficient evidence. XLSX is worth extracting when a sheet holds a
 // policy table — thresholds, owners, windows — and not otherwise.
 
-import type { DocumentType } from '@knowzy/shared-types';
+import { createHash } from 'node:crypto';
+import type {
+  DocumentType,
+  WorkbookGrid,
+  WorkbookGridCell,
+  WorkbookGridMerge,
+  WorkbookGridSheet,
+} from '@knowzy/shared-types';
 import { openZip, ZipError, type ZipLimits } from '../zip.js';
 import { textBlock, type Block, type StructuredDocument } from '../structure.js';
 import { CELL_SEPARATOR, decodeEntities, relationshipTargets, stripElements } from './ooxml.js';
@@ -81,6 +88,8 @@ const sharedStrings = (xml: string | null): string[] => {
 interface SheetRef {
   readonly name: string;
   readonly path: string;
+  /** `state="hidden"` or `veryHidden`. Not used by `extractXlsx` (a recorded limitation). */
+  readonly hidden: boolean;
 }
 
 const sheetsOf = (
@@ -99,7 +108,12 @@ const sheetsOf = (
       const relationshipId = /\br:id="([^"]+)"/.exec(element)?.[1];
       const path = relationshipId === undefined ? undefined : targets.get(relationshipId);
       if (name !== undefined && path !== undefined && present.includes(path)) {
-        sheets.push({ name: decodeEntities(name), path });
+        const state = /\bstate="([^"]*)"/.exec(element)?.[1];
+        sheets.push({
+          name: decodeEntities(name),
+          path,
+          hidden: state === 'hidden' || state === 'veryHidden',
+        });
       }
       match = matcher.exec(workbookXml);
     }
@@ -111,7 +125,7 @@ const sheetsOf = (
       (a, b) =>
         Number(/sheet(\d+)\.xml$/.exec(a)?.[1] ?? 0) - Number(/sheet(\d+)\.xml$/.exec(b)?.[1] ?? 0),
     )
-    .map((path) => ({ name: '', path }));
+    .map((path) => ({ name: '', path, hidden: false }));
 };
 
 /**
@@ -133,6 +147,26 @@ const columnIndex = (reference: string): number | null => {
   return index - 1;
 };
 
+/** A cell's visible text: the shared string, the inline string, or the cached value. */
+const cellText = (attributes: string, body: string, strings: readonly string[]): string => {
+  const type = /\bt="([^"]+)"/.exec(attributes)?.[1];
+
+  let value = '';
+  if (type === 's') {
+    // Shared-string index. An unresolvable index contributes nothing
+    // rather than leaking the index itself into the text.
+    const index = Number(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? '');
+    value = Number.isInteger(index) ? (strings[index] ?? '') : '';
+  } else if (type === 'inlineStr') {
+    value = decodeEntities(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/.exec(body)?.[1] ?? '');
+  } else {
+    // Numeric, boolean, or a formula's cached result. `<f>` is ignored.
+    value = decodeEntities(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? '');
+  }
+
+  return value.replace(/[\t\r\n]+/g, ' ').trim();
+};
+
 /**
  * One line per row, cells joined as prose, WITH COLUMN POSITION PRESERVED.
  *
@@ -152,23 +186,7 @@ const sheetLines = (xml: string, strings: readonly string[], maxRows: number): s
     let cell = cellMatcher.exec(row[1] ?? '');
     while (cell !== null) {
       const attributes = cell[1] ?? cell[3] ?? '';
-      const body = cell[2] ?? '';
-      const type = /\bt="([^"]+)"/.exec(attributes)?.[1];
-
-      let value = '';
-      if (type === 's') {
-        // Shared-string index. An unresolvable index contributes nothing
-        // rather than leaking the index itself into the text.
-        const index = Number(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? '');
-        value = Number.isInteger(index) ? (strings[index] ?? '') : '';
-      } else if (type === 'inlineStr') {
-        value = decodeEntities(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/.exec(body)?.[1] ?? '');
-      } else {
-        // Numeric, boolean, or a formula's cached result. `<f>` is ignored.
-        value = decodeEntities(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? '');
-      }
-
-      const trimmed = value.replace(/[\t\r\n]+/g, ' ').trim();
+      const trimmed = cellText(attributes, cell[2] ?? '', strings);
       // `r` places the cell; without it the only honest choice is the next
       // position, which is what a file with no references implies anyway.
       const at = columnIndex(/\br="([^"]+)"/.exec(attributes)?.[1] ?? '') ?? cells.length;
@@ -186,24 +204,34 @@ const sheetLines = (xml: string, strings: readonly string[], maxRows: number): s
   return lines;
 };
 
-export const extractXlsx = (bytes: Uint8Array, options: XlsxOptions = {}): StructuredDocument => {
-  let sheets: SheetRef[];
-  let strings: string[];
-  let read: (name: string) => string | null;
+interface OpenWorkbook {
+  readonly sheets: SheetRef[];
+  readonly strings: string[];
+  readonly read: (name: string) => string | null;
+}
 
+/**
+ * Opens the four kinds of part both readers need, and NOTHING ELSE: the
+ * workbook, its relationships, the shared-string table and the worksheets.
+ * Comments, threaded comments, the `persons` part, document properties and
+ * custom XML name people and are never opened.
+ */
+const openWorkbook = (bytes: Uint8Array, zipLimits: ZipLimits | undefined): OpenWorkbook => {
   try {
-    const zip = openZip(bytes, options.zipLimits);
-    read = (name) => zip.readText(name);
+    const zip = openZip(bytes, zipLimits);
     const present = zip.names.filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name));
     if (present.length === 0) {
       throw new XlsxError('NOT_AN_XLSX', 'The container has no worksheet parts.');
     }
-    strings = sharedStrings(zip.readText('xl/sharedStrings.xml'));
-    sheets = sheetsOf(
-      zip.readText('xl/workbook.xml'),
-      zip.readText('xl/_rels/workbook.xml.rels'),
-      present,
-    );
+    return {
+      read: (name) => zip.readText(name),
+      strings: sharedStrings(zip.readText('xl/sharedStrings.xml')),
+      sheets: sheetsOf(
+        zip.readText('xl/workbook.xml'),
+        zip.readText('xl/_rels/workbook.xml.rels'),
+        present,
+      ),
+    };
   } catch (error) {
     if (error instanceof XlsxError) throw error;
     if (error instanceof ZipError) {
@@ -218,6 +246,10 @@ export const extractXlsx = (bytes: Uint8Array, options: XlsxOptions = {}): Struc
     }
     throw new XlsxError('MALFORMED', 'The XLSX container could not be decompressed.');
   }
+};
+
+export const extractXlsx = (bytes: Uint8Array, options: XlsxOptions = {}): StructuredDocument => {
+  const { sheets, strings, read } = openWorkbook(bytes, options.zipLimits);
 
   const blocks: Block[] = [];
   const limit = Math.min(sheets.length, options.maxSheets ?? DEFAULT_MAX_SHEETS);
@@ -242,5 +274,118 @@ export const extractXlsx = (bytes: Uint8Array, options: XlsxOptions = {}): Struc
     documentType: 'XLSX' as DocumentType,
     blocks,
     hasHeadingStructure: false,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// readXlsxGrid — header cells as a grid, for the structure-only competency
+// importer (docs/competencies/COMPETENCY_IMPORT_PLAN.md §1).
+//
+// Different from `extractXlsx` in the one way that matters: it keeps CELL
+// POSITIONS and MERGED RANGES, because a matrix's meaning is in which band a
+// header sits under, and it keeps text for the first `retainRows` rows ONLY.
+// Every row below that is counted and never decoded -- its cells are not
+// resolved against the shared-string table -- so a person row of a competency
+// matrix cannot leave this function, whatever the caller does next.
+// ---------------------------------------------------------------------------
+
+export interface XlsxGridOptions {
+  readonly zipLimits?: ZipLimits;
+  readonly maxSheets?: number;
+  /** Rows whose text is kept. Everything below is counted only. Default 6. */
+  readonly retainRows?: number;
+}
+
+const DEFAULT_RETAIN_ROWS = 6;
+
+const parseRange = (reference: string): WorkbookGridMerge | null => {
+  const match = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(reference.toUpperCase());
+  if (match === null) return null;
+  const first = columnIndex(`${match[1]}${match[2]}`);
+  const last = columnIndex(`${match[3]}${match[4]}`);
+  if (first === null || last === null) return null;
+  return {
+    firstRow: Number(match[2]),
+    firstColumn: first + 1,
+    lastRow: Number(match[4]),
+    lastColumn: last + 1,
+  };
+};
+
+const gridOfSheet = (
+  xml: string,
+  strings: readonly string[],
+  retainRows: number,
+): { cells: WorkbookGridCell[]; rowsBeyondLimit: number } => {
+  const cells: WorkbookGridCell[] = [];
+  let rowsBeyondLimit = 0;
+  const rowMatcher = /<row\b([^>]*)>([\s\S]*?)<\/row>/g;
+  let row = rowMatcher.exec(xml);
+  let ordinal = 0;
+  while (row !== null) {
+    ordinal += 1;
+    // `r` is optional in the format; without it the row is the next one.
+    const declared = Number(/\br="(\d+)"/.exec(row[1] ?? '')?.[1] ?? '');
+    const rowNumber = Number.isInteger(declared) && declared > 0 ? declared : ordinal;
+    ordinal = rowNumber;
+    const body = row[2] ?? '';
+
+    if (rowNumber > retainRows) {
+      // Presence only. A value element or an inline string means the row has
+      // content; nothing is decoded to find that out.
+      if (/<v>|<is>/.test(body)) rowsBeyondLimit += 1;
+    } else {
+      const cellMatcher = /<c\b([^>]*)>([\s\S]*?)<\/c>|<c\b([^>]*)\/>/g;
+      let cell = cellMatcher.exec(body);
+      let position = 0;
+      while (cell !== null) {
+        const attributes = cell[1] ?? cell[3] ?? '';
+        const at = columnIndex(/\br="([^"]+)"/.exec(attributes)?.[1] ?? '') ?? position;
+        position = at + 1;
+        const text = cellText(attributes, cell[2] ?? '', strings);
+        if (text.length > 0) cells.push({ row: rowNumber, column: at + 1, text });
+        cell = cellMatcher.exec(body);
+      }
+    }
+    row = rowMatcher.exec(xml);
+  }
+  return { cells, rowsBeyondLimit };
+};
+
+export const readXlsxGrid = (bytes: Uint8Array, options: XlsxGridOptions = {}): WorkbookGrid => {
+  const { sheets, strings, read } = openWorkbook(bytes, options.zipLimits);
+  const retainRows = options.retainRows ?? DEFAULT_RETAIN_ROWS;
+  const limit = Math.min(sheets.length, options.maxSheets ?? DEFAULT_MAX_SHEETS);
+  const out: WorkbookGridSheet[] = [];
+
+  for (let index = 0; index < limit; index += 1) {
+    const sheet = sheets[index] as SheetRef;
+    let xml: string | null;
+    try {
+      xml = read(sheet.path);
+    } catch {
+      continue; // per-part isolation, as in extractXlsx
+    }
+    if (xml === null) continue;
+
+    const { cells, rowsBeyondLimit } = gridOfSheet(xml, strings, retainRows);
+    const merges = [...xml.matchAll(/<mergeCell\b[^>]*\bref="([^"]+)"/g)]
+      .map((match) => parseRange(match[1] ?? ''))
+      .filter((range): range is WorkbookGridMerge => range !== null);
+
+    out.push({
+      name: sheet.name,
+      position: index,
+      hidden: sheet.hidden,
+      cells,
+      merges,
+      retainedRowLimit: retainRows,
+      rowsBeyondLimit,
+    });
+  }
+
+  return {
+    sheets: out,
+    contentSha256: createHash('sha256').update(bytes).digest('hex'),
   };
 };

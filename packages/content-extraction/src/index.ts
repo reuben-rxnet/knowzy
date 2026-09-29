@@ -24,5 +24,8 @@ export {
   supportedDocumentTypes,
 } from './extract.js';
 export type { ExtractedContent, ExtractInput, ExtractOptions } from './extract.js';
+// COMPETENCY-M0/M1: header cells as a grid, for the structure-only competency importer.
+export { readXlsxGrid, XlsxError } from './extractors/xlsx.js';
+export type { XlsxGridOptions } from './extractors/xlsx.js';
 
 export const PACKAGE_NAME = '@knowzy/content-extraction' as const;
