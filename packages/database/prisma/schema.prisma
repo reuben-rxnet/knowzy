@@ -987,9 +987,11 @@ model JobRole {
   modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
   version          Int      @default(1)
 
-  questions          DraftQuestion[]              @relation("DraftQuestionJobRole")
-  publishedQuestions PublishedQuestionReference[] @relation("PublishedQuestionJobRole")
-  generationJobs     GenerationJob[]              @relation("GenerationJobJobRole")
+  questions              DraftQuestion[]              @relation("DraftQuestionJobRole")
+  publishedQuestions     PublishedQuestionReference[] @relation("PublishedQuestionJobRole")
+  generationJobs         GenerationJob[]              @relation("GenerationJobJobRole")
+  /// 0015: a role target references the existing role catalogue, never a second one.
+  competencyExpectations RoleCompetencyExpectation[]  @relation("RoleCompetencyExpectationJobRole")
 
   @@index([isActive])
   @@map("job_role")
@@ -2808,4 +2810,353 @@ model IdempotencyRecord {
   @@unique([key, route, subjectId])
   @@index([expiresAt])
   @@map("idempotency_record")
+}
+
+// ===========================================================================
+// §3.5  Competency reference definitions — migration 0015 (COMPETENCY-M0/M1)
+//
+// REFERENCE DEFINITIONS ONLY. No model in this section holds an observation
+// about a person: no rating, no self-assessment, no imported baseline. That is
+// the privacy boundary in docs/competencies/COMPETENCY_PRIVACY_AND_GOVERNANCE.md,
+// and adding a person-level model here is a normative change to that document
+// first.
+// ===========================================================================
+
+enum CompetencyCategoryKind {
+  PRODUCT_KNOWLEDGE
+  FUNCTIONAL_DOMAIN
+  TECHNICAL
+  PROCESS
+  AGILE_PRACTICE
+  POWER_SKILL
+
+  @@map("competency_category_kind")
+}
+
+enum CompetencyDefinitionStatus {
+  ACTIVE
+  RETIRED
+
+  @@map("competency_definition_status")
+}
+
+enum CompetencyFrameworkVersionStatus {
+  DRAFT
+  APPROVED
+  SUPERSEDED
+
+  @@map("competency_framework_version_status")
+}
+
+enum CompetencyAliasSubject {
+  CATEGORY
+  COMPETENCY
+
+  @@map("competency_alias_subject")
+}
+
+enum CompetencyAliasDecision {
+  EXACT
+  CASE_OR_SPACING
+  SPELLING_CORRECTION
+  ABBREVIATION
+  CATEGORY_QUALIFIED
+  PROVISIONAL
+  UNDECLARED
+
+  @@map("competency_alias_decision")
+}
+
+enum RoleCompetencyExpectationStatus {
+  PROPOSED
+  APPROVED
+  RETIRED
+
+  @@map("role_competency_expectation_status")
+}
+
+enum CompetencyImportOutcome {
+  APPLIED
+  NO_CHANGES
+
+  @@map("competency_import_outcome")
+}
+
+enum CompetencyImportFindingSeverity {
+  INFO
+  WARNING
+  DECISION_REQUIRED
+  BLOCKING
+
+  @@map("competency_import_finding_severity")
+}
+
+enum CompetencyProvenanceSubject {
+  CATEGORY
+  COMPETENCY
+  LEVEL
+
+  @@map("competency_provenance_subject")
+}
+
+model CompetencyFramework {
+  id          String                     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  code        String                     @unique
+  name        String
+  description String?
+  status      CompetencyDefinitionStatus @default(ACTIVE)
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
+
+  versions     CompetencyFrameworkVersion[] @relation("CompetencyFrameworkVersionFramework")
+  scales       CompetencyLevelScale[]       @relation("CompetencyLevelScaleFramework")
+  categories   CompetencyCategory[]         @relation("CompetencyCategoryFramework")
+  competencies Competency[]                 @relation("CompetencyFramework")
+  aliases      CompetencyAlias[]            @relation("CompetencyAliasFramework")
+
+  @@map("competency_framework")
+}
+
+/// One imported source file. DRAFT until approved as a separate, recorded act;
+/// a CHECK in 0015 refuses APPROVED without approver, time and reference.
+model CompetencyFrameworkVersion {
+  id                  String                           @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkId         String                           @map("framework_id") @db.Uuid
+  versionLabel        String                           @map("version_label")
+  sourceFileName      String                           @map("source_file_name")
+  sourceContentSha256 String                           @map("source_content_sha256") @db.Char(64)
+  status              CompetencyFrameworkVersionStatus @default(DRAFT)
+  effectiveFrom       DateTime?                        @map("effective_from") @db.Date
+  approvedAt          DateTime?                        @map("approved_at") @db.Timestamptz(6)
+  approvedByUserId    String?                          @map("approved_by_user_id") @db.Uuid
+  approvalReference   String?                          @map("approval_reference")
+  importerVersion     String                           @map("importer_version")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  framework  CompetencyFramework          @relation("CompetencyFrameworkVersionFramework", fields: [frameworkId], references: [id], onDelete: Restrict)
+  batches    CompetencyImportBatch[]      @relation("CompetencyImportBatchVersion")
+  provenance CompetencyImportProvenance[] @relation("CompetencyImportProvenanceVersion")
+
+  @@unique([frameworkId, sourceContentSha256])
+  @@unique([frameworkId, versionLabel])
+  @@map("competency_framework_version")
+}
+
+model CompetencyLevelScale {
+  id          String  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkId String  @map("framework_id") @db.Uuid
+  code        String
+  name        String
+  description String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  framework    CompetencyFramework @relation("CompetencyLevelScaleFramework", fields: [frameworkId], references: [id], onDelete: Restrict)
+  levels       CompetencyLevel[]   @relation("CompetencyLevelScale")
+  competencies Competency[]        @relation("CompetencyLevelScaleCompetency")
+
+  @@unique([frameworkId, code])
+  @@map("competency_level_scale")
+}
+
+model CompetencyLevel {
+  id           String   @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  scaleId      String   @map("scale_id") @db.Uuid
+  /// The source's own code, e.g. `NI`, `R`, `A`, `G`.
+  code         String
+  label        String
+  ordinal      Int
+  description  String?
+  /// Every label the source used for this level, as written.
+  sourceLabels String[] @default([]) @map("source_labels")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  scale        CompetencyLevelScale         @relation("CompetencyLevelScale", fields: [scaleId], references: [id], onDelete: Restrict)
+  expectations RoleCompetencyExpectation[]  @relation("RoleCompetencyExpectationLevel")
+  provenance   CompetencyImportProvenance[] @relation("CompetencyImportProvenanceLevel")
+
+  @@unique([scaleId, code])
+  @@unique([scaleId, ordinal])
+  @@map("competency_level")
+}
+
+model CompetencyCategory {
+  id          String                     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkId String                     @map("framework_id") @db.Uuid
+  code        String
+  name        String
+  kind        CompetencyCategoryKind
+  ordinal     Int
+  status      CompetencyDefinitionStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  framework    CompetencyFramework          @relation("CompetencyCategoryFramework", fields: [frameworkId], references: [id], onDelete: Restrict)
+  competencies Competency[]                 @relation("CompetencyCategory")
+  aliases      CompetencyAlias[]            @relation("CompetencyAliasCategory")
+  provenance   CompetencyImportProvenance[] @relation("CompetencyImportProvenanceCategory")
+
+  @@unique([frameworkId, code])
+  @@map("competency_category")
+}
+
+model Competency {
+  id           String                     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkId  String                     @map("framework_id") @db.Uuid
+  categoryId   String                     @map("category_id") @db.Uuid
+  levelScaleId String                     @map("level_scale_id") @db.Uuid
+  /// `CATEGORY.COMPETENCY`, e.g. `DATABASE.POSTGRESQL`. Stable across versions.
+  code         String
+  name         String
+  description  String?
+  status       CompetencyDefinitionStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  framework    CompetencyFramework          @relation("CompetencyFramework", fields: [frameworkId], references: [id], onDelete: Restrict)
+  category     CompetencyCategory           @relation("CompetencyCategory", fields: [categoryId], references: [id], onDelete: Restrict)
+  levelScale   CompetencyLevelScale         @relation("CompetencyLevelScaleCompetency", fields: [levelScaleId], references: [id], onDelete: Restrict)
+  aliases      CompetencyAlias[]            @relation("CompetencyAliasCompetency")
+  expectations RoleCompetencyExpectation[]  @relation("RoleCompetencyExpectationCompetency")
+  provenance   CompetencyImportProvenance[] @relation("CompetencyImportProvenanceCompetency")
+
+  @@unique([frameworkId, code])
+  @@index([categoryId])
+  @@map("competency")
+}
+
+/// A source label and the normalization decision that maps it. `contextCode` is
+/// the category code for a COMPETENCY alias (so "Oracle" under Database and
+/// under ERP are two aliases) and the empty string for a CATEGORY alias.
+model CompetencyAlias {
+  id           String                  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkId  String                  @map("framework_id") @db.Uuid
+  subject      CompetencyAliasSubject
+  contextCode  String                  @map("context_code")
+  categoryId   String?                 @map("category_id") @db.Uuid
+  competencyId String?                 @map("competency_id") @db.Uuid
+  alias        String
+  foldedAlias  String                  @map("folded_alias")
+  decision     CompetencyAliasDecision
+  note         String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  framework  CompetencyFramework @relation("CompetencyAliasFramework", fields: [frameworkId], references: [id], onDelete: Restrict)
+  category   CompetencyCategory? @relation("CompetencyAliasCategory", fields: [categoryId], references: [id], onDelete: Restrict)
+  competency Competency?         @relation("CompetencyAliasCompetency", fields: [competencyId], references: [id], onDelete: Restrict)
+
+  @@unique([frameworkId, subject, contextCode, foldedAlias])
+  @@map("competency_alias")
+}
+
+/// An approved target level for a role. The role catalogue is the EXISTING
+/// JobRole, never a second one. No write path in COMPETENCY-M0/M1; a CHECK in
+/// 0015 refuses APPROVED without approver, time and reference.
+model RoleCompetencyExpectation {
+  id                String                          @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  jobRoleId         String                          @map("job_role_id") @db.Uuid
+  competencyId      String                          @map("competency_id") @db.Uuid
+  targetLevelId     String                          @map("target_level_id") @db.Uuid
+  status            RoleCompetencyExpectationStatus @default(PROPOSED)
+  source            String
+  rationale         String?
+  effectiveFrom     DateTime?                       @map("effective_from") @db.Date
+  approvedAt        DateTime?                       @map("approved_at") @db.Timestamptz(6)
+  approvedByUserId  String?                         @map("approved_by_user_id") @db.Uuid
+  approvalReference String?                         @map("approval_reference")
+
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
+  version          Int      @default(1)
+
+  jobRole     JobRole         @relation("RoleCompetencyExpectationJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
+  competency  Competency      @relation("RoleCompetencyExpectationCompetency", fields: [competencyId], references: [id], onDelete: Restrict)
+  targetLevel CompetencyLevel @relation("RoleCompetencyExpectationLevel", fields: [targetLevelId], references: [id], onDelete: Restrict)
+
+  @@index([jobRoleId, competencyId])
+  @@index([status])
+  @@map("role_competency_expectation")
+}
+
+model CompetencyImportBatch {
+  id                  String                  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkVersionId  String                  @map("framework_version_id") @db.Uuid
+  outcome             CompetencyImportOutcome
+  profileCode         String                  @map("profile_code")
+  importerVersion     String                  @map("importer_version")
+  sourceFileName      String                  @map("source_file_name")
+  sourceContentSha256 String                  @map("source_content_sha256") @db.Char(64)
+  /// Free text from the operator command, and labelled as such: the command
+  /// runs with no identity provider, so it cannot name a verified user.
+  actorLabel          String?                 @map("actor_label")
+  correlationId       String                  @map("correlation_id")
+  /// Counts only.
+  summary             Json                    @default("{}") @db.JsonB
+  startedAt           DateTime                @map("started_at") @db.Timestamptz(6)
+  completedAt         DateTime                @map("completed_at") @db.Timestamptz(6)
+
+  frameworkVersion CompetencyFrameworkVersion   @relation("CompetencyImportBatchVersion", fields: [frameworkVersionId], references: [id], onDelete: Restrict)
+  findings         CompetencyImportFinding[]    @relation("CompetencyImportFindingBatch")
+  provenance       CompetencyImportProvenance[] @relation("CompetencyImportProvenanceBatch")
+
+  @@index([frameworkVersionId, startedAt(sort: Desc)])
+  @@map("competency_import_batch")
+}
+
+/// A header-row reference only. Never content from a person row.
+model CompetencyImportFinding {
+  id            String                          @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  batchId       String                          @map("batch_id") @db.Uuid
+  code          String
+  severity      CompetencyImportFindingSeverity
+  sheetName     String?                         @map("sheet_name")
+  cellReference String?                         @map("cell_reference")
+  subjectLabel  String?                         @map("subject_label")
+  message       String
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  batch CompetencyImportBatch @relation("CompetencyImportFindingBatch", fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@index([batchId])
+  @@map("competency_import_finding")
+}
+
+model CompetencyImportProvenance {
+  id                 String                      @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkVersionId String                      @map("framework_version_id") @db.Uuid
+  batchId            String                      @map("batch_id") @db.Uuid
+  subject            CompetencyProvenanceSubject
+  categoryId         String?                     @map("category_id") @db.Uuid
+  competencyId       String?                     @map("competency_id") @db.Uuid
+  levelId            String?                     @map("level_id") @db.Uuid
+  sheetName          String                      @map("sheet_name")
+  cellReference      String                      @map("cell_reference")
+  rawLabel           String                      @map("raw_label")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  frameworkVersion CompetencyFrameworkVersion @relation("CompetencyImportProvenanceVersion", fields: [frameworkVersionId], references: [id], onDelete: Restrict)
+  batch            CompetencyImportBatch      @relation("CompetencyImportProvenanceBatch", fields: [batchId], references: [id], onDelete: Restrict)
+  category         CompetencyCategory?        @relation("CompetencyImportProvenanceCategory", fields: [categoryId], references: [id], onDelete: Restrict)
+  competency       Competency?                @relation("CompetencyImportProvenanceCompetency", fields: [competencyId], references: [id], onDelete: Restrict)
+  level            CompetencyLevel?           @relation("CompetencyImportProvenanceLevel", fields: [levelId], references: [id], onDelete: Restrict)
+
+  @@unique([frameworkVersionId, subject, sheetName, cellReference])
+  @@index([competencyId])
+  @@map("competency_import_provenance")
 }
