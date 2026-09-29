@@ -26,6 +26,7 @@ This matrix supersedes the seven-row draft in
 | `PLANNED` | Designed in `/docs` or seeded in the schema, but no code path produces it |
 | `REQUIRES_BACKEND_EXTENSION` | No model, endpoint, or data exists; needs new backend design |
 | `DISABLED_IN_CURRENT_RELEASE` | Deliberately shown as unavailable — no API exists and faking it is forbidden |
+| `BLOCKED_BY_APPROVAL` | Added 2026-09-29. Designed, and blocked on a recorded processing or privacy approval rather than on code; it must not be built around the approval |
 
 **Column conventions.** *Backend today* names the endpoint or table that exists. *Security* and
 *Authorization* record what the feature must not leak and which policy governs it — `n/a` means the
@@ -476,3 +477,21 @@ item whose status is `IMPLEMENTED` or `PARTIALLY_IMPLEMENTED`, and it was checke
 | No example interpolates a value for an unrecorded concept | Every string is in `apps/live-web/src/copy.ts`, which `no-fabricated-metrics.test.ts` scans |
 | A badge design never reads as earned | `KnowzyBadgeArt` has no earned variant; its artwork is greyed and its alt text ends "Not earned." e2e |
 | No calendar, session or join link | Absent (§7.5) |
+
+---
+
+## Competency and knowledge readiness (COMPETENCY-M0/M1, 2026-09-29)
+
+Scope widened by [architecture.md §14](../architecture.md#14-competency-and-knowledge-readiness-architecture--added-2026-09-29).
+**The counts above are unchanged by this section**, and **no navigation item exists for any row
+below**: an architecture-only capability gets no link, disabled or otherwise, until it has a backend.
+
+| Capability | Classification | Backing today | Blocked on |
+| --- | --- | --- | --- |
+| Competency Administration | `PARTIALLY_IMPLEMENTED` | Migration 0015 tables and the structure-only import command (`scripts/competency-import.ts`). **No screen, no route** | A screen, version approval and role targets (roadmap §3a M2; CM-1, CM-6, CM-9) |
+| Knowledge Proficiency (Governance) | `REQUIRES_BACKEND_EXTENSION` | The gap rule as a pure function; no observation exists to run it on | KP-1..KP-4, CP-3 |
+| Competency Analytics (Reports) | `REQUIRES_BACKEND_EXTENSION` | Nothing | Observations, KP-1, CP-3 |
+| AI Document Studio (Knowledge Sources) | `BLOCKED_BY_APPROVAL` | Nothing. Design: [AI_DOCUMENT_STUDIO_ARCHITECTURE.md](../competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md) | Approval for purpose `DOCUMENT_RESTRUCTURE` (CP-5, DS-2); then build |
+| My Competencies (Profile) | `REQUIRES_BACKEND_EXTENSION` | Nothing | CP-2, CP-4, an approved framework version |
+| My Certifications (Profile) | `REQUIRES_BACKEND_EXTENSION` | Nothing. The existing `certificate` table is the platform's **own** issued certificates, a different concept | CP-6, browser upload (M4) |
+| Learning Recommendations | `REQUIRES_BACKEND_EXTENSION` | `knowledge_recommendation` exists for refreshers; nothing writes it | Phase 9, M2, an evidence source |

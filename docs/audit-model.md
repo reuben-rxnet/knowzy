@@ -25,7 +25,7 @@ redaction policy is in [security.md §12](security.md#12-logging-redaction-and-m
 28 action families across five prefixes. The prefix determines the audit category, which determines
 which portal and which role can read it.
 
-### 2.1 `ADMIN.*` — 9 families
+### 2.1 `ADMIN.*` — 10 families
 
 | Family | Actions |
 | --- | --- |
@@ -38,6 +38,7 @@ which portal and which role can read it.
 | `ADMIN.TAXONOMY` | `DOMAIN_CREATED` · `DOMAIN_UPDATED` · `TOPIC_CREATED` · `TOPIC_UPDATED` · `TOPIC_MERGED` · `TOPIC_RENAMED` · `RETIRED` |
 | `ADMIN.RETENTION` | `EXECUTED` (with counts and the evaluation instant) |
 | `ADMIN.FEATUREFLAG` | `ENABLED` · `DISABLED` · `ROLLOUT_CHANGED` |
+| `ADMIN.COMPETENCY` (2026-09-29) | `IMPORT_APPLIED` (counts only; one per apply, including a `NO_CHANGES` re-apply) |
 
 ### 2.2 `AUTHORING.*` — 8 families
 

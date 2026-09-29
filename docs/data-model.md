@@ -206,6 +206,30 @@ as "set is empty OR intersects" rather than a plain intersection.
 Taxonomy deletion is prohibited where references exist. `mergedIntoTopicId` and
 `Domain.isActive = false` are the supported retirement paths, so no historical result loses its label.
 
+### 3.5 Competency reference definitions
+
+Added 2026-09-29, migration `0015_competency_foundation`. Normative detail:
+[competencies/COMPETENCY_MODEL.md](competencies/COMPETENCY_MODEL.md). **Reference definitions only:
+no table here holds an observation about a person**
+([COMPETENCY_PRIVACY_AND_GOVERNANCE.md](competencies/COMPETENCY_PRIVACY_AND_GOVERNANCE.md)).
+
+| Entity | Columns | Notes |
+| --- | --- | --- |
+| `CompetencyFramework` | `code` (unique), `name`, `description`, `status` | |
+| `CompetencyFrameworkVersion` | `frameworkId`, `versionLabel`, `sourceFileName`, `sourceContentSha256`, `status` (`DRAFT`/`APPROVED`/`SUPERSEDED`), `effectiveFrom?`, `approvedAt?`, `approvedByUserId?`, `approvalReference?`, `importerVersion` | Unique on `(frameworkId, sourceContentSha256)` and `(frameworkId, versionLabel)`. CHECK: `APPROVED` requires all three approval fields |
+| `CompetencyLevelScale` | `frameworkId`, `code`, `name`, `description` | Unique `(frameworkId, code)` |
+| `CompetencyLevel` | `scaleId`, `code`, `label`, `ordinal`, `description`, `sourceLabels[]` | Unique `(scaleId, code)` and `(scaleId, ordinal)` |
+| `CompetencyCategory` | `frameworkId`, `code`, `name`, `kind`, `ordinal`, `status` | Unique `(frameworkId, code)` |
+| `Competency` | `frameworkId`, `categoryId`, `levelScaleId`, `code`, `name`, `description`, `status` | Unique `(frameworkId, code)`; code is `CATEGORY.COMPETENCY` |
+| `CompetencyAlias` | `frameworkId`, `subject`, `contextCode`, `categoryId?`, `competencyId?`, `alias`, `foldedAlias`, `decision`, `note` | Unique `(frameworkId, subject, contextCode, foldedAlias)`. CHECK: subject matches exactly one target |
+| `RoleCompetencyExpectation` | `jobRoleId`, `competencyId`, `targetLevelId`, `status`, `source`, `rationale`, `effectiveFrom?`, `approvedAt?`, `approvedByUserId?`, `approvalReference?` | References the **existing** `JobRole`. CHECK: `APPROVED` requires all three approval fields. No write path in this release |
+| `CompetencyImportBatch` | `frameworkVersionId`, `outcome`, `profileCode`, `importerVersion`, `sourceFileName`, `sourceContentSha256`, `actorLabel`, `correlationId`, `summary` (JSONB of counts), `startedAt`, `completedAt` | One row per apply, including a `NO_CHANGES` re-apply |
+| `CompetencyImportFinding` | `batchId`, `code`, `severity`, `sheetName?`, `cellReference?`, `subjectLabel?`, `message` | A header-row reference only; never person-row content |
+| `CompetencyImportProvenance` | `frameworkVersionId`, `batchId`, `subject`, `categoryId?`, `competencyId?`, `levelId?`, `sheetName`, `cellReference`, `rawLabel` | Unique `(frameworkVersionId, subject, sheetName, cellReference)` |
+
+Definitions are framework-scoped and created once; a version records, through provenance, which of
+them its source file contained. Nothing is deleted: a definition is retired.
+
 ---
 
 ## 4. Knowledge source and document entities
@@ -759,6 +783,15 @@ later. Adding a value to a PostgreSQL enum is cheap; changing stored history is 
 | `ReportStatus` | `DRAFT`, `UNDER_REVIEW`, `APPROVED`, `PUBLISHED`, `RETIRED`, `ARCHIVED` |
 | `ExportFormat` | `CSV`, `XLSX`, `PDF` |
 | `AuditOutcome` | `SUCCESS`, `FAILURE`, `DENIED` |
+| `CompetencyCategoryKind` (0015) | `PRODUCT_KNOWLEDGE`, `FUNCTIONAL_DOMAIN`, `TECHNICAL`, `PROCESS`, `AGILE_PRACTICE`, `POWER_SKILL` |
+| `CompetencyDefinitionStatus` (0015) | `ACTIVE`, `RETIRED` |
+| `CompetencyFrameworkVersionStatus` (0015) | `DRAFT`, `APPROVED`, `SUPERSEDED` |
+| `CompetencyAliasSubject` (0015) | `CATEGORY`, `COMPETENCY` |
+| `CompetencyAliasDecision` (0015) | `EXACT`, `CASE_OR_SPACING`, `SPELLING_CORRECTION`, `ABBREVIATION`, `CATEGORY_QUALIFIED`, `PROVISIONAL`, `UNDECLARED` |
+| `RoleCompetencyExpectationStatus` (0015) | `PROPOSED`, `APPROVED`, `RETIRED` |
+| `CompetencyImportOutcome` (0015) | `APPLIED`, `NO_CHANGES` |
+| `CompetencyImportFindingSeverity` (0015) | `INFO`, `WARNING`, `DECISION_REQUIRED`, `BLOCKING` |
+| `CompetencyProvenanceSubject` (0015) | `CATEGORY`, `COMPETENCY`, `LEVEL` |
 
 ---
 

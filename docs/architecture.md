@@ -20,6 +20,7 @@ deployment architecture.
 | P8 | Idempotency at every write to an external system | Deterministic idempotency keys plus pre-write existence checks |
 | P9 | Auditability is a first-class feature | Every state transition writes an audit event in the same transaction as the state change |
 | P10 | Least privilege, per source | Graph permissions scoped per site (`Sites.Selected`) or delegated on-behalf-of |
+| P11 | Competency evidence is separated by source and is never an employment decision (added 2026-09-29, §14) | Reference definitions are held; observations about people are not, until the privacy decisions are made; sources are never merged into one score |
 
 ---
 
@@ -124,6 +125,7 @@ graph TB
         D9["Recommendation Service"]
         D10["Recognition Service"]
         D11["Reporting Service"]
+        D12["Competency Catalogue<br/>(§14, reference definitions only)"]
     end
 
     subgraph Integration["Integration layer"]
@@ -670,6 +672,7 @@ graph TB
 | SharePoint — knowledge document libraries | Source documents | Authoritative for source content (read-only to Knowzy) |
 | Blob storage | Generated certificates, report exports | Authoritative for the rendered artifact; metadata lives in PostgreSQL |
 | Entra ID | Identity, group membership | Authoritative for identity |
+| PostgreSQL — competency reference definitions (since 0015, §14) | Frameworks, versions, level scales, categories, competencies, aliases, role targets, import batches, findings, provenance | Authoritative for the **catalogue**. **Holds no observation about any person** |
 
 **Read-through projection.** Because SharePoint is a weak query target, every published question is
 projected into `PublishedQuestionReference` in PostgreSQL (identifiers, status, version, domain,
@@ -816,3 +819,55 @@ configuration value is shared across environments. See
 | Development view (packages, dependency rules) | [repository-structure.md](repository-structure.md) |
 | Reporting view (read models, semantics) | [reporting.md](reporting.md) |
 | Decision log | [risks-and-decisions.md](risks-and-decisions.md) |
+| Competency and knowledge-readiness view | §14 and [competencies/](competencies/) |
+
+---
+
+## 14. Competency and knowledge-readiness architecture — added 2026-09-29
+
+**This section expands the platform's scope and was written before any code for it**, as §9.0 was.
+KNOWZY now also holds a **competency catalogue** — which competencies an organization recognizes,
+their level vocabularies, and approved role targets — as the foundation for knowledge-readiness
+management.
+
+**This expansion does not authorize employee performance evaluation.** Nothing built under it may be
+an input to an automated employment decision, rank named people, or combine different kinds of
+evidence into one unexplained score. The boundary is owned by
+[COMPETENCY_PRIVACY_AND_GOVERNANCE.md](competencies/COMPETENCY_PRIVACY_AND_GOVERNANCE.md).
+
+Seven rules govern it.
+
+1. **Reference definitions are held; observations about people are not — yet.** Migration 0015
+   creates catalogue tables only. No rating, self-assessment, manager assessment or imported
+   per-person baseline is stored until the privacy decisions CP-1..CP-4 are made.
+2. **Evidence is separated by source.** Self-assessment, assessment-measured proficiency, manager or
+   SME assessment, certification evidence and imported baselines are distinct observations with the
+   source attached. None overwrites another, and none silently becomes verified.
+3. **A gap needs five preconditions** — an approved population, an approved target, a valid
+   observation on the same scale, a declared source and an as-of date — and is otherwise
+   `NOT_CALCULABLE`, shown as a refusal and never as zero
+   ([KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §4](competencies/KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md#4-the-gap-rule--implemented)).
+4. **Import is structure-only and deterministic.** A reference workbook contributes headers, never
+   person rows; normalization is a declared table plus a fold, never a model, and an undeclared near
+   match blocks the apply
+   ([COMPETENCY_IMPORT_PLAN.md](competencies/COMPETENCY_IMPORT_PLAN.md)).
+5. **The role catalogue is the existing `JobRole`.** A second role catalogue is not created.
+6. **Aggregate reporting only**, under reporting.md §7 S1 and S3 or stricter, with evidence source,
+   asOf, verification state, suppressed-cell count and population definition on every panel. No
+   dummy teams; `Team` still has no write path.
+7. **Document restructuring is a distinct AI processing purpose.** The AI Document Studio
+   ([AI_DOCUMENT_STUDIO_ARCHITECTURE.md](competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md)) needs its
+   own approval for purpose `DOCUMENT_RESTRUCTURE` and reads `BLOCKED_BY_APPROVAL` without it, even
+   where a provider is approved for question generation (§9.0 rule 7). A derivative never replaces an
+   original, and a question grounded in one carries generation evidence and origin lineage
+   separately.
+
+| Capability | Status | Specification |
+| --- | --- | --- |
+| Competency catalogue and structure-only import | **Built** (COMPETENCY-M0/M1) — operator command, no screen | COMPETENCY_MODEL.md, COMPETENCY_IMPORT_PLAN.md |
+| Gap rule | **Built** as a pure function; no data to run it on | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §4 |
+| Knowledge Proficiency, Competency Analytics | Designed | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §5–§6 |
+| My Competencies (self-assessment) | Designed; blocked on CP-2, CP-4 | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §7 |
+| My Certifications | Designed; blocked on CP-6 | CERTIFICATION_TRACKING_ARCHITECTURE.md |
+| Learning recommendations | Designed | FUTURE_LEARNING_RECOMMENDATION_ARCHITECTURE.md |
+| AI Document Studio | Designed; `BLOCKED_BY_APPROVAL` | AI_DOCUMENT_STUDIO_ARCHITECTURE.md |

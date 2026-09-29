@@ -252,3 +252,42 @@ five that need proficiency and recognition models, which are their own work.
 R-1 is worth deciding before the next reporting slice rather than after: retrofitting history is a
 migration, and removing a number from a mockup is a conversation.
 
+
+---
+
+## 9. Addendum 2026-09-29 — scope widened: competency and knowledge readiness
+
+The product owner asked for KNOWZY to grow from an assessment platform into a **knowledge-readiness
+and competency platform**, in four parts: an AI Document Studio, a competency foundation, knowledge
+proficiency and workforce readiness reporting, and learner-facing foundations (self-assessment,
+certifications, recommendations). The combined brief was **not** built as one change. It conflicted
+with five recorded rules (specification first, no browser upload, a distinct AI processing purpose,
+person-level data needing privacy decisions, gaps needing a real target), so it was split and the
+first slice chosen explicitly: **COMPETENCY-M0/M1, specifications plus the competency foundation and
+a structure-only importer.**
+
+**This does not change the deployment plan above.** Waves 0–3 stand. The workstream is recorded in
+[implementation-roadmap.md §3a](../implementation-roadmap.md#3a-extension-workstream--competency-and-knowledge-readiness-added-2026-09-29)
+as eight milestones after the core path; only M0/M1 is done.
+
+| Delivered 2026-09-29 | State |
+| --- | --- |
+| Architecture amended first ([architecture.md §14](../architecture.md#14-competency-and-knowledge-readiness-architecture--added-2026-09-29)), with principle P11 | **Done** |
+| Seven specifications in `docs/competencies/` | **Done** |
+| Migration 0015: reference-definition tables only | **Done** |
+| Structure-only importer with dry run and apply | **Done**, idempotent, audited |
+| Gap rule as a pure function | **Done**; refuses without an approved target |
+| Any screen, route or person-level table | **Not built, deliberately** |
+
+### Decisions now blocking the workstream, none of them engineering
+
+| # | Blocker | Owner |
+| --- | --- | --- |
+| CP-1..CP-4 | Whether and how person-level competency data may be held, seen and reported | Privacy, HR, Legal |
+| CP-5 / DS-2 | Approval for sending whole documents to a model for restructuring. **Not covered by the Codex generation approval** | Privacy, InfoSec |
+| CM-1, CM-6 | Whether the RxSolutions matrix is the official framework, and who approves a version | Competency owner |
+| CM-9 | Where approved role targets come from — the workbook has none | Workforce planning |
+| KP-1 | Where a *person's* department or role comes from; today a department is a label on a question | Product, HR |
+
+These belong beside T-29 in the Wave 0 conversation with Privacy: CP-5 in particular is the same
+reviewers, the same processor, and a different purpose.

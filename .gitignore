@@ -28,3 +28,8 @@ tools/e2e/blob-report/
 
 # P-5: the local secure store (key + encrypted secrets). Never committed.
 .secrets/
+
+# COMPETENCY-M0/M1: the competency reference workbook names people and their
+# individual ratings. It is inspected locally, read by the structure-only
+# importer, and NEVER committed. See docs/competencies/COMPETENCY_PRIVACY_AND_GOVERNANCE.md.
+RealWorldPilot/CompetencyModels/

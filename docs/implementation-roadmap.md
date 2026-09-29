@@ -1,7 +1,8 @@
 # Implementation Roadmap
 
 **What this document adds:** the eleven delivery phases, their exit criteria, and the sequencing
-constraints that make them ordered rather than arbitrary. It does not restate what each phase builds —
+constraints that make them ordered rather than arbitrary — plus, since 2026-09-29, one extension
+workstream (§3a) that widens scope beyond the core path. It does not restate what each phase builds —
 each phase names the document that specifies it.
 
 The smallest end-to-end slice, which spans phases 1–6, is specified separately in
@@ -300,6 +301,26 @@ resilience verification, operational readiness, documentation.
 | Every tenant value in the configuration checklist is supplied, or its absence is an accepted, documented limitation |
 | Runbooks exist for: source failure, throttling storm, Claude outage, bank drift, answer-key incident, failed publish batch, stuck job, migration rollback |
 | Audit seal verification job has run and passed for at least one sealed partition |
+
+---
+
+## 3a. Extension workstream — Competency and knowledge readiness (added 2026-09-29)
+
+**Not a twelfth phase.** It extends the platform's scope after the core path and reuses Phase 9's
+recommendation model and Phase 10's reporting infrastructure, so its later milestones depend on
+them. Specification: [architecture.md §14](architecture.md#14-competency-and-knowledge-readiness-architecture--added-2026-09-29)
+and [competencies/](competencies/). **It does not authorize employee performance evaluation.**
+
+| Milestone | Builds | Depends on | Exit criteria |
+| --- | --- | --- | --- |
+| **COMPETENCY-M0/M1** — DONE 2026-09-29 | Specifications; migration 0015 (reference definitions only); `readXlsxGrid`; the deterministic normalizer; the structure-only importer (dry run and apply); the gap rule as a pure function | — | Specifications amended before code · no person-level record emitted, proven by a planted-value test · apply idempotent · provenance retained · a gap without an approved target is `NOT_CALCULABLE` |
+| M2 — Competency administration | A catalogue screen; framework-version approval as a recorded act; role targets proposed and approved against `JobRole`; `competency.manage` | CM-1, CM-6, CM-9 | An `APPROVED` version and target cannot exist without an approval record · every write audited with previous and new value |
+| M3 — AI Document Studio | The derivative workflow, verification, side-by-side review, dual lineage | DS-2 (purpose approval), DS-1 | A derivative cannot generate until approved · an invented quantity is refused · a derivative-only span is not publishable while DS-1 is open |
+| M4 — Browser upload | The eleven upload controls in AI_DOCUMENT_STUDIO_ARCHITECTURE.md §8.1 | InfoSec review | Each control has a test that fails when it is removed |
+| M5 — My Competencies | Self-assessment storage and screen | CP-2, CP-4, an approved framework version | A self-rating never becomes verified; default visibility is the person only |
+| M6 — Knowledge Proficiency and Competency Analytics | Aggregate read models and reports | KP-1..KP-4, CP-3, observations to report on | S1 and S3 verified on every grouping · every panel carries source, asOf, verification, suppression count, population |
+| M7 — My Certifications | Evidence records and verification | CP-6, M4 | A certificate establishes no competency without an approved mapping rule |
+| M8 — Learning recommendations | Deterministic competency recommendations | Phase 9, M2, at least one evidence source | Every recommendation shows its reason and recommends only available content |
 
 ---
 
