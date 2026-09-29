@@ -687,3 +687,23 @@ approval ≥ 50% — are unmeasured, cost is unobservable until a price is set, 
 GenerationReady yield (3.5×) is below the rule's 5×. The review packets and the blind-stem packet
 are prepared (`RealWorldPilot/Evaluation/`). **The critical path is now a subject-matter expert's
 time, not engineering.**
+
+### 12.12 Competency foundation, and what it does not let the pilot claim (2026-09-29)
+
+COMPETENCY-M0/M1 added a **competency catalogue**: migration 0015, reference definitions only, and a
+structure-only importer. The RxSolutions matrix produced 16 categories and 71 competencies, with no
+person row read. Specification:
+[architecture.md §14](../architecture.md#14-competency-and-knowledge-readiness-architecture--added-2026-09-29).
+
+| The pilot may now claim | The pilot must not claim or imply |
+| --- | --- |
+| A competency framework can be catalogued from a reference workbook, deterministically, with every normalization decision reviewable | That anyone's competency, readiness or gap is known. No observation about a person is stored, and no role target exists |
+| The import reads headers only, and a test with planted values proves it | That the matrix's per-person ratings were used for anything |
+| A gap is refused, not estimated, when it has no approved target | That KNOWZY assesses employee performance. The specification forbids it |
+| — | That the AI Document Studio exists. It is designed and `BLOCKED_BY_APPROVAL` for purpose `DOCUMENT_RESTRUCTURE` |
+
+**New approval, same reviewers as T-29.** Sending whole documents to a model for restructuring is a
+**distinct processing purpose** (CP-5 / DS-2). The Codex approval, recorded 2026-09-28 for
+question generation, is **not** assumed to cover it. Raise it in the same conversation as T-29.
+Person-level competency data (CP-1..CP-4) needs Privacy, HR and Legal, and possibly works-council
+review, before any of it is held.

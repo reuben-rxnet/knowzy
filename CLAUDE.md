@@ -58,6 +58,10 @@ Implementation Order:
     remaining catalogue entries, proficiency and recognition models NOT STARTED
 11. Hardening and release NOT STARTED
 
+Extension workstream (roadmap §3a), Competency and knowledge readiness:
+COMPETENCY-M0/M1 DONE (specification, migration 0015, structure-only importer,
+gap rule); M2-M8 NOT STARTED. See "Competency foundation" below.
+
 Phase 2 is Identity and access, not Knowledge Sources. Sources come in Phase 3
 and depend on it: every route must have a declared policy, and the registry
 test fails the build on a handler without one.
@@ -98,7 +102,8 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 14 migrations apply from empty; seed is idempotent. 0014 is OPENAI-CODEX-01:
+- 15 migrations apply from empty; seed is idempotent. 0015 is COMPETENCY-M1:
+  eleven competency REFERENCE-DEFINITION tables, no person-level table. 0014 is OPENAI-CODEX-01:
   estimated_input_tokens on generation_job and generation_provider_call. 0013 is Phase 10 R2:
   three read models and the append-only daily coverage_snapshot. 0012 is the reporting
   schema: six read models, a refresh ledger, a dataset cache, a snapshot store
@@ -176,7 +181,16 @@ Still Open:
 
 Next Immediate Task:
 
-1. SEND the T-29 request. It is drafted at
+0. FIX THE extractXlsx SELF-CLOSING-CELL DEFECT (found 2026-09-29, it.todo in
+   packages/content-extraction/src/extractors/xlsx-grid.test.ts). sheetLines()
+   tries the open-tag branch first, so `<c r="G1" s="5"/>` swallows the next
+   cell and puts its shared-string INDEX into extracted text. readXlsxGrid is
+   fixed; the generation extractor is not, because the fix changes the text and
+   section hashes of the two ingested pilot XLSX documents -- do it when the
+   Codex evaluation drafts are no longer under review, and re-sync.
+1. SEND the T-29 request, and raise CP-5 (Document Studio: restructuring whole
+   documents is a DIFFERENT processing purpose, not covered by the Codex
+   generation approval) in the same conversation. It is drafted at
    docs/integrations/T29_PRIVACY_LEGAL_REQUEST.md and nobody in Privacy,
    Legal, InfoSec or Data Governance has seen it. Longest lead time on the
    critical path, and not an engineering action.
@@ -412,6 +426,48 @@ Four things to know before touching it:
 - BankItemWrite.claudeModel is a provider-specific name in a provider-agnostic
   port, written into the PUBLISHED record. Rename it before the SharePoint bank
   adapter ships or it becomes tenant data migration.
+
+## Competency foundation
+
+BUILT 2026-09-29, COMPETENCY-M0/M1. Specification: docs/architecture.md §14 and
+docs/competencies/ (seven documents; COMPETENCY_PRIVACY_AND_GOVERNANCE.md owns
+the boundary). Migration 0015. It DOES NOT AUTHORIZE EMPLOYEE PERFORMANCE
+EVALUATION, and the specification says so in those words.
+
+- REFERENCE DEFINITIONS ONLY. No table holds a rating, self-assessment, manager
+  assessment or imported per-person baseline. Adding one is a change to the
+  privacy document first (decisions CP-1..CP-4 are open).
+- THE REFERENCE WORKBOOK IS NEVER COMMITTED OR SENT ANYWHERE.
+  RealWorldPilot/CompetencyModels/ is in .gitignore: it names people, their
+  employee numbers, vendors and individual ratings. Test fixtures are synthetic,
+  with planted values that tests assert never escape.
+- Import: `npx tsx scripts/competency-import.ts --file <xlsx>` (dry run, no DB
+  connection) then `--apply --version-label <label>`. Needs a built dist of
+  domain, content-extraction and shared-types (`npx tsc -b packages/domain`).
+  Apply is audited (ADMIN.COMPETENCY.IMPORT_APPLIED, counts only) and
+  idempotent: a re-apply records NO_CHANGES. The dev database is migrated to
+  0015 and deliberately NOT populated.
+- NORMALIZATION IS A DECLARED TABLE (packages/domain/src/competency/
+  reference-profile.ts), not an algorithm. One fold decides equality; an
+  undeclared NEAR MATCH (edit distance <= 2) BLOCKS the apply rather than
+  merging. "Oracle" under Database and under ERP are two competencies.
+- readXlsxGrid keeps text for the first 6 rows and COUNTS the rest without
+  decoding them. The planner reads header rows 1-3 only, takes the LOWEST
+  header-region row, and refuses a row of rating codes as a header: row 4 is the
+  first person row and a fully rated one is as dense as a header.
+- THE ROLE CATALOGUE IS JobRole. The workbook's Role column is free-text person
+  assignments and is never read. role_competency_expectation has no write path,
+  and a CHECK refuses APPROVED without approver, time and reference.
+- evaluateCompetencyGap returns NOT_CALCULABLE naming EVERY missing
+  precondition (population, approved target, same-scale valid observation,
+  declared source, as-of date). There is no data to run it on, and that is
+  correct.
+- The audit-family contract (packages/testing/contracts/registries.test.ts)
+  counts families: 29 since ADMIN.COMPETENCY.
+- AI Document Studio, My Competencies, My Certifications, recommendations and
+  competency reporting are DESIGNED ONLY. The Studio is BLOCKED_BY_APPROVAL for
+  purpose DOCUMENT_RESTRUCTURE. None gets a navigation item until it has a
+  backend (capability matrix, last section).
 
 ## Question acquisition
 

@@ -2943,3 +2943,121 @@ reporting feature, no AI feature. The review, findings F1–F14 and debt D1–D8
   - the AI Usage test reads the first `BLOCKED_BY_APPROVAL` provider from the API.
 - `npm run verify` was **not** run: it would delete the Codex evaluation drafts under review.
 
+
+## COMPETENCY-M0/M1 — the competency foundation, specification first
+
+**2026-09-29.** Commits `9dae39b` (specifications), `f7b31d0` (migration 0015), `d97cb4d`
+(`readXlsxGrid`), `d006282` (importer, gap rule, audit), and the commit carrying this entry.
+Specification: [`architecture.md` §14](../architecture.md#14-competency-and-knowledge-readiness-architecture--added-2026-09-29)
+and [`docs/competencies/`](../competencies/).
+
+### What was asked, and what was built
+
+The product owner asked for KNOWZY to grow from an assessment platform into a **knowledge-readiness
+and competency platform** in one brief. The brief had four parts: an AI Document Studio, a competency
+foundation, workforce-readiness reporting, and learner foundations (self-assessment, certifications,
+recommendations).
+
+It was **not** built as one change. It conflicted with five rules the project had already recorded:
+
+1. `/docs` comes first.
+2. There is no browser upload.
+3. Restructuring a document is a different AI processing purpose from question generation.
+4. Person-level data needs privacy decisions first.
+5. A gap needs a real, approved target.
+
+The owner chose the first slice explicitly: **specifications, plus the competency foundation and a
+structure-only importer.**
+
+- **Specifications first.**
+  - `architecture.md` gains principle P11 and §14, with seven rules. The expansion **does not
+    authorize employee performance evaluation**.
+  - The roadmap gains an extension workstream (§3a) of eight milestones.
+  - `data-model.md` §3.5 and `audit-model.md` are amended.
+  - Seven documents are added in `docs/competencies/`.
+  - Every open decision gets an ID (CP-, CM-, KP-, DS-, CT-, LR-) instead of being chosen silently.
+- **Migration 0015.** Eleven tables of **reference definitions only**:
+  - framework, version (identified by content hash), level scale, level, category, competency,
+    alias, role target (on the existing `job_role`), import batch, finding and provenance.
+  - CHECKs refuse an approved version or target without an approver, a time and a reference.
+  - **No table holds an observation about a person.**
+- **`readXlsxGrid`.** Keeps text for the first six rows. Every later row is counted, never decoded.
+  It never opens comments, the `persons` part or document properties.
+- **The importer.**
+  - A declared normalization table: 16 categories, 71 competencies, NI/R/A/G with no Expert level,
+    and a separate Agile training scale.
+  - One fold for label equality. A near match nobody has declared **stops** the import rather than
+    merging.
+  - A dry run that opens no database connection.
+  - An idempotent, audited apply.
+- **The gap rule.** `evaluateCompetencyGap` returns `NOT_CALCULABLE`, naming every missing
+  precondition, unless all five exist. On this release none exists, and that is the honest answer.
+
+### Deliberately not built
+
+- No screen and no route for any of it.
+- No rating, self-assessment or imported baseline.
+- No role target: the workbook's Agile "Target" block is set **per person**.
+- No Document Studio, which is `BLOCKED_BY_APPROVAL` for purpose `DOCUMENT_RESTRUCTURE`.
+- No browser upload, no certifications, no recommendations.
+- The role catalogue is **not** derived from the workbook. Its Role column holds 45 free-text
+  titles, most held by fewer than five people, and those are assignments, not definitions.
+
+### A defect the real workbook found, and one it exposed elsewhere
+
+The first dry run of the real workbook reported **61 blocking findings** on "band labels" such as
+`5`, `6` and `212`.
+
+- **The cause.** The cell matcher tried the open-tag branch first. A styled empty cell
+  (`<c r="G1" s="5"/>`) therefore matched as an **opening** tag, because `[^>]*` happily takes the
+  `/`. Its body ran to the *next* cell's `</c>`, and that cell's **shared-string index** was printed
+  as its text, in the wrong column. "Functional/Domain" read as "6", and the Agile sheet's
+  "Present" vanished, so the sheet was misclassified.
+- **The synthetic tests passed throughout.** Their only self-closing cell sat at the end of a row.
+- **The fix.** `readXlsxGrid` matches the self-closing form first, and a regression test puts a
+  styled empty cell directly before a labelled one.
+- **`extractXlsx`, the generation extractor, has the same matcher.** It can put a bare integer into
+  an evidence span, which its own header comment says it must never do.
+  - **Not fixed here.** Fixing it changes the extracted text and section hashes of the **two XLSX
+    documents already ingested** in the Real-World Pilot SOP corpus, in the middle of the Codex
+    evaluation.
+  - Recorded as an `it.todo`. **It is the recommended next change.**
+
+A second, smaller trap: the header search first covered rows 1–4. Row 4 is the first person row, and
+a fully rated person row is as dense as a header. The search now covers rows 1–3 only, takes the
+**lowest** header-region row rather than the densest, and refuses a row that reads as rating codes.
+
+### Validated
+
+- **Specifications first.** Committed before any code.
+- **Migrations.** 0001–0015 apply from empty to a scratch database. The CI drift gate, against a
+  clean shadow database, reports no drift. The approval and hash CHECKs refuse violating rows.
+- **The dev database.** Migrated to 0015 (additive only) and **not populated**. Its 167 draft
+  questions are untouched.
+- **Static checks.** Typecheck 35/35; lint 22/22; boundaries 0 errors (one pre-existing orphan
+  warning); codegen clean; format clean.
+- **Unit and contract projects.** 874 passed and 13 todo, across 43 files. The audit-family contract
+  moves from 28 to 29.
+- **The new integration suite** (6 tests) was run on its own. It creates and deletes only its own
+  framework.
+- **Mutation checks.** Each of these fails its tests: the planner copying a person cell into a
+  finding, the reader ignoring its row limit, the gap rule accepting an unapproved target, and the
+  apply mis-counting a re-apply.
+- **The real workbook, dry run.** 14 sheets; 16 categories; 71 competencies, every one declared;
+  93 aliases; 297 person rows counted and not read; **0 blocking**; 4 decisions required.
+- **The real workbook, applied twice** to a scratch database migrated from empty. First `APPLIED`
+  (632 provenance rows); second `NO_CHANGES`, every count 0; two audit events.
+- **Leak check.** A throwaway script held all 322 person-row strings in memory and searched the
+  imported data. It found **no name, number or rating**; the only overlaps were generic vocabulary.
+  The same check was run against every commit of the milestone. It caught one coincidence (a planted
+  test value that equalled a real experience figure), which was changed.
+- **Build.** 21/21, repaired straight afterwards. The repair was: `.next` removed, `up migrate`
+  (Prisma regenerated inside the volume for the new models), then all six services restarted. All
+  three portals afterwards served a linked stylesheet returning 200 with a 53–56 KB body. The api
+  was healthy, and the dev database still held its 167 draft questions at migration 0015.
+
+### Not run
+
+- `npm run verify` and the full integration project. Both delete the Codex evaluation drafts under
+  review.
+- The browser suite. No screen changed.
