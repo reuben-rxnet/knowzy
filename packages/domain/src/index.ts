@@ -384,3 +384,6 @@ export {
   type SourceRow,
   type UpdateSourceArgs,
 } from './sync/source-administration.js';
+
+// COMPETENCY-M0/M1: competency reference definitions and the structure-only import.
+export * from './competency/index.js';

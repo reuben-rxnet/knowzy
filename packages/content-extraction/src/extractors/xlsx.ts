@@ -335,14 +335,21 @@ const gridOfSheet = (
       // content; nothing is decoded to find that out.
       if (/<v>|<is>/.test(body)) rowsBeyondLimit += 1;
     } else {
-      const cellMatcher = /<c\b([^>]*)>([\s\S]*?)<\/c>|<c\b([^>]*)\/>/g;
+      // SELF-CLOSING FIRST. With the open-tag branch first, `<c r="G1" s="5"/>`
+      // matches as an OPENING tag (`[^>]*` happily takes the `/`) whose body
+      // runs to the NEXT cell's `</c>`, so that cell's shared-string index is
+      // printed as text under the wrong column. Found on the reference
+      // workbook, where a styled empty cell beside every band label turned
+      // "Functional/Domain" into "6". A self-closing cell has no value.
+      const cellMatcher = /<c\b([^>]*?)\/>|<c\b([^>]*)>([\s\S]*?)<\/c>/g;
       let cell = cellMatcher.exec(body);
       let position = 0;
       while (cell !== null) {
-        const attributes = cell[1] ?? cell[3] ?? '';
+        const selfClosing = cell[1] !== undefined;
+        const attributes = (selfClosing ? cell[1] : cell[2]) ?? '';
         const at = columnIndex(/\br="([^"]+)"/.exec(attributes)?.[1] ?? '') ?? position;
         position = at + 1;
-        const text = cellText(attributes, cell[2] ?? '', strings);
+        const text = selfClosing ? '' : cellText(attributes, cell[3] ?? '', strings);
         if (text.length > 0) cells.push({ row: rowNumber, column: at + 1, text });
         cell = cellMatcher.exec(body);
       }

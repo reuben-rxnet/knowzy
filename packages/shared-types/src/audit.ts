@@ -23,11 +23,11 @@ export const ActorTypeSchema = z.enum(ACTOR_TYPES);
 export type ActorType = z.infer<typeof ActorTypeSchema>;
 
 // ---------------------------------------------------------------------------
-// Action taxonomy — 28 families. Actions are `FAMILY.ACTION`.
+// Action taxonomy — 29 families (ADMIN.COMPETENCY added 2026-09-29). Actions are `FAMILY.ACTION`.
 // ---------------------------------------------------------------------------
 
 export const AUDIT_FAMILIES = {
-  // ------------------------------------------------- ADMIN — 9 families
+  // ------------------------------------------------ ADMIN — 10 families
   'ADMIN.SOURCE': [
     'CREATED',
     'UPDATED',
@@ -115,6 +115,10 @@ export const AUDIT_FAMILIES = {
   ],
   'ADMIN.RETENTION': ['EXECUTED'],
   'ADMIN.FEATUREFLAG': ['ENABLED', 'DISABLED', 'ROLLOUT_CHANGED'],
+  // COMPETENCY-M0/M1 (2026-09-29): one event per apply of a structure-only
+  // competency import, including a NO_CHANGES re-apply. Counts only -- the
+  // importer reads no person row, so there is nothing else it could carry.
+  'ADMIN.COMPETENCY': ['IMPORT_APPLIED'],
 
   // --------------------------------------------- AUTHORING — 8 families
   'AUTHORING.DOCUMENT': [

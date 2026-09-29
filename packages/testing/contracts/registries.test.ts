@@ -157,8 +157,9 @@ describe('permission and role catalogue', () => {
 // ---------------------------------------------------------------------------
 
 describe('audit taxonomy', () => {
-  it('declares 28 families across five prefixes', () => {
-    expect(AUDIT_FAMILY_KEYS).toHaveLength(28);
+  // 29 since COMPETENCY-M0/M1 added ADMIN.COMPETENCY (audit-model.md §2.1).
+  it('declares 29 families across five prefixes', () => {
+    expect(AUDIT_FAMILY_KEYS).toHaveLength(29);
     const prefixes = new Set(AUDIT_FAMILY_KEYS.map((f) => f.split('.')[0]));
     expect([...prefixes].sort()).toEqual(['ADMIN', 'AUTHORING', 'LEARNING', 'PLATFORM', 'REPORT']);
   });

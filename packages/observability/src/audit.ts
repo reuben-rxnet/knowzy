@@ -217,6 +217,19 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
   // The organizational catalogues. Same keys as the domain and topic actions:
   // the code, the name, the activation state and WHICH FIELDS changed -- never
   // a description body, which is prose an administrator can rewrite freely.
+  'ADMIN.COMPETENCY.IMPORT_APPLIED': [
+    'frameworkCode',
+    'versionLabel',
+    'profileCode',
+    'outcome',
+    'categoriesCreated',
+    'competenciesCreated',
+    'aliasesCreated',
+    'levelsCreated',
+    'provenanceCreated',
+    'findingCount',
+    'personRowsSkipped',
+  ],
   'ADMIN.TAXONOMY.DEPARTMENT_CREATED': ['code', 'name', 'isActive'],
   'ADMIN.TAXONOMY.DEPARTMENT_UPDATED': ['code', 'name', 'isActive', 'changedFields'],
   'ADMIN.TAXONOMY.ROLE_CREATED': ['code', 'name', 'isActive'],

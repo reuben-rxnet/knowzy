@@ -82,7 +82,7 @@ const sharedStrings = [
 ];
 
 const sheet1 = `<worksheet><sheetData>
-  <row r="1"><c r="B1" t="s"><v>2</v></c><c r="C1" t="s"><v>0</v></c></row>
+  <row r="1"><c r="A1" s="2"/><c r="B1" t="s"><v>2</v></c><c r="C1" t="s"><v>0</v></c></row>
   <row r="3"><c r="C3" t="s"><v>1</v></c><c r="D3" t="inlineStr"><is><t>MySQL</t></is></c></row>
   <row r="4"><c r="B4" t="s"><v>3</v></c><c r="C4" t="s"><v>4</v></c></row>
   <row r="5"><c r="B5" t="s"><v>6</v></c></row>
@@ -150,6 +150,24 @@ describe('readXlsxGrid', () => {
       ['Hidden', true],
     ]);
   });
+
+  it('reads a styled empty cell as empty, not as the next cell', () => {
+    // A1 is `<c r="A1" s="2"/>`. With the open-tag branch tried first, it
+    // swallowed B1 and printed B1's shared-string index ("2") in column A.
+    const first = readXlsxGrid(bytes, { retainRows: 1 }).sheets[0]?.cells;
+    expect(first).toEqual([
+      { row: 1, column: 2, text: 'Full Name' },
+      { row: 1, column: 3, text: 'Database' },
+    ]);
+  });
+
+  // The generation extractor's sheetLines() has the same regex and so the same
+  // defect: a self-closing cell before a valued cell puts that cell's shared-
+  // string INDEX into the extracted text, in the wrong column. Not fixed in
+  // COMPETENCY-M0/M1 because fixing it changes the extracted text (and section
+  // hashes) of the two XLSX documents already ingested in the pilot corpus,
+  // mid-evaluation. Recorded in the project history as its own change.
+  it.todo('extractXlsx: a self-closing cell before a valued cell must not shift or replace it');
 
   it('hashes the file bytes', () => {
     expect(readXlsxGrid(bytes).contentSha256).toMatch(/^[0-9a-f]{64}$/);
