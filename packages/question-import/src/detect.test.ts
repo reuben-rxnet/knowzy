@@ -130,6 +130,49 @@ describe('tabular detection (XLSX)', () => {
     expect(validateDetected(result.detected).valid).toHaveLength(1);
   });
 
+  it('keeps MIDDLE blank columns in place once normalization has collapsed them (XLSX-INTEGRITY-M1)', () => {
+    // [..., C, '', '', Certificates] is written `C —  —  — Certificates`; X1
+    // folds and collapses it to `C - - - Certificates`. split(' - ') used to
+    // return [C, '-', Certificates]: Explanation '-' and Topic shifted left.
+    const header = 'Question - A - B - C - D - Correct - Explanation - Difficulty - Topic';
+    const rowText =
+      'Within how many days must a production certificate be renewed? - Seven days - ' +
+      'Fourteen days - Thirty days - Sixty days - C - - - Certificates';
+    const result = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(`${header}\n${rowText}`)],
+    });
+    expect(result.issues).toHaveLength(0);
+    const q = result.detected[0]!;
+    expect(q.correctOption).toBe('C');
+    expect(q.explanation).toBeNull();
+    expect(q.difficulty).toBeNull();
+    expect(q.topicName).toBe('Certificates');
+  });
+
+  it('keeps a blank FIRST column in the normalized form', () => {
+    const header = 'Domain - Question - A - B - C - D - Correct';
+    const rowText = '- Which queue owns a failed renewal job? - Ops - Dev - QA - Sec - A';
+    const result = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(`${header}\n${rowText}`)],
+    });
+    const q = result.detected[0]!;
+    expect(q.domainName).toBeNull();
+    expect(q.questionText).toBe('Which queue owns a failed renewal job?');
+    expect(q.correctOption).toBe('A');
+  });
+
+  it('splits a row with no blank cells exactly as before', () => {
+    const header = 'Question - A - B - C - D - Correct';
+    const rowText = 'Which team renews a certificate? - Ops - Dev - QA - Sec - A';
+    const q = detectQuestions({
+      fileName: 'bank.xlsx',
+      sections: [section(`${header}\n${rowText}`)],
+    }).detected[0]!;
+    expect(q.options).toEqual({ A: 'Ops', B: 'Dev', C: 'QA', D: 'Sec' });
+  });
+
   it('reports a SHORT row whose answer column holds the wrong thing', () => {
     // The other face of the separator problem. This row is short AND shifted:
     // an option containing ' - ' split in two, so every later value moved one

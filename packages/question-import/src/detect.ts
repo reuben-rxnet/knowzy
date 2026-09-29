@@ -115,11 +115,30 @@ export interface DetectionResult {
  */
 const CELL_SEPARATORS = [' — ', ' - '] as const;
 
+/**
+ * A BLANK CELL SURVIVES NORMALIZATION ONLY AS AN EXTRA HYPHEN (XLSX-INTEGRITY-M1).
+ *
+ * The extractor writes `C —  —  — Topic` for [C, '', '', Topic]. X1 folds the
+ * dash and collapses the doubled spaces, so what detection receives is
+ * `C - - - Topic`: k blank cells become k+1 hyphens SHARING their spaces.
+ * `split(' - ')` consumes the spaces it shares and returned [C, '-', Topic] --
+ * two blank columns lost, the Topic value shifted left into Difficulty, and a
+ * literal '-' read as the Explanation.
+ *
+ * So the normalized form is split on every ` -` that is followed by a space,
+ * over the line with one leading space (so a blank FIRST cell is kept too).
+ * A row with no consecutive blanks splits exactly as before.
+ */
+const NORMALIZED_SEPARATOR = / -(?= )/g;
+
 const splitRow = (line: string): string[] => {
-  for (const separator of CELL_SEPARATORS) {
-    if (line.includes(separator)) {
-      return line.split(separator).map((cell) => cell.trim());
-    }
+  if (line.includes(CELL_SEPARATORS[0])) {
+    return line.split(CELL_SEPARATORS[0]).map((cell) => cell.trim());
+  }
+  if (line.includes(CELL_SEPARATORS[1])) {
+    // The leading space yields an extra (blank) piece ONLY when the row
+    // starts with a separator, i.e. when its first cell was blank.
+    return ` ${line}`.split(NORMALIZED_SEPARATOR).map((cell) => cell.trim());
   }
   return [line.trim()];
 };
