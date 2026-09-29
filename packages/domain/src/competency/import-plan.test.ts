@@ -85,7 +85,8 @@ const sheet = (
   rowsBeyondLimit,
 });
 
-// Band on ROW 1, as on the reference "Rx.NET" sheet.
+// Band on ROW 1. (The reference sheets have theirs on row 2, under a spacer
+// row; a band on row 1 is the other layout a matrix can take.)
 const teamAlpha = sheet(
   'Team Alpha',
   0,

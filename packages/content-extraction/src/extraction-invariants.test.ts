@@ -15,6 +15,14 @@ import { sectionize, type Section } from './sectionize.js';
 import { extractHtml } from './extractors/html.js';
 import { extractMarkdown, extractPlainText } from './extractors/text.js';
 import { extractContent } from './extract.js';
+import {
+  buildXlsx,
+  num,
+  row,
+  s,
+  si,
+  styled,
+} from '../../testing/contracts/support/synthetic-xlsx.js';
 
 const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
 
@@ -384,15 +392,49 @@ describe('HTML is sanitized, not swept with a regex', () => {
 
 describe('X1-X8 hold for the binary formats too', () => {
   const FIXTURES = join(import.meta.dirname, '..', 'test', 'fixtures');
+  // XLSX-INTEGRITY-M1: policy.xlsx has no styled empty cell, so the invariants
+  // never met the shape that broke placement. This synthetic workbook is ALL
+  // that shape: styled empties before values, omitted cells, an empty <si/>,
+  // a self-closing row, two sheets.
+  const SPARSE_STYLED = buildXlsx({
+    sheets: [
+      {
+        name: 'Renewal windows',
+        rows:
+          '<row r="1"/>' +
+          row(2, styled('A2'), s('B2', 0), styled('C2'), s('E2', 2)) +
+          row(3, s('A3', 3), styled('B3'), num('D3', 30), styled('E3'), s('F3', 4)),
+      },
+      { name: 'Owners', rows: row(1, styled('A1'), styled('B1'), s('C1', 5)) },
+    ],
+    sharedStrings: [
+      si('Production certificates renew thirty days before expiry.'),
+      '<si/>',
+      si('Level two operations owns every renewal.'),
+      si('Staging window'),
+      si('Escalate a missed renewal to the platform duty manager.'),
+      si('The platform duty manager approves an emergency renewal.'),
+    ],
+  });
+  const SYNTHETIC: Record<string, Uint8Array> = { 'sparse-styled.xlsx': SPARSE_STYLED };
   const fixtureBytes = (name: string): Uint8Array =>
-    new Uint8Array(readFileSync(join(FIXTURES, name)));
+    SYNTHETIC[name] ?? new Uint8Array(readFileSync(join(FIXTURES, name)));
 
   const BINARY_CASES = [
     ['pdf', 'sop-two-page.pdf'],
     ['docx', 'sop.docx'],
     ['pptx', 'deck.pptx'],
     ['xlsx', 'policy.xlsx'],
+    ['xlsx (sparse, styled empty cells)', 'sparse-styled.xlsx'],
   ] as const;
+
+  it('the sparse styled workbook carries no shared-string index into its text', async () => {
+    const text = (await extractContent({ fileName: 'sparse-styled.xlsx', content: SPARSE_STYLED }))
+      .normalizedText;
+    // The only visible number is "30"; indexes 0-5 would add others.
+    expect(text?.replace('30', '')).not.toMatch(/\d/);
+    expect(text).toContain('Staging window');
+  });
 
   for (const [label, fileName] of BINARY_CASES) {
     describe(label, () => {

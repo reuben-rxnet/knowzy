@@ -6,66 +6,9 @@
 // fixture. Every "person" below is invented, and planted precisely so the test
 // can prove it does not come out.
 
-import { deflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { readXlsxGrid } from './xlsx.js';
-
-const crcTable = (() => {
-  const table = new Uint32Array(256);
-  for (let n = 0; n < 256; n += 1) {
-    let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c >>> 0;
-  }
-  return table;
-})();
-
-const crc32 = (buffer: Buffer): number => {
-  let c = 0xffffffff;
-  for (const byte of buffer) c = (crcTable[(c ^ byte) & 0xff] as number) ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-};
-
-/** A minimal deflate ZIP writer: enough for the reader, nothing more. */
-const zip = (entries: Record<string, string>): Uint8Array => {
-  const chunks: Buffer[] = [];
-  const central: Buffer[] = [];
-  let offset = 0;
-  for (const [name, text] of Object.entries(entries)) {
-    const raw = Buffer.from(text, 'utf8');
-    const data = deflateRawSync(raw);
-    const nameBytes = Buffer.from(name, 'utf8');
-    const local = Buffer.alloc(30);
-    local.writeUInt32LE(0x04034b50, 0);
-    local.writeUInt16LE(20, 4);
-    local.writeUInt16LE(8, 8);
-    local.writeUInt32LE(crc32(raw), 14);
-    local.writeUInt32LE(data.length, 18);
-    local.writeUInt32LE(raw.length, 22);
-    local.writeUInt16LE(nameBytes.length, 26);
-    chunks.push(local, nameBytes, data);
-    const header = Buffer.alloc(46);
-    header.writeUInt32LE(0x02014b50, 0);
-    header.writeUInt16LE(20, 4);
-    header.writeUInt16LE(20, 6);
-    header.writeUInt16LE(8, 10);
-    header.writeUInt32LE(crc32(raw), 16);
-    header.writeUInt32LE(data.length, 20);
-    header.writeUInt32LE(raw.length, 24);
-    header.writeUInt16LE(nameBytes.length, 28);
-    header.writeUInt32LE(offset, 42);
-    central.push(header, nameBytes);
-    offset += local.length + nameBytes.length + data.length;
-  }
-  const centralBytes = Buffer.concat(central);
-  const end = Buffer.alloc(22);
-  end.writeUInt32LE(0x06054b50, 0);
-  end.writeUInt16LE(Object.keys(entries).length, 8);
-  end.writeUInt16LE(Object.keys(entries).length, 10);
-  end.writeUInt32LE(centralBytes.length, 12);
-  end.writeUInt32LE(offset, 16);
-  return new Uint8Array(Buffer.concat([...chunks, centralBytes, end]));
-};
+import { zipOf as zip } from '../../../testing/contracts/support/synthetic-xlsx.js';
+import { extractXlsx, readXlsxGrid } from './xlsx.js';
 
 const PLANTED_NAME = 'Zephyrine Quellbottom';
 const PLANTED_EMPLOYEE_NUMBER = 'EMP-990017';
@@ -161,13 +104,16 @@ describe('readXlsxGrid', () => {
     ]);
   });
 
-  // The generation extractor's sheetLines() has the same regex and so the same
-  // defect: a self-closing cell before a valued cell puts that cell's shared-
-  // string INDEX into the extracted text, in the wrong column. Not fixed in
-  // COMPETENCY-M0/M1 because fixing it changes the extracted text (and section
-  // hashes) of the two XLSX documents already ingested in the pilot corpus,
-  // mid-evaluation. Recorded in the project history as its own change.
-  it.todo('extractXlsx: a self-closing cell before a valued cell must not shift or replace it');
+  it('extractXlsx reads the same row the same way (fixed in XLSX-INTEGRITY-M1)', () => {
+    // Recorded as an it.todo in COMPETENCY-M1: the generation extractor had
+    // the same matcher. Both now share one row parser; xlsx-cells.test.ts
+    // holds the full fixture matrix and the parity contract.
+    const first = extractXlsx(bytes).blocks[0];
+    // A1 is the styled blank, so column A is empty and the line starts with
+    // the separator; the old matcher printed "2" there and lost "Full Name".
+    const firstLine = first !== undefined && 'text' in first ? first.text.split('\n')[0] : null;
+    expect(firstLine).toBe(' — Full Name — Database');
+  });
 
   it('hashes the file bytes', () => {
     expect(readXlsxGrid(bytes).contentSha256).toMatch(/^[0-9a-f]{64}$/);

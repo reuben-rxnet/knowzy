@@ -148,6 +148,7 @@ Because extraction output is what evidence verification operates on, the contrac
 | X6 | Truncation at `maxCharsPerDocument` sets `truncated: true` and ends at a section boundary. A silently cut section would produce unverifiable evidence |
 | X7 | `contentHash` is SHA-256 of `normalizedText`, so two adapters reading the same bytes agree |
 | X8 | Extraction is deterministic: the same input produces byte-identical output, including section keys. Non-determinism would make change detection meaningless |
+| X9 | Added 2026-09-29 (XLSX-INTEGRITY-M1). **A tabular value is placed by its declared cell reference.** An empty cell, whether omitted or present as a styled `<c/>`, is an empty column, never the next cell's value. No storage artifact enters `normalizedText`: not a shared-string index, not a boolean's stored `1`/`0`, and not a formula. A self-closing element is empty by definition and never an opening tag. See [migrations/XLSX_EXTRACTION_CORRECTION.md](migrations/XLSX_EXTRACTION_CORRECTION.md) |
 
 ---
 

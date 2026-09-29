@@ -63,27 +63,77 @@ export interface XlsxOptions {
 const DEFAULT_MAX_SHEETS = 64;
 const DEFAULT_MAX_ROWS = 2_000;
 
-/** `xl/sharedStrings.xml` → the string table, in index order. */
-const sharedStrings = (xml: string | null): string[] => {
-  if (xml === null) return [];
-  const table: string[] = [];
-  const itemMatcher = /<si\b(?:\s[^>]*)?>([\s\S]*?)<\/si>/g;
-  let item = itemMatcher.exec(xml);
-  while (item !== null) {
-    // `rPh` is a phonetic hint (furigana) and is not the string's text.
-    const body = stripElements(item[1] ?? '', ['rPh']);
-    let text = '';
-    const runMatcher = /<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g;
-    let run = runMatcher.exec(body);
-    while (run !== null) {
-      text += decodeEntities(run[1] ?? '');
-      run = runMatcher.exec(body);
+// ---------------------------------------------------------------------------
+// ONE ELEMENT SCANNER — XLSX-INTEGRITY-M1.
+//
+// Every XLSX defect found so far had one shape: a regex of the form
+// `<c\b([^>]*)>([\s\S]*?)<\/c>` also matches a SELF-CLOSING `<c r="G1" s="5"/>`,
+// because `[^>]*` happily takes the `/`. The "open" tag's body then runs to
+// the NEXT element's closing tag, and that element's content -- for a cell, a
+// shared-string INDEX -- is read as this one's, under this one's column. It
+// affected `<c>` (a styled empty cell), `<row>` (an empty row), `<t>` (an
+// empty `xml:space="preserve"` run) and `<si>` (an empty shared string, which
+// silently shifted EVERY later shared-string index by one).
+//
+// So nothing in this file matches an element with a body regex any more. An
+// element is found by its opening tag; `/>` makes it empty; otherwise its body
+// runs to ITS OWN closing tag. The elements scanned here never nest within
+// themselves (`c`, `row`, `si`, `t`, `v`, `is`), which is what makes a plain
+// `indexOf` of the closing tag correct.
+// ---------------------------------------------------------------------------
+
+interface XmlElement {
+  readonly attributes: string;
+  /** Null for a self-closing element: it has no content, by definition. */
+  readonly body: string | null;
+}
+
+const elementsOf = (xml: string, tag: string): XmlElement[] => {
+  const out: XmlElement[] = [];
+  const open = new RegExp(`<${tag}\\b([^>]*)>`, 'g');
+  const close = `</${tag}>`;
+  let match = open.exec(xml);
+  while (match !== null) {
+    const raw = match[1] ?? '';
+    if (raw.endsWith('/')) {
+      out.push({ attributes: raw.slice(0, -1), body: null });
+    } else {
+      const end = xml.indexOf(close, open.lastIndex);
+      // A truncated part: the element runs to the end, and nothing after it
+      // can be attributed to anything.
+      const stop = end === -1 ? xml.length : end;
+      out.push({ attributes: raw, body: xml.slice(open.lastIndex, stop) });
+      open.lastIndex = end === -1 ? xml.length : end + close.length;
     }
-    table.push(text.replace(/[\t\r\n]+/g, ' ').trim());
-    item = itemMatcher.exec(xml);
+    match = open.exec(xml);
   }
-  return table;
+  return out;
 };
+
+const attributeOf = (attributes: string, name: string): string | undefined =>
+  new RegExp(`\\b${name}="([^"]*)"`).exec(attributes)?.[1];
+
+/** The visible text of a string item: its `<t>` runs, without phonetic hints. */
+const runText = (body: string | null): string => {
+  if (body === null) return '';
+  // `rPh` is a phonetic hint (furigana) and is not the string's text.
+  return elementsOf(stripElements(body, ['rPh']), 't')
+    .map((run) => decodeEntities(run.body ?? ''))
+    .join('');
+};
+
+const oneLine = (value: string): string => value.replace(/[\t\r\n]+/g, ' ').trim();
+
+/**
+ * `xl/sharedStrings.xml` → the string table, in index order.
+ *
+ * EVERY `<si>` is an entry, including an empty `<si/>`. Skipping one would move
+ * every later index down by one, and every shared-string cell after it would
+ * then show the text of the NEXT entry -- a wrong word in the right place,
+ * which is the hardest kind of error to see.
+ */
+const sharedStrings = (xml: string | null): string[] =>
+  xml === null ? [] : elementsOf(xml, 'si').map((item) => oneLine(runText(item.body)));
 
 interface SheetRef {
   readonly name: string;
@@ -147,24 +197,99 @@ const columnIndex = (reference: string): number | null => {
   return index - 1;
 };
 
-/** A cell's visible text: the shared string, the inline string, or the cached value. */
-const cellText = (attributes: string, body: string, strings: readonly string[]): string => {
-  const type = /\bt="([^"]+)"/.exec(attributes)?.[1];
+/**
+ * A cell's VISIBLE text.
+ *
+ *   empty (`<c .../>`)   ''
+ *   `t="s"`              the shared string at the index; '' if it does not
+ *                        resolve -- never the index itself
+ *   `t="inlineStr"`      every `<t>` run of its `<is>`
+ *   `t="b"`              TRUE / FALSE, which is what the cell shows; the stored
+ *                        1 / 0 is not the visible value
+ *   anything else        the cached `<v>`: a number, a formula's result, an
+ *                        error such as #N/A. `<f>` is never read.
+ */
+const cellText = (cell: XmlElement, strings: readonly string[]): string => {
+  if (cell.body === null) return '';
+  const type = attributeOf(cell.attributes, 't');
+  const cached = elementsOf(cell.body, 'v')[0]?.body ?? '';
 
-  let value = '';
+  let value: string;
   if (type === 's') {
-    // Shared-string index. An unresolvable index contributes nothing
-    // rather than leaking the index itself into the text.
-    const index = Number(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? '');
-    value = Number.isInteger(index) ? (strings[index] ?? '') : '';
+    const index = Number(cached.trim());
+    value = cached.trim() !== '' && Number.isInteger(index) ? (strings[index] ?? '') : '';
   } else if (type === 'inlineStr') {
-    value = decodeEntities(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/.exec(body)?.[1] ?? '');
+    value = runText(elementsOf(cell.body, 'is')[0]?.body ?? null);
+  } else if (type === 'b') {
+    value = cached.trim() === '1' ? 'TRUE' : cached.trim() === '0' ? 'FALSE' : '';
   } else {
-    // Numeric, boolean, or a formula's cached result. `<f>` is ignored.
-    value = decodeEntities(/<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? '');
+    value = decodeEntities(cached);
   }
+  return oneLine(value);
+};
 
-  return value.replace(/[\t\r\n]+/g, ' ').trim();
+/** A worksheet row: its number, and its cells placed by their declared reference. */
+interface ParsedRow {
+  readonly row: number;
+  /** Non-empty cells only, by 0-based column, in column order. */
+  readonly cells: readonly { readonly column: number; readonly text: string }[];
+  /** True when the row holds a value, established WITHOUT decoding it. */
+  readonly hasValue: boolean;
+}
+
+/**
+ * THE ONE PLACE A CELL IS PLACED — shared by `extractXlsx` (generation) and
+ * `readXlsxGrid` (the competency importer), so the two cannot disagree about
+ * which column a value is in.
+ *
+ * A cell goes where its `r` says. `D1` is column D even when `C1` is absent
+ * (omitted because it is empty) or present as a styled empty `<c r="C1"/>`.
+ * Only a cell with NO reference falls back to "the column after the previous
+ * one", which is what a file without references implies. If two cells claim
+ * one column, the first NON-EMPTY one wins, so a stray empty duplicate cannot
+ * erase a value.
+ *
+ * `decode(row)` decides which rows have their cells read at all. A row it
+ * refuses is reported with `hasValue` only, and none of its cells is resolved
+ * against the shared-string table -- that is what keeps a competency matrix's
+ * person rows inside this function.
+ */
+const parseRows = (
+  xml: string,
+  strings: readonly string[],
+  decode: (row: number) => boolean,
+): ParsedRow[] => {
+  const rows: ParsedRow[] = [];
+  let previous = 0;
+  for (const row of elementsOf(xml, 'row')) {
+    const declared = Number(attributeOf(row.attributes, 'r') ?? '');
+    const rowNumber = Number.isInteger(declared) && declared > 0 ? declared : previous + 1;
+    previous = rowNumber;
+    const cellElements = row.body === null ? [] : elementsOf(row.body, 'c');
+    const hasValue = cellElements.some(
+      (cell) => cell.body !== null && (/<v\b[^>]*>[^<]/.test(cell.body) || /<is\b/.test(cell.body)),
+    );
+    if (!decode(rowNumber)) {
+      rows.push({ row: rowNumber, cells: [], hasValue });
+      continue;
+    }
+    const placed = new Map<number, string>();
+    let position = -1;
+    for (const cell of cellElements) {
+      const at = columnIndex(attributeOf(cell.attributes, 'r') ?? '') ?? position + 1;
+      position = at;
+      const text = cellText(cell, strings);
+      if (text.length > 0 && !placed.has(at)) placed.set(at, text);
+    }
+    rows.push({
+      row: rowNumber,
+      cells: [...placed.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([column, text]) => ({ column, text })),
+      hasValue,
+    });
+  }
+  return rows;
 };
 
 /**
@@ -178,28 +303,13 @@ const cellText = (attributes: string, body: string, strings: readonly string[]):
  */
 const sheetLines = (xml: string, strings: readonly string[], maxRows: number): string[] => {
   const lines: string[] = [];
-  const rowMatcher = /<row\b(?:\s[^>]*)?>([\s\S]*?)<\/row>/g;
-  let row = rowMatcher.exec(xml);
-  while (row !== null && lines.length < maxRows) {
-    const cells: string[] = [];
-    const cellMatcher = /<c\b([^>]*)>([\s\S]*?)<\/c>|<c\b([^>]*)\/>/g;
-    let cell = cellMatcher.exec(row[1] ?? '');
-    while (cell !== null) {
-      const attributes = cell[1] ?? cell[3] ?? '';
-      const trimmed = cellText(attributes, cell[2] ?? '', strings);
-      // `r` places the cell; without it the only honest choice is the next
-      // position, which is what a file with no references implies anyway.
-      const at = columnIndex(/\br="([^"]+)"/.exec(attributes)?.[1] ?? '') ?? cells.length;
-      while (cells.length < at) cells.push('');
-      if (at < cells.length) cells[at] = trimmed;
-      else cells.push(trimmed);
-      cell = cellMatcher.exec(row[1] ?? '');
-    }
-    // Trailing empties carry nothing and are dropped, so a line never ends in
-    // a run of separators.
-    while (cells.length > 0 && (cells[cells.length - 1] ?? '') === '') cells.pop();
-    if (cells.some((value) => value.length > 0)) lines.push(cells.join(CELL_SEPARATOR));
-    row = rowMatcher.exec(xml);
+  for (const row of parseRows(xml, strings, () => true)) {
+    if (lines.length >= maxRows) break;
+    if (row.cells.length === 0) continue;
+    const width = (row.cells[row.cells.length - 1]?.column ?? 0) + 1;
+    const values: string[] = Array.from({ length: width }, () => '');
+    for (const cell of row.cells) values[cell.column] = cell.text;
+    lines.push(values.join(CELL_SEPARATOR));
   }
   return lines;
 };
@@ -319,42 +429,15 @@ const gridOfSheet = (
 ): { cells: WorkbookGridCell[]; rowsBeyondLimit: number } => {
   const cells: WorkbookGridCell[] = [];
   let rowsBeyondLimit = 0;
-  const rowMatcher = /<row\b([^>]*)>([\s\S]*?)<\/row>/g;
-  let row = rowMatcher.exec(xml);
-  let ordinal = 0;
-  while (row !== null) {
-    ordinal += 1;
-    // `r` is optional in the format; without it the row is the next one.
-    const declared = Number(/\br="(\d+)"/.exec(row[1] ?? '')?.[1] ?? '');
-    const rowNumber = Number.isInteger(declared) && declared > 0 ? declared : ordinal;
-    ordinal = rowNumber;
-    const body = row[2] ?? '';
-
-    if (rowNumber > retainRows) {
-      // Presence only. A value element or an inline string means the row has
-      // content; nothing is decoded to find that out.
-      if (/<v>|<is>/.test(body)) rowsBeyondLimit += 1;
-    } else {
-      // SELF-CLOSING FIRST. With the open-tag branch first, `<c r="G1" s="5"/>`
-      // matches as an OPENING tag (`[^>]*` happily takes the `/`) whose body
-      // runs to the NEXT cell's `</c>`, so that cell's shared-string index is
-      // printed as text under the wrong column. Found on the reference
-      // workbook, where a styled empty cell beside every band label turned
-      // "Functional/Domain" into "6". A self-closing cell has no value.
-      const cellMatcher = /<c\b([^>]*?)\/>|<c\b([^>]*)>([\s\S]*?)<\/c>/g;
-      let cell = cellMatcher.exec(body);
-      let position = 0;
-      while (cell !== null) {
-        const selfClosing = cell[1] !== undefined;
-        const attributes = (selfClosing ? cell[1] : cell[2]) ?? '';
-        const at = columnIndex(/\br="([^"]+)"/.exec(attributes)?.[1] ?? '') ?? position;
-        position = at + 1;
-        const text = selfClosing ? '' : cellText(attributes, cell[3] ?? '', strings);
-        if (text.length > 0) cells.push({ row: rowNumber, column: at + 1, text });
-        cell = cellMatcher.exec(body);
-      }
+  // The same row parser extractXlsx uses. Rows past the limit are never
+  // decoded: parseRows reports only whether they hold a value.
+  for (const row of parseRows(xml, strings, (rowNumber) => rowNumber <= retainRows)) {
+    if (row.row > retainRows) {
+      if (row.hasValue) rowsBeyondLimit += 1;
+      continue;
     }
-    row = rowMatcher.exec(xml);
+    for (const cell of row.cells)
+      cells.push({ row: row.row, column: cell.column + 1, text: cell.text });
   }
   return { cells, rowsBeyondLimit };
 };
