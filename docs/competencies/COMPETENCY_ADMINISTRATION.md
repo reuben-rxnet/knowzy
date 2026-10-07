@@ -1,6 +1,7 @@
 # Competency Administration
 
-**Status:** Normative. Specified 2026-10-07 for COMPETENCY-M2, roadmap §3a, before any code.
+**Status:** Normative. Specified 2026-10-07 for COMPETENCY-M2, roadmap §3a, before any code, and
+built the same day (migration `0016_competency_administration`).
 **Screen:** Administration → Competencies (`/administration/competencies`).
 **Governed by:** [COMPETENCY_PRIVACY_AND_GOVERNANCE.md](COMPETENCY_PRIVACY_AND_GOVERNANCE.md).
 **Related:** [COMPETENCY_MODEL.md](COMPETENCY_MODEL.md) (the entities) ·

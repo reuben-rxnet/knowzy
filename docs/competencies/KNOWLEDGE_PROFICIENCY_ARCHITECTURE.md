@@ -65,6 +65,13 @@ screen that eventually renders it shows the refusal, never a zero or a blank.
 "Target" block is per person), its version is `DRAFT`, and its ratings are not imported. So on this
 release **no gap is calculable anywhere**, which is the honest state.
 
+**Since COMPETENCY-M2 (2026-10-07) Q2 has a write path.** A role target is proposed with a required
+source, approved by an administrator who neither proposed nor edited it, and only against an
+`APPROVED` framework version ([COMPETENCY_ADMINISTRATION.md §5](COMPETENCY_ADMINISTRATION.md)).
+Nothing has been approved: the imported version is still `DRAFT` (CM-1) and no target's source has
+been supplied (CM-9). Q3–Q5 still have nothing to satisfy them, because no observation is stored, so
+the release state is unchanged — **no gap is calculable anywhere**.
+
 ## 5. Readiness calculations — designed, not built
 
 Each figure below is defined so that the first implementation has nothing to invent. Every one is an

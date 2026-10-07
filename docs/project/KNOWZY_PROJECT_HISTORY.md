@@ -3136,3 +3136,83 @@ work, and the migration document says so instead of describing a mechanism that 
 - **Before-and-after snapshot.** Every document's content hash, version counter, section keys and
   section hashes (48 documents of all types), every draft's id, state and evidence offset (167), and
   the published count (13) were compared across the change. They are **byte-identical**.
+
+## COMPETENCY-M2 — competency administration, approval separated from editing
+
+2026-10-07. The owner's brief asked for three foundations at once: AI Document Studio, Competency
+Administration and Knowledge Proficiency. Checked against `/docs` first, it was three roadmap
+milestones, and two of them were blocked on open decisions. The owner chose to split it into three
+slices and asked to **stop after slice 1** for review. Specification:
+`docs/competencies/COMPETENCY_ADMINISTRATION.md`, written and committed before any code.
+
+### Four decisions the owner took
+
+1. **Domains are the category kinds.** There is no new entity.
+2. **`competency.manage` is held by `KNOWZY_ADMINISTRATOR` only.**
+3. **Approval is separated from editing.** Whoever edits a framework version or a role target may
+   not approve it.
+4. **The structure-only import may populate the development database.**
+
+These resolve CM-6. CM-1 (is the matrix the official framework?) and CM-9 (where do role targets
+come from?) stay open.
+
+### What was built
+
+- **Migration 0016:**
+  - A framework version gains an origin, a definitions hash, its creator and its editors.
+  - An alias gains a status.
+  - A role target gains its editors, the approved version, and who retired it.
+  - `competency_definition_change` is new. It is append-only (a trigger refuses UPDATE and DELETE)
+    and, like `audit_log`, has no foreign key.
+  - CHECKs refuse an approver who is an editor.
+  - An expression index allows one `PROPOSED` and one `APPROVED` target per role and competency.
+  - The first draft cast the enum to text in that index. PostgreSQL refused it as not IMMUTABLE,
+    the transaction rolled back, and the index now compares the enum instead.
+  - The drift gate, run by hand: *No difference detected*.
+- **The service:**
+  - Categories, competencies and aliases. A near match is refused until confirmed.
+  - Versions are content-hashed snapshots, and an approval recomputes the hash inside its own
+    transaction.
+  - Role targets need a source, an approved framework, a level on the competency's scale and a
+    different approver.
+  - Every write runs in one transaction with its audit event and its change-log row.
+  - The importer now records the hash its version will be judged by.
+- **Interfaces:**
+  - 14 routes, every one with a declared policy, and twelve `ADMIN.COMPETENCY` actions.
+  - Five error codes, each with a "What you can do" line.
+- **The screen:** Administration → Competencies, with six views. An Approve button the server would
+  refuse is drawn disabled, with the reason.
+- **The import:** the RxSolutions matrix went in structure-only. 16 categories, 71 competencies and
+  93 aliases, with version `2024-05` in `DRAFT`. Person rows were counted, never read.
+
+### Validated
+
+- Format clean. Typecheck 35/35 and lint 22/22. Build 21/21; it took two `up migrate` rounds before
+  the api found `tsx` again.
+- Unit 713 and contract 220 passed. A new contract test pins `competency.manage` to the one role.
+- Integration: 20 passed, run **by file only**:
+  - the new administration suite;
+  - the M1 import suite;
+  - the route-policy registry.
+
+  The rest of the integration project deletes drafts from the shared database, so it was not run.
+- **Mutation:** removing the separation rule from the service failed 3 of the 9 tests in the new
+  suite.
+- The browser suite: 82 passed, 1 skipped and 1 failed. The failure was `reports.spec.ts` "a
+  report carries asOf…", where the label "Observable cost" was not found. It passed when re-run
+  alone, and it is in a report this slice did not touch. It is recorded as intermittent, not fixed.
+- The new competency spec (4 tests) writes nothing, on purpose. It must not add definitions to the
+  real framework or approve it, so it asserts only rendering and refusals. The write paths run on a
+  throwaway framework in the integration suite.
+- No sideways scroll at 390px or 1440px.
+- `npm run verify` was not run: it would delete the Codex evaluation drafts.
+
+### Also
+
+- **Mid-milestone, the owner asked for "only 1 role in the authoring website".**
+  - It conflicts with `access-control.md` §2 rule 3 and with two contract tests, and it is
+    ambiguous.
+  - The owner deferred it until after this review.
+  - Either reading keeps the second administrator identity, because separation of duties is an
+    identity comparison.
+- The backend commit message says "13 routes"; there are 14.

@@ -720,3 +720,16 @@ or evidence span depends on either. Detail:
 The pilot may claim that spreadsheet cells are placed by their real cell reference, under test. It
 must not claim that a draft is proactively flagged when its source section changes: the flag has no
 writer, and the control that holds is the re-verification at approval (gate 12).
+
+### 12.14 Competency administration (2026-10-07)
+
+COMPETENCY-M2 put the catalogue on a screen: **Administration → Competencies**, migration 0016. The
+RxSolutions matrix is now imported into the development database (16 categories, 71 competencies,
+93 aliases, version `2024-05` in `DRAFT`), structure only. Detail:
+[COMPETENCY_ADMINISTRATION.md](../competencies/COMPETENCY_ADMINISTRATION.md).
+
+| The pilot may now claim | The pilot must not claim or imply |
+| --- | --- |
+| A KNOWZY Administrator can maintain the framework — categories, competencies, aliases — with every change recorded and nothing deleted | That any role requirement is approved. None is: the framework version is a draft, and no requirement's source has been supplied |
+| A framework version is a fingerprinted snapshot, and approval is **separated from editing**, enforced by the service and by the database | That the RxSolutions matrix is the organization's approved framework. That is CM-1, the framework owner's decision |
+| A role requirement must name its source and is approved by someone who did not write it | That KNOWZY knows anyone's competency or readiness. Still no observation about a person exists |

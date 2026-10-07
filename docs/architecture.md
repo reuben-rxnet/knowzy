@@ -870,7 +870,7 @@ Seven rules govern it.
 | Capability | Status | Specification |
 | --- | --- | --- |
 | Competency catalogue and structure-only import | **Built** (COMPETENCY-M0/M1) — operator command | COMPETENCY_MODEL.md, COMPETENCY_IMPORT_PLAN.md |
-| Competency administration: catalogue, aliases, versions, role targets | **Specified** (COMPETENCY-M2) — Administration → Competencies | COMPETENCY_ADMINISTRATION.md |
+| Competency administration: catalogue, aliases, versions, role targets | **Built** (COMPETENCY-M2) — Administration → Competencies | COMPETENCY_ADMINISTRATION.md |
 | Gap rule | **Built** as a pure function; no data to run it on | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §4 |
 | Knowledge Proficiency, Competency Analytics | Designed | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §5–§6 |
 | My Competencies (self-assessment) | Designed; blocked on CP-2, CP-4 | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §7 |

@@ -60,7 +60,10 @@ Implementation Order:
 
 Extension workstream (roadmap §3a), Competency and knowledge readiness:
 COMPETENCY-M0/M1 DONE (specification, migration 0015, structure-only importer,
-gap rule); M2-M8 NOT STARTED. See "Competency foundation" below.
+gap rule); COMPETENCY-M2 DONE 2026-10-07 (competency administration, migration
+0016); M3-M8 NOT STARTED. The owner split the 2026-10-07 brief into three slices
+and asked to STOP after slice 1 for review: slice 2 is the Document Studio
+overview, slice 3 Knowledge Proficiency. See "Competency foundation" below.
 
 Phase 2 is Identity and access, not Knowledge Sources. Sources come in Phase 3
 and depend on it: every route must have a declared policy, and the registry
@@ -102,7 +105,10 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 15 migrations apply from empty; seed is idempotent. 0015 is COMPETENCY-M1:
+- 16 migrations apply from empty; seed is idempotent. 0016 is COMPETENCY-M2:
+  version origin, definitions hash and editors; alias status; target editors and
+  approved version; the append-only competency_definition_change; separation
+  CHECKs. 0015 is COMPETENCY-M1:
   eleven competency REFERENCE-DEFINITION tables, no person-level table. 0014 is OPENAI-CODEX-01:
   estimated_input_tokens on generation_job and generation_provider_call. 0013 is Phase 10 R2:
   three read models and the append-only daily coverage_snapshot. 0012 is the reporting
@@ -119,7 +125,7 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 90 API routes, every one with a declared
+- 19 of 36 MCP tools registered; 104 API routes (COMPETENCY-M2 added 14), every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
@@ -181,7 +187,14 @@ Still Open:
 
 Next Immediate Task:
 
-0. XLSX-INTEGRITY-M1 is DONE (2026-09-29): cells placed by reference through
+0. OWNER DECISION PENDING (asked 2026-10-07, deferred until after COMPETENCY-M2
+   review): "only 1 role in the authoring website". Two readings were offered --
+   simplify the identity menu to the two administrator identities (keeps the
+   roles, docs and tests), or remove the 13 other roles (amend access-control.md
+   §2 rule 3 first, drop two contract tests, rewrite most e2e specs). Either way
+   the SECOND administrator identity stays: separation of duties is an identity
+   comparison, not a role.
+   XLSX-INTEGRITY-M1 is DONE (2026-09-29): cells placed by reference through
    one shared row parser; measured impact on the pilot was zero, so no re-sync.
    Open follow-up it exposed: NOTHING WRITES draft_question.needsRevalidation,
    so a draft is not proactively flagged when its section changes; gate 12
@@ -470,6 +483,23 @@ EVALUATION, and the specification says so in those words.
   correct.
 - The audit-family contract (packages/testing/contracts/registries.test.ts)
   counts families: 29 since ADMIN.COMPETENCY.
+- COMPETENCY-M2 (2026-10-07): Administration -> Competencies,
+  docs/competencies/COMPETENCY_ADMINISTRATION.md. Four things to keep:
+  - `competency.manage` is held by KNOWZY_ADMINISTRATOR ONLY (a contract test);
+    reads are `taxonomy.read`.
+  - APPROVAL IS SEPARATED FROM EDITING: a version's creator and editors, and a
+    target's proposer and editors, cannot approve it. The service refuses with
+    words AND a CHECK in 0016 refuses a bypassing write. Editors of a version
+    are READ from competency_definition_change, which is append-only (trigger)
+    and has NO FK, as audit_log -- so a test can delete its framework.
+  - A VERSION IS A SNAPSHOT: approval recomputes `definitionsSha256` inside the
+    transaction; any later edit makes a DRAFT stale. The importer records the
+    hash once, at version creation.
+  - The dev database HOLDS the real RxSolutions framework (decision A4): 16
+    categories, 71 competencies, 93 aliases, version 2024-05 DRAFT. NEVER write
+    to it from a browser test or approve it from one (CM-1 is the owner's): the
+    e2e spec is refusal-only, and write paths run on a throwaway framework in
+    packages/domain/test/competency-administration.test.ts.
 - AI Document Studio, My Competencies, My Certifications, recommendations and
   competency reporting are DESIGNED ONLY. The Studio is BLOCKED_BY_APPROVAL for
   purpose DOCUMENT_RESTRUCTURE. None gets a navigation item until it has a

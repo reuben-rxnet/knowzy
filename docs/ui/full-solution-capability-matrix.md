@@ -488,7 +488,7 @@ below**: an architecture-only capability gets no link, disabled or otherwise, un
 
 | Capability | Classification | Backing today | Blocked on |
 | --- | --- | --- | --- |
-| Competency Administration | `PARTIALLY_IMPLEMENTED` | Migration 0015 tables and the structure-only import command (`scripts/competency-import.ts`). **No screen, no route** | A screen, version approval and role targets (roadmap §3a M2; CM-1, CM-6, CM-9) |
+| Competency Administration | `IMPLEMENTED` (COMPETENCY-M2, 2026-10-07) | Administration → Competencies, a tab beside Knowledge Domains and AI Providers: categories, competencies, aliases, framework versions with separated approval, role requirements. 14 routes, migration 0016 | Approving the imported version is CM-1's decision and approved targets need CM-9's source — decisions, not code |
 | Knowledge Proficiency (Governance) | `REQUIRES_BACKEND_EXTENSION` | The gap rule as a pure function; no observation exists to run it on | KP-1..KP-4, CP-3 |
 | Competency Analytics (Reports) | `REQUIRES_BACKEND_EXTENSION` | Nothing | Observations, KP-1, CP-3 |
 | AI Document Studio (Knowledge Sources) | `BLOCKED_BY_APPROVAL` | Nothing. Design: [AI_DOCUMENT_STUDIO_ARCHITECTURE.md](../competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md) | Approval for purpose `DOCUMENT_RESTRUCTURE` (CP-5, DS-2); then build |
