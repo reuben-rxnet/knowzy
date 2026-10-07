@@ -3325,7 +3325,8 @@ Specification: `AI_DOCUMENT_STUDIO_ARCHITECTURE.md` §10, committed first.
   - The generator now finds nothing new: every section is refused as `INSUFFICIENT_EVIDENCE`, and
     the job reads FAILED with 0 accepted.
   - So `generateDraft` throws *No draft could be generated and none exists*.
-  - This is a property of the test fixtures, not of this slice, and **it is not fixed here**.
+  - This is a property of the test fixtures, not of this slice. It was **fixed afterwards** (next
+    section).
 
 ### Validated
 
@@ -3341,3 +3342,24 @@ Specification: `AI_DOCUMENT_STUDIO_ARCHITECTURE.md` §10, committed first.
   - Every Document Studio, role and competency spec passed. The Studio spec's approval
     round-trip on ANTHROPIC moved it to `NOT_BUILT` and back.
 - `npm run verify` was not run.
+
+### Then: the suite's own source, and a clean run
+
+- **The suite now owns "E2E Synthetic Corpus"**, a FILE_REPOSITORY under the allowed root
+  `/repo/RealWorldPilot`. Each draft gets a fresh invented procedure in the git-ignored
+  `E2E-Synthetic/` folder. The first versions taught two things:
+  - **sections under 300 characters are not assessable**;
+  - **changing only the figures is not enough.** Drafts came out 0.776 similar to the previous
+    run's, over the 0.75 duplicate threshold, and submit was refused.
+
+  So the roles, items, channels and a codename now vary per run. The duplicate was not
+  dispositioned away.
+- **The generation UI spec now names its source.** The synthetic source sorts first, and the screen
+  opens on the first usable source.
+- **Three strings still implied two-person approval** after the role simplification: the Generate
+  summary, and the Publish intro and empty state. All three are corrected.
+- One intermediate run took 23 minutes, and a rerun 1.7 hours for 16 tests, on a stack that had
+  been up for hours. Restarting the web containers and then the api (with `restart`, which does not
+  re-run `migrate`) brought it back.
+- **Final browser run: 87 passed, 1 skipped, 0 failed.** Contract 226, typecheck 35/35, lint 22/22,
+  format clean.
