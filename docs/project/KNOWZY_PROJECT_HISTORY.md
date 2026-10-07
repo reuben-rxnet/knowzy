@@ -3278,3 +3278,66 @@ Specification: `access-control.md` §2.0, written first and committed on its own
 
 - **There is no screen for the separation settings.** Re-enabling them is a configuration write.
 - **If T-29 relied on two-person approval as a control, it needs restating** (readiness §12.15).
+
+## AI Document Studio, Slice 2 — the purpose, its approval, and the overview
+
+2026-10-07. A governance and readiness milestone. It establishes the `DOCUMENT_RESTRUCTURE`
+processing purpose, its approval and the platform's true state. **No transformation was built.**
+Specification: `AI_DOCUMENT_STUDIO_ARCHITECTURE.md` §10, committed first.
+
+### What was built
+
+- **The purpose's approvals have their own key**, `llm.purposeApprovals`, apart from
+  `llm.approvedProviders`. Neither reads the other.
+  - A contract test scans both directions.
+  - **Adding a generation-approval read to the Studio fails it.**
+- **Recording an approval:** record, replace or remove, with:
+  - a required reference;
+  - the approver and time taken from the request;
+  - three audit actions, each in one transaction with a `configuration_change`.
+- **An ineligible provider cannot be approved.** That is the template generator, and Copilot,
+  which retrieves its own context.
+- **Readiness** is checked in order: exists, capability, approval, client, configuration. It
+  yields `BLOCKED_BY_APPROVAL`, `NOT_BUILT` or `READY`.
+  - `RESTRUCTURING_CLIENTS` is empty, so **`READY` is unreachable**.
+  - Unit and contract tests hold this.
+  - Each status read is audited (`PURPOSE_STATUS_EVALUATED`).
+- **Routes:** a status read, `governance.ai.read`, and an approval write, `governance.ai.manage`.
+- **`/document-studio`**, its own sidebar entry between Import Questions and AI Quiz Generation.
+  - It shows the "not yet implemented" banner, the real state, and the documented GenerationReady
+    results from EVAL-M1 §1 and §3, with the record's two caveats.
+  - It also shows the workflow, provider readiness and implementation status.
+  - There is no Run, Transform, Rewrite or Prepare control.
+- **The live state:** `BLOCKED_BY_APPROVAL`, with four eligible providers blocked and two
+  ineligible.
+
+### Found on the way
+
+- **`docker compose start` on the web containers re-runs `migrate`.**
+  - Every node service depends on it, and it runs `npm ci` under the running api. The api then
+    dies minutes later with *Cannot find module tsx/dist/preflight.cjs*.
+  - This is what crashed the Role Simplification's first run as well. It was diagnosed this time
+    and recorded in CLAUDE.md.
+  - The fix is the order: start the web containers first, then restart the api.
+- **The browser suite has exhausted its own fixtures.**
+  - Each run approves and publishes template-generator drafts from the small Mock Support
+    Operations source: 20 are published, and none is left in DRAFT.
+  - The generator now finds nothing new: every section is refused as `INSUFFICIENT_EVIDENCE`, and
+    the job reads FAILED with 0 accepted.
+  - So `generateDraft` throws *No draft could be generated and none exists*.
+  - This is a property of the test fixtures, not of this slice, and **it is not fixed here**.
+
+### Validated
+
+- Format clean, typecheck 35/35, lint 22/22, build 21/21. Codegen clean.
+- Unit 722 and contract 226 passed.
+- Integration, by file: the new Studio suite passed. It restored `llm.purposeApprovals`, and
+  `llm.approvedProviders` was checked unchanged.
+- The route-policy registry passed.
+- **Browser: 79 passed, 1 skipped, 8 failed.**
+  - All 8 are the fixture exhaustion above: four question-filing specs and four
+    review-and-publish specs, each failing inside `generateDraft` before reaching anything it
+    tests.
+  - Every Document Studio, role and competency spec passed. The Studio spec's approval
+    round-trip on ANTHROPIC moved it to `NOT_BUILT` and back.
+- `npm run verify` was not run.

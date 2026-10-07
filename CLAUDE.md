@@ -61,9 +61,10 @@ Implementation Order:
 Extension workstream (roadmap §3a), Competency and knowledge readiness:
 COMPETENCY-M0/M1 DONE (specification, migration 0015, structure-only importer,
 gap rule); COMPETENCY-M2 DONE 2026-10-07 (competency administration, migration
-0016); M3-M8 NOT STARTED. The owner split the 2026-10-07 brief into three slices
-and asked to STOP after slice 1 for review: slice 2 is the Document Studio
-overview, slice 3 Knowledge Proficiency. See "Competency foundation" below.
+0016); M3-M8 NOT STARTED. The 2026-10-07 brief was split into three slices:
+slice 1 (competency administration) and slice 2 (the Document Studio overview,
+no transformation) are DONE; the owner asked to STOP for review before slice 3,
+Knowledge Proficiency. See "Competency foundation" below.
 
 Phase 2 is Identity and access, not Knowledge Sources. Sources come in Phase 3
 and depend on it: every route must have a declared policy, and the registry
@@ -127,7 +128,7 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 104 API routes (COMPETENCY-M2 added 14), every one with a declared
+- 19 of 36 MCP tools registered; 106 API routes (COMPETENCY-M2 added 14, Document Studio Slice 2 added 2), every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
@@ -283,6 +284,13 @@ Gotchas learned by execution (each of these cost real time):
   edit looks like it did nothing. Fix: docker compose ... restart
   authoring-web live-web sync-web. This wasted a diagnosis; the code was right the whole
   time.
+- `docker compose ... start <web containers>` RE-RUNS THE `migrate` SERVICE
+  (every node service depends_on it), which runs `npm ci` and pulls
+  node_modules out from under a RUNNING api: it dies minutes later with
+  "Cannot find module tsx/dist/preflight.cjs", and a browser run fails with
+  "socket hang up" from that point. Cost two full runs on 2026-10-07. ORDER:
+  start the web containers FIRST, let migrate finish, THEN restart api mcp
+  jobs and check `/repo/node_modules/tsx/dist/preflight.cjs` exists.
 - A host `npm run build` can also break the container node_modules volume, not
   just `npm install`. Same fix: `up migrate`, then restart api and mcp.
 - The MOCK question bank persists to a JSON file under the fixture root, so it
@@ -518,8 +526,18 @@ EVALUATION, and the specification says so in those words.
     to it from a browser test or approve it from one (CM-1 is the owner's): the
     e2e spec is refusal-only, and write paths run on a throwaway framework in
     packages/domain/test/competency-administration.test.ts.
-- AI Document Studio, My Competencies, My Certifications, recommendations and
-  competency reporting are DESIGNED ONLY. The Studio is BLOCKED_BY_APPROVAL for
+- AI DOCUMENT STUDIO SLICE 2 BUILT 2026-10-07 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md
+  §10): `/document-studio`, its own sidebar entry, PARTIALLY_IMPLEMENTED. Purpose
+  DOCUMENT_RESTRUCTURE's approvals live in `llm.purposeApprovals`, NEVER in
+  `llm.approvedProviders` -- a contract test scans both directions. Readiness
+  (exists > capability > approval > client > configuration) yields
+  BLOCKED_BY_APPROVAL / NOT_BUILT / READY; RESTRUCTURING_CLIENTS in
+  claude-services is EMPTY, so READY is unreachable and a test fails if a
+  client id is added without one. Each status read audits
+  PURPOSE_STATUS_EVALUATED. NO transformation, derivative, upload or provider
+  call exists; the page has no Run/Transform/Rewrite/Prepare control.
+- My Competencies, My Certifications, recommendations and competency
+  reporting are DESIGNED ONLY. The Studio is BLOCKED_BY_APPROVAL for
   purpose DOCUMENT_RESTRUCTURE. None gets a navigation item until it has a
   backend (capability matrix, last section).
 

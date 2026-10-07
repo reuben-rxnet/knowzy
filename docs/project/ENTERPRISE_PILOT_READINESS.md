@@ -754,3 +754,18 @@ administrative overhead.
 generated content as a control, it needs restating: under this configuration a single administrator
 can generate, approve and publish. Re-enabling separation is available as the mitigation if a
 reviewer requires it.
+
+### 12.16 AI Document Studio, Slice 2 (2026-10-07)
+
+The **AI Document Studio** overview exists as its own screen, with the `DOCUMENT_RESTRUCTURE`
+processing purpose and an approval that can be recorded for it. Detail:
+[AI_DOCUMENT_STUDIO_ARCHITECTURE.md §10](../competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md).
+
+| The pilot may now claim | The pilot must not claim or imply |
+| --- | --- |
+| Restructuring whole documents is a separate processing purpose with its own approval; the generation approval does not cover it, and a test proves neither reads the other | That any document can be prepared or restructured. No transformation, derivative or provider call exists; the state is **Blocked by approval**, and after an approval it is **Not built** |
+| Recording, replacing and removing that approval is audited with the approver, time and reference | That the hand-prepared GenerationReady results are what the Studio produces. They are a manual precedent, evaluation-only, and no question from them may be published |
+
+**For T-29 / CP-5.** The screen is where a restructuring approval would be recorded once Privacy
+and InfoSec decide it. Recording one changes nothing operational until the derivative workflow is
+built.
