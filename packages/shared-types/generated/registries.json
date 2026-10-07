@@ -8,7 +8,19 @@
     "ADMIN.ACCESS.ROLE_REVOKED",
     "ADMIN.ACCESS.SCOPE_CHANGED",
     "ADMIN.ACCESS.SOURCE_ACCESS_CHANGED",
+    "ADMIN.COMPETENCY.ALIAS_CREATED",
+    "ADMIN.COMPETENCY.ALIAS_UPDATED",
+    "ADMIN.COMPETENCY.CATEGORY_CREATED",
+    "ADMIN.COMPETENCY.CATEGORY_UPDATED",
+    "ADMIN.COMPETENCY.COMPETENCY_CREATED",
+    "ADMIN.COMPETENCY.COMPETENCY_UPDATED",
     "ADMIN.COMPETENCY.IMPORT_APPLIED",
+    "ADMIN.COMPETENCY.TARGET_APPROVED",
+    "ADMIN.COMPETENCY.TARGET_PROPOSED",
+    "ADMIN.COMPETENCY.TARGET_RETIRED",
+    "ADMIN.COMPETENCY.TARGET_UPDATED",
+    "ADMIN.COMPETENCY.VERSION_APPROVED",
+    "ADMIN.COMPETENCY.VERSION_CREATED",
     "ADMIN.CONFIGURATION.PROVIDER_ACTIVATED",
     "ADMIN.CONFIGURATION.PROVIDER_APPROVAL_CHANGED",
     "ADMIN.CONFIGURATION.PROVIDER_DISABLED",
@@ -234,6 +246,31 @@
       "category": "UPSTREAM",
       "retryable": true,
       "status": 503
+    },
+    "COMPETENCY_DUPLICATE": {
+      "category": "CONFLICT",
+      "retryable": false,
+      "status": 409
+    },
+    "COMPETENCY_FRAMEWORK_NOT_APPROVED": {
+      "category": "CONFLICT",
+      "retryable": false,
+      "status": 409
+    },
+    "COMPETENCY_INACTIVE": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
+    },
+    "COMPETENCY_NEAR_MATCH": {
+      "category": "CONFLICT",
+      "retryable": false,
+      "status": 409
+    },
+    "COMPETENCY_VERSION_STALE": {
+      "category": "CONFLICT",
+      "retryable": false,
+      "status": 409
     },
     "DATABASE_UNAVAILABLE": {
       "category": "UPSTREAM",
@@ -705,6 +742,7 @@
     "audit.export",
     "audit.read",
     "authoring.dashboard.view",
+    "competency.manage",
     "document.browse",
     "document.exclude",
     "document.section.manage",
@@ -781,6 +819,7 @@
         "audit.export",
         "audit.read",
         "authoring.dashboard.view",
+        "competency.manage",
         "document.browse",
         "document.exclude",
         "document.section.manage",

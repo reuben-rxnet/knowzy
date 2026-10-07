@@ -203,6 +203,44 @@ export const ERROR_REGISTRY = {
     message: 'The file names a domain or topic that does not exist. Map it before importing.',
     retryable: false,
   },
+  // Competency administration (COMPETENCY-M2,
+  // docs/competencies/COMPETENCY_ADMINISTRATION.md). Their own codes because
+  // each asks the administrator for a different next step.
+  /** A category, competency, alias or version with that identity already exists. */
+  COMPETENCY_DUPLICATE: {
+    category: 'CONFLICT',
+    status: 409,
+    message: 'A competency definition with that code, name or content already exists.',
+    retryable: false,
+  },
+  /** A new competency is within edit distance 2 of an existing one in its category. */
+  COMPETENCY_NEAR_MATCH: {
+    category: 'CONFLICT',
+    status: 409,
+    message: 'That name is very close to an existing competency. Confirm it is distinct.',
+    retryable: false,
+  },
+  /** A retired category or competency cannot take a new competency or target. */
+  COMPETENCY_INACTIVE: {
+    category: 'VALIDATION',
+    status: 422,
+    message: 'That competency definition is retired, so nothing new can be based on it.',
+    retryable: false,
+  },
+  /** The definitions changed after the version was drawn up; its hash no longer matches. */
+  COMPETENCY_VERSION_STALE: {
+    category: 'CONFLICT',
+    status: 409,
+    message: 'The definitions changed after this version was drawn up. Create a new version.',
+    retryable: false,
+  },
+  /** A role target can be approved only against an approved framework version. */
+  COMPETENCY_FRAMEWORK_NOT_APPROVED: {
+    category: 'CONFLICT',
+    status: 409,
+    message: 'The framework has no approved version, so a role target cannot be approved yet.',
+    retryable: false,
+  },
   PROFILE_NOT_AVAILABLE: {
     category: 'VALIDATION',
     status: 422,

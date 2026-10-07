@@ -46,3 +46,41 @@ export type {
   GapPrecondition,
   GapTarget,
 } from './gap.js';
+
+// COMPETENCY-M2: competency administration (docs/competencies/COMPETENCY_ADMINISTRATION.md).
+export {
+  canonicalDefinitions,
+  definitionsDigest,
+  separationRefusal,
+} from './definitions-digest.js';
+export type { FrameworkDefinitions } from './definitions-digest.js';
+export {
+  ADMIN_ALIAS_DECISIONS,
+  COMPETENCY_DOMAINS,
+  CompetencyAdminError,
+  approveFrameworkVersion,
+  approveRoleTarget,
+  createCompetency,
+  createCompetencyAlias,
+  createCompetencyCategory,
+  createFrameworkVersion,
+  proposeRoleTarget,
+  readCompetencyCatalogue,
+  readFrameworkDefinitions,
+  readRoleTargets,
+  retireRoleTarget,
+  snapshotFramework,
+  updateCompetency,
+  updateCompetencyAlias,
+  updateCompetencyCategory,
+  updateRoleTarget,
+} from './administration.js';
+export type {
+  CatalogueFramework,
+  CatalogueVersion,
+  CompetencyAdminActor,
+  CompetencyAdminDeps,
+  CompetencyDomain,
+  RoleTargetRow,
+  RoleTargetsView,
+} from './administration.js';

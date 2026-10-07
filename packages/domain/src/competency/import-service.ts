@@ -23,6 +23,7 @@ import {
   type PrismaClient,
   type TransactionClient,
 } from '@knowzy/database';
+import { snapshotFramework } from './administration.js';
 import type { Clock } from '@knowzy/observability';
 import type { CompetencyImportPlan } from './import-plan.js';
 
@@ -386,6 +387,22 @@ const applyInTransaction = async (
     provenance: provenance.count,
   };
   const outcome = Object.values(created).every((value) => value === 0) ? 'NO_CHANGES' : 'APPLIED';
+
+  // COMPETENCY-M2: an imported version is approved by the same rule as one
+  // drawn up on screen, so it records the definitions it produced and who had
+  // edited them before it. Set ONCE: a NO_CHANGES re-apply of a version whose
+  // definitions an administrator has since edited must not move its hash onto
+  // content nobody imported.
+  if (version.definitionsSha256 === null) {
+    const snapshot = await snapshotFramework(tx, frameworkId, frameworkVersionId);
+    await tx.competencyFrameworkVersion.update({
+      where: { id: frameworkVersionId },
+      data: {
+        definitionsSha256: snapshot.definitionsSha256,
+        editorUserIds: snapshot.editorUserIds,
+      },
+    });
+  }
 
   await tx.competencyImportBatch.update({
     where: { id: batch.id },

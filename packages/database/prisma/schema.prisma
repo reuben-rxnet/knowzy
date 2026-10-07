@@ -2899,6 +2899,23 @@ enum CompetencyProvenanceSubject {
   @@map("competency_provenance_subject")
 }
 
+/// COMPETENCY-M2: where a framework version came from.
+enum CompetencyVersionOrigin {
+  IMPORT
+  ADMINISTRATION
+
+  @@map("competency_version_origin")
+}
+
+/// COMPETENCY-M2: which kind of definition a change-log row is about.
+enum CompetencyChangeSubject {
+  CATEGORY
+  COMPETENCY
+  ALIAS
+
+  @@map("competency_change_subject")
+}
+
 model CompetencyFramework {
   id          String                     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
   code        String                     @unique
@@ -2935,13 +2952,22 @@ model CompetencyFrameworkVersion {
   approvedByUserId    String?                          @map("approved_by_user_id") @db.Uuid
   approvalReference   String?                          @map("approval_reference")
   importerVersion     String                           @map("importer_version")
+  /// COMPETENCY-M2. IMPORT for a file, ADMINISTRATION for a snapshot drawn up
+  /// on screen. An approval covers `definitionsSha256`, never "the latest".
+  origin              CompetencyVersionOrigin          @default(IMPORT)
+  definitionsSha256   String?                          @map("definitions_sha256") @db.Char(64)
+  createdByUserId     String?                          @map("created_by_user_id") @db.Uuid
+  /// The creator plus everyone who changed a definition this snapshot covers.
+  /// A CHECK refuses an approver among them (separation of duties).
+  editorUserIds       String[]                         @default([]) @map("editor_user_ids") @db.Uuid
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  framework  CompetencyFramework          @relation("CompetencyFrameworkVersionFramework", fields: [frameworkId], references: [id], onDelete: Restrict)
-  batches    CompetencyImportBatch[]      @relation("CompetencyImportBatchVersion")
-  provenance CompetencyImportProvenance[] @relation("CompetencyImportProvenanceVersion")
+  framework    CompetencyFramework          @relation("CompetencyFrameworkVersionFramework", fields: [frameworkId], references: [id], onDelete: Restrict)
+  batches      CompetencyImportBatch[]      @relation("CompetencyImportBatchVersion")
+  provenance   CompetencyImportProvenance[] @relation("CompetencyImportProvenanceVersion")
+  expectations RoleCompetencyExpectation[]  @relation("RoleCompetencyExpectationVersion")
 
   @@unique([frameworkId, sourceContentSha256])
   @@unique([frameworkId, versionLabel])
@@ -3040,18 +3066,23 @@ model Competency {
 /// the category code for a COMPETENCY alias (so "Oracle" under Database and
 /// under ERP are two aliases) and the empty string for a CATEGORY alias.
 model CompetencyAlias {
-  id           String                  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  frameworkId  String                  @map("framework_id") @db.Uuid
+  id           String                     @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkId  String                     @map("framework_id") @db.Uuid
   subject      CompetencyAliasSubject
-  contextCode  String                  @map("context_code")
-  categoryId   String?                 @map("category_id") @db.Uuid
-  competencyId String?                 @map("competency_id") @db.Uuid
+  contextCode  String                     @map("context_code")
+  categoryId   String?                    @map("category_id") @db.Uuid
+  competencyId String?                    @map("competency_id") @db.Uuid
   alias        String
-  foldedAlias  String                  @map("folded_alias")
+  foldedAlias  String                     @map("folded_alias")
   decision     CompetencyAliasDecision
   note         String?
+  /// COMPETENCY-M2: an alias is deactivated, never deleted.
+  status       CompetencyDefinitionStatus @default(ACTIVE)
 
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdByUserId  String?  @map("created_by_user_id") @db.Uuid
+  modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
 
   framework  CompetencyFramework @relation("CompetencyAliasFramework", fields: [frameworkId], references: [id], onDelete: Restrict)
   category   CompetencyCategory? @relation("CompetencyAliasCategory", fields: [categoryId], references: [id], onDelete: Restrict)
@@ -3062,20 +3093,28 @@ model CompetencyAlias {
 }
 
 /// An approved target level for a role. The role catalogue is the EXISTING
-/// JobRole, never a second one. No write path in COMPETENCY-M0/M1; a CHECK in
-/// 0015 refuses APPROVED without approver, time and reference.
+/// JobRole, never a second one. Written by competency administration since
+/// COMPETENCY-M2; a CHECK in 0015 refuses APPROVED without approver, time and
+/// reference, and one in 0016 refuses an approver who proposed or edited it.
 model RoleCompetencyExpectation {
-  id                String                          @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
-  jobRoleId         String                          @map("job_role_id") @db.Uuid
-  competencyId      String                          @map("competency_id") @db.Uuid
-  targetLevelId     String                          @map("target_level_id") @db.Uuid
-  status            RoleCompetencyExpectationStatus @default(PROPOSED)
-  source            String
-  rationale         String?
-  effectiveFrom     DateTime?                       @map("effective_from") @db.Date
-  approvedAt        DateTime?                       @map("approved_at") @db.Timestamptz(6)
-  approvedByUserId  String?                         @map("approved_by_user_id") @db.Uuid
-  approvalReference String?                         @map("approval_reference")
+  id                 String                          @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  jobRoleId          String                          @map("job_role_id") @db.Uuid
+  competencyId       String                          @map("competency_id") @db.Uuid
+  targetLevelId      String                          @map("target_level_id") @db.Uuid
+  status             RoleCompetencyExpectationStatus @default(PROPOSED)
+  source             String
+  rationale          String?
+  effectiveFrom      DateTime?                       @map("effective_from") @db.Date
+  approvedAt         DateTime?                       @map("approved_at") @db.Timestamptz(6)
+  approvedByUserId   String?                         @map("approved_by_user_id") @db.Uuid
+  approvalReference  String?                         @map("approval_reference")
+  /// COMPETENCY-M2: the APPROVED framework version in force when this target
+  /// was approved.
+  frameworkVersionId String?                         @map("framework_version_id") @db.Uuid
+  /// The proposer plus everyone who edited the proposal.
+  editorUserIds      String[]                        @default([]) @map("editor_user_ids") @db.Uuid
+  retiredAt          DateTime?                       @map("retired_at") @db.Timestamptz(6)
+  retiredByUserId    String?                         @map("retired_by_user_id") @db.Uuid
 
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -3083,13 +3122,37 @@ model RoleCompetencyExpectation {
   modifiedByUserId String?  @map("modified_by_user_id") @db.Uuid
   version          Int      @default(1)
 
-  jobRole     JobRole         @relation("RoleCompetencyExpectationJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
-  competency  Competency      @relation("RoleCompetencyExpectationCompetency", fields: [competencyId], references: [id], onDelete: Restrict)
-  targetLevel CompetencyLevel @relation("RoleCompetencyExpectationLevel", fields: [targetLevelId], references: [id], onDelete: Restrict)
+  jobRole          JobRole                     @relation("RoleCompetencyExpectationJobRole", fields: [jobRoleId], references: [id], onDelete: Restrict)
+  competency       Competency                  @relation("RoleCompetencyExpectationCompetency", fields: [competencyId], references: [id], onDelete: Restrict)
+  targetLevel      CompetencyLevel             @relation("RoleCompetencyExpectationLevel", fields: [targetLevelId], references: [id], onDelete: Restrict)
+  frameworkVersion CompetencyFrameworkVersion? @relation("RoleCompetencyExpectationVersion", fields: [frameworkVersionId], references: [id], onDelete: Restrict)
 
   @@index([jobRoleId, competencyId])
   @@index([status])
   @@map("role_competency_expectation")
+}
+
+/// COMPETENCY-M2: one row per write to a category, competency or alias.
+/// APPEND-ONLY -- a trigger in 0016 refuses UPDATE and DELETE. A framework
+/// version's editors are read from here, so a rewritable log would be a way to
+/// approve your own edits. NO FOREIGN KEY to the framework, as audit_log has
+/// none to its entities: the history outlives its subject.
+model CompetencyDefinitionChange {
+  id            String                  @id @default(dbgenerated("uuid_generate_v7()")) @db.Uuid
+  frameworkId   String                  @map("framework_id") @db.Uuid
+  subject       CompetencyChangeSubject
+  subjectId     String                  @map("subject_id") @db.Uuid
+  /// CREATED, UPDATED.
+  action        String
+  actorUserId   String                  @map("actor_user_id") @db.Uuid
+  changedFields String[]                @default([]) @map("changed_fields")
+  previousValue Json?                   @map("previous_value") @db.JsonB
+  newValue      Json?                   @map("new_value") @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([frameworkId, createdAt])
+  @@map("competency_definition_change")
 }
 
 model CompetencyImportBatch {

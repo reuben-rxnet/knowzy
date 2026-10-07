@@ -53,6 +53,18 @@ export const POLICIES = {
     portals: AUTHORING,
     description: 'Create and edit domains and topics, and activate or deactivate them.',
   },
+  // COMPETENCY-M2. The competency catalogue, its versions and role targets.
+  // Held by KNOWZY_ADMINISTRATOR only (docs/competencies/
+  // COMPETENCY_ADMINISTRATION.md §2 A2). Approving is NOT a separate policy:
+  // separation of duties is an identity comparison the service makes, not a
+  // permission somebody could be granted around.
+  'competency.manage': {
+    permission: 'competency.manage',
+    portals: AUTHORING,
+    description:
+      'Edit the competency catalogue, draw up and approve framework versions, and propose, ' +
+      'approve and retire role targets. An approver may not be an editor.',
+  },
   'source.read': {
     permission: 'source.read',
     portals: AUTHORING,

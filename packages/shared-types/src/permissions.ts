@@ -22,6 +22,10 @@ export const PERMISSION_KEYS = [
   // taxonomy
   'taxonomy.manage',
   'taxonomy.read',
+  // competency (COMPETENCY-M2). Held by KNOWZY_ADMINISTRATOR ONLY, by product
+  // decision A2 (docs/competencies/COMPETENCY_ADMINISTRATION.md §2). Reading
+  // the catalogue needs taxonomy.read. A contract test refuses another holder.
+  'competency.manage',
   // source
   'source.read',
   'source.manage',
@@ -338,6 +342,7 @@ export const WRITE_PERMISSION_KEYS: readonly PermissionKey[] = [
   'platform.configure',
   'access.manage',
   'taxonomy.manage',
+  'competency.manage',
   'source.manage',
   'source.test',
   'source.sync',

@@ -118,6 +118,16 @@ describe('permission and role catalogue', () => {
     }
   });
 
+  // COMPETENCY-M2, decision A2 (docs/competencies/COMPETENCY_ADMINISTRATION.md
+  // §2): competency administration is held by the KNOWZY Administrator ONLY.
+  it('grants competency.manage to KNOWZY_ADMINISTRATOR and to no other role', () => {
+    const holders = ROLE_DEFINITIONS.filter((role) =>
+      role.permissions.includes('competency.manage'),
+    ).map((role) => role.key);
+    expect(holders).toEqual(['KNOWZY_ADMINISTRATOR']);
+    expect(WRITE_PERMISSION_KEYS).toContain('competency.manage');
+  });
+
   it('keeps AUDITOR read-only: the set contains no write key (§2 rule 4)', () => {
     const auditor = ROLE_DEFINITION_BY_KEY.AUDITOR;
     const writeKeys = new Set<PermissionKey>(WRITE_PERMISSION_KEYS);

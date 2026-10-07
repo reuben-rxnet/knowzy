@@ -118,7 +118,25 @@ export const AUDIT_FAMILIES = {
   // COMPETENCY-M0/M1 (2026-09-29): one event per apply of a structure-only
   // competency import, including a NO_CHANGES re-apply. Counts only -- the
   // importer reads no person row, so there is nothing else it could carry.
-  'ADMIN.COMPETENCY': ['IMPORT_APPLIED'],
+  // COMPETENCY-M2 (2026-10-07): the catalogue, versions and role targets, in
+  // the SAME family -- an auditor asking "who changed the competency framework"
+  // should find the import and the screen in one place. Deactivation is an
+  // UPDATED carrying `status`, as it is for taxonomy.
+  'ADMIN.COMPETENCY': [
+    'IMPORT_APPLIED',
+    'CATEGORY_CREATED',
+    'CATEGORY_UPDATED',
+    'COMPETENCY_CREATED',
+    'COMPETENCY_UPDATED',
+    'ALIAS_CREATED',
+    'ALIAS_UPDATED',
+    'VERSION_CREATED',
+    'VERSION_APPROVED',
+    'TARGET_PROPOSED',
+    'TARGET_UPDATED',
+    'TARGET_APPROVED',
+    'TARGET_RETIRED',
+  ],
 
   // --------------------------------------------- AUTHORING — 8 families
   'AUTHORING.DOCUMENT': [
