@@ -88,6 +88,15 @@ export const AUDIT_FAMILIES = {
     'SECRET_VALIDATED',
     'PROVIDER_ENABLED',
     'PROVIDER_DISABLED',
+    // AI Document Studio, Slice 2: the DOCUMENT_RESTRUCTURE purpose approval.
+    // Three acts rather than one CHANGED, because "who first cleared this",
+    // "who changed the record it rests on" and "who withdrew it" are three
+    // different questions. STATUS_EVALUATED records each evaluation of the
+    // Studio's readiness, as PREFLIGHT_VIEW records a preflight being read.
+    'PURPOSE_APPROVAL_RECORDED',
+    'PURPOSE_APPROVAL_REPLACED',
+    'PURPOSE_APPROVAL_REMOVED',
+    'PURPOSE_STATUS_EVALUATED',
   ],
   'ADMIN.FIELDMAPPING': ['CREATED', 'UPDATED', 'VALIDATED', 'ACTIVATED', 'RETIRED'],
   'ADMIN.QUESTIONBANK': ['PROVISIONED', 'VERIFIED', 'RECONCILED', 'RECONCILE_DECISION_APPLIED'],

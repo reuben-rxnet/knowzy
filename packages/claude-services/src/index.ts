@@ -170,3 +170,12 @@ export {
   type ProviderEndpoint,
   type TransportFailureCause,
 } from './provider-request.js';
+
+// AI Document Studio, Slice 2: readiness for purpose DOCUMENT_RESTRUCTURE.
+// No restructuring client exists; RESTRUCTURING_CLIENTS is empty.
+export {
+  evaluateRestructureReadiness,
+  restructureCapability,
+  RESTRUCTURING_CLIENTS,
+} from './restructure-readiness.js';
+export type { RestructureReadinessInput } from './restructure-readiness.js';

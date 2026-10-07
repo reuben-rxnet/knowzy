@@ -396,3 +396,15 @@ export {
   STRICT_COMPETENCY_SEPARATION,
 } from './review/separation-settings.js';
 export type { CompetencySeparation, SeparationSettings } from './review/separation-settings.js';
+
+// AI Document Studio, Slice 2: the DOCUMENT_RESTRUCTURE approval and status.
+export {
+  DocumentStudioError,
+  readDocumentStudioStatus,
+  setPurposeApproval,
+} from './generation/control/document-studio.js';
+export type {
+  DocumentStudioContext,
+  PurposeApprovalAct,
+  SetPurposeApprovalArgs,
+} from './generation/control/document-studio.js';

@@ -76,6 +76,27 @@ const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
     'enabled',
     'credentialConfigured',
   ],
+  // AI Document Studio, Slice 2. The reference is retained for the same reason
+  // as approvalReference above; the previous one on a REPLACED, so the change
+  // of record is readable from the row itself.
+  'ADMIN.CONFIGURATION.PURPOSE_APPROVAL_RECORDED': ['purpose', 'providerId', 'approvalReference'],
+  'ADMIN.CONFIGURATION.PURPOSE_APPROVAL_REPLACED': [
+    'purpose',
+    'providerId',
+    'approvalReference',
+    'previousApprovalReference',
+  ],
+  'ADMIN.CONFIGURATION.PURPOSE_APPROVAL_REMOVED': [
+    'purpose',
+    'providerId',
+    'previousApprovalReference',
+  ],
+  'ADMIN.CONFIGURATION.PURPOSE_STATUS_EVALUATED': [
+    'purpose',
+    'state',
+    'providerStates',
+    'transformationImplemented',
+  ],
   'ADMIN.CONFIGURATION.PROVIDER_APPROVAL_CHANGED': [
     'key',
     'scope',
@@ -589,6 +610,9 @@ const VALUE_DIFF_ACTIONS: ReadonlySet<string> = new Set<string>([
   'ADMIN.CONFIGURATION.PROVIDER_UPDATED',
   'ADMIN.CONFIGURATION.PROVIDER_APPROVAL_CHANGED',
   'ADMIN.CONFIGURATION.PROVIDER_ACTIVATED',
+  'ADMIN.CONFIGURATION.PURPOSE_APPROVAL_RECORDED',
+  'ADMIN.CONFIGURATION.PURPOSE_APPROVAL_REPLACED',
+  'ADMIN.CONFIGURATION.PURPOSE_APPROVAL_REMOVED',
   'ADMIN.FEATUREFLAG.ENABLED',
   'ADMIN.FEATUREFLAG.DISABLED',
   'ADMIN.FEATUREFLAG.ROLLOUT_CHANGED',

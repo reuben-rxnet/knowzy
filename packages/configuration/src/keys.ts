@@ -10,6 +10,8 @@
 
 import { z } from 'zod';
 import {
+  PurposeApprovalsSchema,
+  type PurposeApprovals,
   GenerationProviderSchema,
   ProviderLimitsSchema,
   ProviderSettingsSchema,
@@ -512,6 +514,19 @@ export const CONFIG_KEYS = {
     description: 'Providers with a recorded data-processing approval.',
     schema: z.array(GenerationProviderSchema),
     defaultValue: ['DETERMINISTIC_LOCAL'] as const,
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
+  'llm.purposeApprovals': decl({
+    key: 'llm.purposeApprovals',
+    // AI Document Studio, Slice 2 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §10):
+    // approvals for processing purposes OTHER than question generation, today
+    // DOCUMENT_RESTRUCTURE. A separate key from llm.approvedProviders on
+    // purpose: neither approval may satisfy the other, and the cheapest way to
+    // guarantee it is that no reader ever looks at both.
+    description: 'Per-purpose provider approvals (DOCUMENT_RESTRUCTURE), each with its reference.',
+    schema: PurposeApprovalsSchema,
+    defaultValue: {} as PurposeApprovals,
     layers: PLATFORM_ONLY,
     scopes: ['PLATFORM'],
   }),

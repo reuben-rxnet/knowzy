@@ -22,6 +22,7 @@ import { sourceRoutes } from './sources.js';
 import { syncManagerRoutes } from './sync-manager.js';
 import { taxonomyRoutes } from './taxonomy.js';
 import { competencyRoutes } from './competencies.js';
+import { documentStudioRoutes } from './document-studio.js';
 import { whoamiRoutes } from './whoami.js';
 
 export const ALL_ROUTES: readonly KnowzyRoute[] = [
@@ -33,6 +34,7 @@ export const ALL_ROUTES: readonly KnowzyRoute[] = [
   ...learningRoutes,
   ...taxonomyRoutes,
   ...competencyRoutes,
+  ...documentStudioRoutes,
   ...sourceAdministrationRoutes,
   ...syncManagerRoutes,
   ...aiProviderRoutes,
