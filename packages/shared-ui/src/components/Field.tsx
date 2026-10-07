@@ -65,6 +65,7 @@ export const Select = ({
   value,
   onChange,
   disabled = false,
+  required = false,
 }: {
   readonly id: string;
   readonly name: string;
@@ -73,11 +74,14 @@ export const Select = ({
   readonly value?: string;
   readonly onChange?: ChangeEventHandler<HTMLSelectElement>;
   readonly disabled?: boolean;
+  /** With a disabled empty first option, makes a choice compulsory. */
+  readonly required?: boolean;
 }) => (
   <select
     id={id}
     name={name}
     disabled={disabled}
+    required={required}
     {...(defaultValue === undefined ? {} : { defaultValue })}
     {...(value === undefined ? {} : { value })}
     {...(onChange === undefined ? {} : { onChange })}
@@ -103,6 +107,8 @@ export const Select = ({
  *                  rather than only in a refusal.
  *   `autoComplete` the ONLY way to tell a browser not to offer to save, and
  *                  not to fill, a credential-shaped field.
+ *   `date`         (2026-10-07, competency administration) an effective date,
+ *                  with the browser's own picker and a YYYY-MM-DD value.
  */
 export const TextInput = ({
   id,
@@ -120,7 +126,7 @@ export const TextInput = ({
 }: {
   readonly id: string;
   readonly name: string;
-  readonly type?: 'text' | 'number' | 'url';
+  readonly type?: 'text' | 'number' | 'url' | 'date';
   readonly defaultValue?: string | number;
   readonly min?: number;
   readonly max?: number;

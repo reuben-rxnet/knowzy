@@ -8,7 +8,8 @@
 export const ADMINISTRATION_TABS = [
   { href: '/administration/taxonomy', labelKey: 'admin.tabTaxonomy' },
   { href: '/administration/providers', labelKey: 'admin.tabProviders' },
+  { href: '/administration/competencies', labelKey: 'admin.tabCompetencies' },
 ] as const satisfies readonly {
   readonly href: string;
-  readonly labelKey: 'admin.tabTaxonomy' | 'admin.tabProviders';
+  readonly labelKey: 'admin.tabTaxonomy' | 'admin.tabProviders' | 'admin.tabCompetencies';
 }[];

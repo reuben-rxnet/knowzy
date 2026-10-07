@@ -981,3 +981,155 @@ export const setOrgEntryActiveAction = async (
   revalidatePath('/administration/taxonomy');
   return result.ok ? { ok: true, data: result.data } : failed(result.problem);
 };
+
+// ------------------------- competency administration (COMPETENCY-M2)
+//
+// docs/competencies/COMPETENCY_ADMINISTRATION.md. ONE action for every write,
+// dispatched on a hidden `op` field: fourteen near-identical actions would
+// drift the first time one of them gained a rule. The server decides every
+// refusal -- including separation of duties -- and this only carries the form.
+
+const field = (formData: FormData, name: string): string => String(formData.get(name) ?? '');
+const optional = (formData: FormData, name: string): string | undefined => {
+  const value = formData.get(name);
+  return value === null ? undefined : String(value);
+};
+
+const COMPETENCY_OPS: Record<
+  string,
+  (formData: FormData) => {
+    readonly path: string;
+    readonly method: 'POST' | 'PATCH';
+    readonly body: Record<string, unknown>;
+  }
+> = {
+  createCategory: (f) => ({
+    path: '/api/v1/authoring/competencies/categories',
+    method: 'POST',
+    body: {
+      frameworkId: field(f, 'frameworkId'),
+      code: field(f, 'code'),
+      name: field(f, 'name'),
+      kind: field(f, 'kind'),
+    },
+  }),
+  updateCategory: (f) => ({
+    path: `/api/v1/authoring/competencies/categories/${field(f, 'id')}`,
+    method: 'PATCH',
+    body: { name: field(f, 'name'), kind: field(f, 'kind') },
+  }),
+  setCategoryStatus: (f) => ({
+    path: `/api/v1/authoring/competencies/categories/${field(f, 'id')}`,
+    method: 'PATCH',
+    body: { status: field(f, 'status') },
+  }),
+  createCompetency: (f) => ({
+    path: '/api/v1/authoring/competencies/items',
+    method: 'POST',
+    body: {
+      categoryId: field(f, 'categoryId'),
+      name: field(f, 'name'),
+      codeSegment: field(f, 'codeSegment'),
+      levelScaleId: field(f, 'levelScaleId'),
+      description: field(f, 'description'),
+      confirmDistinct: checked(f, 'confirmDistinct'),
+    },
+  }),
+  updateCompetency: (f) => ({
+    path: `/api/v1/authoring/competencies/items/${field(f, 'id')}`,
+    method: 'PATCH',
+    body: { name: field(f, 'name'), description: field(f, 'description') },
+  }),
+  setCompetencyStatus: (f) => ({
+    path: `/api/v1/authoring/competencies/items/${field(f, 'id')}`,
+    method: 'PATCH',
+    body: { status: field(f, 'status') },
+  }),
+  createAlias: (f) => ({
+    path: '/api/v1/authoring/competencies/aliases',
+    method: 'POST',
+    body: {
+      subject: field(f, 'subject'),
+      targetId: field(f, 'targetId'),
+      alias: field(f, 'alias'),
+      decision: field(f, 'decision'),
+      note: field(f, 'note'),
+    },
+  }),
+  updateAlias: (f) => ({
+    path: `/api/v1/authoring/competencies/aliases/${field(f, 'id')}`,
+    method: 'PATCH',
+    body: { decision: field(f, 'decision'), note: field(f, 'note') },
+  }),
+  setAliasStatus: (f) => ({
+    path: `/api/v1/authoring/competencies/aliases/${field(f, 'id')}`,
+    method: 'PATCH',
+    body: { status: field(f, 'status') },
+  }),
+  createVersion: (f) => ({
+    path: `/api/v1/authoring/competencies/frameworks/${field(f, 'frameworkId')}/versions`,
+    method: 'POST',
+    body: { versionLabel: field(f, 'versionLabel') },
+  }),
+  approveVersion: (f) => ({
+    path: `/api/v1/authoring/competencies/versions/${field(f, 'id')}/approve`,
+    method: 'POST',
+    body: {
+      approvalReference: field(f, 'approvalReference'),
+      effectiveFrom: field(f, 'effectiveFrom'),
+    },
+  }),
+  proposeTarget: (f) => ({
+    path: '/api/v1/authoring/competencies/role-targets',
+    method: 'POST',
+    body: {
+      jobRoleId: field(f, 'jobRoleId'),
+      competencyId: field(f, 'competencyId'),
+      targetLevelId: field(f, 'targetLevelId'),
+      source: field(f, 'source'),
+      rationale: field(f, 'rationale'),
+      effectiveFrom: field(f, 'effectiveFrom'),
+    },
+  }),
+  updateTarget: (f) => ({
+    path: `/api/v1/authoring/competencies/role-targets/${field(f, 'id')}`,
+    method: 'PATCH',
+    body: {
+      ...(optional(f, 'targetLevelId') === undefined
+        ? {}
+        : { targetLevelId: field(f, 'targetLevelId') }),
+      source: field(f, 'source'),
+      rationale: field(f, 'rationale'),
+      effectiveFrom: field(f, 'effectiveFrom'),
+    },
+  }),
+  approveTarget: (f) => ({
+    path: `/api/v1/authoring/competencies/role-targets/${field(f, 'id')}/approve`,
+    method: 'POST',
+    body: { approvalReference: field(f, 'approvalReference') },
+  }),
+  retireTarget: (f) => ({
+    path: `/api/v1/authoring/competencies/role-targets/${field(f, 'id')}/retire`,
+    method: 'POST',
+    body: {},
+  }),
+};
+
+export const competencyWriteAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const build = COMPETENCY_OPS[field(formData, 'op')];
+  if (build === undefined) {
+    return failed({
+      title: 'Unknown action',
+      status: 400,
+      code: 'VALIDATION_FAILED',
+      detail: 'The form named an action this screen does not offer.',
+    });
+  }
+  const request = build(formData);
+  const result = await api<unknown>(request.path, { method: request.method, body: request.body });
+  revalidatePath('/administration/competencies');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};

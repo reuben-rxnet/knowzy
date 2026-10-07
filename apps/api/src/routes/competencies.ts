@@ -75,7 +75,7 @@ const Uuid = z.string().uuid();
 
 /**
  * Parse params and body, run the service, translate its refusal. One helper so
- * thirteen handlers cannot disagree about how a refusal is reported.
+ * fourteen handlers cannot disagree about how a refusal is reported.
  */
 const run = async <P extends z.ZodTypeAny, B extends z.ZodTypeAny>(
   ctx: RouteContext,
@@ -196,8 +196,13 @@ export const competencyRoutes = [
     policy: 'taxonomy.read',
     portal: 'AUTHORING',
     summary: 'Competency frameworks: versions, domains, categories, competencies and aliases.',
-    handler: async (_ctx, _request, _reply, deps) => ({
+    handler: async (ctx, _request, _reply, deps) => ({
       frameworks: await readCompetencyCatalogue(depsFrom(deps)),
+      // For the SCREEN only: whether to offer write controls, and who is
+      // asking, so it can say "you edited this" before the click. The server
+      // decides again on every write.
+      canManage: ctx.subject.permissions.includes('competency.manage'),
+      viewerUserId: ctx.subject.userId,
     }),
   }),
 
@@ -348,7 +353,11 @@ export const competencyRoutes = [
     policy: 'taxonomy.read',
     portal: 'AUTHORING',
     summary: 'Role -> Competency Requirements: every target, and what a proposal may choose.',
-    handler: async (_ctx, _request, _reply, deps) => readRoleTargets(depsFrom(deps)),
+    handler: async (ctx, _request, _reply, deps) => ({
+      ...(await readRoleTargets(depsFrom(deps))),
+      canManage: ctx.subject.permissions.includes('competency.manage'),
+      viewerUserId: ctx.subject.userId,
+    }),
   }),
 
   defineRoute({

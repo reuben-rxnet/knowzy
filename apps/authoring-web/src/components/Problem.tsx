@@ -45,6 +45,12 @@ const REFUSAL_CODES = new Set([
   'GENERATION_CONCURRENCY_LIMIT',
   'TAXONOMY_INACTIVE',
   'TAXONOMY_MAPPING_REQUIRED',
+  // COMPETENCY-M2: catalogue and approval rules holding.
+  'COMPETENCY_DUPLICATE',
+  'COMPETENCY_NEAR_MATCH',
+  'COMPETENCY_INACTIVE',
+  'COMPETENCY_VERSION_STALE',
+  'COMPETENCY_FRAMEWORK_NOT_APPROVED',
 ]);
 
 /**
@@ -70,6 +76,10 @@ const NEXT_STEP: Readonly<Record<string, CopyKey>> = {
   REQUEST_TIMEOUT: 'problem.nextRetry',
   MCP_UNAVAILABLE: 'problem.nextRetry',
   VERSION_CONFLICT: 'problem.nextReload',
+  COMPETENCY_NEAR_MATCH: 'problem.nextCompetencyNearMatch',
+  COMPETENCY_VERSION_STALE: 'problem.nextCompetencyStale',
+  COMPETENCY_FRAMEWORK_NOT_APPROVED: 'problem.nextCompetencyFramework',
+  COMPETENCY_INACTIVE: 'problem.nextCompetencyInactive',
 };
 
 const UNAVAILABLE_CODES = new Set(['MCP_UNAVAILABLE', 'SOURCE_UNAVAILABLE', 'UPSTREAM_TIMEOUT']);

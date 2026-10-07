@@ -128,7 +128,7 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     href: '/administration/taxonomy',
     icon: <Settings className="size-5" />,
     status: 'PARTIALLY_IMPLEMENTED',
-    note: 'Domains · AI Providers',
+    note: 'Domains · AI Providers · Competencies',
   },
 ] as const;
 
