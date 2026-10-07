@@ -10,8 +10,9 @@ preview pages), UX-M1 (navigation at every width), LIVE-PREVIEW-M2 (Badges and M
 previews; every learner destination opens), GATEWAY-M1 (Azure API Management
 gateway authentication), GEN-PROVIDER-M1 (choosing the provider when generating), EVAL-M1 and
 UX-M2 (product polish: plainer wording, a summary before generating, richer review rows, a plain
-provider overview) and COMPETENCY-M2 (competency administration)
-**Last updated:** 2026-10-07
+provider overview), COMPETENCY-M2 (competency administration) and the Authoring Role
+Simplification (two identities; self-approval permitted by configuration)
+**Last updated:** 2026-10-07 (Authoring Role Simplification)
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -153,78 +154,44 @@ navigation to the page itself. Everything focusable shows a visible blue outline
 
 ---
 
-## 3. Identities, and why you keep switching
+## 3. Identities
 
 The header of every page says who you are acting as, with your initials, your role, and — because
 this is a demonstration build — the words "Local Development Identity".
 
-**Change it from the header, on any page.** Press **Change**, beside your name, and pick an
-identity from the list; each one says what it can do. The menu closes when you choose, and the
-header's label updates to the identity the server is now using — that label, not the menu, is the
-proof the switch took effect.
+**Two identities, since 7 October 2026.** The platform is run by a small team, so it was simplified
+to two roles (the *Authoring Role Simplification*):
 
-It moved here on 2026-09-26. It used to be a card at the bottom of each portal's home page, which
-meant that hitting a refusal on the Publish screen required navigating away, switching, and
-navigating back. A refusal happens where you are, so the control is where you are.
-
-| **KNOWZY Administrator** *(default)* | Full Platform Access — every capability the platform has |
-| **KNOWZY Administrator (second approver)** | Full Platform Access — use it to approve what the first administrator wrote |
 | Identity | What it can do |
 | --- | --- |
-| **Source administrator** | Register sources, test connections, synchronize documents |
-| **Author** | Browse documents, generate questions, edit and submit drafts |
-| **Approver** | Review, comment, disposition duplicates, approve or reject |
-| **Publisher** | Publish approved questions to the Question Bank, retire them |
-| **Assessment manager** | Create, validate, and publish assessments |
-| **Local Learner** (portal 3001) | Take assessments, see their own results |
-| **Local Manager** (portal 3001) | Has no learner-portal access — there so a refusal can be shown |
+| **Authoring Administrator** *(default)* | Everything on the authoring side: sources, generation, review, **approval**, **publication**, assessments, reports, taxonomy, competencies, AI providers, budgets and governance |
+| **Learner** | Takes assessments in the Live Learning Portal (http://localhost:3001) and sees only their own results. It has no authoring access: on an authoring screen it is refused with **PORTAL_ACCESS_DENIED** |
 
-**You still have to switch once, even as an administrator.** No identity can carry a question from
-draft to published alone: the approval gate that checks separation of duties will refuse an approval
-by the question's own author, and you will see it refuse. That is the product working, not a
-configuration mistake — and it is why there are two administrator identities rather than one.
+**Change it from the header, on any page.** Press **Change**, beside your name, and pick an
+identity. The header's label updates to the identity the server is now using — that label, not the
+menu, is the proof the switch took effect. Your choice persists in a cookie; the Authoring
+Administrator is the default for a browser that has never chosen one.
 
-Everything *except* that one step can be done as a single identity. See below.
+**One administrator can take a question from draft to published.** You create it, claim it, submit
+it, approve it and publish it without switching. The same applies to competency framework versions
+and role requirements: you may draw up a version and approve it, and propose a requirement and
+approve it. **Nothing about the record changes**: every step still records who performed it, so the
+approval names you as the approver beside you as the author.
 
-A screen you lack permission for does not hide — it shows the refusal, with the code and the reason.
-An empty table means "nothing here"; a refusal panel means "not for you".
+**Separation of duties is switched off, not removed.** It is a set of approval settings
+(`approval.authorMayApproveOwn`, `approval.editorMayApproveOwn` and the two competency equivalents),
+set to permit self-approval. If the team grows, turning them back on is a configuration change, not a
+release; the screens would then show *Separation of duties is switched on …* where a second person
+is required.
 
-**If Test connection or Synchronize says "Forbidden — Requires permission
-source.test" or "source.sync"**, you are acting as an identity that does not
-hold it. The **Author** holds `source.read` only: it can browse documents and
-generate, but not test or synchronize a source. Switch to **KNOWZY
-Administrator** or **Source administrator** on the dashboard. The refusal panel
-names the identity you are acting as, for exactly this reason.
+**The retired identities** — Author, Approver, Publisher, Source administrator, Assessment manager,
+the second administrator, the Manager and the rest — no longer appear in any menu. Their records are
+kept, so old audit entries and question histories still name them correctly.
 
-**Your chosen identity persists in a cookie**, so a browser that was once set
-to Author stays Author. The administrator is only the *default* for a browser
-that has never chosen one.
-
+A screen you lack access to does not hide — it shows the refusal, with the code and the reason. An
+empty table means "nothing here"; a refusal panel means "not for you".
 
 ---
-
-
-### The KNOWZY Administrator identity
-
-The identity picker's first entry, and the one selected by default, is **KNOWZY Administrator —
-Full Platform Access**. It is a real production role, intended for platform and product owners,
-knowledge managers, administrators, pilot leads and operational platform support. It holds every
-permission the platform has, so you can move from Knowledge Sources through generation, review,
-the Question Bank, assessments and publishing without ever being stopped by a missing capability.
-
-**One thing it deliberately cannot do: approve a question it wrote itself.** That is not a gap in
-the role. Separation of duties compares the approver against the author at the moment of approval,
-and no amount of access changes the answer — gate 13 refuses the approval and records the refusal
-before anything else happens. You will see it fail on screen with the reason.
-
-A second identity, **KNOWZY Administrator (second approver)**, is provided for exactly that step.
-Switch to it to approve, then switch back. One deliberate switch is the whole cost of keeping
-approval meaningful, and the refusal you see in between is the control working rather than an
-error.
-
-Everything the administrator does is audited identically to any other identity. Governance,
-approval recording, evidence verification, publishing logs and the audit trail are unchanged;
-the role grants access, never exemption.
 
 ## 4. Authoring: from a document to a published question
 
@@ -424,7 +391,7 @@ platform would rather refuse a question than invent one the document does not su
 
 ### 4.3a Import an existing question bank — `/import`
 
-Act as an **author** or the **KNOWZY Administrator**. This brings a
+Act as the **Authoring Administrator**. This brings a
 multiple-choice bank you already have into Knowzy.
 
 **It needs the file to be a document Knowzy already holds**, and that is not
@@ -472,7 +439,7 @@ landed.
 **Create drafts** then imports what was valid. Each question becomes a
 **DRAFT** in the review queue and goes through exactly the same gates as a
 generated one — evidence verification, integrity, duplicate detection, the 13
-approval gates, and approval by a different identity. **Importing a question
+approval gates, and approval. **Importing a question
 publishes nothing.**
 
 #### What it can read
@@ -546,7 +513,7 @@ its own change rather than half-built here.
 
 ### 4.3b Knowledge Domains — `/administration/taxonomy`
 
-Act as the **KNOWZY Administrator** or a **platform administrator** (`taxonomy.manage`).
+Act as the **Authoring Administrator** (`taxonomy.manage`).
 
 **This is where domains and topics come from.** Until now the platform had exactly one domain and
 one topic, from the seed, and no way to add a second — so an imported question bank about VisionStar
@@ -609,8 +576,7 @@ not. Deactivate the wrong one instead.
 ### 4.3c AI Usage & Budgets — `/governance/ai-usage`
 
 **Governance → AI Usage & Budgets.** Who generation is costing, how close it is to a ceiling, which
-providers exist and whether they work. Open to anyone holding **report.read** — a Reporting User, a
-Report Publisher, a Manager, an Auditor or the KNOWZY Administrator.
+providers exist and whether they work. Open to anyone holding **report.read** — the Authoring Administrator.
 
 It works now, before any paid provider is connected, because the deterministic generator runs
 through exactly the same accounting. What you are looking at is real, small, and zero-cost.
@@ -662,7 +628,7 @@ failure: it is the platform deciding, and it reads as `REFUSED` rather than `FAI
 
 #### Setting a token limit for a provider
 
-If you hold **platform.configure** (the KNOWZY Administrator), each provider row has **Set limits**.
+If you hold **platform.configure** (the Authoring Administrator), each provider row has **Set limits**.
 You can cap, for that provider alone: the per-job ceiling, the daily, weekly and monthly ceilings,
 and how many jobs may run at once.
 
@@ -723,7 +689,7 @@ rather than guessing. New generation and new imports can file under both.
 
 **Governance → Audit Explorer.** Everything the platform has recorded about
 itself: who did what, to what, with what outcome. Open to anyone holding
-**audit.read** — the Auditor and the KNOWZY Administrator.
+**audit.read** — the Authoring Administrator.
 
 There are **64,479 events** on this machine already, written by every milestone
 since the first one. Until this screen existed, nothing could read them.
@@ -919,7 +885,7 @@ the credential reference.
 ### 4.3g Reports — `/reports`
 
 **Who can open it:** anyone with `report.read`. **Who can export:** `report.export`. **Who can
-snapshot:** `report.create`. **Who can refresh on demand:** the KNOWZY Administrator.
+snapshot:** `report.create`. **Who can refresh on demand:** the Authoring Administrator.
 
 A visual dashboard and twelve reports over records the platform already holds, with a tab strip:
 **Dashboard**, **Question pipeline**, **Generation**, **Assessments**, **Filing**, **Sources**.
@@ -1041,8 +1007,8 @@ the answer "somebody refreshed it".
 ### 4.3h Competencies — `/administration/competencies`
 
 **Who can open it:** anyone with `taxonomy.read` (every authoring role). **Who can change anything:**
-the **KNOWZY Administrator** only (`competency.manage`). Everyone else reads the catalogue and sees
-*You can read this catalogue. Changing it needs the KNOWZY Administrator role*, with no buttons.
+the **Authoring Administrator** only (`competency.manage`). Everyone else reads the catalogue and sees
+*You can read this catalogue. Changing it needs the Authoring Administrator role*, with no buttons.
 
 The competency framework — which competencies the organization recognizes, how they are grouped,
 which source labels mean the same thing, which version is approved, and what level each **role** is
@@ -1069,12 +1035,12 @@ Six views, chosen from the tab strip under the figures:
 it just accepts nothing new. Every change is recorded with your name and cannot be altered
 afterwards.
 
-**Approval is separated from editing.** The person who drew up a version, or changed any definition
-it covers, cannot approve it; the person who proposed or edited a requirement cannot approve that.
-The **Approve** button is shown disabled with the reason — *You drew up or edited this …* — and the
-server refuses it anyway. Approve as the second identity, **KNOWZY Administrator (second
-approver)**, from the header menu. An imported version names no person (the import runs as a
-command), so any administrator who has not changed the definitions since may approve it.
+**You may approve your own work.** Since the Authoring Role Simplification (§3) the same Authoring
+Administrator may draw up a version and approve it, and propose a requirement and approve it. Who
+drew it up, who edited it and who approved it are all recorded, so the version and requirement
+tables name you in each place. If separation of duties is switched back on in the approval
+settings, the **Approve** button is shown disabled with the reason — *Separation of duties is
+switched on: you drew up or edited this …* — and a different administrator has to approve.
 
 **A version covers one snapshot.** If any definition changes after a version is drawn up, that
 version reads **Out of date** and cannot be approved; draw up a new one. Approving a version makes
@@ -1135,8 +1101,8 @@ rather than being drawn as though it had happened.
 
 Two things it does **not** say, deliberately. It does not name the reviewer or the approver: the
 platform records the decision, its version and its time, and does not expose who made it. And the
-approval stage reads "Gate 13 required an identity other than the author" rather than naming a
-second person — that is the control which guarantees separation of duties, stated as a control.
+approval stage states what gate 13 required under the settings in force rather than naming a
+person — since the Authoring Role Simplification the settings permit self-approval.
 
 **Below that, and never inside a tab: the gate verdict.** It reads "12 of 13 gates pass", draws a
 numbered rail with a tick or a cross on each gate, and lists the failures first with the reason for
@@ -1180,28 +1146,22 @@ The actions, and who can use them:
 
 | Button | Who | Effect |
 | --- | --- | --- |
-| **Claim for authoring** | Author | `DRAFT` → `AUTHOR_REVIEW`; do this before submitting |
-| **Submit for approval** | Author | `AUTHOR_REVIEW` → `SUBMITTED_FOR_APPROVAL` |
-| **Approve** | Approver | Publishes nothing — it makes the question publishable. Comment optional |
-| **Request changes** | Approver | Back to the author. Comment **required** |
-| **Reject** | Approver | Ends it. Comment **required** |
+| **Claim for authoring** | Authoring Administrator | `DRAFT` → `AUTHOR_REVIEW`; do this before submitting |
+| **Submit for approval** | Authoring Administrator | `AUTHOR_REVIEW` → `SUBMITTED_FOR_APPROVAL` |
+| **Approve** | Authoring Administrator, including the question's author | Publishes nothing — it makes the question publishable. Comment optional |
+| **Request changes** | Authoring Administrator | Back to the author. Comment **required** |
+| **Reject** | Authoring Administrator | Ends it. Comment **required** |
 
 Editing the explanation creates a new version and re-verifies the evidence. An approval that
 predates the current version does not carry forward — one of the 13 gates exists to catch exactly
 that.
 
-**Watch gate 13 change hands.** Open the same question as the author and then as the approver: it
-fails for the author with "the approver is the original author" and passes for the approver. That is
-separation of duties, visible. Where it currently refuses, a note now sits beside **Approve**
-saying so, rather than leaving the refusal to be discovered by pressing the button.
-
-**This is the one thing full access does not grant.** A **KNOWZY Administrator** holds every
-permission in the platform, including `question.publish`, and can author, review, submit, approve,
-publish, import, generate, administer sources and create assessments. It still cannot approve a
-question it authored or last edited, because separation of duties is a comparison of two identities
-rather than a permission — no single role can hold both sides of it. A pilot run therefore needs
-exactly one identity switch, at the approval step, and a second administrator identity is seeded
-for it. Everything before and after that step is the same identity.
+**Gate 13 and self-approval.** Gate 13 is the separation-of-duties gate. It still runs on every
+approval and records its verdict, but since the Authoring Role Simplification (§3) the approval
+settings permit the author to approve, so it passes for you on your own question. The approval
+record names you as the approver, beside you as the author. If the settings are switched back on,
+gate 13 fails for the author with "the approver is the original author", and a note beside
+**Approve** says so before you press it.
 
 If a duplicate was flagged, a disposition section appears. Say whether it is `DISTINCT` or a
 `DUPLICATE`, with a note. Until someone does, approval stays blocked.
@@ -1306,7 +1266,7 @@ available".
 
 ## 5. Learning: taking an assessment
 
-Open **http://localhost:3001** and act as **Local Learner**.
+Open **http://localhost:3001** and act as **Learner**.
 
 ### 5.1 Your assessments — `/`
 
@@ -1434,7 +1394,7 @@ whether that is working.
 > integration and tenant approval."** Nothing is hidden and nothing is faked.
 
 Who can open it: any identity holding **source.read** — the **Knowledge Source Administrator** and
-the **KNOWZY Administrator**. Anyone else is refused with `PORTAL_ACCESS_DENIED` and sees no data at
+the **Authoring Administrator**. Anyone else is refused with `PORTAL_ACCESS_DENIED` and sees no data at
 all, not an empty table.
 
 ### 6.1 The dashboard
@@ -1533,7 +1493,7 @@ as an error: nothing is broken. The ones you are most likely to meet:
 | `DOCUMENT_NOT_READY` | The document has not been extracted | Synchronize the source |
 | `DOCUMENT_CONTENT_DRIFT` | The document changed after the scope was captured | Synchronize and run preflight again |
 | `STATE_TRANSITION_INVALID` | The question is not in a state that allows this | The message names the transitions that are available |
-| `SEPARATION_OF_DUTIES` (gate 13) | You are trying to approve your own work | Switch to the approver identity |
+| `SEPARATION_OF_DUTIES` (gate 13) | Separation of duties is switched on in the approval settings, and you are approving your own work | Ask another administrator, or change the setting (it is off by default since the Authoring Role Simplification) |
 | `BUDGET_EXCEEDED` | A per-job, daily, weekly or monthly token ceiling would be breached | The message names the ceiling, what is spent and when it resets (§4.3c) |
 | `GENERATION_CONCURRENCY_LIMIT` | Too many generation jobs are already running for that provider | Wait for one to finish |
 | `PROVIDER_NOT_APPROVED` | No data-processing approval is recorded for the provider | Not an engineering fix: the approval has to exist, then be recorded on Administration → AI Providers with a reference (§4.3f) |
@@ -1555,20 +1515,21 @@ as an error: nothing is broken. The ones you are most likely to meet:
 
 For showing the product end to end from an empty state. Roughly fifteen minutes.
 
-1. **Source administrator**, `/sources` → **Test connection**, then **Synchronize**.
+Everything is done as the **Authoring Administrator** until step 10.
+
+1. `/sources` → **Test connection**, then **Synchronize**.
 2. Same page → **Browse documents**. Open a library, walk into a folder, **View sections** on one
    document. Note the offsets and the coverage column.
-3. **Author**, `/generate` → tick two documents → **Check documents**. Read the per-document checks.
+3. `/generate` → tick two documents → **Check documents**. Read the per-document checks.
 4. **Record decision** (`GENERATE_NEW`) → set the domain, topic, and a count → **Generate
    questions**. Read the refusals, not just the count.
-5. `/review` → open a question. Read the evidence span against the question. Note that gate 13
-   fails for you.
+5. `/review` → open a question. Read the evidence span against the question.
 6. **Claim for authoring**, then **Submit for approval**. Repeat for the others.
-7. **Approver**, `/review?queue=approval` → open the same question. Gate 13 now passes. **Approve**
-   with a comment.
-8. **Publisher**, `/publish` → **Publish selected**. Read the per-question outcomes and the bank
+7. `/review?queue=approval` → open the same question → **Approve** with a comment. You approve
+   your own question; the record names you as both author and approver.
+8. `/publish` → **Publish selected**. Read the per-question outcomes and the bank
    IDs that appear in the inventory.
-9. **Assessment manager**, bottom of `/publish` → name an assessment, 4 questions, 70% → **Create
+9. Bottom of `/publish` → name an assessment, 4 questions, 70% → **Create
    and publish assessment**. Note the pinned pool size.
 10. **Learner**, http://localhost:3001 → open the assessment → **Start** → answer one question →
     **close the tab** → reopen http://localhost:3001 → **Resume where you left off**. You are on the
@@ -1679,3 +1640,4 @@ the log below.
 | 2026-09-28 | EVAL-M1 (owner requests) | **Review Queue: a Generated by filter** on every tab, **true totals** on the tabs (they read "25" whatever was behind them), and up to 100 rows per page with *Showing n of total*. **The requested question count is now a maximum** for every provider — Codex had returned 56 for a request of 50; the surplus is reported as *Beyond the request*. Confirmed from the data that every Codex question came from a selected document (0 of 131 outside) |
 | 2026-09-28 | UX-M2 | **Product polish, no new capability.** Generate (§4.3): plainer step names, **Check documents** replaces *Run preflight*, the source is stated once, and Step 3 opens with **Before you generate** — documents, model, how many, status and what happens next. Review Queue (§4.4): each row shows a **generator badge**, the filing and an **evidence excerpt**; 25 rows first with **Show 25 more**; the section hash moves to a tooltip. AI Providers (§4.3f): an **At a glance** card per provider in plain words, with what happens if it is chosen; capabilities behind a disclosure. Reports (§4.3g): the eight formulas move into **How these figures are calculated**. Refusals (§7): **What you can do**, and generation controls read as refusals, not errors. AI Usage & Budgets (§4.3c): plainer introduction and a sentence on what a token limit does when reached |
 | 2026-10-07 | COMPETENCY-M2 | **Competency administration** (§4.3h, **Administration → Competencies**, a third tab beside Knowledge Domains and AI Providers). Categories, competencies and aliases can be created, edited, deactivated and reactivated; the six domains are the category kinds. **Framework versions** are snapshots: *Draw up a version*, then a **different** administrator approves it with a reference; a version whose definitions changed afterwards reads *Out of date* and cannot be approved. **Role requirements** are proposed with a required source and approved by someone who did not propose or edit them, only against an approved framework version — none can be approved today, because the imported `2024-05` is still a draft. Write controls are the KNOWZY Administrator's only; other roles read the catalogue. No person, rating or score appears anywhere on the screen |
+| 2026-10-07 | Authoring Role Simplification | **Two identities** (§3): the **Authoring Administrator** (the former KNOWZY Administrator, now holding every authoring permission including publish) and the **Learner**. The Author, Approver, Publisher, Source administrator, Assessment manager, second administrator, Manager and the other specialist identities are gone from every identity menu; their records are kept so history still names them. **One administrator can take a question from draft to published**, and draw up and approve a competency version or propose and approve a role requirement: separation of duties is **switched off by configuration, not removed**, and every step still records who performed it. The walkthrough (§8) runs as one identity. Refusals for a missing permission are now seen as the Learner, refused with `PORTAL_ACCESS_DENIED` |

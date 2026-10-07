@@ -63,7 +63,12 @@ test.describe('review, approval and publication', () => {
     await expect(approve).toContainText(/not possible while this question is DRAFT/i);
   });
 
-  test('GATE 13: the author cannot approve their own question, a second identity can', async ({
+  // Authoring Role Simplification (2026-10-07, access-control.md §2.0):
+  // separation of duties is switched OFF by configuration
+  // (approval.authorMayApproveOwn = true), not removed. Gate 13 still runs;
+  // what this asserts is that the configured policy is the one applied, and
+  // that the record still names who approved -- the same person as the author.
+  test('SELF-APPROVAL: with separation switched off, the author approves their own question, and the record says so', async ({
     page,
     request,
   }) => {
@@ -98,37 +103,30 @@ test.describe('review, approval and publication', () => {
     await take('Claim for authoring', 'AUTHOR_REVIEW');
     await take('Submit for approval', 'SUBMITTED_FOR_APPROVAL');
 
-    // --- still the author: approve. THIS MUST BE REFUSED.
-    await page.goto(`/review/${questionId}`);
-    // The rail already says so before anything is pressed.
-    await expect(page.getByText(/gate 13/i).first()).toBeVisible();
-    await expect(page.getByText(/separation of duties/i).first()).toBeVisible();
-
-    const approve = decision(page, 'Approve');
-    await approve.click();
-    const refusal = page.getByText('SEPARATION_OF_DUTIES');
-    try {
-      await expect(refusal.first()).toBeVisible({ timeout: 20_000 });
-    } catch {
-      await approve.click();
-      await expect(refusal.first()).toBeVisible({ timeout: 40_000 });
-    }
-
-    // The status did NOT move. A refusal that left the question approved would
-    // satisfy every assertion above and be the worst defect in the platform.
-    expect(await statusNow()).toBe('SUBMITTED_FOR_APPROVAL');
-
-    // --- as a second identity: approve. THIS MUST SUCCEED.
-    await actAs(page, IDENTITY.secondAdministrator);
+    // --- still the author: approve. Permitted by configuration.
     await take('Approve', 'APPROVED');
+
+    // Auditability is unchanged: the approval record names the approver, and
+    // it is the identity that created the question.
+    const detail = await api<
+      QuestionDetail & {
+        readonly createdByUserId: string | null;
+        readonly approvals: readonly {
+          readonly approverUserId: string;
+          readonly decision: string;
+        }[];
+      }
+    >(request, `/api/v1/authoring/questions/${questionId}`);
+    expect(detail.approvals[0]?.decision).toBe('APPROVED');
+    expect(detail.approvals[0]?.approverUserId).toBe(detail.createdByUserId);
   });
 
   test('publishing writes to the bank, and a replay reports ALREADY_PUBLISHED', async ({
     page,
     request,
   }) => {
-    // Reach APPROVED through the product, with the identity switch gate 13
-    // requires.
+    // Reach APPROVED through the API, as the one administrator (self-approval
+    // is permitted by configuration).
     const questionId = await generateDraft(request, IDENTITY.administrator);
     await api(request, `/api/v1/authoring/questions/${questionId}/claim`, {
       method: 'POST',
@@ -140,7 +138,6 @@ test.describe('review, approval and publication', () => {
     });
     await api(request, `/api/v1/authoring/questions/${questionId}/approve`, {
       method: 'POST',
-      as: IDENTITY.secondAdministrator,
       body: {},
     });
 

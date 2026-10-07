@@ -47,7 +47,17 @@ const switchTo = async (page: Page, upn: string): Promise<void> => {
   await page.goto(SYNC);
   await page.locator('#subject').selectOption(upn);
   await page.getByRole('button', { name: 'Acting as' }).click();
-  await expect(page.locator('#subject')).toHaveValue(upn);
+  // Wait for SERVER state -- the cookie the action sets -- not the select's
+  // value, which the selectOption above guarantees by itself. Navigating
+  // before the action completed aborted it, and the next page still acted as
+  // the previous identity (found 2026-10-07, when the switch target changed).
+  await expect
+    .poll(
+      async () =>
+        (await page.context().cookies()).find((cookie) => cookie.name === 'knowzy_subject')?.value,
+      { timeout: 30_000 },
+    )
+    .toBe(encodeURIComponent(upn));
 };
 
 test.describe('sync manager', () => {
@@ -379,24 +389,16 @@ test.describe('sync manager', () => {
 
   // 13 — an unauthorized identity is refused, with the reason
   test('an identity without source.manage cannot create a workflow', async ({ page }) => {
-    // The learner holds no source permission at all. The refusal must name
-    // the reason rather than rendering an empty console.
-    await switchTo(page, IDENTITY.author);
+    // The Learner -- the only identity without source permissions since the
+    // Authoring Role Simplification. The console must name the reason rather
+    // than render empty, and offer no way to create a workflow.
+    await switchTo(page, IDENTITY.learner);
     await page.goto(SYNC);
-
+    await expect(page.getByText(/PORTAL_ACCESS_DENIED|forbidden|permission/i).first()).toBeVisible({
+      timeout: 30_000,
+    });
     const create = page.getByRole('button', { name: 'New workflow' });
-    if (await create.isEnabled()) {
-      await create.click();
-      const dialog = page.getByRole('dialog');
-      await dialog.getByLabel('Workflow name').fill('Refusal probe');
-      await dialog.getByRole('button', { name: 'Save workflow' }).click();
-      // FORBIDDEN, said out loud, naming the acting identity.
-      await expect(dialog.getByText(/forbidden|permission/i).first()).toBeVisible({
-        timeout: 30_000,
-      });
-    } else {
-      await expect(create).toBeDisabled();
-    }
+    if ((await create.count()) > 0) await expect(create).toBeDisabled();
 
     await switchTo(page, IDENTITY.administrator);
   });

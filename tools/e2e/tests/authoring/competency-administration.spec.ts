@@ -136,10 +136,12 @@ test.describe('administration: competencies', () => {
     await expect(page.getByRole('button', { name: 'Propose a requirement' })).toBeVisible();
   });
 
-  test('an author reads the catalogue and is offered no control', async ({ page }) => {
-    await actAs(page, IDENTITY.author);
+  test('a learner is refused the catalogue and offered no control', async ({ page }) => {
+    // Since the Authoring Role Simplification the Learner is the only
+    // identity without competency.manage, and it has no authoring access.
+    await actAs(page, IDENTITY.learner);
     await page.goto(`${PAGE}?view=categories`);
-    await expect(page.getByText(/needs the KNOWZY Administrator role/)).toBeVisible();
+    await expect(page.getByText(/PORTAL_ACCESS_DENIED/).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'New category' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /^Edit/ })).toHaveCount(0);
     await page.goto(`${PAGE}?view=versions`);

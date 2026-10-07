@@ -138,6 +138,8 @@ interface Catalogue {
   readonly frameworks: readonly Framework[];
   readonly canManage: boolean;
   readonly viewerUserId: string;
+  /** False while the platform permits self-approval (Authoring Role Simplification). */
+  readonly separationRequired: boolean;
 }
 
 interface Requirements {
@@ -177,6 +179,7 @@ interface Requirements {
   }[];
   readonly canManage: boolean;
   readonly viewerUserId: string;
+  readonly separationRequired: boolean;
 }
 
 const VIEWS = [
@@ -238,7 +241,7 @@ export default async function CompetencyAdministrationPage({
     );
   }
 
-  const { frameworks, canManage, viewerUserId } = catalogue.data;
+  const { frameworks, canManage, viewerUserId, separationRequired } = catalogue.data;
   const requestedCode = typeof params['framework'] === 'string' ? params['framework'] : '';
   const framework = frameworks.find((row) => row.code === requestedCode) ?? frameworks[0];
 
@@ -708,7 +711,7 @@ export default async function CompetencyAdministrationPage({
                       ? t('comp.versionApproveBlocked')
                       : row.stale
                         ? t('comp.staleReason')
-                        : viewerEdited
+                        : separationRequired && viewerEdited
                           ? t('comp.youEdited')
                           : null;
                   return (
@@ -812,7 +815,8 @@ const RequirementsView = async ({
 }) => {
   const result = await api<Requirements>('/api/v1/authoring/competencies/role-targets');
   if (!result.ok) return <Problem problem={result.problem} actingAs={actingAs} />;
-  const { targets, roles, competencies, frameworks, canManage, viewerUserId } = result.data;
+  const { targets, roles, competencies, frameworks, canManage, viewerUserId, separationRequired } =
+    result.data;
   const approvedLabel =
     frameworks.find((row) => row.code === frameworkCode)?.approvedVersionLabel ?? null;
   const options = competencies.filter((row) => row.frameworkCode === frameworkCode);
@@ -872,7 +876,7 @@ const RequirementsView = async ({
                 const blocked =
                   approvedLabel === null
                     ? t('comp.requirementsBlocked')
-                    : viewerEdited
+                    : separationRequired && viewerEdited
                       ? t('comp.youEditedTarget')
                       : null;
                 return (

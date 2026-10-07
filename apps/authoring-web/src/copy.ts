@@ -575,7 +575,7 @@ export const copy = {
   'generate.jobHeading': 'Generate',
   'generate.countLabel': 'Questions requested',
   'error.actingAs':
-    'You are acting as {identity}. This is a permission refusal, not a broken feature — switch identity on the dashboard to one that holds it, then try again.',
+    'You are acting as {identity}. This is a permission refusal, not a broken feature — switch identity in the header to the Authoring Administrator, which holds every authoring permission, then try again.',
   'import.title': 'Import questions',
   'import.lead':
     'Bring an existing multiple-choice bank into Knowzy. Imported questions land as DRAFT and pass the same evidence, duplicate, review and approval gates as generated ones — nothing is published by importing it.',
@@ -604,7 +604,7 @@ export const copy = {
   'import.countRejected': 'Refused by a gate',
   'import.previewOnlyNote': 'Preview only. Nothing has been written.',
   'import.createdNote':
-    'Drafts are in the review queue. Each one still needs review and approval by a different identity before it can be published.',
+    'Drafts are in the review queue. Each one still needs review and approval before it can be published.',
   'import.createdNoneNote':
     'No drafts were created. Every question was refused — most often because the bank has already been imported, so each one matched a question that already exists. The reasons are listed below.',
   'import.validTitle': 'Questions ready to import',
@@ -793,7 +793,7 @@ export const copy = {
     'Your identity does not hold the permission this decision requires ({permission}).',
   'question.nextStep': 'Next step from {status}',
   'question.selfApprovalNote':
-    'Gate 13 currently refuses this approval because you authored or last edited this version. Separation of duties is a comparison of identities, not a permission, so no role can hold both sides of it. Switch to a second identity to approve.',
+    'Gate 13 refuses this approval because you authored or last edited this version and separation of duties is switched on in the approval settings. Another administrator can approve it, or the setting can be changed.',
   'question.claim': 'Claim for authoring',
   'question.submit': 'Submit for approval',
   'question.approve': 'Approve',
@@ -1173,7 +1173,7 @@ export const copy = {
   'problem.nextForbidden':
     'Switch to an identity that holds this permission (the menu in the header), or ask an administrator to grant it.',
   'problem.nextSeparation':
-    'A different person has to do this step. Switch identity, or hand the question to a colleague.',
+    'Separation of duties is switched on for this step, so a different person has to do it. Ask another administrator, or change the approval setting.',
   'problem.nextGate': 'Fix each check listed below in the draft, save it, then try again.',
   'problem.nextJustification':
     'Explain in the justification box, in at least 20 characters, why these documents are being generated again.',
@@ -1198,7 +1198,7 @@ export const copy = {
   'problem.nextCompetencyNearMatch':
     'If it really is a different competency, tick "This is a different competency" and save again. If it is another spelling of the same one, add an alias instead.',
   'problem.nextCompetencyStale':
-    'Draw up a new version from the current definitions, and ask a different administrator to approve it.',
+    'Draw up a new version from the current definitions, then approve that one.',
   'problem.nextCompetencyFramework':
     'Approve a framework version first (Framework versions view), then approve the requirement.',
   'problem.nextCompetencyInactive':
@@ -1408,7 +1408,8 @@ export const copy = {
   'comp.kpiVersion': 'Approved version',
   'comp.kpiVersionNone': 'None yet',
   'comp.kpiVersionNoneCaption': 'Nothing can be based on a draft',
-  'comp.readOnly': 'You can read this catalogue. Changing it needs the KNOWZY Administrator role.',
+  'comp.readOnly':
+    'You can read this catalogue. Changing it needs the Authoring Administrator role.',
   'comp.domainsHeading': 'Domains',
   'comp.domainsNote':
     'A domain is a fixed grouping of categories. Each category belongs to one domain, which you can change on the category.',
@@ -1499,11 +1500,11 @@ export const copy = {
   'comp.editAliasTitle': 'Edit alias',
   'comp.dialogNote': 'Every change is recorded with your name and cannot be altered afterwards.',
   'comp.versionsNote':
-    'A version is a snapshot of every definition, identified by a fingerprint of its content. Approving a version approves exactly that snapshot. If anything changes afterwards the snapshot is out of date, and a new version has to be drawn up. The person who drew a version up, or changed what it covers, cannot approve it.',
+    'A version is a snapshot of every definition, identified by a fingerprint of its content. Approving a version approves exactly that snapshot. If anything changes afterwards the snapshot is out of date, and a new version has to be drawn up. Who drew it up, who changed what it covers and who approved it are all recorded.',
   'comp.newVersion': 'Draw up a version',
   'comp.createVersionTitle': 'Draw up a version from the current definitions',
   'comp.createVersionNote':
-    'This records a snapshot of the definitions as they are now, and the name of everyone whose changes it covers. A different administrator then approves it.',
+    'This records a snapshot of the definitions as they are now, and the name of everyone whose changes it covers. Approving it is a separate, recorded step.',
   'comp.fieldVersionLabel': 'Version label',
   'comp.fieldVersionLabelHint': 'For example 2026-10 revision 1.',
   'comp.colVersion': 'Version',
@@ -1531,11 +1532,11 @@ export const copy = {
   'comp.fieldReferenceHint': 'Where the decision is held: a document, a ticket, a meeting record.',
   'comp.fieldEffective': 'Effective from',
   'comp.youEdited':
-    'You drew up or edited this, so you cannot approve it. A different KNOWZY Administrator has to.',
+    'Separation of duties is switched on: you drew up or edited this, so a different administrator has to approve it.',
   'comp.youEditedTarget':
-    'You proposed or edited this requirement, so you cannot approve it. A different KNOWZY Administrator has to.',
+    'Separation of duties is switched on: you proposed or edited this requirement, so a different administrator has to approve it.',
   'comp.requirementsNote':
-    'A requirement says what level of a competency a role is expected to hold. It is about the role, never about a person. Each one names where it comes from; the platform suggests none. A different administrator approves it, and an approved requirement is never edited — a revision is proposed and, once approved, replaces it.',
+    'A requirement says what level of a competency a role is expected to hold. It is about the role, never about a person. Each one names where it comes from; the platform suggests none. Approving it is a separate, recorded step, and an approved requirement is never edited — a revision is proposed and, once approved, replaces it.',
   'comp.requirementsBlocked':
     'No requirement can be approved yet: the framework has no approved version. Requirements can be proposed now and approved once a version is approved.',
   'comp.requirementsReady': 'Requirements are approved against version {version}.',

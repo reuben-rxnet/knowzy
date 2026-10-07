@@ -22,38 +22,33 @@ export interface DemoSubject {
 }
 
 /**
- * One learner, and one identity that is not a learner.
+ * The Learner and the Authoring Administrator -- the only two identities in
+ * use since the Authoring Role Simplification (2026-10-07,
+ * docs/access-control.md §2.0).
  *
- * The second one is here on purpose: a result belongs to the learner who
- * earned it (§5.4), and the only way to show that is to try to read it as
- * somebody else. The refusal is part of the demonstration.
+ * The administrator is here so a pilot lead can finish in this portal the
+ * workflow they started in the authoring one. Its `learning.*` grants are the
+ * same own-scoped ones the learner holds, so it reads ITS OWN results and
+ * nobody else's -- the privacy rule does not depend on how much access the role
+ * has elsewhere. (A retired Manager identity used to be listed to show a
+ * refusal; it is deprovisioned and no longer offered.)
  */
 export const DEMO_SUBJECTS: readonly DemoSubject[] = [
   {
     upn: 'learner@local.invalid',
-    label: 'Local Learner',
+    label: 'Learner',
     can: 'Take assessments, see their own results',
   },
   {
-    // Present so a pilot lead can finish the workflow they started in the
-    // authoring portal without borrowing the learner's identity. Its
-    // `learning.*` grants are the same own-scoped ones the learner holds, so
-    // it can read ITS OWN results and nobody else's -- the privacy rule is
-    // unchanged by the amount of access the role carries elsewhere.
     upn: 'knowzy-administrator@local.invalid',
-    label: 'KNOWZY Administrator',
-    can: 'Full platform access — take an assessment to complete a pilot run',
-  },
-  {
-    upn: 'manager@local.invalid',
-    label: 'Local Manager',
-    can: 'Has no Live Portal access — shown so a refusal can be demonstrated',
+    label: 'Authoring Administrator',
+    can: 'Takes an assessment to complete a pilot run; sees only its own results',
   },
 ];
 
 export const DEFAULT_SUBJECT: DemoSubject = DEMO_SUBJECTS[0] ?? {
   upn: 'learner@local.invalid',
-  label: 'Local Learner',
+  label: 'Learner',
   can: '',
 };
 

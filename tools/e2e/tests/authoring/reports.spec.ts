@@ -177,12 +177,10 @@ test.describe('reports', () => {
     await expect(page.getByText('Withheld').first()).toBeVisible();
   });
 
-  test('an author is refused the report, and told which permission is missing', async ({
-    page,
-  }) => {
-    await actAs(page, IDENTITY.author);
+  test('a learner is refused the report, and told why', async ({ page }) => {
+    await actAs(page, IDENTITY.learner);
     await page.goto(`${AUTHORING}/reports/filing`);
-    await expect(page.getByText(/report\.read/i).first()).toBeVisible();
+    await expect(page.getByText(/PORTAL_ACCESS_DENIED/).first()).toBeVisible();
   });
 
   test('exports a CSV whose header block states scope, asOf and suppression', async ({

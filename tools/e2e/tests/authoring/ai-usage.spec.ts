@@ -145,20 +145,17 @@ test.describe('governance: AI usage and budgets', () => {
     expect(after.providers.some((row) => row.providerId === 'OPENAI')).toBe(true);
   });
 
-  test('an identity without report.read is refused and sees no figures', async ({ page }) => {
-    // The Quiz Author holds question.generate and no reporting permission, so
-    // this page must refuse rather than render an empty dashboard -- an empty
-    // dashboard reads as "nothing has happened", which is a different and
-    // wrong statement.
-    await actAs(page, IDENTITY.author);
+  test('an identity without authoring access is refused and sees no figures', async ({ page }) => {
+    // The Learner -- the only identity without authoring permissions since the
+    // Authoring Role Simplification. The page must refuse rather than render
+    // an empty dashboard, which would read as "nothing has happened".
+    await actAs(page, IDENTITY.learner);
     await page.goto(PAGE);
 
     await expect(page.getByRole('heading', { name: 'AI Usage & Budgets' })).toBeVisible();
     await expect(page.getByText('Providers registered')).toHaveCount(0);
-    // The refusal names the PERMISSION that is missing, so the reader knows
-    // what to ask for rather than only that they were stopped.
-    await expect(page.getByText('report.read', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText(/PORTAL_ACCESS_DENIED/).first()).toBeVisible();
     // ...and the acting identity, so they know whose access was insufficient.
-    await expect(page.getByText('Author', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText('Learner', { exact: false }).first()).toBeVisible();
   });
 });

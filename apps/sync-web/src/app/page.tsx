@@ -143,6 +143,39 @@ const activityMessage = (outcome: string): string => {
   }
 };
 
+/**
+ * The identity picker. This portal authorizes as the AUTHORING context, so the
+ * same seeded identities apply and a refusal can be reproduced by switching
+ * here. Rendered on the refusal page too: a viewer refused the console must
+ * still be able to switch back (found 2026-10-07, when the Learner became the
+ * only refused identity and had no way out).
+ */
+const IdentityPicker = ({ currentUpn }: { readonly currentUpn: string }) => (
+  <form action={switchSubject} className="flex flex-wrap items-center gap-2">
+    <label htmlFor="subject" className="text-2xs text-ink-muted">
+      {t('header.identity')}
+    </label>
+    <select
+      id="subject"
+      name="subject"
+      defaultValue={currentUpn}
+      className="min-h-target min-w-0 max-w-full flex-1 rounded-md border border-line bg-brand-surface px-2 py-1 text-sm"
+    >
+      {DEMO_SUBJECTS.map((option) => (
+        <option key={option.upn} value={option.upn}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+    <button
+      type="submit"
+      className="min-h-target rounded-md bg-brand-blue px-3 py-1 text-sm font-semibold text-white"
+    >
+      {t('header.identity')}
+    </button>
+  </form>
+);
+
 export default async function SyncManagerDashboard() {
   const subject = await currentSubject();
   const [overview, capabilities] = await Promise.all([
@@ -154,6 +187,9 @@ export default async function SyncManagerDashboard() {
     return (
       <div className="flex flex-col gap-4">
         <h1 className="text-xl font-semibold text-brand-navy-text">{t('table.heading')}</h1>
+        <section className="sync-card flex flex-wrap items-center justify-end gap-4 p-4">
+          <IdentityPicker currentUpn={subject.upn} />
+        </section>
         <Problem problem={overview.problem} actingAs={subject.label} />
       </div>
     );
@@ -187,32 +223,7 @@ export default async function SyncManagerDashboard() {
             </span>
           </span>
         </div>
-        {/* The identity picker. This portal authorizes as the AUTHORING
-            context, so the same seeded identities apply and a refusal can be
-            reproduced by switching here. */}
-        <form action={switchSubject} className="flex flex-wrap items-center gap-2">
-          <label htmlFor="subject" className="text-2xs text-ink-muted">
-            {t('header.identity')}
-          </label>
-          <select
-            id="subject"
-            name="subject"
-            defaultValue={subject.upn}
-            className="min-h-target min-w-0 max-w-full flex-1 rounded-md border border-line bg-brand-surface px-2 py-1 text-sm"
-          >
-            {DEMO_SUBJECTS.map((option) => (
-              <option key={option.upn} value={option.upn}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="min-h-target rounded-md bg-brand-blue px-3 py-1 text-sm font-semibold text-white"
-          >
-            {t('header.identity')}
-          </button>
-        </form>
+        <IdentityPicker currentUpn={subject.upn} />
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">

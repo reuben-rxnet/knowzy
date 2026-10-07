@@ -23,62 +23,29 @@ export interface DemoSubject {
 }
 
 /**
- * The seeded local users this portal needs.
- *
- * The KNOWZY Administrator holds every permission key and is the default, so
- * a pilot lead is never stopped by a missing capability while moving between
- * screens. The single-purpose roles below it remain, because they are how the
- * separation the platform depends on is demonstrated.
- *
- * One thing the administrator still cannot do: approve a question it authored.
- * Separation of duties is an IDENTITY comparison at approval
- * (`authorMayApproveOwn: false`), not a permission, so no amount of access
- * satisfies it. That is why a second administrator identity is seeded — the
- * pilot completes with one deliberate switch at the approval step instead of a
- * weakened gate.
+ * Two identities since the Authoring Role Simplification (2026-10-07,
+ * docs/access-control.md §2.0): the Authoring Administrator, who runs every
+ * workflow here, and the Learner, listed so the refusal this console gives an
+ * identity without source permissions can be seen. The retired single-purpose
+ * identities are deprovisioned and not offered.
  */
 export const DEMO_SUBJECTS: readonly DemoSubject[] = [
   {
     upn: 'knowzy-administrator@local.invalid',
-    label: 'KNOWZY Administrator',
-    can: 'Full platform access',
+    label: 'Authoring Administrator',
+    can: 'Every authoring function, including source workflows and schedules',
   },
   {
-    upn: 'knowzy-administrator-2@local.invalid',
-    label: 'KNOWZY Administrator (second approver)',
-    can: 'Full platform access — use to approve a question the first administrator authored',
-  },
-  {
-    upn: 'source-administrator@local.invalid',
-    label: 'Source administrator',
-    can: 'Register sources, test connections, synchronize documents',
-  },
-  {
-    upn: 'author@local.invalid',
-    label: 'Author',
-    can: 'Browse documents, generate questions, edit and submit drafts',
-  },
-  {
-    upn: 'approver@local.invalid',
-    label: 'Approver',
-    can: 'Review, comment, disposition duplicates, approve or reject',
-  },
-  {
-    upn: 'publisher@local.invalid',
-    label: 'Publisher',
-    can: 'Publish approved questions to the Question Bank, retire them',
-  },
-  {
-    upn: 'assessment-manager@local.invalid',
-    label: 'Assessment manager',
-    can: 'Create, validate, and publish assessments',
+    upn: 'learner@local.invalid',
+    label: 'Learner',
+    can: 'No access to this console — shown so the refusal can be seen',
   },
 ];
 
 /** The administrator, so local and pilot work starts with full access. */
 export const DEFAULT_SUBJECT: DemoSubject = DEMO_SUBJECTS[0] ?? {
   upn: 'knowzy-administrator@local.invalid',
-  label: 'KNOWZY Administrator',
+  label: 'Authoring Administrator',
   can: 'Full platform access',
 };
 

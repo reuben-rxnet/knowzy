@@ -294,14 +294,15 @@ test.describe('administration: AI providers', () => {
     await expect(makeActive).toHaveAccessibleName(/only an available provider/i);
   });
 
-  test('an author sees no controls at all', async ({ page }) => {
-    // `governance.ai.read` is report.read, which an author does not hold, so
-    // the page itself is refused rather than rendered read-only.
-    await actAs(page, IDENTITY.author);
+  // Since the Authoring Role Simplification the only identity without
+  // authoring permissions is the Learner, who has no authoring portal access
+  // at all: the page is refused, with the reason, and offers no control.
+  test('a learner is refused the screen and offered no control', async ({ page }) => {
+    await actAs(page, IDENTITY.learner);
     await page.goto(PAGE);
     await expect(page.getByRole('heading', { name: 'AI Providers' })).toBeVisible();
     await expect(page.getByRole('button', { name: /^configure$/i })).toHaveCount(0);
-    await expect(page.getByText(/report\.read|platform\.configure/i).first()).toBeVisible();
+    await expect(page.getByText(/PORTAL_ACCESS_DENIED/).first()).toBeVisible();
   });
 });
 
@@ -321,9 +322,11 @@ test.describe('the header identity menu', () => {
     // §34: the menu says these identities are selected, not authenticated.
     await expect(page.getByText(/selected, not authenticated/i).first()).toBeVisible();
 
+    // The Learner: since the Authoring Role Simplification the menu offers the
+    // Authoring Administrator and the Learner only.
     await page
       .locator('header')
-      .getByRole('button', { name: /^Publisher/ })
+      .getByRole('button', { name: /^Learner/ })
       .first()
       .click();
     // The SHELL's acting-as label is server state, and it is the only proof
@@ -331,10 +334,17 @@ test.describe('the header identity menu', () => {
     await expect(
       page
         .locator('header')
-        .getByText(/Publisher/)
+        .getByText(/^Learner$/)
         .first(),
     ).toBeVisible({
       timeout: 30_000,
     });
+    // ...and the retired identities are not offered at all.
+    await actAs(page, IDENTITY.administrator);
+    await page.goto(`${AUTHORING}/publish`);
+    await page.locator('header button[aria-haspopup="menu"]').click();
+    for (const retired of [/^Publisher/, /^Approver/, /^Author( |$)/, /second approver/]) {
+      await expect(page.locator('header').getByRole('button', { name: retired })).toHaveCount(0);
+    }
   });
 });

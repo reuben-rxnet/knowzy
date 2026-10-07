@@ -13,12 +13,11 @@ import { expect, type APIRequestContext, type Locator, type Page } from '@playwr
 export const API = process.env['E2E_API_URL'] ?? 'http://localhost:8080';
 
 /** The seeded local identities the portals' pickers offer. */
+// Two identities since the Authoring Role Simplification (2026-10-07,
+// docs/access-control.md §2.0). The author, approver, publisher and second
+// administrator are deprovisioned and appear in no picker.
 export const IDENTITY = {
   administrator: 'knowzy-administrator@local.invalid',
-  secondAdministrator: 'knowzy-administrator-2@local.invalid',
-  author: 'author@local.invalid',
-  approver: 'approver@local.invalid',
-  publisher: 'publisher@local.invalid',
   learner: 'learner@local.invalid',
 } as const;
 
@@ -96,26 +95,12 @@ export const openIdentityMenu = async (page: Page): Promise<void> => {
 const identityLabel = (identity: Identity): string => {
   switch (identity) {
     case IDENTITY.administrator:
-      return 'KNOWZY Administrator$|KNOWZY Administrator(?! \\()';
-    case IDENTITY.secondAdministrator:
-      return 'second approver';
-    case IDENTITY.author:
-      // The picker's label is 'Author', not 'Quiz Author' -- the role's display
-      // name and its seeded role key are different strings, and this helper had
-      // the role key. Nothing used this branch until 2026-09-24, so the drift
-      // was invisible. Anchored, because an unanchored 'Author' would also be
-      // matched by a future 'Co-Author'.
-      // Matched against TWO different strings: the picker's accessible name,
-      // which is the label plus its description ('Author Browse documents...'),
-      // and the shell's acting-as label, which is the bare word. Hence the
-      // alternation rather than a trailing space.
-      return '^Author( |$)';
-    case IDENTITY.approver:
-      return 'Approver';
-    case IDENTITY.publisher:
-      return 'Publisher';
+      return 'Authoring Administrator';
     case IDENTITY.learner:
-      return 'Learner';
+      // Anchored: the learner portal also lists the administrator, whose
+      // description mentions neither word, but a future "Learner lead" would
+      // match an unanchored 'Learner'.
+      return '^Learner( |$)';
     default:
       return identity;
   }
@@ -381,7 +366,6 @@ export const ensurePublishedAssessment = async (
       });
       await api(request, `/api/v1/authoring/questions/${questionId}/approve`, {
         method: 'POST',
-        as: IDENTITY.secondAdministrator,
         body: {},
         allowFailure: true,
       });
