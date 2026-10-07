@@ -1571,7 +1571,11 @@ Everything is done as the **Authoring Administrator** until step 10.
 
 ## 9. Things that will surprise you
 
-- **You will switch identity several times.** By design; see §3.
+- **A source called "E2E Synthetic Corpus" appears after the browser tests run.** The test suite
+  owns it: each run writes a small invented procedure into it (under the git-ignored
+  `RealWorldPilot/E2E-Synthetic/`) and generates drafts from that, so the tests never use up the
+  demonstration drafts. Its documents are fictional and contain no company content; ignore it, or
+  deactivate it in the Sync Manager.
 - **Generation returns fewer questions than you ask for.** The local generator only builds a
   question from a sentence stating an explicit rule, and every refusal is reported with its reason.
 - **One fixture document never appears.** It is marked as denied to the caller, to prove that
@@ -1672,3 +1676,4 @@ the log below.
 | 2026-10-07 | COMPETENCY-M2 | **Competency administration** (§4.3h, **Administration → Competencies**, a third tab beside Knowledge Domains and AI Providers). Categories, competencies and aliases can be created, edited, deactivated and reactivated; the six domains are the category kinds. **Framework versions** are snapshots: *Draw up a version*, then a **different** administrator approves it with a reference; a version whose definitions changed afterwards reads *Out of date* and cannot be approved. **Role requirements** are proposed with a required source and approved by someone who did not propose or edit them, only against an approved framework version — none can be approved today, because the imported `2024-05` is still a draft. Write controls are the KNOWZY Administrator's only; other roles read the catalogue. No person, rating or score appears anywhere on the screen |
 | 2026-10-07 | Authoring Role Simplification | **Two identities** (§3): the **Authoring Administrator** (the former KNOWZY Administrator, now holding every authoring permission including publish) and the **Learner**. The Author, Approver, Publisher, Source administrator, Assessment manager, second administrator, Manager and the other specialist identities are gone from every identity menu; their records are kept so history still names them. **One administrator can take a question from draft to published**, and draw up and approve a competency version or propose and approve a role requirement: separation of duties is **switched off by configuration, not removed**, and every step still records who performed it. The walkthrough (§8) runs as one identity. Refusals for a missing permission are now seen as the Learner, refused with `PORTAL_ACCESS_DENIED` |
 | 2026-10-07 | Document Studio Slice 2 | **AI Document Studio** (§4.2a), a new sidebar entry between Import Questions and AI Quiz Generation (Import Questions moved up beside it). An overview that prepares nothing: it explains assessment preparation, shows the documented GenerationReady evaluation results, the workflow, and the platform's real state — **Blocked by approval** — per provider. **Record approval** records a `DOCUMENT_RESTRUCTURE` approval with a reference, separate from the generation approval; it moves a provider to **Not built** and no further, because no transformation exists |
+| 2026-10-07 | E2E fixtures | The browser test suite now owns a source, **E2E Synthetic Corpus** (§9), and writes a fresh invented procedure into it each run, because it had used up the template-generator drafts on Mock Support Operations |

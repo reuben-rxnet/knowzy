@@ -636,7 +636,7 @@ export const copy = {
     'Needs a justification of at least 20 characters (below), because PUBLISHER_REQUESTED regenerates.',
   'generate.summaryNext': 'What happens next',
   'generate.summaryNextValue':
-    'The questions arrive as drafts in the Review Queue. An author checks each one, and a different person approves it before it can be published.',
+    'The questions arrive as drafts in the Review Queue. Each one is checked and approved before it can be published.',
   'generate.surplus': 'Beyond the request',
   'generate.surplusValue':
     '{count} more proposed than requested — not used. The requested number is a maximum.',
@@ -848,9 +848,9 @@ export const copy = {
   'publish.kpiActive': 'Active',
   'publish.kpiRetired': 'Retired',
   'publish.approvedIntro':
-    'Approved by someone other than the author, and re-gated at the moment of publication.',
+    'Approved, and re-gated at the moment of publication. The approver is recorded, and may be the author while self-approval is permitted.',
   'publish.noApprovedBody':
-    'Nothing has been approved yet. A question reaches this list only after a second identity approves it.',
+    'Nothing has been approved yet. A question reaches this list once it has been approved.',
   'publish.resultCounts': 'published {published} · failed {failed}',
   'publish.inventoryIntro':
     'The local projection of the Question Bank. It is reconciled against the bank itself in a later phase.',
