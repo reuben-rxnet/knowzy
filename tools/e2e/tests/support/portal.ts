@@ -8,6 +8,9 @@
 // assert a product behaviour on the caller's behalf, or reach into the
 // database to make something true that the product would have refused.
 
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
 export const API = process.env['E2E_API_URL'] ?? 'http://localhost:8080';
@@ -171,6 +174,212 @@ export const ensureSynchronized = async (request: APIRequestContext): Promise<So
   return mockSource(request);
 };
 
+// ---------------------------------------------------------------------------
+// The suite's OWN source (2026-10-07).
+//
+// Every run approves and publishes template-generator drafts, and the small
+// seeded Mock Support Operations source ran out: the generator found nothing
+// new in it, and no DRAFT was left to fall back on, so eight specs failed in
+// this helper before reaching anything they test. So the suite now OWNS a
+// source -- "E2E Synthetic Corpus", a FILE_REPOSITORY under the allowed root
+// /repo/RealWorldPilot -- and writes a fresh synthetic SOP into it each time it
+// needs a draft. The content is invented for the test (no company document),
+// every figure in it varies with the run, and the folder is git-ignored.
+// Nothing here touches a real or demonstration draft.
+
+const SYNTHETIC_NAME = 'E2E Synthetic Corpus';
+const SYNTHETIC_ROOT_IN_CONTAINER = '/repo/RealWorldPilot/E2E-Synthetic';
+const SYNTHETIC_ROOT_ON_HOST = fileURLToPath(
+  // The documents sit in a CONTAINER folder below the root, as the
+  // GenerationReady source's do: a file directly in the root has no container.
+  new URL('../../../../RealWorldPilot/E2E-Synthetic/Synthetic/', import.meta.url),
+);
+
+/**
+ * A synthetic SOP that differs from every other run's in its WORDS, not only
+ * its figures. The duplicate gate compares question text: a document that only
+ * changed its numbers produced drafts 0.776 similar to the previous run's, over
+ * the 0.75 threshold, and submit was refused -- correctly. So the roles, the
+ * items, the channels and an invented codename are drawn per run as well.
+ */
+const PICK = {
+  desk: [
+    'Orbit',
+    'Larch',
+    'Quarry',
+    'Beacon',
+    'Tundra',
+    'Saffron',
+    'Harbor',
+    'Juniper',
+    'Cobalt',
+    'Mesa',
+    'Willow',
+    'Falcon',
+  ],
+  actor: [
+    'agent',
+    'clerk',
+    'technician',
+    'coordinator',
+    'operator',
+    'analyst',
+    'dispatcher',
+    'adviser',
+  ],
+  item: [
+    'service credit',
+    'replacement part',
+    'loan device',
+    'fee waiver',
+    'travel voucher',
+    'license extension',
+    'shipping refund',
+    'repair credit',
+  ],
+  approver: [
+    'team lead',
+    'shift supervisor',
+    'section head',
+    'desk manager',
+    'quality lead',
+    'operations lead',
+  ],
+  record: ['ticket', 'case file', 'work order', 'request log', 'job sheet', 'service record'],
+  channel: ['phone', 'chat', 'portal', 'email', 'kiosk', 'field visit'],
+  syllable: [
+    'ka',
+    'zu',
+    'ri',
+    'mo',
+    'ven',
+    'tal',
+    'oro',
+    'pex',
+    'sil',
+    'dra',
+    'nu',
+    'qui',
+    'bel',
+    'cor',
+    'fa',
+    'lyn',
+  ],
+} as const;
+
+const syntheticSop = (stamp: string): string => {
+  const pick = <T>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)] as T;
+  const num = (low: number, high: number): number => low + Math.floor(Math.random() * (high - low));
+  const codename = Array.from({ length: 4 }, () => pick(PICK.syllable)).join('');
+  const desk = pick(PICK.desk);
+  const actor = pick(PICK.actor);
+  const item = pick(PICK.item);
+  const approver = pick(PICK.approver);
+  const record = pick(PICK.record);
+  const channel = pick(PICK.channel);
+  return [
+    `# ${desk} ${codename} Procedure ${stamp}`,
+    '',
+    `This synthetic procedure exists only for the browser test run ${stamp}. It sets out how a`,
+    `${actor} on the fictional ${desk} desk handles a ${item} requested through the ${channel} channel.`,
+    '',
+    `## ${codename} Authority Limits`,
+    '',
+    `A ${actor} may grant a ${item} worth up to ${num(2, 90) * 10} ${codename} units without further`,
+    `review. A ${item} above that requires the ${approver}'s approval, recorded in the ${record}`,
+    `before anything is granted, and the ${approver} may not approve a request they raised.`,
+    `Above ${num(10, 99) * 100} units the ${desk} director must also approve in writing, and the`,
+    `${actor} attaches that written approval to the ${record} before closing it.`,
+    '',
+    `## ${codename} Response Windows`,
+    '',
+    `A ${channel} request marked urgent must receive a first response within ${num(5, 55)} minutes.`,
+    `A standard ${channel} request must receive one within ${num(2, 23)} hours, and an unanswered`,
+    `${record} is escalated to the ${approver} the moment that window passes. A low-priority`,
+    `request must receive a first response within ${num(2, 9)} working days; the clock pauses only`,
+    `while the ${record} is waiting for information the requester has to supply.`,
+    '',
+    `## ${codename} Retention`,
+    '',
+    `Every closed ${record} is retained for ${num(6, 60)} months. A ${record} that grants a ${item}`,
+    `keeps the approval reference beside the amount, and a ${item} with no reference is reversed`,
+    `at the ${desk} monthly review. A ${record} that names a person is retained for`,
+    `${num(30, 120)} days instead, and the ${actor} marks it so it is removed on time.`,
+    '',
+  ].join('\n');
+};
+
+const ensureSyntheticSource = async (request: APIRequestContext): Promise<SourceRow> => {
+  mkdirSync(SYNTHETIC_ROOT_ON_HOST, { recursive: true });
+  const sources = await api<{ sources: SourceRow[] }>(request, '/api/v1/authoring/sources');
+  const existing = sources.sources.find((candidate) => candidate.name === SYNTHETIC_NAME);
+  if (existing !== undefined) return existing;
+  const created = await api<{ source: { sourceId: string } }>(
+    request,
+    '/api/v1/authoring/sources',
+    {
+      method: 'POST',
+      body: {
+        name: SYNTHETIC_NAME,
+        description:
+          'Owned by the browser test suite. Synthetic documents only, written per run; never a company document.',
+        sourceType: 'FILE_REPOSITORY',
+        localRoot: SYNTHETIC_ROOT_IN_CONTAINER,
+        usableForGeneration: true,
+      },
+    },
+  );
+  await api(request, `/api/v1/authoring/sources/${created.source.sourceId}/paths`, {
+    method: 'POST',
+    body: { containerName: 'Synthetic', folderPath: '/', isActive: true },
+  });
+  await api(request, `/api/v1/authoring/sources/${created.source.sourceId}/activate`, {
+    method: 'POST',
+    body: {},
+  });
+  const after = await api<{ sources: SourceRow[] }>(request, '/api/v1/authoring/sources');
+  const source = after.sources.find((candidate) => candidate.name === SYNTHETIC_NAME);
+  if (source === undefined) throw new Error('The synthetic source was not created.');
+  return source;
+};
+
+/** Write a fresh synthetic SOP, synchronize, and return its document id. */
+const freshSyntheticDocument = async (
+  request: APIRequestContext,
+): Promise<{ readonly sourceId: string; readonly documentId: string }> => {
+  const stamp = `R${Date.now().toString(36).toUpperCase()}`;
+  const fileName = `synthetic-${stamp}.md`;
+  mkdirSync(SYNTHETIC_ROOT_ON_HOST, { recursive: true });
+  writeFileSync(join(SYNTHETIC_ROOT_ON_HOST, fileName), syntheticSop(stamp));
+  const source = await ensureSyntheticSource(request);
+  await api(request, `/api/v1/authoring/sources/${source.sourceId}/test-connection`, {
+    method: 'POST',
+    body: {},
+  });
+  await api(request, `/api/v1/authoring/sources/${source.sourceId}/synchronize`, {
+    method: 'POST',
+    body: {},
+  });
+  const containers = await api<{ containers: { containerId: string }[] }>(
+    request,
+    `/api/v1/authoring/sources/${source.sourceId}/containers`,
+  );
+  for (const container of containers.containers) {
+    const items = await api<{
+      items: { name: string; documentId: string | null; isSelectable: boolean }[];
+    }>(
+      request,
+      `/api/v1/authoring/sources/${source.sourceId}/items` +
+        `?containerId=${encodeURIComponent(container.containerId)}&recursive=true`,
+    );
+    const item = items.items.find((candidate) => candidate.name === fileName);
+    if (item?.documentId != null && item.isSelectable) {
+      return { sourceId: source.sourceId, documentId: item.documentId };
+    }
+  }
+  throw new Error(`The synthetic document ${fileName} was not extracted after synchronize.`);
+};
+
 interface Taxonomy {
   readonly domains: readonly {
     readonly domainId: string;
@@ -203,29 +412,11 @@ export const generateDraft = async (
   request: APIRequestContext,
   as: Identity = IDENTITY.administrator,
 ): Promise<string> => {
-  const source = await ensureSynchronized(request);
-
-  // The browse read is CONTAINER-scoped -- `?recursive=true` alone is a 400,
-  // because a document browser without a container is asking for "everything
-  // in the tenant".
-  const containers = await api<{ containers: { containerId: string }[] }>(
-    request,
-    `/api/v1/authoring/sources/${source.sourceId}/containers`,
-  );
-  const documentIds: string[] = [];
-  for (const container of containers.containers) {
-    const items = await api<{
-      items: { documentId: string | null; isSelectable: boolean }[];
-    }>(
-      request,
-      `/api/v1/authoring/sources/${source.sourceId}/items` +
-        `?containerId=${encodeURIComponent(container.containerId)}&recursive=true`,
-    );
-    for (const item of items.items) {
-      if (item.documentId !== null && item.isSelectable) documentIds.push(item.documentId);
-    }
-  }
-  if (documentIds.length === 0) throw new Error('No selectable documents after synchronize.');
+  // From the suite's own synthetic source, so a draft is always available and
+  // no real or demonstration draft is consumed (see freshSyntheticDocument).
+  const { sourceId, documentId } = await freshSyntheticDocument(request);
+  const documentIds = [documentId];
+  const source = { sourceId };
 
   const preflight = await api<{ preflightId: string }>(
     request,

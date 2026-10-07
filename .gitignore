@@ -33,3 +33,6 @@ tools/e2e/blob-report/
 # individual ratings. It is inspected locally, read by the structure-only
 # importer, and NEVER committed. See docs/competencies/COMPETENCY_PRIVACY_AND_GOVERNANCE.md.
 RealWorldPilot/CompetencyModels/
+
+# The browser suite writes synthetic test documents here per run.
+RealWorldPilot/E2E-Synthetic/

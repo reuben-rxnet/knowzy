@@ -74,7 +74,10 @@ test.describe('generation', () => {
     page,
     request,
   }) => {
-    await ensureSynchronized(request);
+    // The source is NAMED, not "the first usable one": since 2026-10-07 the
+    // suite owns a synthetic source that sorts first, and this test is about
+    // the screen, not about whichever corpus happens to lead the list.
+    const mock = await ensureSynchronized(request);
     await actAs(page, IDENTITY.administrator);
 
     const before = await api<{ count: number; items: unknown[] }>(
@@ -83,7 +86,7 @@ test.describe('generation', () => {
     );
     const countBefore = before.count;
 
-    await page.goto('/generate');
+    await page.goto(`/generate?source=${mock.sourceId}`);
     await expect(page.getByRole('heading', { name: /generate questions/i })).toBeVisible();
 
     // Step 1: choose documents. There is no source dropdown on this screen --
