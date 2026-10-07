@@ -12,6 +12,7 @@
 
 import { createHash } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
+import { systemClock } from '@knowzy/observability';
 import {
   OUTPUT_SCHEMA_VERSION,
   canonicalPromptBody,
@@ -626,7 +627,7 @@ const seedLocalUsers = async (): Promise<string> => {
       // once held the role.
       await prisma.userRole.updateMany({
         where: { userId: user.id, revokedAt: null },
-        data: { revokedAt: new Date(), revokedByUserId: user.id },
+        data: { revokedAt: systemClock.now(), revokedByUserId: user.id },
       });
     }
 
@@ -663,7 +664,7 @@ const seedLocalUsers = async (): Promise<string> => {
         revokedAt: null,
         role: { key: { notIn: [...ACTIVE_ROLE_KEYS] } },
       },
-      data: { revokedAt: new Date(), revokedByUserId: administratorUser.id },
+      data: { revokedAt: systemClock.now(), revokedByUserId: administratorUser.id },
     });
   }
 
