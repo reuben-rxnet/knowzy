@@ -861,10 +861,13 @@ Seven rules govern it.
    where a provider is approved for question generation (§9.0 rule 7). A derivative never replaces an
    original, and a question grounded in one carries generation evidence and origin lineage
    separately.
-8. **Approval is separated from editing** (COMPETENCY-M2, 2026-10-07). A framework version is
-   approved by someone who neither created it nor edited the definitions it covers, and a role
-   target by someone who neither proposed nor edited it. An approval covers one definitions hash.
-   `competency.manage` is held by `KNOWZY_ADMINISTRATOR` only
+8. **Approval can be separated from editing** (COMPETENCY-M2, 2026-10-07). When the settings
+   `approval.competencyVersionEditorMayApprove` and `approval.competencyTargetEditorMayApprove` are
+   false (their code default), a framework version is approved by someone who neither created it
+   nor edited the definitions it covers, and a role target by someone who neither proposed nor
+   edited it. **Since the Authoring Role Simplification the platform sets both to true** (one
+   Authoring Administrator may approve their own work); the editors are still recorded. An approval
+   covers one definitions hash either way. `competency.manage` is held by `KNOWZY_ADMINISTRATOR` only
    ([COMPETENCY_ADMINISTRATION.md](competencies/COMPETENCY_ADMINISTRATION.md)).
 
 | Capability | Status | Specification |

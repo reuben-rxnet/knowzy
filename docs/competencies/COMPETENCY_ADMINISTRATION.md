@@ -34,6 +34,15 @@ milestone brief.
 | A3 | **Approval is separated from editing.** Whoever created or edited a framework version, or created or edited a role target, may not approve it | Enforced in the service **and** by a database CHECK. Two administrator identities exist for exactly this reason (CLAUDE.md, "Roles") |
 | A4 | The structure-only import may populate the development database | Done with `scripts/competency-import.ts`, which reads header rows only |
 
+**A3 is superseded by configuration (2026-10-07, Authoring Role Simplification,
+access-control.md §2.0).** Separation is now governed by two platform settings,
+`approval.competencyVersionEditorMayApprove` and `approval.competencyTargetEditorMayApprove`, whose
+code default is `false` (separated) and which the platform sets to `true`. With them true the same
+Authoring Administrator may draw up and approve a version, and propose and approve a target. The
+editors, creator, proposer and approver are recorded exactly as before; only the refusal is off. The
+database CHECKs that enforced A3 are dropped in migration 0017, because a CHECK cannot read a
+setting. Everything else in this document stands.
+
 These resolve **CM-6** (who approves a framework version, and through what screen): a holder of
 `competency.manage` who did not edit it, through this screen. **CM-1** (whether the matrix is the
 organization's official framework) and **CM-9** (where role targets come from) remain open, and the
@@ -85,7 +94,7 @@ rule 7). It is refused when:
 
 | Refusal | Code |
 | --- | --- |
-| The approver created the version, or edited any definition the snapshot covers | `SEPARATION_OF_DUTIES` |
+| The approver created the version, or edited any definition the snapshot covers — **only while `approval.competencyVersionEditorMayApprove` is false** (§2) | `SEPARATION_OF_DUTIES` |
 | The framework's definitions have changed since the snapshot (the current hash differs) | `COMPETENCY_VERSION_STALE` |
 | The version is not `DRAFT` | `STATE_TRANSITION_INVALID` |
 | No reference is given | `VALIDATION_FAILED` |
@@ -109,7 +118,7 @@ A target says "role R is expected to hold competency C at level L". It is a stat
 | --- | --- |
 | **Propose** | Choose an active job role (the existing `JobRole` catalogue, never a second one), an active competency, and a level **on that competency's scale**. A **source** is required — where the requirement comes from — and a rationale is optional. Nothing is suggested, defaulted or bulk-created: the platform does not invent requirements |
 | **Edit** | Only while `PROPOSED`. Each editor is recorded |
-| **Approve** | A different administrator (A3), with a reference. Refused unless the framework has an `APPROVED` version (`COMPETENCY_FRAMEWORK_NOT_APPROVED`) and the competency is active. The approved version is recorded on the target |
+| **Approve** | With a reference; by a different administrator only while `approval.competencyTargetEditorMayApprove` is false (§2). Refused unless the framework has an `APPROVED` version (`COMPETENCY_FRAMEWORK_NOT_APPROVED`) and the competency is active. The approved version is recorded on the target |
 | **Revise** | An approved target is never edited. A revision is a new proposal; approving it retires the one it replaces |
 | **Retire** | `PROPOSED` or `APPROVED` → `RETIRED`, recorded with who and when |
 
@@ -139,7 +148,7 @@ an audit row names are the administrators acting, in the actor fields.
 | Rule | Enforced by |
 | --- | --- |
 | Only `KNOWZY_ADMINISTRATOR` writes | The permission matrix (`competency.manage` granted to no other role) and a contract test |
-| An approver is not an editor | The service, and CHECKs on `competency_framework_version` and `role_competency_expectation` |
+| An approver is not an editor, when the settings require it | The service, reading the two `approval.competency*` settings. The 0016 CHECKs were dropped in 0017 (a CHECK cannot read a setting); creator, editors and approver are still recorded on every row |
 | An approval has approver, time and reference | The 0015 CHECKs, unchanged |
 | An approval covers one hash | The service recomputes `definitionsSha256` before approving |
 | The change log cannot be rewritten | A trigger refusing UPDATE and DELETE on `competency_definition_change` |

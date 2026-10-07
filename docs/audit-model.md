@@ -179,6 +179,12 @@ const AuditEvent = z.object({
 Note what makes this useful two years later: the gate results and separation-of-duties evaluation are
 recorded **as evaluated then**, not recomputed from today's configuration.
 
+**Since the Authoring Role Simplification (2026-10-07, access-control.md §2.0)** the platform runs
+with self-approval permitted. Nothing about this record changes: the approver is still named in the
+actor fields and the approval row, the author in the question's lineage, and the evaluation records
+the policy that permitted it. An auditor reading a self-approval sees one person in both places and
+the setting that allowed it, never a record that hides who did which act.
+
 ---
 
 ## 4. Correlation model

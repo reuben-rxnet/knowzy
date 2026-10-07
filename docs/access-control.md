@@ -33,9 +33,28 @@ becomes part of the SQL query.
 
 ## 2. Role catalogue
 
+### 2.0 Authoring Role Simplification (2026-10-07) — read this first
+
+**Two roles are active: the Authoring Administrator and the Learner.** Decided by the product owner
+on 2026-10-07, for three reasons: **platform simplicity**, **small-team operation** (the platform is
+run by a small group, not by a separated review organization), and **reduced administrative
+overhead** (one role to grant, nothing to coordinate between people to get a question published).
+
+| Decision | Effect |
+| --- | --- |
+| `KNOWZY_ADMINISTRATOR` is shown as **Authoring Administrator** | The key is unchanged, so every audit row, test and grant keeps reading correctly. It holds **every** permission key, including `question.publish` |
+| `LEARNER` is unchanged | The only Live-portal role |
+| The other twelve roles are **deactivated, not deleted** | `role.is_active = false` (migration 0017). Their rows, names and historical grants stay, so an old audit row naming an Approver still reads as one. A grant on an inactive role confers **no** permission. Their demo identities are revoked and deprovisioned, and leave the identity menus |
+| **Separation of duties is turned off by configuration, not removed from the code** | `approval.authorMayApproveOwn` and `approval.editorMayApproveOwn` are set to `true` at platform scope, and `approval.competencyVersionEditorMayApprove` and `approval.competencyTargetEditorMayApprove` likewise. The code default of every one remains the strict value, the gates still run and record their verdict, and turning separation back on is **one audited configuration change** per key, with no release |
+| **Auditability is unchanged** | Every act still records who did it: author, editor, reviewer, approver, publisher, framework editor and approver, target proposer, editor and approver. When they are the same identity the records say so, rather than one act standing in for another |
+
+The rest of this section is the full catalogue, kept because historical data refers to every role in
+it. Rules 3 and the "full access is not exemption" paragraph below describe the strict
+configuration, which is what the code still enforces wherever the settings say so.
+
 | Role key | Portal | Purpose | Notable permissions |
 | --- | --- | --- | --- |
-| `KNOWZY_ADMINISTRATOR` | Both | Full platform access for platform and product owners, knowledge managers, administrators, pilot leads and operational platform support | Every permission key except `question.publish`, which is granted by ALSO assigning `PUBLISHER` (rule 3) |
+| `KNOWZY_ADMINISTRATOR` — **Authoring Administrator**, active | Both | Every authoring function, operated by a small team | **Every** permission key (since 2026-10-07) |
 | `PLATFORM_ADMINISTRATOR` | Authoring | Platform configuration, taxonomy, profiles, field mappings, feature flags, break-glass | `platform.configure`, `access.manage`, `taxonomy.manage`, `questionbank.reconcile`, everything in `source.*` |
 | `SOURCE_ADMINISTRATOR` | Authoring | Keep sources accurate and healthy | `source.manage`, `source.test`, `source.sync`, `source.read`, `document.browse` |
 | `AUTHOR` | Authoring | Turn documents into draft questions | `question.generate`, `question.edit`, `question.submit`, `question.read`, `document.browse`, `document.section.manage` |
@@ -48,7 +67,9 @@ becomes part of the SQL query.
 | `REPORTING_USER` | Authoring | Build and export governed reports | `report.read`, `report.create`, `report.export` |
 | `REPORT_PUBLISHER` | Authoring | Govern report publication | `report.publish`, `report.approve` |
 | `AUDITOR` | Authoring | Reconstruct history; **read-only** | `audit.read`, `audit.export`, `question.read`, `source.read`, `report.read` |
-| `LEARNER` | Live | Prove and improve proficiency | `learning.*` (own-scoped only) |
+| `LEARNER` — active | Live | Prove and improve proficiency | `learning.*` (own-scoped only) |
+
+Every role between the first and the last row is **inactive** since 2026-10-07 (§2.0).
 
 Rules:
 
@@ -56,8 +77,10 @@ Rules:
    intersected with scope (§5).
 2. Role definitions are **seeded configuration**, read-only in release 1. Changing the permission
    matrix is a deployment, so a role's meaning cannot drift silently between environments.
-3. No role grants both `question.approve` and `question.publish` by default. A tenant may combine them
-   by assigning both roles, which is a visible, audited decision rather than a default.
+3. No **specialist** role grants both `question.approve` and `question.publish`. A tenant may combine
+   them by assigning both roles, which is a visible, audited decision rather than a default. **Since
+   §2.0 the Authoring Administrator holds both**, by the product owner's recorded decision; the rule
+   still binds the inactive specialist roles, so re-activating them restores the separation.
    **`KNOWZY_ADMINISTRATOR` is composed this way and is not an exception to this rule:** the role
    withholds `question.publish`, and the administrator *user* additionally holds `PUBLISHER`.
    Permissions are the union across a user's roles, so the identity holds every key while the role

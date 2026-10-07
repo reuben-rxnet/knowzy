@@ -289,6 +289,13 @@ current version. SME endorsement is version-bound — editing after endorsement 
 
 ### 3.4 Separation of duties
 
+**Since 2026-10-07 (Authoring Role Simplification, access-control.md §2.0) the platform runs with
+`authorMayApproveOwn` and `editorMayApproveOwn` set to `true`** at platform scope: one Authoring
+Administrator may create, review, approve and publish their own question. The policies below are
+unchanged, and so are their code defaults; setting either back to `false` is a single audited
+configuration change. Gate 13 still runs on every approval and records its verdict, and the
+approval record still names the approver beside the author.
+
 | Policy | Default | Effect |
 | --- | --- | --- |
 | `authorMayApproveOwn` | false | Approval refused when approver = original author |
