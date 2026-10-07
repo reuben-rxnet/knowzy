@@ -111,7 +111,7 @@ When competency observations exist (a later milestone), every report over them m
 
 | Concern | Rule |
 | --- | --- |
-| Reference definitions | Readable by authoring and reporting roles; writable only through the import path (this release) and, later, competency administration (`competency.manage`, designed, not seeded) |
+| Reference definitions | Readable with `taxonomy.read`; writable through the import path and, since COMPETENCY-M2, competency administration (`competency.manage`, held by `KNOWZY_ADMINISTRATOR` only). An approver of a version or role target may not be one of its editors (COMPETENCY_ADMINISTRATION.md §2 A3) |
 | Person-level competency data | None is stored in this release. When it is, it is readable by the person, and by others only under a policy decided in §6 |
 | Audit | Every import apply writes `ADMIN.COMPETENCY.IMPORT_APPLIED` in the same transaction, carrying counts only — never labels from person rows, because none are read |
 | Retention | Reference definitions are never deleted; a definition is retired. Import findings and provenance are retained with their batch |
@@ -139,3 +139,4 @@ Recorded, not chosen. Each blocks the capability named beside it.
 | No rating, observation or self-assessment table exists | The schema: migration 0015 creates reference-definition tables only |
 | A gap cannot be computed without an approved target | `evaluateCompetencyGap` returns `NOT_CALCULABLE` with the missing preconditions, and a unit test covers each one; a database CHECK refuses an `APPROVED` target without an approval record |
 | Import is audited | `transactWithAudit` around the whole apply |
+| Administration holds no person-level data | COMPETENCY-M2 adds catalogue writes, versions and role targets only; a role target names a **role**, never a person (COMPETENCY_ADMINISTRATION.md §5) |

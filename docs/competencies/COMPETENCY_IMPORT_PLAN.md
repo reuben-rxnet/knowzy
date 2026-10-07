@@ -179,7 +179,9 @@ The script printed only counts and our own stored text, never a person-row value
 - One reference profile exists (`RX_COMPETENCY_MATRIX_2024`). Another organization's matrix needs
   its own declared normalization table; the fold and decision order are generic, the table is not.
 - Cached values only; formulas are never evaluated (the reader's existing rule).
-- No screen. Import is an operator command until competency administration is built (CM-6).
+- No upload screen. Import stays an operator command. Since COMPETENCY-M2 an imported version is
+  reviewed and approved on Administration → Competencies (COMPETENCY_ADMINISTRATION.md §4), and the
+  apply records the version's `definitionsSha256` so that approval covers what the import wrote.
 
 ## 9. Reference dry run and apply (2026-09-29)
 

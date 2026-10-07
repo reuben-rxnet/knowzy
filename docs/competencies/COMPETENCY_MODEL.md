@@ -1,7 +1,10 @@
 # Competency Model
 
 **Status:** Normative. Added 2026-09-29 with COMPETENCY-M0/M1; implemented by migration
-`0015_competency_foundation` and `packages/domain/src/competency/`.
+`0015_competency_foundation` and `packages/domain/src/competency/`. Amended 2026-10-07 by
+COMPETENCY-M2 (migration `0016_competency_administration`): versions gain an origin, a definitions
+hash and their editors; approval is separated from editing; a change log records every write. The
+screen and its rules are in [COMPETENCY_ADMINISTRATION.md](COMPETENCY_ADMINISTRATION.md).
 **Owns:** the normalized entities that represent a competency framework, the level vocabulary, the
 alias and normalization strategy, and the role-target entity. It does **not** own observations about
 people — there are none in this release
@@ -75,9 +78,19 @@ catalogue entries are created by an administrator under `taxonomy.manage`, as th
 
 An imported version is `DRAFT`. Approving it is a **separate act** requiring an approver identity, a
 timestamp and a reference to where the approval is held — the same shape as provider approval
-(architecture.md §9.0 rule 7). A database CHECK refuses `APPROVED` without all three. There is no
-approval screen in this release (decision CM-6), so every imported version stays `DRAFT`, and a
-draft definition may be read and catalogued but must not be the basis of a target.
+(architecture.md §9.0 rule 7). A database CHECK refuses `APPROVED` without all three. A draft
+definition may be read and catalogued but must not be the basis of an approved target.
+
+**Since COMPETENCY-M2** (CM-6 resolved, COMPETENCY_ADMINISTRATION.md §2):
+
+- a version is a **snapshot** identified by `definitionsSha256`, a hash over the framework's
+  definitions; it has an `origin` — `IMPORT` (from a file) or `ADMINISTRATION` (drawn up on screen);
+- an approval covers **that hash**: if a definition changes after the snapshot, the version is stale
+  and cannot be approved;
+- the **approver may not be an editor**: the version's creator and everyone who changed a definition
+  the snapshot covers are recorded in `editorUserIds`, and a CHECK refuses an approver among them;
+- approving a version supersedes the previously approved one;
+- every definition write is a row in the append-only `competency_definition_change`.
 
 ## 3. Level vocabulary
 
@@ -271,7 +284,7 @@ Recorded, not chosen. Each names what it blocks.
 | CM-3 | Is there a mapping between the matrix scale and the assessment proficiency bands, and in which direction? | Framework owner + assessment owner | `ASSESSMENT_MEASURED` competency observations |
 | CM-4 | How do Agile training status and the Process › Agile rating relate, if at all? | Agile practice lead | Agile readiness reporting |
 | CM-5 | The expansion of "LMS" and the display names of the product competencies | Framework owner | Final display names (codes are stable regardless) |
-| CM-6 | Who approves a framework version, and through what screen? | Product owner | `APPROVED` framework versions; therefore any role target |
+| CM-6 | ~~Who approves a framework version, and through what screen?~~ **Resolved 2026-10-07**: a holder of `competency.manage` (KNOWZY Administrator only) who did not edit it, on Administration → Competencies (COMPETENCY_ADMINISTRATION.md §2) | Product owner | — |
 | CM-7 | Is Rx-Suite the same product as Rx-Universe? | Product SME | Confirming `LMS.RX_UNIVERSE` |
 | CM-8 | Is RXSolun OFS product knowledge or functional/domain knowledge? | Product SME | Confirming its category |
 | CM-9 | Where do approved **role targets** come from? The workbook has none (its "Target" block is per person) | Workforce planning / HR | Every gap and readiness figure |

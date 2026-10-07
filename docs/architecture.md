@@ -861,10 +861,16 @@ Seven rules govern it.
    where a provider is approved for question generation (§9.0 rule 7). A derivative never replaces an
    original, and a question grounded in one carries generation evidence and origin lineage
    separately.
+8. **Approval is separated from editing** (COMPETENCY-M2, 2026-10-07). A framework version is
+   approved by someone who neither created it nor edited the definitions it covers, and a role
+   target by someone who neither proposed nor edited it. An approval covers one definitions hash.
+   `competency.manage` is held by `KNOWZY_ADMINISTRATOR` only
+   ([COMPETENCY_ADMINISTRATION.md](competencies/COMPETENCY_ADMINISTRATION.md)).
 
 | Capability | Status | Specification |
 | --- | --- | --- |
-| Competency catalogue and structure-only import | **Built** (COMPETENCY-M0/M1) — operator command, no screen | COMPETENCY_MODEL.md, COMPETENCY_IMPORT_PLAN.md |
+| Competency catalogue and structure-only import | **Built** (COMPETENCY-M0/M1) — operator command | COMPETENCY_MODEL.md, COMPETENCY_IMPORT_PLAN.md |
+| Competency administration: catalogue, aliases, versions, role targets | **Specified** (COMPETENCY-M2) — Administration → Competencies | COMPETENCY_ADMINISTRATION.md |
 | Gap rule | **Built** as a pure function; no data to run it on | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §4 |
 | Knowledge Proficiency, Competency Analytics | Designed | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §5–§6 |
 | My Competencies (self-assessment) | Designed; blocked on CP-2, CP-4 | KNOWLEDGE_PROFICIENCY_ARCHITECTURE.md §7 |

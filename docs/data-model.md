@@ -230,6 +230,16 @@ no table here holds an observation about a person**
 Definitions are framework-scoped and created once; a version records, through provenance, which of
 them its source file contained. Nothing is deleted: a definition is retired.
 
+**Amended by migration `0016_competency_administration` (COMPETENCY-M2, 2026-10-07)** —
+[COMPETENCY_ADMINISTRATION.md](competencies/COMPETENCY_ADMINISTRATION.md):
+
+| Entity | Added | Notes |
+| --- | --- | --- |
+| `CompetencyFrameworkVersion` | `origin` (`IMPORT`/`ADMINISTRATION`), `definitionsSha256?`, `createdByUserId?`, `editorUserIds[]` | CHECK: an approver is not the creator and not in `editorUserIds` |
+| `CompetencyAlias` | `status`, `updatedAt`, `createdByUserId?`, `modifiedByUserId?` | An alias is deactivated, never deleted |
+| `RoleCompetencyExpectation` | `frameworkVersionId?` (set at approval), `editorUserIds[]`, `retiredAt?`, `retiredByUserId?` | The first write path. CHECK: an approver is not the proposer and not an editor. Partial unique: one `PROPOSED` and one `APPROVED` per `(jobRoleId, competencyId)` |
+| `CompetencyDefinitionChange` (new) | `frameworkId`, `subject`, `subjectId`, `action`, `actorUserId`, `changedFields[]`, `previousValue?`, `newValue?`, `createdAt` | **Append-only**: a trigger refuses UPDATE and DELETE. It is what a version's editors are read from |
+
 ---
 
 ## 4. Knowledge source and document entities
