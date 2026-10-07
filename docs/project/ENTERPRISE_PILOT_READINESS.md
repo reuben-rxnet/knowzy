@@ -68,7 +68,7 @@ platform-side logic is complete and tested; only the external adapter is absent.
 | **Knowledge Sources** | Ready behind a mock | `KnowledgeSourceAdapter` contract written for SharePoint: containers, folder hierarchy, delta via opaque `STATE_CHECKPOINT`, `getEffectiveAccess` with a first-class `UNKNOWN`, capability negotiation, both permission modes, `writeCapable: false` as the literal type. Mock adapter runs the **real extractors over real files** and satisfies a reusable conformance suite | `SharePointKnowledgeSourceAdapter` — zero lines exist. Roadmap Phase 7 |
 | **Question Bank** | Ready behind a mock | `QuestionBankAdapter` port with **required** `ifMatch`, `operationKey` idempotency, and **no delete method** — governance rule G7 enforced by the type system. Mock persists to JSON and is conformance-tested. `PublishedQuestionReference` projection populated | `SharePointQuestionBankAdapter`, field-mapping profile validation, list provisioning, reconciliation. Roadmap Phase 8 |
 | **Question Generation** | Ready behind a mock | The **entire gate chain is model-agnostic and built**: nonce-delimited untrusted framing with a zero tool grant, Zod output schema, evidence verification (STRICT exact / STANDARD ≥0.95 trigram), option integrity, six-component composite confidence, rejection taxonomy, prompt-version records on jobs and questions | A `QuestionGenerator` whose `kind` is `'anthropic'`. The port already declares that variant. No Anthropic SDK is a dependency of any workspace |
-| **Governance** | Production-ready | 13 gates, separation of duties (gate 13), evidence spans with character offsets, duplicate disposition, preflight with six checks and a recorded decision, append-only audit with a declared detail allow-list, idempotent publishing | Nothing for a pilot. Reconciliation drift handling arrives with Phase 8 |
+| **Governance** | Production-ready | 13 gates, separation of duties (gate 13 — **configurable; permitting self-approval since 2026-10-07**, §12.15), evidence spans with character offsets, duplicate disposition, preflight with six checks and a recorded decision, append-only audit with a declared detail allow-list, idempotent publishing | Nothing for a pilot. Reconciliation drift handling arrives with Phase 8 |
 | **Reporting** | **Not built** *(at the date of this assessment — see §12.9: R1 and R2 built a dashboard and twelve reports)* | `@knowzy/reporting` is an 18-line placeholder that exports its own `IMPLEMENTED_IN = 'Phase 10'`. `report_definition`/`_run`/`_export`/`_schedule` tables exist and are empty. No aggregate read model exists anywhere | Everything. Roadmap Phase 10. **A pilot that promises reports will not have them** |
 | **Learner Experience** | Production-ready for assessment | Eligibility snapshots pin the pool at publication; one question at a time with every answer server-persisted; resume from the URL; deterministic scoring; per-topic results and gap states; answer-key protection asserted at runtime | No per-learner **results list** endpoint, so no progress history, proficiency trend or org-level gap view. Badges and certificates are Phase 9 and excluded from this workstream |
 
@@ -733,3 +733,24 @@ RxSolutions matrix is now imported into the development database (16 categories,
 | A KNOWZY Administrator can maintain the framework — categories, competencies, aliases — with every change recorded and nothing deleted | That any role requirement is approved. None is: the framework version is a draft, and no requirement's source has been supplied |
 | A framework version is a fingerprinted snapshot, and approval is **separated from editing**, enforced by the service and by the database | That the RxSolutions matrix is the organization's approved framework. That is CM-1, the framework owner's decision |
 | A role requirement must name its source and is approved by someone who did not write it | That KNOWZY knows anyone's competency or readiness. Still no observation about a person exists |
+
+### 12.15 Authoring Role Simplification (2026-10-07)
+
+The product owner simplified the authoring side to **two active roles**: the **Authoring
+Administrator** (`KNOWZY_ADMINISTRATOR`, holding every permission key) and the **Learner**. The
+twelve specialist roles are deactivated, not deleted. **Separation of duties is switched off by
+configuration**, not removed: one administrator may create, review, approve and publish their own
+question, and draw up and approve a competency version or propose and approve a role target.
+Rationale, recorded in access-control.md §2.0: platform simplicity, small-team operation, reduced
+administrative overhead.
+
+| The pilot may now claim | The pilot must not claim or imply |
+| --- | --- |
+| Every authoring act is recorded with the identity that performed it — author, editor, approver, publisher, framework editor and approver, target proposer and approver — including when they are the same person | That a second person reviewed or approved any question. Under this configuration one person may do both, and the record says so |
+| Separation of duties can be switched back on per rule with one audited configuration change and no release; the gates, the strict code defaults and the specialist roles are all still there | That separation of duties is in force. Earlier claims in this document and in §12.9's import row ("gate 13 refuses self-approval") describe the strict configuration, which is no longer the platform's setting |
+| A grant on a retired role confers no permission, proven by a test that fails when the filter is removed | That access is least-privilege. One role holds every authoring permission |
+
+**For InfoSec and Privacy (T-29).** If the approval request relied on two-person approval of
+generated content as a control, it needs restating: under this configuration a single administrator
+can generate, approve and publish. Re-enabling separation is available as the mitigation if a
+reviewer requires it.

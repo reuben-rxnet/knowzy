@@ -3216,3 +3216,65 @@ come from?) stay open.
   - Either reading keeps the second administrator identity, because separation of duties is an
     identity comparison.
 - The backend commit message says "13 routes"; there are 14.
+
+## Authoring Role Simplification — two roles, separation of duties as configuration
+
+2026-10-07. The product owner moved the authoring side to **two active roles**: the Authoring
+Administrator (`KNOWZY_ADMINISTRATOR`, relabelled, now holding every permission key) and the
+Learner. The reasons are platform simplicity, small-team operation and less administrative
+overhead. Two choices were made before any code:
+
+- **Separation of duties is turned off in configuration, not deleted from the code.**
+- **The twelve specialist roles are deactivated, not deleted.**
+
+Specification: `access-control.md` §2.0, written first and committed on its own.
+
+### What it took
+
+- **The settings had never been read.** `approval.authorMayApproveOwn` and its siblings were
+  declared, and the seed even wrote them, but every caller used the code defaults. They are now read
+  by `loadSeparationSettings`, used by:
+  - the review and publish services, through both the API and the MCP server;
+  - competency version and target approval, through two new keys.
+- **The code defaults stay strict.** A malformed value reads as strict, and a service called
+  without settings is strict.
+- **The decision is applied once and recorded.** The seed changes each key once, marked in
+  `configuration_change`, so a later re-enable survives any re-seed.
+- **Migration 0017** adds `role.is_active` and drops the 0016 competency separation CHECKs, which
+  cannot read a setting. The identity reads ignore a grant on an inactive role.
+- **Retired identities are kept, not deleted.** Each is a `DEPROVISIONED` user with its grants
+  revoked, for two reasons:
+  - audit rows and lineage name them;
+  - the domain suites use them as distinct people when they test the strict logic.
+- **Identity menus:** two entries each, in all three applications.
+- **The pilot demo** runs as one identity.
+
+### Found on the way
+
+- **A mid-run API crash.** The first browser run lost the API to the container volume desync
+  (`tsx/dist/preflight.cjs`). From then on every test failed with *socket hang up*: 19 failures that
+  said nothing about the change. The run was stopped, the volume repaired, and the suite re-run.
+- **The Sync Manager's refusal page had no identity picker.** A viewer refused the console could not
+  switch back. It went unnoticed while the refused identity was Author and the test never had to
+  leave the page. Fixed: the picker now renders on the refusal page too.
+- **The Sync Manager switch helper asserted nothing.** It checked the select's own value, then
+  navigated before the server action finished, so the switch was aborted. It now waits for the
+  cookie the server sets: the `actAs` lesson, again.
+
+### Validated
+
+- Format clean, lint 22/22, typecheck 35/35, build 21/21. Codegen clean after regenerating the
+  registry.
+- Drift gate: *No difference detected*.
+- Unit 717 and contract 222 passed. The contracts now pin two active roles and an administrator
+  holding every key, and keep rule 3 for the specialist roles.
+- Integration, by file: 23 passed. This includes the new test that a grant on an inactive role
+  confers nothing; **removing the filter fails it**.
+- **The full browser suite: 83 passed, 1 skipped, 0 failed**, on the final run. The self-approval
+  spec asserts the approval record names the author as the approver.
+- `npm run verify` was not run, to protect the active drafts.
+
+### Not changed
+
+- **There is no screen for the separation settings.** Re-enabling them is a configuration write.
+- **If T-29 relied on two-person approval as a control, it needs restating** (readiness §12.15).

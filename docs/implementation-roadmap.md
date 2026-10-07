@@ -70,6 +70,13 @@ observability and the redactor, the transactional audit writer, local Docker top
 
 ### Phase 2 — Identity and access
 
+> **Amended 2026-10-07 — Authoring Role Simplification** ([access-control.md §2.0](access-control.md#20-authoring-role-simplification-2026-10-07--read-this-first)).
+> Two roles are active: the Authoring Administrator and the Learner. The specialist roles below are
+> deactivated (migration 0017), and separation of duties is permitted-off by configuration. The
+> Phase 2 exit criteria still hold for the mechanism — declared policies, database-resolved
+> permissions, separation evaluated at approval — while the platform's own configuration no longer
+> requires two people.
+
 **Builds:** Entra OIDC for both portals, token validation, subject resolution and JIT provisioning,
 the policy engine, `DataScope`, the role and permission catalogue, user administration, access history.
 

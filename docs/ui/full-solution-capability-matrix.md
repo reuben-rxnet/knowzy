@@ -495,3 +495,13 @@ below**: an architecture-only capability gets no link, disabled or otherwise, un
 | My Competencies (Profile) | `REQUIRES_BACKEND_EXTENSION` | Nothing | CP-2, CP-4, an approved framework version |
 | My Certifications (Profile) | `REQUIRES_BACKEND_EXTENSION` | Nothing. The existing `certificate` table is the platform's **own** issued certificates, a different concept | CP-6, browser upload (M4) |
 | Learning Recommendations | `REQUIRES_BACKEND_EXTENSION` | `knowledge_recommendation` exists for refreshers; nothing writes it | Phase 9, M2, an evidence source |
+
+## Authoring Role Simplification (2026-10-07)
+
+The counts at the top are unchanged. What changed is who sees what:
+
+| Capability | Classification | Notes |
+| --- | --- | --- |
+| Identity switcher (all three applications) | `IMPLEMENTED` | Two identities: Authoring Administrator and Learner. The retired single-purpose identities are deprovisioned and not offered |
+| Separation of duties (questions, competency versions, role targets) | `IMPLEMENTED`, **configured off** | The settings `approval.authorMayApproveOwn`, `approval.editorMayApproveOwn`, `approval.competencyVersionEditorMayApprove`, `approval.competencyTargetEditorMayApprove` are true. Re-enabling is a configuration change; there is still no screen for it |
+| User and access management screens | `PLANNED` (unchanged) | No such screen exists; roles are seeded configuration |

@@ -105,7 +105,9 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 16 migrations apply from empty; seed is idempotent. 0016 is COMPETENCY-M2:
+- 17 migrations apply from empty; seed is idempotent. 0017 is the Authoring Role
+  Simplification: role.is_active, and the 0016 competency separation CHECKs
+  dropped. 0016 is COMPETENCY-M2:
   version origin, definitions hash and editors; alias status; target editors and
   approved version; the append-only competency_definition_change; separation
   CHECKs. 0015 is COMPETENCY-M1:
@@ -187,13 +189,10 @@ Still Open:
 
 Next Immediate Task:
 
-0. OWNER DECISION PENDING (asked 2026-10-07, deferred until after COMPETENCY-M2
-   review): "only 1 role in the authoring website". Two readings were offered --
-   simplify the identity menu to the two administrator identities (keeps the
-   roles, docs and tests), or remove the 13 other roles (amend access-control.md
-   §2 rule 3 first, drop two contract tests, rewrite most e2e specs). Either way
-   the SECOND administrator identity stays: separation of duties is an identity
-   comparison, not a role.
+0. AUTHORING ROLE SIMPLIFICATION DONE (2026-10-07): two active roles,
+   separation of duties configured off (see "Roles"). If T-29 relied on
+   two-person approval as a control, it needs restating
+   (ENTERPRISE_PILOT_READINESS.md §12.15).
    XLSX-INTEGRITY-M1 is DONE (2026-09-29): cells placed by reference through
    one shared row parser; measured impact on the pilot was zero, so no re-sync.
    Open follow-up it exposed: NOTHING WRITES draft_question.needsRevalidation,
@@ -394,18 +393,37 @@ select statement on model Y` from the api while the host typechecks clean.
 
 ## Roles
 
-Fourteen seeded roles. `KNOWZY_ADMINISTRATOR` is a permanent production role for
-platform and product owners, knowledge managers, administrators, pilot leads and
-operational platform support. It holds every permission key except
-`question.publish`; the administrator USER also holds `PUBLISHER`, so the
-identity has full access while access-control.md 2 rule 3 stays satisfied --
-permissions are the union across a user's roles.
+AUTHORING ROLE SIMPLIFICATION (2026-10-07, access-control.md §2.0, migration
+0017). TWO ACTIVE ROLES: `KNOWZY_ADMINISTRATOR`, shown as "Authoring
+Administrator" and holding EVERY permission key including `question.publish`,
+and `LEARNER`. The other twelve roles are DEACTIVATED (`role.is_active =
+false`), never deleted: history names them. A grant on an inactive role confers
+NOTHING -- the identity reads filter on it, and a test fails if the filter goes.
 
-Full access is NOT exemption. Separation of duties is an identity comparison at
-approval, not a permission, so an administrator cannot approve a question it
-authored. Gate 13 refuses it. A second seeded identity,
-`knowzy-administrator-2@local.invalid`, exists so a pilot run completes with one
-deliberate switch at the approval step rather than a weakened gate.
+SEPARATION OF DUTIES IS CONFIGURED OFF, NOT REMOVED. `loadSeparationSettings`
+(packages/domain/src/review/separation-settings.ts) reads
+`approval.authorMayApproveOwn`, `editorMayApproveOwn`, `approverMayPublishOwn`,
+`competencyVersionEditorMayApprove` and `competencyTargetEditorMayApprove`
+from platform configuration for the review, publish (API and MCP) and
+competency services. Before 2026-10-07 those keys were declared but NEVER
+READ. Code defaults stay STRICT, a malformed value reads as strict, and a
+service called without settings is strict. The seed applies the decision ONCE
+per key, marked in configuration_change with correlation
+`authoring-role-simplification-2026-10-07`, so a later re-enable survives any
+re-seed. 0017 dropped the 0016 competency separation CHECKs (a CHECK cannot
+read a setting); creator, editors and approver are still written everywhere.
+
+The retired local identities (author, approver, publisher, source and
+assessment managers, the second administrator, manager...) are still SEEDED as
+DEPROVISIONED users with revoked grants: audit rows name them, and the domain
+integration suites use them as distinct people when testing the strict logic.
+They appear in no identity menu, and a request as one is refused with
+PORTAL_ACCESS_DENIED. The e2e suite has two identities, administrator and
+learner; permission-refusal specs act as the Learner.
+
+Rule 3 (no role holds approve and publish) still binds the SPECIALIST roles,
+and a contract test checks it; the administrator is exempt by recorded
+decision. Re-activating a specialist role restores the separation.
 
 IDENTITY SWITCHING IS IN THE HEADER on every page of both portals since
 2026-09-26 (`components/IdentityMenu.tsx`), not on the home page. Three things
@@ -415,13 +433,10 @@ the browser owns `open`, so it is a controlled client component with
 `next/headers`, so the layout passes the list in as data; and the e2e helper
 asserts the SHELL's acting-as label, which is server state.
 
-`knowzy-administrator@local.invalid` is the DEFAULT identity in both portals'
-local selectors. Validate the whole workflow as that role with:
+`knowzy-administrator@local.invalid` is the DEFAULT identity in every local
+selector. Validate the whole workflow as that one identity with:
 
-PILOT_DEMO_AS_ADMIN=1 npx tsx scripts/pilot-demo.ts
-
-Every existing role is unchanged. Do not grant one role both `question.approve`
-and `question.publish` -- a contract test refuses it, and /docs backs it.
+npx tsx scripts/pilot-demo.ts
 
 ## Generation providers
 
@@ -487,11 +502,14 @@ EVALUATION, and the specification says so in those words.
   docs/competencies/COMPETENCY_ADMINISTRATION.md. Four things to keep:
   - `competency.manage` is held by KNOWZY_ADMINISTRATOR ONLY (a contract test);
     reads are `taxonomy.read`.
-  - APPROVAL IS SEPARATED FROM EDITING: a version's creator and editors, and a
-    target's proposer and editors, cannot approve it. The service refuses with
-    words AND a CHECK in 0016 refuses a bypassing write. Editors of a version
-    are READ from competency_definition_change, which is append-only (trigger)
-    and has NO FK, as audit_log -- so a test can delete its framework.
+  - SEPARATION OF APPROVAL FROM EDITING IS A SETTING since the Authoring Role
+    Simplification (`approval.competencyVersionEditorMayApprove`,
+    `approval.competencyTargetEditorMayApprove`, both TRUE on this platform,
+    strict by default). When strict, a version's creator and editors and a
+    target's proposer and editors cannot approve it. The 0016 CHECKs were
+    dropped in 0017. Editors of a version are READ from
+    competency_definition_change, which is append-only (trigger) and has NO FK,
+    as audit_log -- so a test can delete its framework.
   - A VERSION IS A SNAPSHOT: approval recomputes `definitionsSha256` inside the
     transaction; any later edit makes a DRAFT stale. The importer records the
     hash once, at version creation.
