@@ -839,6 +839,7 @@
         "question.edit",
         "question.generate",
         "question.import",
+        "question.publish",
         "question.read",
         "question.regenerate",
         "question.retire",
