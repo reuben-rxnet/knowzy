@@ -1,8 +1,9 @@
 # AI Document Studio Architecture
 
-**Status:** Design only. **Classification: `BLOCKED_BY_APPROVAL`** (§7) and
-`REQUIRES_BACKEND_EXTENSION`. No route, screen, table or provider call exists, and no navigation item
-is shown.
+**Status:** **`PARTIALLY_IMPLEMENTED`** since Slice 2 (2026-10-07, §10): the processing purpose
+`DOCUMENT_RESTRUCTURE`, its approval record, a read-only status endpoint and the **AI Document
+Studio** overview screen exist. **No transformation exists**: no restructuring client, no derivative,
+no provider call, no upload. §2–§8 remain the design of the workflow still to be built.
 **Target location:** Knowledge Sources → AI Document Studio.
 **Governed by:** [COMPETENCY_PRIVACY_AND_GOVERNANCE.md](COMPETENCY_PRIVACY_AND_GOVERNANCE.md) CP-5 ·
 [architecture.md §9.0](../architecture.md#90-provider-independence--amended-2026-09-24-extended-2026-09-26-and-2026-09-27) ·
@@ -195,3 +196,86 @@ question import (CLAUDE.md, "Question acquisition").
 | DS-3 | Is separation of duties required between derivative editor and approver? | Knowledge governance |
 | DS-4 | Who may request a restructuring — any author, or the document's owner only? | Knowledge governance |
 | DS-5 | Retention of rejected proposals (they contain provider output about a document) | Privacy |
+
+## 10. Slice 2 — the purpose, its approval, and the overview (2026-10-07)
+
+Decided by the product owner on 2026-10-07 and recorded before any code. **A governance and
+product-readiness milestone: it establishes the purpose, the approval model and the platform's true
+state. It builds no part of the transformation.**
+
+### 10.1 The purpose
+
+| Purpose | Covers | Approval held in |
+| --- | --- | --- |
+| `QUESTION_GENERATION` | Sending **selected sections** to a provider for the bounded task of proposing questions | `llm.approvedProviders` (since AI-PROVIDER-M1) |
+| `DOCUMENT_RESTRUCTURE` | Sending **whole documents** to a provider to propose an assessment derivative (§2) | `llm.purposeApprovals.DOCUMENT_RESTRUCTURE` (new) |
+
+**Neither approval satisfies the other**, in either direction. They are separate keys, written by
+separate acts, and every reader consults only its own purpose's key. A contract test asserts it.
+This is CP-5's position (privacy document §6): restructuring is a distinct processing purpose, and
+the Codex approval recorded for generation on 2026-09-28 does not cover it.
+
+### 10.2 Recording an approval
+
+The **Authoring Administrator** (`platform.configure`) records, replaces or removes a
+`DOCUMENT_RESTRUCTURE` approval per provider, on the AI Document Studio screen.
+
+| Field | Rule |
+| --- | --- |
+| Approval reference | **Required**, at least 4 characters: where the decision is held (CP-5's answer) |
+| Approver | The acting identity, recorded from the request, never typed |
+| Timestamp | The server's clock at the write |
+| Audit | One event per act, in the same transaction as the configuration row and its `configuration_change` row |
+
+| Act | Audit action (`ADMIN.CONFIGURATION.*`) |
+| --- | --- |
+| First approval for a provider | `PURPOSE_APPROVAL_RECORDED` |
+| A new reference where one was held | `PURPOSE_APPROVAL_REPLACED` (previous and new reference) |
+| Withdrawal | `PURPOSE_APPROVAL_REMOVED` |
+| Each evaluation of the status | `PURPOSE_STATUS_EVALUATED` (the overall state and the per-provider states) |
+
+An approval is refused for a provider that **cannot** restructure (§10.3, capability), because a
+durable record asserting it was cleared for something it can never do would be untrue — the same
+rule provider approval follows. **Recording an approval does not enable anything**: with no
+restructuring client the state moves only from `BLOCKED_BY_APPROVAL` to `NOT_BUILT`.
+
+### 10.3 The readiness model
+
+Checked per provider, **most permanent first** (the generation registry's order):
+
+| # | Check | Fails when | Effect |
+| --- | --- | --- | --- |
+| 1 | **Provider exists** | Not in the provider catalogue | Not listed |
+| 2 | **Capability** | The provider retrieves its own context (Copilot), or is the deterministic local generator, which cannot rewrite a document | **Ineligible**: listed with the reason, no state, no approval control |
+| 3 | **Purpose approval** | No `DOCUMENT_RESTRUCTURE` approval is recorded | `BLOCKED_BY_APPROVAL` |
+| 4 | **Client implementation** | No restructuring client is registered for the provider | `NOT_BUILT` |
+| 5 | **Configuration** | The provider is not enabled with an endpoint, model and credential reference | `NOT_BUILT` with that reason too |
+| — | All pass | — | `READY` |
+
+**The overall state** is the most advanced state any eligible provider reaches (`READY` >
+`NOT_BUILT` > `BLOCKED_BY_APPROVAL`). On this release the registry of restructuring clients is
+**empty by construction**, so no provider and no overall state can read `READY`; a contract test
+asserts both that the registry is empty and that the evaluator cannot return `READY` without an
+entry. **No state claims a transformation capability that does not exist.**
+
+Expected now: overall `BLOCKED_BY_APPROVAL`. After an approval is recorded: `NOT_BUILT`.
+
+### 10.4 Status endpoint and screen
+
+- `GET /api/v1/authoring/document-studio/status` (`report.read`) returns the purpose, the overall
+  state, and per provider: exists, capability (with reason), approval (reference, approver, time),
+  client implementation, configuration, state and reason. It is computed from the catalogue, the
+  restructuring-client registry and configuration on every call — no stored or mocked status.
+- `POST /api/v1/authoring/document-studio/approvals` (`platform.configure`) records, replaces or
+  removes one approval.
+- **AI Document Studio** is its **own sidebar entry**, between Question Import and Generate. The
+  screen explains assessment preparation, its measured motivation (documented evaluation results
+  only), the workflow of §2, and shows the current state, approval status, provider readiness and
+  implementation status. It has **no** Run, Transform, Rewrite or Prepare control, and says
+  *Transformation capability not yet implemented*.
+
+### 10.5 Still the design, not the build
+
+The derivative workflow of §2–§6 — proposal, verification, side-by-side review, whole-document
+approval, dual lineage — is unchanged and unbuilt (roadmap §3a M3), as is upload (§8.1, M4). DS-1
+and DS-3..DS-5 stay open. DS-2 is now **recordable** (§10.2) but not recorded.
