@@ -40,6 +40,7 @@ import {
   QuestionNotFoundError,
   TaxonomyError,
   TransitionNotPermittedError,
+  loadSeparationSettings,
 } from '@knowzy/domain';
 import { systemClock } from '@knowzy/observability';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
@@ -148,7 +149,15 @@ const actorFrom = (ctx: RouteContext) => ({
   requestId: ctx.requestId,
 });
 
-const reviewDeps = (deps: RouteDeps) => ({ prisma: deps.prisma, clock: systemClock });
+// The separation-of-duties SETTINGS are read per request (Authoring Role
+// Simplification, access-control.md §2.0): a configuration change takes effect
+// on the next approval, with no restart. Gate 13 still runs and records its
+// verdict; the settings decide what it permits.
+const reviewDeps = async (deps: RouteDeps) => ({
+  prisma: deps.prisma,
+  clock: systemClock,
+  policies: (await loadSeparationSettings(deps.prisma)).policies,
+});
 
 export const reviewRoutes = [
   defineRoute({
@@ -373,7 +382,7 @@ export const reviewRoutes = [
       }
       try {
         return await transitionQuestion({
-          deps: reviewDeps(deps),
+          deps: await reviewDeps(deps),
           questionId: params.data.questionId,
           to: 'AUTHOR_REVIEW',
           actor: actorFrom(ctx),
@@ -402,11 +411,15 @@ export const reviewRoutes = [
         );
       }
       try {
-        const context = await evaluateGatesForQuestion(reviewDeps(deps), params.data.questionId, {
-          userId: ctx.subject.userId,
-          roles: ctx.subject.roles,
-          permissions: ctx.subject.permissions,
-        });
+        const context = await evaluateGatesForQuestion(
+          await reviewDeps(deps),
+          params.data.questionId,
+          {
+            userId: ctx.subject.userId,
+            roles: ctx.subject.roles,
+            permissions: ctx.subject.permissions,
+          },
+        );
         return {
           questionId: params.data.questionId,
           passed: context.evaluation.passed,
@@ -515,7 +528,7 @@ export const reviewRoutes = [
       }
       try {
         return await addReview({
-          deps: reviewDeps(deps),
+          deps: await reviewDeps(deps),
           questionId: params.data.questionId,
           actor: actorFrom(ctx),
           kind: body.data.kind,
@@ -554,7 +567,7 @@ export const reviewRoutes = [
       }
       try {
         return await dispositionDuplicate({
-          deps: reviewDeps(deps),
+          deps: await reviewDeps(deps),
           questionId: params.data.questionId,
           actor: actorFrom(ctx),
           disposition: body.data.disposition,
@@ -585,7 +598,7 @@ export const reviewRoutes = [
       }
       try {
         const result = await transitionQuestion({
-          deps: reviewDeps(deps),
+          deps: await reviewDeps(deps),
           questionId: params.data.questionId,
           to: 'SUBMITTED_FOR_APPROVAL',
           actor: actorFrom(ctx),
@@ -623,7 +636,7 @@ export const reviewRoutes = [
       }
       try {
         const result = await transitionQuestion({
-          deps: reviewDeps(deps),
+          deps: await reviewDeps(deps),
           questionId: params.data.questionId,
           to: 'APPROVED',
           actor: actorFrom(ctx),
@@ -673,7 +686,7 @@ export const reviewRoutes = [
       }
       try {
         return await transitionQuestion({
-          deps: reviewDeps(deps),
+          deps: await reviewDeps(deps),
           questionId: params.data.questionId,
           to: 'CHANGES_REQUESTED',
           actor: actorFrom(ctx),
@@ -715,7 +728,7 @@ export const reviewRoutes = [
       }
       try {
         return await transitionQuestion({
-          deps: reviewDeps(deps),
+          deps: await reviewDeps(deps),
           questionId: params.data.questionId,
           to: 'REJECTED',
           actor: actorFrom(ctx),

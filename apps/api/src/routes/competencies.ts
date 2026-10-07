@@ -27,6 +27,7 @@ import {
   approveFrameworkVersion,
   approveRoleTarget,
   CompetencyAdminError,
+  loadSeparationSettings,
   createCompetency,
   createCompetencyAlias,
   createCompetencyCategory,
@@ -65,7 +66,13 @@ const actorFrom = (ctx: RouteContext) => ({
   requestId: ctx.requestId,
 });
 
-const depsFrom = (deps: RouteDeps) => ({ prisma: deps.prisma, clock: systemClock });
+// The competency separation settings are read per request (Authoring Role
+// Simplification). Absent, the service is STRICT.
+const depsFrom = async (deps: RouteDeps) => ({
+  prisma: deps.prisma,
+  clock: systemClock,
+  separation: (await loadSeparationSettings(deps.prisma)).competency,
+});
 
 const invalidField = (issuePath: readonly (string | number)[]): string =>
   issuePath.length === 0 ? 'body' : issuePath.join('.');
@@ -197,12 +204,14 @@ export const competencyRoutes = [
     portal: 'AUTHORING',
     summary: 'Competency frameworks: versions, domains, categories, competencies and aliases.',
     handler: async (ctx, _request, _reply, deps) => ({
-      frameworks: await readCompetencyCatalogue(depsFrom(deps)),
+      frameworks: await readCompetencyCatalogue(await depsFrom(deps)),
       // For the SCREEN only: whether to offer write controls, and who is
       // asking, so it can say "you edited this" before the click. The server
       // decides again on every write.
       canManage: ctx.subject.permissions.includes('competency.manage'),
       viewerUserId: ctx.subject.userId,
+      separationRequired: !(await loadSeparationSettings(deps.prisma)).competency
+        .versionEditorMayApprove,
     }),
   }),
 
@@ -214,7 +223,7 @@ export const competencyRoutes = [
     summary: 'Creates a competency category. Its code is permanent from creation.',
     handler: async (ctx, request, reply, deps) =>
       run(ctx, request, reply, { body: CreateCategory }, async (_p, body) => ({
-        category: await createCompetencyCategory(depsFrom(deps), actorFrom(ctx), body),
+        category: await createCompetencyCategory(await depsFrom(deps), actorFrom(ctx), body),
       })),
   }),
 
@@ -231,7 +240,7 @@ export const competencyRoutes = [
         reply,
         { params: z.object({ categoryId: Uuid }), body: UpdateCategory },
         async (params, body) => ({
-          category: await updateCompetencyCategory(depsFrom(deps), actorFrom(ctx), {
+          category: await updateCompetencyCategory(await depsFrom(deps), actorFrom(ctx), {
             categoryId: params.categoryId,
             ...defined(body),
           }),
@@ -247,7 +256,7 @@ export const competencyRoutes = [
     summary: 'Creates a competency in an active category. A near match needs confirmation.',
     handler: async (ctx, request, reply, deps) =>
       run(ctx, request, reply, { body: CreateCompetency }, async (_p, body) => ({
-        competency: await createCompetency(depsFrom(deps), actorFrom(ctx), defined(body)),
+        competency: await createCompetency(await depsFrom(deps), actorFrom(ctx), defined(body)),
       })),
   }),
 
@@ -264,7 +273,7 @@ export const competencyRoutes = [
         reply,
         { params: z.object({ competencyId: Uuid }), body: UpdateCompetency },
         async (params, body) => ({
-          competency: await updateCompetency(depsFrom(deps), actorFrom(ctx), {
+          competency: await updateCompetency(await depsFrom(deps), actorFrom(ctx), {
             competencyId: params.competencyId,
             ...defined(body),
           }),
@@ -280,7 +289,7 @@ export const competencyRoutes = [
     summary: 'Records an alias: a source label and the decision that maps it.',
     handler: async (ctx, request, reply, deps) =>
       run(ctx, request, reply, { body: CreateAlias }, async (_p, body) => ({
-        alias: await createCompetencyAlias(depsFrom(deps), actorFrom(ctx), defined(body)),
+        alias: await createCompetencyAlias(await depsFrom(deps), actorFrom(ctx), defined(body)),
       })),
   }),
 
@@ -297,7 +306,7 @@ export const competencyRoutes = [
         reply,
         { params: z.object({ aliasId: Uuid }), body: UpdateAlias },
         async (params, body) => ({
-          alias: await updateCompetencyAlias(depsFrom(deps), actorFrom(ctx), {
+          alias: await updateCompetencyAlias(await depsFrom(deps), actorFrom(ctx), {
             aliasId: params.aliasId,
             ...defined(body),
           }),
@@ -318,7 +327,7 @@ export const competencyRoutes = [
         reply,
         { params: z.object({ frameworkId: Uuid }), body: CreateVersion },
         async (params, body) => ({
-          version: await createFrameworkVersion(depsFrom(deps), actorFrom(ctx), {
+          version: await createFrameworkVersion(await depsFrom(deps), actorFrom(ctx), {
             frameworkId: params.frameworkId,
             versionLabel: body.versionLabel,
           }),
@@ -339,7 +348,7 @@ export const competencyRoutes = [
         reply,
         { params: z.object({ versionId: Uuid }), body: Approve },
         async (params, body) => ({
-          version: await approveFrameworkVersion(depsFrom(deps), actorFrom(ctx), {
+          version: await approveFrameworkVersion(await depsFrom(deps), actorFrom(ctx), {
             versionId: params.versionId,
             ...defined(body),
           }),
@@ -354,9 +363,11 @@ export const competencyRoutes = [
     portal: 'AUTHORING',
     summary: 'Role -> Competency Requirements: every target, and what a proposal may choose.',
     handler: async (ctx, _request, _reply, deps) => ({
-      ...(await readRoleTargets(depsFrom(deps))),
+      ...(await readRoleTargets(await depsFrom(deps))),
       canManage: ctx.subject.permissions.includes('competency.manage'),
       viewerUserId: ctx.subject.userId,
+      separationRequired: !(await loadSeparationSettings(deps.prisma)).competency
+        .targetEditorMayApprove,
     }),
   }),
 
@@ -368,7 +379,7 @@ export const competencyRoutes = [
     summary: 'Proposes a requirement for a role. The source is required; none is invented.',
     handler: async (ctx, request, reply, deps) =>
       run(ctx, request, reply, { body: ProposeTarget }, async (_p, body) => ({
-        target: await proposeRoleTarget(depsFrom(deps), actorFrom(ctx), defined(body)),
+        target: await proposeRoleTarget(await depsFrom(deps), actorFrom(ctx), defined(body)),
       })),
   }),
 
@@ -385,7 +396,7 @@ export const competencyRoutes = [
         reply,
         { params: z.object({ targetId: Uuid }), body: UpdateTarget },
         async (params, body) => ({
-          target: await updateRoleTarget(depsFrom(deps), actorFrom(ctx), {
+          target: await updateRoleTarget(await depsFrom(deps), actorFrom(ctx), {
             targetId: params.targetId,
             ...defined(body),
           }),
@@ -406,7 +417,7 @@ export const competencyRoutes = [
         reply,
         { params: z.object({ targetId: Uuid }), body: ApproveTarget },
         async (params, body) => ({
-          target: await approveRoleTarget(depsFrom(deps), actorFrom(ctx), {
+          target: await approveRoleTarget(await depsFrom(deps), actorFrom(ctx), {
             targetId: params.targetId,
             approvalReference: body.approvalReference,
           }),
@@ -422,7 +433,7 @@ export const competencyRoutes = [
     summary: 'Retires a proposed or approved requirement, recording who and when.',
     handler: async (ctx, request, reply, deps) =>
       run(ctx, request, reply, { params: z.object({ targetId: Uuid }) }, async (params) => ({
-        target: await retireRoleTarget(depsFrom(deps), actorFrom(ctx), {
+        target: await retireRoleTarget(await depsFrom(deps), actorFrom(ctx), {
           targetId: params.targetId,
         }),
       })),

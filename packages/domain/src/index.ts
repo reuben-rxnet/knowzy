@@ -387,3 +387,12 @@ export {
 
 // COMPETENCY-M0/M1: competency reference definitions and the structure-only import.
 export * from './competency/index.js';
+
+// Authoring Role Simplification (2026-10-07): the separation-of-duties SETTINGS,
+// read from platform configuration by the API and the MCP server alike.
+export {
+  loadSeparationSettings,
+  resolveSeparationSettings,
+  STRICT_COMPETENCY_SEPARATION,
+} from './review/separation-settings.js';
+export type { CompetencySeparation, SeparationSettings } from './review/separation-settings.js';

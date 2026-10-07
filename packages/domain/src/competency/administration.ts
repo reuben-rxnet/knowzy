@@ -35,8 +35,19 @@ import {
   separationRefusal,
   type FrameworkDefinitions,
 } from './definitions-digest.js';
+import {
+  STRICT_COMPETENCY_SEPARATION,
+  type CompetencySeparation,
+} from '../review/separation-settings.js';
 
-export type CompetencyAdminDeps = TaxonomyDeps;
+export interface CompetencyAdminDeps extends TaxonomyDeps {
+  /**
+   * The separation settings in force (Authoring Role Simplification). ABSENT
+   * MEANS STRICT: a caller that forgets to load them gets the separated
+   * behaviour, never the permissive one. The editors are recorded either way.
+   */
+  readonly separation?: CompetencySeparation;
+}
 export type CompetencyAdminActor = TaxonomyActor;
 
 /** A refusal carrying the API code. The service owns the wording. */
@@ -1330,13 +1341,16 @@ export const approveFrameworkVersion = async (
       `Version ${version.versionLabel} is ${version.status}; only a DRAFT can be approved.`,
     );
   }
-  const refusal = separationRefusal({
-    approverId: actor.userId,
-    createdByUserId: version.createdByUserId,
-    editorUserIds: version.editorUserIds ?? [],
-    noun: 'version',
-  });
-  if (refusal !== null) throw new CompetencyAdminError('SEPARATION_OF_DUTIES', refusal);
+  const separation = deps.separation ?? STRICT_COMPETENCY_SEPARATION;
+  if (!separation.versionEditorMayApprove) {
+    const refusal = separationRefusal({
+      approverId: actor.userId,
+      createdByUserId: version.createdByUserId,
+      editorUserIds: version.editorUserIds ?? [],
+      noun: 'version',
+    });
+    if (refusal !== null) throw new CompetencyAdminError('SEPARATION_OF_DUTIES', refusal);
+  }
 
   let superseded: string | null = null;
   return audited(
@@ -1797,14 +1811,17 @@ export const approveRoleTarget = async (
       `This requirement is ${current.status}; only a proposal can be approved.`,
     );
   }
-  const refusal = separationRefusal({
-    approverId: actor.userId,
-    createdByUserId: current.createdByUserId,
-    modifiedByUserId: current.modifiedByUserId,
-    editorUserIds: current.editorUserIds ?? [],
-    noun: 'requirement',
-  });
-  if (refusal !== null) throw new CompetencyAdminError('SEPARATION_OF_DUTIES', refusal);
+  const separation = deps.separation ?? STRICT_COMPETENCY_SEPARATION;
+  if (!separation.targetEditorMayApprove) {
+    const refusal = separationRefusal({
+      approverId: actor.userId,
+      createdByUserId: current.createdByUserId,
+      modifiedByUserId: current.modifiedByUserId,
+      editorUserIds: current.editorUserIds ?? [],
+      noun: 'requirement',
+    });
+    if (refusal !== null) throw new CompetencyAdminError('SEPARATION_OF_DUTIES', refusal);
+  }
   if (current.competency.status !== 'ACTIVE') {
     throw new CompetencyAdminError(
       'COMPETENCY_INACTIVE',

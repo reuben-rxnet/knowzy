@@ -23,38 +23,25 @@ const API = process.env['PILOT_DEMO_API'] ?? 'http://localhost:8080';
 const SOURCE_NAME = 'KNOWZY Real-World Pilot SOP Corpus';
 
 /**
- * `PILOT_DEMO_AS_ADMIN=1` runs every step as the KNOWZY Administrator.
+ * Every step runs as the Authoring Administrator, and the attempt as the
+ * Learner (Authoring Role Simplification, 2026-10-07, access-control.md §2.0).
  *
- * This is the validation for that role: one identity performs source
- * registration, synchronization, generation, review, submission, publication,
- * assessment creation and publication, and the learner attempt. Only the
- * approval step uses a different identity, and only because it must -- gate 13
- * compares the approver against the author, so no permission set can satisfy
- * it. Step 8 still provokes the refusal and asserts the 403, which means the
- * administrator's own attempt to approve its own draft is refused on the way
- * through.
+ * Self-approval is permitted by configuration now, so step 8 shows the
+ * administrator approving their own draft -- and the approval record naming
+ * them as approver beside the author -- rather than a 403. Setting
+ * approval.authorMayApproveOwn back to false would make step 8 refuse again.
+ * `PILOT_DEMO_AS_ADMIN` is accepted for compatibility and changes nothing.
  */
-const AS_ADMIN = process.env['PILOT_DEMO_AS_ADMIN'] === '1';
 const ADMIN = 'knowzy-administrator@local.invalid';
-const ADMIN_2 = 'knowzy-administrator-2@local.invalid';
 
-const SUBJECTS = AS_ADMIN
-  ? ({
-      sourceAdmin: ADMIN,
-      author: ADMIN,
-      approver: ADMIN_2,
-      publisher: ADMIN,
-      assessmentManager: ADMIN,
-      learner: ADMIN,
-    } as const)
-  : ({
-      sourceAdmin: 'source-administrator@local.invalid',
-      author: 'author@local.invalid',
-      approver: 'approver@local.invalid',
-      publisher: 'publisher@local.invalid',
-      assessmentManager: 'assessment-manager@local.invalid',
-      learner: 'learner@local.invalid',
-    } as const);
+const SUBJECTS = {
+  sourceAdmin: ADMIN,
+  author: ADMIN,
+  approver: ADMIN,
+  publisher: ADMIN,
+  assessmentManager: ADMIN,
+  learner: 'learner@local.invalid',
+} as const;
 
 interface CallOptions {
   readonly method?: 'GET' | 'POST';
@@ -317,22 +304,15 @@ const main = async (): Promise<void> => {
     say(`${questionIds.length} claimed and submitted`);
   }
 
-  // ── 8. Gate 13, demonstrated rather than asserted ────────────────────────
+  // ── 8. Separation of duties: configured, and recorded ───────────────────
   step('8. Separation of duties');
-  const first = freshlyGenerated ? questionIds[0] : undefined;
-  if (first !== undefined) {
-    await call(SUBJECTS.author, `/api/v1/authoring/questions/${first}/approve`, {
-      method: 'POST',
-      body: { comment: 'attempting to approve my own draft' },
-      expectStatus: 403,
-    });
-    say('the author was REFUSED (403) on their own draft — gate 13, before anything was recorded');
-  } else {
-    say('skipped: nothing newly submitted to attempt a self-approval on');
-  }
+  say(
+    'self-approval is permitted by configuration (approval.authorMayApproveOwn = true); ' +
+      'the approval record still names the approver beside the author',
+  );
 
-  // ── 9. Approve, as a different identity ──────────────────────────────────
-  step('9. Approve, as a different identity');
+  // ── 9. Approve ───────────────────────────────────────────────────────────
+  step('9. Approve');
   for (const questionId of freshlyGenerated ? questionIds : []) {
     await call(SUBJECTS.approver, `/api/v1/authoring/questions/${questionId}/approve`, {
       method: 'POST',

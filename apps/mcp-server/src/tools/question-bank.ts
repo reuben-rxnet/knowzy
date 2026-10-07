@@ -14,7 +14,11 @@
 
 import { z } from 'zod';
 import { createAuditWriter } from '@knowzy/database';
-import { publishApprovedQuestions, retirePublishedQuestion } from '@knowzy/domain';
+import {
+  loadSeparationSettings,
+  publishApprovedQuestions,
+  retirePublishedQuestion,
+} from '@knowzy/domain';
 import { registerTool } from './registry.js';
 import type { AuthorizationEnvelope } from './envelope.js';
 import type { ToolDeps } from './deps.js';
@@ -168,7 +172,13 @@ registerTool({
     if (!bank) throw new Error(target.dryRunReason ?? 'No question bank is available.');
 
     const result = await publishApprovedQuestions({
-      deps: { prisma: deps.prisma, clock: deps.clock },
+      // The separation settings in force (Authoring Role Simplification):
+      // whether an approver may publish their own approval is configuration.
+      deps: {
+        prisma: deps.prisma,
+        clock: deps.clock,
+        policies: (await loadSeparationSettings(deps.prisma)).policies,
+      },
       bank,
       target,
       questionIds: input.questionIds,
@@ -304,7 +314,13 @@ registerTool({
     }
 
     return retirePublishedQuestion({
-      deps: { prisma: deps.prisma, clock: deps.clock },
+      // The separation settings in force (Authoring Role Simplification):
+      // whether an approver may publish their own approval is configuration.
+      deps: {
+        prisma: deps.prisma,
+        clock: deps.clock,
+        policies: (await loadSeparationSettings(deps.prisma)).policies,
+      },
       bank,
       target,
       questionId: input.questionId,

@@ -264,7 +264,9 @@ export const userRepository = (client: DbClient, clock: Clock) => ({
         authoringPortalAccess: true,
         livePortalAccess: true,
         roles: {
-          where: { revokedAt: null },
+          // An INACTIVE role confers nothing (Authoring Role Simplification,
+          // access-control.md §2.0). The grant row stays for history.
+          where: { revokedAt: null, role: { isActive: true } },
           select: {
             role: {
               select: {
@@ -404,7 +406,9 @@ export const subjectLookupRepository = (client: DbClient) => ({
         authoringPortalAccess: true,
         livePortalAccess: true,
         roles: {
-          where: { revokedAt: null },
+          // An INACTIVE role confers nothing (Authoring Role Simplification,
+          // access-control.md §2.0). The grant row stays for history.
+          where: { revokedAt: null, role: { isActive: true } },
           select: {
             role: {
               select: {

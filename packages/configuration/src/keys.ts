@@ -339,6 +339,26 @@ export const CONFIG_KEYS = {
     layers: ['DOMAIN', 'PLATFORM', 'CODE_DEFAULT'],
     scopes: ['PLATFORM', 'DOMAIN'],
   }),
+  // COMPETENCY-M2 / Authoring Role Simplification (2026-10-07): the same kind
+  // of policy for competency approvals. STRICT code defaults -- a fresh
+  // environment with no row separates editing from approval -- and the
+  // platform sets both to true at PLATFORM scope (access-control.md §2.0).
+  'approval.competencyVersionEditorMayApprove': decl({
+    key: 'approval.competencyVersionEditorMayApprove',
+    description: 'Whether whoever drew up or edited a competency framework version may approve it.',
+    schema: z.boolean(),
+    defaultValue: false,
+    layers: ['PLATFORM', 'CODE_DEFAULT'],
+    scopes: ['PLATFORM'],
+  }),
+  'approval.competencyTargetEditorMayApprove': decl({
+    key: 'approval.competencyTargetEditorMayApprove',
+    description: 'Whether whoever proposed or edited a role competency target may approve it.',
+    schema: z.boolean(),
+    defaultValue: false,
+    layers: ['PLATFORM', 'CODE_DEFAULT'],
+    scopes: ['PLATFORM'],
+  }),
   'approval.smeMayApprove': decl({
     key: 'approval.smeMayApprove',
     description: 'Whether SMEs holding question.approve may approve.',

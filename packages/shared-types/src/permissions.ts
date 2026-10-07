@@ -105,6 +105,18 @@ export const ROLE_KEYS = [
 export const RoleKeySchema = z.enum(ROLE_KEYS);
 export type RoleKey = z.infer<typeof RoleKeySchema>;
 
+/**
+ * The roles in use since the Authoring Role Simplification (2026-10-07,
+ * access-control.md §2.0): the Authoring Administrator and the Learner.
+ *
+ * Every other role stays DEFINED -- historical audit rows and grants name them
+ * -- but is seeded inactive, and a grant on an inactive role confers no
+ * permission (the identity read filters on `role.is_active`). A contract test
+ * pins this list.
+ */
+export const ACTIVE_ROLE_KEYS: readonly RoleKey[] = ['KNOWZY_ADMINISTRATOR', 'LEARNER'];
+export const isActiveRole = (key: RoleKey): boolean => ACTIVE_ROLE_KEYS.includes(key);
+
 export interface RoleDefinition {
   readonly key: RoleKey;
   readonly name: string;
@@ -118,31 +130,29 @@ const AUTHORING_SHELL: readonly PermissionKey[] = ['authoring.dashboard.view', '
 export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
   {
     key: 'KNOWZY_ADMINISTRATOR',
-    name: 'KNOWZY Administrator',
+    // Shown as "Authoring Administrator" since the Authoring Role
+    // Simplification. The KEY is unchanged on purpose: audit rows, grants and
+    // tests name it, and a renamed key would make history read as two roles.
+    name: 'Authoring Administrator',
     description:
-      'Full platform access across both portals, for platform and product owners, knowledge ' +
-      'managers, administrators, pilot leads and operational platform support.',
+      'Every authoring function, for the small team that operates the platform: sources, ' +
+      'generation, review, approval, publication, assessments, reporting, taxonomy, ' +
+      'competencies, AI providers, budgets and governance.',
     portalScope: 'BOTH',
     // DERIVED from the closed key union rather than enumerated, so the role
     // cannot fall behind when a permission is added.
     //
-    // ONE key is withheld, and the reason is a spec rule rather than caution.
-    // access-control.md 2 rule 3: "No role grants both `question.approve` and
-    // `question.publish` by default. A tenant may combine them BY ASSIGNING
-    // BOTH ROLES, which is a visible, audited decision rather than a default."
-    // A contract test enforces it for every role.
+    // EVERY key, including `question.publish`, since the Authoring Role
+    // Simplification (2026-10-07). Until then the role withheld publish and
+    // the administrator user also held PUBLISHER, to keep access-control.md §2
+    // rule 3 literally true. The product owner retired the specialist roles,
+    // so the rule now binds only them (they are inactive), and this role holds
+    // both approve and publish by recorded decision (§2.0).
     //
-    // So publication is granted the way the specification says to grant it: the
-    // administrator USER holds this role AND `PUBLISHER`, and permissions are
-    // the union across a user's roles. The identity ends up with every
-    // permission, the role matrix stays compliant, and the combination is two
-    // visible role grants in `user_role` rather than a weakened gate.
-    //
-    // What no permission grants is exemption from separation of duties. That is
-    // an IDENTITY comparison made at approval (workflows.md 3.4,
-    // `authorMayApproveOwn: false`), so an administrator still cannot approve a
-    // question they authored. Gate 13 refuses it, on screen, as it should.
-    permissions: PERMISSION_KEYS.filter((key) => key !== 'question.publish'),
+    // Separation of duties is NOT a permission and is not removed: it is the
+    // `approval.*` settings, which the platform sets to permit self-approval
+    // and which can be turned back on without a release.
+    permissions: [...PERMISSION_KEYS],
   },
   {
     key: 'PLATFORM_ADMINISTRATOR',

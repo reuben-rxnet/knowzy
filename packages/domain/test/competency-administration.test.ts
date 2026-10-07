@@ -329,13 +329,9 @@ describeDb('competency administration', () => {
       ),
     ).toBe('SEPARATION_OF_DUTIES');
 
-    // Nor can a write that bypasses the service: the CHECK refuses it.
-    await expect(
-      prisma.$executeRaw`UPDATE competency_framework_version
-        SET status = 'APPROVED', approved_at = now(), approved_by_user_id = ${first.userId}::uuid,
-            approval_reference = 'BYPASS'
-        WHERE id = ${version.id}::uuid`,
-    ).rejects.toThrow(/competency_framework_version_separation_check/);
+    // Since the Authoring Role Simplification separation is a SETTING, and the
+    // service is strict when the setting is absent (as in `deps` here). The
+    // 0016 CHECK that also enforced it was dropped in 0017.
 
     // A different administrator may, and that supersedes nothing yet.
     const approved = await approveFrameworkVersion(deps, fresh(second), {
@@ -350,6 +346,38 @@ describeDb('competency administration', () => {
     const mine = catalogue.find((row) => row.code === FRAMEWORK_CODE)!;
     expect(mine.hasApprovedVersion).toBe(true);
     expect(mine.versions.find((row) => row.versionId === version.id)?.stale).toBe(false);
+  });
+
+  it('with self-approval PERMITTED by configuration, one administrator approves their own version and target, and is recorded as both', async () => {
+    const permissive = {
+      ...deps,
+      separation: { versionEditorMayApprove: true, targetEditorMayApprove: true },
+    };
+    const competency = await prisma.competency.findFirstOrThrow({
+      where: { frameworkId, code: 'TEST_OBSERVABILITY.GRAFANA' },
+    });
+    await updateCompetency(permissive, fresh(first), {
+      competencyId: competency.id,
+      description: 'Self-approval scenario.',
+    });
+    const own = await createFrameworkVersion(permissive, fresh(first), {
+      frameworkId,
+      versionLabel: 'synthetic-self',
+    });
+    const approved = await approveFrameworkVersion(permissive, fresh(first), {
+      versionId: own.id,
+      approvalReference: 'TEST-SELF-1',
+    });
+    // Who did what is still on the record: the same identity in both places.
+    expect(approved.createdByUserId).toBe(first.userId);
+    expect(approved.editorUserIds).toContain(first.userId);
+    expect(approved.approvedByUserId).toBe(first.userId);
+    // A second snapshot of unchanged definitions is still refused as a duplicate.
+    const next = await createFrameworkVersion(permissive, fresh(first), {
+      frameworkId,
+      versionLabel: 'synthetic-self-2',
+    }).catch(() => null);
+    expect(next).toBeNull(); // nothing changed since: there is nothing to version
   });
 
   it('counts a later editor: whoever touched the definitions cannot approve the next version', async () => {
@@ -465,7 +493,8 @@ describeDb('competency administration', () => {
       approvalReference: 'TEST-TARGET-2',
     });
     expect(approved.status).toBe('APPROVED');
-    expect(approved.frameworkVersion?.versionLabel).toBe('synthetic-2');
+    // The self-approval test approved a later version, which superseded synthetic-2.
+    expect(approved.frameworkVersion?.versionLabel).toBe('synthetic-self');
 
     // An approved target is never edited.
     expect(

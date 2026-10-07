@@ -427,11 +427,13 @@ describeDb('provider readiness, end to end (P-5, OPENAI-CODEX-00)', () => {
     expect(response.body).not.toContain(KEY_FRAGMENT);
   });
 
-  it('GEN-PROVIDER-M1: an AUTHOR can read the provider choices, and nothing configurational leaks', async () => {
+  // The Author identity was retired by the Authoring Role Simplification
+  // (2026-10-07); the screen's provider menu is read by the administrator.
+  it('GEN-PROVIDER-M1: the provider choices are readable, and nothing configurational leaks', async () => {
     const response = await app.inject({
       method: 'GET',
       url: '/api/v1/authoring/generation/providers',
-      headers: { 'x-knowzy-subject': 'author@local.invalid' },
+      headers: { 'x-knowzy-subject': 'knowzy-administrator@local.invalid' },
     });
     expect(response.statusCode, response.body).toBe(200);
     for (const secretish of [

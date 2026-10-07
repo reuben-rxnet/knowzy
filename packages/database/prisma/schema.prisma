@@ -785,6 +785,10 @@ model Role {
   description String
   isSystem    Boolean     @default(true) @map("is_system")
   portalScope PortalScope @map("portal_scope")
+  /// Authoring Role Simplification (2026-10-07, migration 0017): a retired
+  /// role is DEACTIVATED, never deleted, so audit rows naming it still read.
+  /// A grant on an inactive role confers no permission.
+  isActive    Boolean     @default(true) @map("is_active")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

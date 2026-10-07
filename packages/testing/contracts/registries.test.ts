@@ -11,6 +11,7 @@ import {
   ERROR_CATEGORIES,
   ERROR_CODES,
   ERROR_REGISTRY,
+  ACTIVE_ROLE_KEYS,
   PERMISSION_KEYS,
   ROLE_DEFINITIONS,
   ROLE_DEFINITION_BY_KEY,
@@ -135,12 +136,30 @@ describe('permission and role catalogue', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('grants no role both question.approve and question.publish by default (§2 rule 3)', () => {
-    for (const role of ROLE_DEFINITIONS) {
+  // Authoring Role Simplification (2026-10-07, access-control.md §2.0): the
+  // Authoring Administrator holds both by the product owner's recorded
+  // decision. Rule 3 still binds every SPECIALIST role, which is what makes
+  // re-activating them restore the separation.
+  it('grants no specialist role both question.approve and question.publish (§2 rule 3)', () => {
+    for (const role of ROLE_DEFINITIONS.filter((r) => r.key !== 'KNOWZY_ADMINISTRATOR')) {
       const hasApprove = role.permissions.includes('question.approve');
       const hasPublish = role.permissions.includes('question.publish');
       expect(hasApprove && hasPublish, role.key).toBe(false);
     }
+  });
+
+  it('keeps exactly two roles active: the Authoring Administrator and the Learner (§2.0)', () => {
+    expect([...ACTIVE_ROLE_KEYS].sort()).toEqual(['KNOWZY_ADMINISTRATOR', 'LEARNER']);
+    // Every other role stays DEFINED, so historical rows naming it still read.
+    expect(ROLE_DEFINITIONS).toHaveLength(ROLE_KEYS.length);
+  });
+
+  it('gives the Authoring Administrator every permission key, so no task needs a second role', () => {
+    const admin = ROLE_DEFINITION_BY_KEY.KNOWZY_ADMINISTRATOR;
+    expect(new Set(admin.permissions)).toEqual(new Set(PERMISSION_KEYS));
+    expect(admin.name).toBe('Authoring Administrator');
+    expect(admin.portalScope).toBe('BOTH');
+    expect(ROLE_DEFINITION_BY_KEY.LEARNER.portalScope).toBe('LIVE');
   });
 
   it('makes LEARNER the only LIVE-scoped role, with own-scoped permissions only (§2 rule 5)', () => {

@@ -23,6 +23,8 @@ import {
   permissionFamily,
   type PermissionKey,
   type RoleKey,
+  ACTIVE_ROLE_KEYS,
+  isActiveRole,
 } from '@knowzy/shared-types';
 import {
   CONFIG_KEYS,
@@ -70,11 +72,13 @@ const seedRoles = async (): Promise<void> => {
         description: role.description,
         isSystem: true,
         portalScope: role.portalScope,
+        isActive: isActiveRole(role.key),
       },
       update: {
         name: role.name,
         description: role.description,
         portalScope: role.portalScope,
+        isActive: isActiveRole(role.key),
       },
     });
 
@@ -105,7 +109,9 @@ const seedRoles = async (): Promise<void> => {
       });
     }
   }
-  log(`  roles: ${ROLE_DEFINITIONS.length}`);
+  log(
+    `  roles: ${ROLE_DEFINITIONS.length} (${ACTIVE_ROLE_KEYS.length} active: ${ACTIVE_ROLE_KEYS.join(', ')})`,
+  );
 };
 
 /**
@@ -173,6 +179,65 @@ const seedConfiguration = async (): Promise<void> => {
 
   log(
     `  configuration: ${platformKeys.length} platform keys (${created} created, rest already present)`,
+  );
+};
+
+/**
+ * The Authoring Role Simplification's configuration decision (2026-10-07,
+ * access-control.md §2.0): self-approval is permitted.
+ *
+ * Applied ONCE per key, and recorded: each change writes a configuration_change
+ * row carrying SIMPLIFICATION_CORRELATION. If that row exists the decision has
+ * been applied and the seed never touches the key again -- so an administrator
+ * who later turns separation back ON keeps that decision through any re-seed.
+ * The code default of every key stays strict.
+ */
+const SIMPLIFICATION_CORRELATION = 'authoring-role-simplification-2026-10-07';
+const SELF_APPROVAL_KEYS = [
+  'approval.authorMayApproveOwn',
+  'approval.editorMayApproveOwn',
+  'approval.approverMayPublishOwn',
+  'approval.competencyVersionEditorMayApprove',
+  'approval.competencyTargetEditorMayApprove',
+] as const;
+
+const seedRoleSimplification = async (): Promise<void> => {
+  let applied = 0;
+  for (const key of SELF_APPROVAL_KEYS) {
+    const already = await prisma.configurationChange.findFirst({
+      where: { key, correlationId: SIMPLIFICATION_CORRELATION },
+      select: { id: true },
+    });
+    if (already) continue;
+    const existing = await prisma.applicationConfiguration.findFirst({
+      where: { key, scope: 'PLATFORM', scopeId: null },
+      select: { id: true, value: true },
+    });
+    if (existing) {
+      await prisma.applicationConfiguration.update({
+        where: { id: existing.id },
+        data: { value: true, version: { increment: 1 } },
+      });
+    } else {
+      await prisma.applicationConfiguration.create({
+        data: { key, scope: 'PLATFORM', scopeId: null, value: true, valueType: 'boolean' },
+      });
+    }
+    await prisma.configurationChange.create({
+      data: {
+        key,
+        scope: 'PLATFORM',
+        scopeId: null,
+        previousValue: (existing?.value ?? null) as object,
+        newValue: true,
+        changedByUserId: null,
+        correlationId: SIMPLIFICATION_CORRELATION,
+      },
+    });
+    applied += 1;
+  }
+  log(
+    `  role simplification: self-approval settings ${applied === 0 ? 'already applied' : `applied to ${applied} key(s)`}`,
   );
 };
 
@@ -510,30 +575,27 @@ const seedLocalUsers = async (): Promise<string> => {
     live: role.portalScope !== 'AUTHORING',
   }));
 
-  // The KNOWZY Administrator identity holds TWO roles, because that is how
-  // access-control.md 2 rule 3 says to combine approval and publication: "A
-  // tenant may combine them by assigning both roles, which is a visible,
-  // audited decision rather than a default." Permissions are the union across
-  // a user's roles, so this identity holds every permission key.
-  const administrator = people.find((person) => person.slug === 'knowzy-administrator');
-  if (administrator) administrator.roleKeys = ['KNOWZY_ADMINISTRATOR', 'PUBLISHER'];
-
-  // A SECOND administrator, and not a convenience.
+  // Authoring Role Simplification (2026-10-07, access-control.md §2.0): TWO
+  // identities are in use -- the Authoring Administrator and the Learner.
   //
-  // Separation of duties is an identity comparison, not a permission: gate 13
-  // refuses an approver who is the question's author or last editor, and no
-  // permission key can satisfy it. One administrator therefore cannot carry a
-  // question from draft to approval alone -- correctly. This second identity
-  // exists so the pilot workflow can be completed end to end with exactly one
-  // deliberate switch at the approval step, rather than by weakening the gate
-  // that makes approval mean anything.
+  // Every other local identity is still SEEDED, but as a DEPROVISIONED user
+  // with no portal access and its grants REVOKED (never deleted). Two reasons:
+  // audit rows and question lineage name these people, and a deleted user
+  // would turn them into dangling ids; and the domain integration suites use
+  // them as distinct people when they test the STRICT separation logic, which
+  // is still in the code. They appear in no identity menu.
+  //
+  // The second administrator existed only so one person could not approve
+  // their own question. Self-approval is now permitted by configuration, so
+  // it is retired with the rest.
   people.push({
     slug: 'knowzy-administrator-2',
     displayName: 'Local KNOWZY Administrator (second approver)',
-    roleKeys: ['KNOWZY_ADMINISTRATOR', 'PUBLISHER'],
+    roleKeys: ['KNOWZY_ADMINISTRATOR'],
     authoring: true,
     live: true,
   });
+  const IN_USE = new Set(['knowzy-administrator', 'learner']);
 
   let adminId = '';
 
@@ -544,17 +606,33 @@ const seedLocalUsers = async (): Promise<string> => {
         entraObjectId: localOid(person.slug),
         userPrincipalName: `${person.slug}@local.invalid`,
         displayName: person.displayName,
-        status: 'ACTIVE',
-        authoringPortalAccess: person.authoring,
-        livePortalAccess: person.live,
+        status: IN_USE.has(person.slug) ? 'ACTIVE' : 'DEPROVISIONED',
+        authoringPortalAccess: IN_USE.has(person.slug) && person.authoring,
+        livePortalAccess: IN_USE.has(person.slug) && person.live,
         timeZone: 'UTC',
       },
-      update: { displayName: person.displayName },
+      update: IN_USE.has(person.slug)
+        ? { displayName: person.displayName, status: 'ACTIVE' }
+        : {
+            displayName: person.displayName,
+            status: 'DEPROVISIONED',
+            authoringPortalAccess: false,
+            livePortalAccess: false,
+          },
     });
+
+    if (!IN_USE.has(person.slug)) {
+      // Revoke, never delete: the grant row is the record that this person
+      // once held the role.
+      await prisma.userRole.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date(), revokedByUserId: user.id },
+      });
+    }
 
     if (person.slug === 'platform-administrator') adminId = user.id;
 
-    for (const roleKey of person.roleKeys) {
+    for (const roleKey of IN_USE.has(person.slug) ? person.roleKeys : []) {
       const role = await prisma.role.findUniqueOrThrow({ where: { key: roleKey } });
       const already = await prisma.userRole.findFirst({
         where: { userId: user.id, roleId: role.id, revokedAt: null },
@@ -572,7 +650,26 @@ const seedLocalUsers = async (): Promise<string> => {
     }
   }
 
-  log(`  local users: ${people.length} (one per role, plus a second administrator)`);
+  // The administrator held PUBLISHER beside its own role until 2026-10-07.
+  // Its own role now holds publish, so that grant is revoked, not deleted.
+  const administratorUser = await prisma.user.findUnique({
+    where: { entraObjectId: localOid('knowzy-administrator') },
+    select: { id: true },
+  });
+  if (administratorUser) {
+    await prisma.userRole.updateMany({
+      where: {
+        userId: administratorUser.id,
+        revokedAt: null,
+        role: { key: { notIn: [...ACTIVE_ROLE_KEYS] } },
+      },
+      data: { revokedAt: new Date(), revokedByUserId: administratorUser.id },
+    });
+  }
+
+  log(
+    `  local users: ${people.length} (${IN_USE.size} in use; the rest deprovisioned, kept for history)`,
+  );
   return adminId;
 };
 
@@ -936,6 +1033,7 @@ const main = async (): Promise<void> => {
   await seedPermissions();
   await seedRoles();
   await seedConfiguration();
+  await seedRoleSimplification();
   await seedFeatureFlags(env);
   await seedGenerationProfile();
   await seedBadgeDefinitions();
