@@ -14,6 +14,7 @@ import {
   Building2,
   ClipboardCheck,
   FileStack,
+  FilePen,
   FileUp,
   GaugeCircle,
   Layers,
@@ -50,6 +51,24 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     status: 'IMPLEMENTED',
   },
   {
+    label: 'Import Questions',
+    href: '/import',
+    icon: <FileUp className="size-5" />,
+    status: 'IMPLEMENTED',
+    note: 'From a synchronized file',
+  },
+  {
+    // AI Document Studio, Slice 2 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §10).
+    // PARTIALLY_IMPLEMENTED: the purpose, its approval and a real status read
+    // exist; the transformation does not. The note says so, so the link is not
+    // a promise that a document can be prepared.
+    label: 'AI Document Studio',
+    href: '/document-studio',
+    icon: <FilePen className="size-5" />,
+    status: 'PARTIALLY_IMPLEMENTED',
+    note: 'Overview · transformation not built',
+  },
+  {
     label: 'AI Quiz Generation',
     href: '/generate',
     icon: <Sparkles className="size-5" />,
@@ -74,13 +93,6 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     icon: <FileStack className="size-5" />,
     status: 'PARTIALLY_IMPLEMENTED',
     note: 'On Publish',
-  },
-  {
-    label: 'Import Questions',
-    href: '/import',
-    icon: <FileUp className="size-5" />,
-    status: 'IMPLEMENTED',
-    note: 'From a synchronized file',
   },
   {
     label: 'Assessments',

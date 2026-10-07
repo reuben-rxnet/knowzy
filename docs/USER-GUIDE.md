@@ -11,7 +11,8 @@ previews; every learner destination opens), GATEWAY-M1 (Azure API Management
 gateway authentication), GEN-PROVIDER-M1 (choosing the provider when generating), EVAL-M1 and
 UX-M2 (product polish: plainer wording, a summary before generating, richer review rows, a plain
 provider overview), COMPETENCY-M2 (competency administration) and the Authoring Role
-Simplification (two identities; self-approval permitted by configuration)
+Simplification (two identities; self-approval permitted by configuration) and AI Document Studio
+Slice 2 (the overview, and the DOCUMENT_RESTRUCTURE approval)
 **Last updated:** 2026-10-07 (Authoring Role Simplification)
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -291,6 +292,35 @@ offsets are the platform's claim about itself — the evidence a question quotes
 
 A document Knowzy cannot read is always **reported with a reason**. It is never counted as read with
 no content, because that would look like a document with nothing in it.
+
+### 4.2a AI Document Studio — `/document-studio`
+
+**Its own entry in the sidebar**, between **Import Questions** and **AI Quiz Generation**. Open to
+anyone holding `report.read`; recording an approval needs `platform.configure` — both are the
+Authoring Administrator's.
+
+**This page prepares no documents.** A banner says so first: *Transformation capability not yet
+implemented*. There is no Run, Transform, Rewrite or Prepare button, because no part of the
+transformation is built. What the page shows:
+
+| Section | What it tells you |
+| --- | --- |
+| **Current state** | The Studio's state, computed from the platform's configuration on every visit: **Blocked by approval** today. It can also read **Not built** (approved, but no restructuring client exists) and **Ready**, which this release cannot reach |
+| **What Assessment Preparation is** / **Why it exists** | A model reorganizing a document into clearly headed, testable sections — only rearranging what is already there, never inventing a figure — producing a separate *assessment derivative*. The original is never modified |
+| **What the evaluation measured** | The documented results for the hand-prepared GenerationReady corpus against the original SOPs, from the 2026-09-28 evaluation, with the two limits the record carries |
+| **The workflow** | Original document → AI Assessment Preparation → Human review → Approved assessment derivative → Question generation, each step marked **Exists** or **Not built** |
+| **Approval status and provider readiness** | Per provider: whether it can ever restructure, its restructuring approval, whether a restructuring client exists, and its state |
+| **Implementation status** | What is built (the purpose, its approval, this status) and what is not (proposals, verification, review, derivatives, upload) |
+
+**Restructuring needs its own approval.** Sending whole documents to a model is a different
+processing purpose (`DOCUMENT_RESTRUCTURE`) from question generation, so the Codex approval you
+recorded for generation does **not** cover it, and an approval recorded here does not cover
+generation. **Record approval** on a provider's row asks for a **reference** to where the decision
+is held; your name and the time are recorded with it, and the act is audited. **Replace approval**
+records a new reference; **Remove approval** withdraws it. **Recording an approval enables
+nothing**: the provider moves from *Blocked by approval* to *Not built* and stops there. The
+template generator and Copilot are **Not eligible** — they can never restructure a document — and
+offer no approval control.
 
 ### 4.3 Generate questions — `/generate`
 
@@ -1641,3 +1671,4 @@ the log below.
 | 2026-09-28 | UX-M2 | **Product polish, no new capability.** Generate (§4.3): plainer step names, **Check documents** replaces *Run preflight*, the source is stated once, and Step 3 opens with **Before you generate** — documents, model, how many, status and what happens next. Review Queue (§4.4): each row shows a **generator badge**, the filing and an **evidence excerpt**; 25 rows first with **Show 25 more**; the section hash moves to a tooltip. AI Providers (§4.3f): an **At a glance** card per provider in plain words, with what happens if it is chosen; capabilities behind a disclosure. Reports (§4.3g): the eight formulas move into **How these figures are calculated**. Refusals (§7): **What you can do**, and generation controls read as refusals, not errors. AI Usage & Budgets (§4.3c): plainer introduction and a sentence on what a token limit does when reached |
 | 2026-10-07 | COMPETENCY-M2 | **Competency administration** (§4.3h, **Administration → Competencies**, a third tab beside Knowledge Domains and AI Providers). Categories, competencies and aliases can be created, edited, deactivated and reactivated; the six domains are the category kinds. **Framework versions** are snapshots: *Draw up a version*, then a **different** administrator approves it with a reference; a version whose definitions changed afterwards reads *Out of date* and cannot be approved. **Role requirements** are proposed with a required source and approved by someone who did not propose or edit them, only against an approved framework version — none can be approved today, because the imported `2024-05` is still a draft. Write controls are the KNOWZY Administrator's only; other roles read the catalogue. No person, rating or score appears anywhere on the screen |
 | 2026-10-07 | Authoring Role Simplification | **Two identities** (§3): the **Authoring Administrator** (the former KNOWZY Administrator, now holding every authoring permission including publish) and the **Learner**. The Author, Approver, Publisher, Source administrator, Assessment manager, second administrator, Manager and the other specialist identities are gone from every identity menu; their records are kept so history still names them. **One administrator can take a question from draft to published**, and draw up and approve a competency version or propose and approve a role requirement: separation of duties is **switched off by configuration, not removed**, and every step still records who performed it. The walkthrough (§8) runs as one identity. Refusals for a missing permission are now seen as the Learner, refused with `PORTAL_ACCESS_DENIED` |
+| 2026-10-07 | Document Studio Slice 2 | **AI Document Studio** (§4.2a), a new sidebar entry between Import Questions and AI Quiz Generation (Import Questions moved up beside it). An overview that prepares nothing: it explains assessment preparation, shows the documented GenerationReady evaluation results, the workflow, and the platform's real state — **Blocked by approval** — per provider. **Record approval** records a `DOCUMENT_RESTRUCTURE` approval with a reference, separate from the generation approval; it moves a provider to **Not built** and no further, because no transformation exists |

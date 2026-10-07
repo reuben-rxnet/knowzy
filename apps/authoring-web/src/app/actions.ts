@@ -1133,3 +1133,27 @@ export const competencyWriteAction = async (
   revalidatePath('/administration/competencies');
   return result.ok ? { ok: true, data: result.data } : failed(result.problem);
 };
+
+// ------------------------- AI Document Studio, Slice 2
+//
+// Record, replace or remove the DOCUMENT_RESTRUCTURE approval for one
+// provider. Enables nothing: no restructuring client exists.
+export const documentStudioApprovalAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const providerId = String(formData.get('providerId') ?? '');
+  const approved = String(formData.get('approved') ?? 'true') === 'true';
+  const result = await api<unknown>(
+    `/api/v1/authoring/document-studio/approvals/${encodeURIComponent(providerId)}`,
+    {
+      method: 'PUT',
+      body: {
+        approved,
+        ...(approved ? { approvalReference: String(formData.get('approvalReference') ?? '') } : {}),
+      },
+    },
+  );
+  revalidatePath('/document-studio');
+  return result.ok ? { ok: true, data: result.data } : failed(result.problem);
+};
