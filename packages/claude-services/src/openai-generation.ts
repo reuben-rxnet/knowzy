@@ -243,7 +243,7 @@ export const mapModelAnswer = (
 
 const IDENTIFIER = /^[a-z0-9_.-]{1,64}$/i;
 
-const errorCode = async (response: Response): Promise<string | null> => {
+export const errorCode = async (response: Response): Promise<string | null> => {
   try {
     const body = (await response.json()) as { error?: { code?: unknown; type?: unknown } };
     const code = body.error?.code ?? body.error?.type;
@@ -253,7 +253,7 @@ const errorCode = async (response: Response): Promise<string | null> => {
   }
 };
 
-interface UsageAndText {
+export interface UsageAndText {
   readonly text: string | null;
   readonly refusal: string | null;
   readonly inputTokens: number | null;
@@ -261,7 +261,7 @@ interface UsageAndText {
   readonly servedModel: string | null;
 }
 
-const readResponses = (body: Record<string, unknown>): UsageAndText => {
+export const readResponses = (body: Record<string, unknown>): UsageAndText => {
   const usage = body['usage'] as { input_tokens?: unknown; output_tokens?: unknown } | undefined;
   let text: string | null = null;
   let refusal: string | null = null;
@@ -285,7 +285,7 @@ const readResponses = (body: Record<string, unknown>): UsageAndText => {
   };
 };
 
-const readChat = (body: Record<string, unknown>): UsageAndText => {
+export const readChat = (body: Record<string, unknown>): UsageAndText => {
   const usage = body['usage'] as
     { prompt_tokens?: unknown; completion_tokens?: unknown } | undefined;
   const choice = Array.isArray(body['choices'])

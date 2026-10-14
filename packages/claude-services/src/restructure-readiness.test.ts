@@ -21,33 +21,35 @@ describe('evaluateRestructureReadiness', () => {
       evaluatedAt: AT,
     });
     expect(status.state).toBe('BLOCKED_BY_APPROVAL');
-    expect(status.transformationImplemented).toBe(false);
+    // M3 built the OpenAI client; the approval is what still blocks it.
+    expect(status.transformationImplemented).toBe(true);
     expect(status.providers.find((row) => row.providerId === 'OPENAI')?.state).toBe(
       'BLOCKED_BY_APPROVAL',
     );
   });
 
-  it('moves to NOT_BUILT once approved, because no restructuring client exists', () => {
+  it('reads READY for OpenAI only once approved AND configured (M3)', () => {
+    const approved = (configured: boolean) =>
+      evaluateRestructureReadiness({
+        approvals: { OPENAI: APPROVAL },
+        configured: () => configured,
+        evaluatedAt: AT,
+      });
+    expect(approved(false).providers.find((row) => row.providerId === 'OPENAI')?.state).toBe(
+      'NOT_BUILT',
+    );
+    expect(approved(true).state).toBe('READY');
+  });
+
+  it('keeps an approved provider with no client at NOT_BUILT', () => {
+    expect(RESTRUCTURING_CLIENTS).toEqual(['OPENAI']);
     const status = evaluateRestructureReadiness({
-      approvals: { OPENAI: APPROVAL },
+      approvals: { ANTHROPIC: APPROVAL, AZURE_OPENAI: APPROVAL },
       configured: () => true,
       evaluatedAt: AT,
     });
     expect(status.state).toBe('NOT_BUILT');
-    const openai = status.providers.find((row) => row.providerId === 'OPENAI');
-    expect(openai?.state).toBe('NOT_BUILT');
-    expect(openai?.reason).toMatch(/not yet implemented/);
-  });
-
-  it('can never read READY on this release: the client registry is empty', () => {
-    expect(RESTRUCTURING_CLIENTS).toEqual([]);
-    const everything = evaluateRestructureReadiness({
-      approvals: { OPENAI: APPROVAL, ANTHROPIC: APPROVAL, AZURE_OPENAI: APPROVAL },
-      configured: () => true,
-      evaluatedAt: AT,
-    });
-    expect(everything.state).not.toBe('READY');
-    expect(everything.providers.some((row) => row.state === 'READY')).toBe(false);
+    expect(status.providers.some((row) => row.state === 'READY')).toBe(false);
   });
 
   it('reaches READY only through a registered client AND configuration', () => {

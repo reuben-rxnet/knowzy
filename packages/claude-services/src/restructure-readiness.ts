@@ -8,10 +8,16 @@
 //
 //   1 exists   2 capability   3 purpose approval   4 client   5 configuration
 //
-// THE REGISTRY BELOW IS EMPTY. No restructuring client exists in this build,
-// so no provider can reach READY, and a contract test fails if one is added
-// without the client it would claim. Adding a provider id here is a claim
-// that the transformation exists; it is not a setting.
+// THE REGISTRY BELOW NAMES ONLY PROVIDERS WITH A BUILT CLIENT. Since M3
+// (2026-10-14, §11.3) that is OpenAI: `createOpenAIPreparer` in
+// document-preparation.ts. A contract test fails if an id is added without
+// the client it would claim. Adding a provider id here is a claim that the
+// transformation exists; it is not a setting -- and READY still needs the
+// DOCUMENT_RESTRUCTURE approval and the provider's configuration.
+//
+// The TEST preparation provider is deliberately NOT here: it is not a
+// generation provider, it is not AI, and it is offered by the domain only
+// where the local-only flag allows (§11.4).
 
 import {
   GENERATION_PROVIDER,
@@ -23,8 +29,8 @@ import {
 } from '@knowzy/shared-types';
 import { PROVIDER_CATALOGUE } from './provider.js';
 
-/** Providers with a registered restructuring client. EMPTY on this release. */
-export const RESTRUCTURING_CLIENTS: readonly GenerationProviderId[] = Object.freeze([]);
+/** Providers with a built restructuring client (M3: OpenAI). */
+export const RESTRUCTURING_CLIENTS: readonly GenerationProviderId[] = Object.freeze(['OPENAI']);
 
 /**
  * Check 2. A provider that retrieves its own context cannot be held to the
@@ -102,7 +108,7 @@ export const evaluateRestructureReadiness = (
         ...base,
         state: 'NOT_BUILT' as const,
         reason:
-          'Approved for restructuring, but no restructuring client is built for this provider. Transformation capability is not yet implemented.',
+          'Approved for restructuring, but no restructuring client is built for this provider.',
       };
     }
     if (!configured) {
@@ -125,7 +131,7 @@ export const evaluateRestructureReadiness = (
     best === 'READY'
       ? 'At least one provider is approved, built and configured for restructuring.'
       : best === 'NOT_BUILT'
-        ? 'At least one provider is approved for restructuring, but no restructuring client is built. Transformation capability is not yet implemented.'
+        ? 'At least one provider is approved for restructuring, but none is both built and configured.'
         : 'No provider holds an approval for the DOCUMENT_RESTRUCTURE purpose. The approval recorded for question generation does not cover it.';
 
   return {

@@ -171,11 +171,33 @@ export {
   type TransportFailureCause,
 } from './provider-request.js';
 
-// AI Document Studio, Slice 2: readiness for purpose DOCUMENT_RESTRUCTURE.
-// No restructuring client exists; RESTRUCTURING_CLIENTS is empty.
+// AI Document Studio: readiness for purpose DOCUMENT_RESTRUCTURE (Slice 2),
+// and the preparers (M3): OpenAI, which is AI, and the local-only test
+// preparer, which is not.
 export {
   evaluateRestructureReadiness,
   restructureCapability,
   RESTRUCTURING_CLIENTS,
 } from './restructure-readiness.js';
 export type { RestructureReadinessInput } from './restructure-readiness.js';
+export {
+  createOpenAIPreparer,
+  createTestPreparer,
+  estimatePreparationTokens,
+  framePreparationPrompt,
+  OPENAI_PREPARATION_SCHEMA,
+  PREPARATION_PROMPT_SHA256,
+  preparationPromptHash,
+  PREPARATION_PROMPT_VERSION,
+  PREPARATION_SYSTEM_PROMPT,
+  PREPARATION_TOOL_GRANT,
+  PreparationError,
+} from './document-preparation.js';
+export type {
+  DocumentPreparer,
+  OpenAIPreparationConfig,
+  PreparationErrorCode,
+  PreparationRequest,
+  PreparationResult,
+  PreparationSection,
+} from './document-preparation.js';
