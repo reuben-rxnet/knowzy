@@ -34,7 +34,11 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
-  timeout: 90_000,
+  // Per TEST, not per assertion (assertions keep 15 seconds). 180 seconds
+  // since 2026-10-14: on the local stack a test that synchronizes, generates
+  // and navigates spends its time on real work plus dev-server compilation,
+  // and 90 seconds was being exceeded by navigations that then succeeded.
+  timeout: 180_000,
   expect: { timeout: 15_000 },
   reporter: process.env['CI'] ? [['list'], ['html', { open: 'never' }]] : [['list']],
   use: {
