@@ -135,6 +135,36 @@ export const readDocumentStudioStatus = async (
   return status;
 };
 
+/**
+ * M3 (§11.3): which provider, if any, may prepare a document LIVE right now --
+ * approved, built and configured. The same evaluation as the status read,
+ * without its audit row: this is asked on every preparation, and the
+ * preparation's own run row and audit event record the answer.
+ */
+export const readyRestructureProvider = async (
+  prisma: PrismaClient,
+  clock: Clock,
+): Promise<{
+  readonly providerId: GenerationProviderId | null;
+  readonly status: DocumentStudioStatus;
+}> => {
+  const rows = await prisma.applicationConfiguration.findMany({
+    where: { key: { in: [PURPOSE_KEY, SETTINGS_KEY] }, scope: 'PLATFORM', scopeId: null },
+    select: { key: true, value: true },
+  });
+  const status = evaluateRestructureReadiness({
+    approvals: restructureApprovals(
+      parseApprovals(rows.find((row) => row.key === PURPOSE_KEY)?.value),
+    ),
+    configured: configuredFrom(rows.find((row) => row.key === SETTINGS_KEY)?.value),
+    evaluatedAt: clock.now().toISOString(),
+  });
+  return {
+    providerId: status.providers.find((row) => row.state === 'READY')?.providerId ?? null,
+    status,
+  };
+};
+
 export interface SetPurposeApprovalArgs extends DocumentStudioContext {
   readonly providerId: GenerationProviderId;
   /** True records or replaces; false removes. */

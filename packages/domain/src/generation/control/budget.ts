@@ -117,14 +117,23 @@ export const usedTokensIn = async (
   now: Date,
   providerId: GenerationProviderId | null = null,
 ): Promise<number> => {
-  const aggregate = await db.generationProviderCall.aggregate({
-    where: {
-      startedAt: { gte: windowStart(window, now) },
-      ...(providerId === null ? {} : { providerId }),
-    },
-    _sum: { inputTokens: true, outputTokens: true },
-  });
-  return (aggregate._sum.inputTokens ?? 0) + (aggregate._sum.outputTokens ?? 0);
+  const where = {
+    startedAt: { gte: windowStart(window, now) },
+    ...(providerId === null ? {} : { providerId }),
+  };
+  // AI Document Studio M3 (§11.9): a preparation attempt spends from the SAME
+  // windows. One tenant budget, two kinds of call -- a second budget would be
+  // two ceilings each half-enforced.
+  const [calls, preparations] = await Promise.all([
+    db.generationProviderCall.aggregate({ where, _sum: { inputTokens: true, outputTokens: true } }),
+    db.documentPreparationRun.aggregate({ where, _sum: { inputTokens: true, outputTokens: true } }),
+  ]);
+  return (
+    (calls._sum.inputTokens ?? 0) +
+    (calls._sum.outputTokens ?? 0) +
+    (preparations._sum.inputTokens ?? 0) +
+    (preparations._sum.outputTokens ?? 0)
+  );
 };
 
 export const budgetStatus = async (

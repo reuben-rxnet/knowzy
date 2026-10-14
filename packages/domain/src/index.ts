@@ -401,6 +401,7 @@ export type { CompetencySeparation, SeparationSettings } from './review/separati
 export {
   DocumentStudioError,
   readDocumentStudioStatus,
+  readyRestructureProvider,
   setPurposeApproval,
 } from './generation/control/document-studio.js';
 export type {
@@ -408,3 +409,67 @@ export type {
   PurposeApprovalAct,
   SetPurposeApprovalArgs,
 } from './generation/control/document-studio.js';
+
+// AI Document Studio M3: assessment preparation.
+export { checkPreparedText, markChanges, preparedSentences } from './document-studio/checks.js';
+export type {
+  MarkedNode,
+  MarkedSegment,
+  PreparationCheckResult,
+  PreparationWarning,
+  PreparationWarningKind,
+} from './document-studio/checks.js';
+export {
+  acceptUpload,
+  addToRepository,
+  DocumentPreparationError,
+  MAX_PREPARED_CHARS,
+  prepareDocument,
+  PREPARATION_RUN_WINDOW_MS,
+  recordDownload,
+  recordUploadRefused,
+  rejectDraft,
+  repositoryFileNameFor,
+  restoreAiVersion,
+  revalidatePreparedVersions,
+  reviewAgainstUpdatedOriginal,
+  savePreparedContent,
+  startFromDocument,
+} from './document-studio/preparation-service.js';
+export type { PreparationControls, StudioContext } from './document-studio/preparation-service.js';
+export {
+  isLiveProvider,
+  listPreparedDocuments,
+  preparationCandidates,
+  preparedDocumentDetail,
+  preparedExportFor,
+  preparedLineageFor,
+  studioHistory,
+} from './document-studio/reads.js';
+export type {
+  PreparedDocumentDetail,
+  PreparedDocumentRow,
+  PreparedVersionSummary,
+  StudioHistoryEvent,
+} from './document-studio/reads.js';
+export {
+  ensureStudioSource,
+  findStudioSourceIds,
+  sourceRoot,
+  STUDIO_ORIGINALS,
+  STUDIO_PREPARED,
+  studioFilePath,
+} from './document-studio/studio-sources.js';
+export type { StudioStorage, StudioSync } from './document-studio/studio-sources.js';
+export {
+  extensionOf,
+  inspectUpload,
+  UPLOAD_EXTENSIONS,
+  UPLOAD_MAX_BYTES,
+  zipEntryNames,
+} from './document-studio/upload-inspection.js';
+export type {
+  UploadControl,
+  UploadExtension,
+  UploadInspection,
+} from './document-studio/upload-inspection.js';
