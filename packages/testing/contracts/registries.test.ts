@@ -186,9 +186,9 @@ describe('permission and role catalogue', () => {
 // ---------------------------------------------------------------------------
 
 describe('audit taxonomy', () => {
-  // 29 since COMPETENCY-M0/M1 added ADMIN.COMPETENCY (audit-model.md §2.1).
-  it('declares 29 families across five prefixes', () => {
-    expect(AUDIT_FAMILY_KEYS).toHaveLength(29);
+  // 30 since AI Document Studio M3 added AUTHORING.DOCUMENT_PREPARATION (audit-model.md §2.1).
+  it('declares 30 families across five prefixes', () => {
+    expect(AUDIT_FAMILY_KEYS).toHaveLength(30);
     const prefixes = new Set(AUDIT_FAMILY_KEYS.map((f) => f.split('.')[0]));
     expect([...prefixes].sort()).toEqual(['ADMIN', 'AUTHORING', 'LEARNING', 'PLATFORM', 'REPORT']);
   });

@@ -57,7 +57,7 @@ const main = async (): Promise<void> => {
   const report = await validateStartup({
     deployable: 'jobs',
     rawEnv,
-    expectedMigrationVersion: '0017_authoring_role_simplification',
+    expectedMigrationVersion: '0018_document_studio_preparation',
     probes: {
       database: () => probeDatabase(prisma),
       mockAdaptersRegistered: () => isLocal,

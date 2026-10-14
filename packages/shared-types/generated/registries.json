@@ -93,6 +93,18 @@
     "AUTHORING.DOCUMENT.EXCLUSION_REMOVED",
     "AUTHORING.DOCUMENT.SECTION_ASSESSABILITY_CHANGED",
     "AUTHORING.DOCUMENT.SELECTED",
+    "AUTHORING.DOCUMENT_PREPARATION.ADDED_TO_REPOSITORY",
+    "AUTHORING.DOCUMENT_PREPARATION.AI_VERSION_RESTORED",
+    "AUTHORING.DOCUMENT_PREPARATION.DOWNLOADED",
+    "AUTHORING.DOCUMENT_PREPARATION.PREPARATION_COMPLETED",
+    "AUTHORING.DOCUMENT_PREPARATION.PREPARATION_FAILED",
+    "AUTHORING.DOCUMENT_PREPARATION.PREPARATION_REFUSED",
+    "AUTHORING.DOCUMENT_PREPARATION.REVALIDATION_REQUIRED",
+    "AUTHORING.DOCUMENT_PREPARATION.UPLOAD_ACCEPTED",
+    "AUTHORING.DOCUMENT_PREPARATION.UPLOAD_REFUSED",
+    "AUTHORING.DOCUMENT_PREPARATION.VERSION_REJECTED",
+    "AUTHORING.DOCUMENT_PREPARATION.VERSION_SAVED",
+    "AUTHORING.DOCUMENT_PREPARATION.VERSION_SUPERSEDED",
     "AUTHORING.GENERATION.CANDIDATE_REJECTED",
     "AUTHORING.GENERATION.JOB_CANCELLED",
     "AUTHORING.GENERATION.JOB_COMPLETED",
@@ -207,6 +219,7 @@
     "ADMIN.USER",
     "AUTHORING.ASSESSMENT",
     "AUTHORING.DOCUMENT",
+    "AUTHORING.DOCUMENT_PREPARATION",
     "AUTHORING.GENERATION",
     "AUTHORING.OBJECTIVE",
     "AUTHORING.PROFILE",
@@ -456,6 +469,16 @@
       "retryable": false,
       "status": 422
     },
+    "PREPARATION_NOT_ENABLED": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
+    },
+    "PREPARATION_OUTPUT_REFUSED": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
+    },
     "PROFILE_NOT_AVAILABLE": {
       "category": "VALIDATION",
       "retryable": false,
@@ -696,6 +719,11 @@
       "retryable": false,
       "status": 401
     },
+    "UPLOAD_REFUSED": {
+      "category": "VALIDATION",
+      "retryable": false,
+      "status": 422
+    },
     "UPSTREAM_UNEXPECTED": {
       "category": "UPSTREAM",
       "retryable": true,
@@ -749,6 +777,7 @@
     "competency.manage",
     "document.browse",
     "document.exclude",
+    "document.prepare",
     "document.section.manage",
     "learning.access",
     "learning.assessment.list",
@@ -826,6 +855,7 @@
         "competency.manage",
         "document.browse",
         "document.exclude",
+        "document.prepare",
         "document.section.manage",
         "learning.access",
         "learning.assessment.list",

@@ -23,7 +23,8 @@ export const ActorTypeSchema = z.enum(ACTOR_TYPES);
 export type ActorType = z.infer<typeof ActorTypeSchema>;
 
 // ---------------------------------------------------------------------------
-// Action taxonomy — 29 families (ADMIN.COMPETENCY added 2026-09-29). Actions are `FAMILY.ACTION`.
+// Action taxonomy — 30 families (ADMIN.COMPETENCY added 2026-09-29,
+// AUTHORING.DOCUMENT_PREPARATION 2026-10-14). Actions are `FAMILY.ACTION`.
 // ---------------------------------------------------------------------------
 
 export const AUDIT_FAMILIES = {
@@ -147,13 +148,28 @@ export const AUDIT_FAMILIES = {
     'TARGET_RETIRED',
   ],
 
-  // --------------------------------------------- AUTHORING — 8 families
+  // --------------------------------------------- AUTHORING — 9 families
   'AUTHORING.DOCUMENT': [
     'SELECTED',
     'EXCLUDED',
     'EXCLUSION_REMOVED',
     'SECTION_ASSESSABILITY_CHANGED',
     'CONTENT_EXTRACTED',
+  ],
+  // AI Document Studio M3 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11.9).
+  'AUTHORING.DOCUMENT_PREPARATION': [
+    'UPLOAD_ACCEPTED',
+    'UPLOAD_REFUSED',
+    'PREPARATION_COMPLETED',
+    'PREPARATION_FAILED',
+    'PREPARATION_REFUSED',
+    'VERSION_SAVED',
+    'AI_VERSION_RESTORED',
+    'ADDED_TO_REPOSITORY',
+    'VERSION_SUPERSEDED',
+    'REVALIDATION_REQUIRED',
+    'VERSION_REJECTED',
+    'DOWNLOADED',
   ],
   'AUTHORING.GENERATION': [
     'PREFLIGHT_RUN',

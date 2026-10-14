@@ -304,6 +304,28 @@ export const ERROR_REGISTRY = {
     message: 'The generation budget for this period has been used.',
     retryable: false,
   },
+  // AI Document Studio M3 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11). The first
+  // message is the brief's own sentence, shown while CP-5 is unrecorded.
+  PREPARATION_NOT_ENABLED: {
+    category: 'VALIDATION',
+    status: 422,
+    message:
+      'AI document preparation is not yet enabled for this environment. Contact your administrator.',
+    retryable: false,
+  },
+  PREPARATION_OUTPUT_REFUSED: {
+    category: 'VALIDATION',
+    status: 422,
+    message:
+      'The prepared document was refused because it changed or added information that is not in the original.',
+    retryable: false,
+  },
+  UPLOAD_REFUSED: {
+    category: 'VALIDATION',
+    status: 422,
+    message: 'The file was not accepted.',
+    retryable: false,
+  },
   PROVIDER_NOT_APPROVED: {
     category: 'VALIDATION',
     status: 422,

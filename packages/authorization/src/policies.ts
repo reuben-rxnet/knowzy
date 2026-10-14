@@ -93,6 +93,15 @@ export const POLICIES = {
     description: 'Browse indexed documents and their extraction status.',
   },
 
+  // AI Document Studio M3: upload, prepare, edit, download and add an
+  // assessment-prepared document to the Question Generation Repository.
+  'document.prepare': {
+    permission: 'document.prepare',
+    portals: AUTHORING,
+    description:
+      'Upload or choose a document, prepare it for question generation, edit and download the prepared document, and add it to the Question Generation Repository.',
+  },
+
   // ------------------------------------------------------------ generation
   'question.generate': {
     permission: 'question.generate',

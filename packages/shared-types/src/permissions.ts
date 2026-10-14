@@ -35,6 +35,10 @@ export const PERMISSION_KEYS = [
   'document.browse',
   'document.section.manage',
   'document.exclude',
+  // AI Document Studio M3: upload, prepare, edit and add an assessment-prepared
+  // document to the Question Generation Repository. Its own key, as
+  // question.import is: preparing whole documents is a distinct use.
+  'document.prepare',
   // question
   'question.read',
   'question.generate',
@@ -358,6 +362,7 @@ export const WRITE_PERMISSION_KEYS: readonly PermissionKey[] = [
   'source.sync',
   'document.section.manage',
   'document.exclude',
+  'document.prepare',
   'question.generate',
   'question.import',
   'question.regenerate',

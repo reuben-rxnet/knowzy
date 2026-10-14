@@ -22,7 +22,8 @@ redaction policy is in [security.md §12](security.md#12-logging-redaction-and-m
 
 ## 2. Event taxonomy
 
-28 action families across five prefixes. The prefix determines the audit category, which determines
+30 action families across five prefixes (ADMIN.COMPETENCY added 2026-09-29,
+AUTHORING.DOCUMENT_PREPARATION 2026-10-14). The prefix determines the audit category, which determines
 which portal and which role can read it.
 
 ### 2.1 `ADMIN.*` — 10 families
@@ -40,7 +41,7 @@ which portal and which role can read it.
 | `ADMIN.FEATUREFLAG` | `ENABLED` · `DISABLED` · `ROLLOUT_CHANGED` |
 | `ADMIN.COMPETENCY` (2026-09-29) | `IMPORT_APPLIED` (counts only; one per apply, including a `NO_CHANGES` re-apply) |
 
-### 2.2 `AUTHORING.*` — 8 families
+### 2.2 `AUTHORING.*` — 9 families
 
 | Family | Actions |
 | --- | --- |
@@ -52,6 +53,7 @@ which portal and which role can read it.
 | `AUTHORING.ASSESSMENT` | `CREATED` · `VERSION_CREATED` · `VERSION_UPDATED` · `SUBMITTED` · `APPROVED` · `PUBLISHED` · `UNPUBLISHED` · `ARCHIVED` · `POOL_EVALUATED` |
 | `AUTHORING.OBJECTIVE` | `CREATED` · `UPDATED` · `DEPRECATED` · `SECTION_MAPPING_CONFIRMED` |
 | `AUTHORING.PROFILE` | `CREATED` · `UPDATED` · `PROMPT_VERSION_CREATED` · `PROMPT_VERSION_RETIRED` |
+| `AUTHORING.DOCUMENT_PREPARATION` (2026-10-14, AI Document Studio M3) | `UPLOAD_ACCEPTED` · `UPLOAD_REFUSED` · `PREPARATION_COMPLETED` · `PREPARATION_FAILED` · `PREPARATION_REFUSED` · `VERSION_SAVED` · `AI_VERSION_RESTORED` · `ADDED_TO_REPOSITORY` · `VERSION_SUPERSEDED` · `REVALIDATION_REQUIRED` · `VERSION_REJECTED` · `DOWNLOADED`. Identifiers, versions, counts and classes only; never document text, prepared text or file bytes |
 
 ### 2.3 `LEARNING.*` — 5 families
 

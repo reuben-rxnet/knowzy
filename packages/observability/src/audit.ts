@@ -53,7 +53,57 @@ const UNIVERSAL_DETAIL_KEYS: readonly string[] = [
  * Phase 1 declares the actions Phase 1 emits. Later phases extend this table
  * alongside the behaviour that needs it.
  */
+// AI Document Studio M3 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11.9). One key
+// set for the family: identifiers, versions, counts and classes. NEVER the
+// document text, the prepared text, a file's bytes or a provider's message --
+// the audit trail says what happened to a document, not what it says.
+const DOCUMENT_PREPARATION_KEYS: readonly string[] = [
+  'preparedDocumentId',
+  'versionId',
+  'versionNumber',
+  'state',
+  'previousState',
+  'originalDocumentId',
+  'originalVersionCounter',
+  'providerId',
+  'modelId',
+  'promptVersion',
+  'live',
+  'runId',
+  'contentSha256',
+  'repositoryDocumentId',
+  'supersededVersionIds',
+  'reason',
+  'control',
+  'extension',
+  'sizeBytes',
+  'scanStatus',
+  'inventedFigures',
+  'warningCount',
+  'findingCount',
+  'failureClass',
+  'inputTokens',
+  'outputTokens',
+  'format',
+];
+
 const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {
+  ...Object.fromEntries(
+    [
+      'UPLOAD_ACCEPTED',
+      'UPLOAD_REFUSED',
+      'PREPARATION_COMPLETED',
+      'PREPARATION_FAILED',
+      'PREPARATION_REFUSED',
+      'VERSION_SAVED',
+      'AI_VERSION_RESTORED',
+      'ADDED_TO_REPOSITORY',
+      'VERSION_SUPERSEDED',
+      'REVALIDATION_REQUIRED',
+      'VERSION_REJECTED',
+      'DOWNLOADED',
+    ].map((action) => [`AUTHORING.DOCUMENT_PREPARATION.${action}`, DOCUMENT_PREPARATION_KEYS]),
+  ),
   'ADMIN.ACCESS.BOOTSTRAPPED': ['entraObjectIds', 'roleKey'],
   'ADMIN.ACCESS.ROLE_GRANTED': ['roleKey', 'targetUserId'],
   'ADMIN.ACCESS.ROLE_REVOKED': ['roleKey', 'targetUserId'],

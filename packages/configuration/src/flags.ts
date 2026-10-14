@@ -39,6 +39,18 @@ export const FEATURE_FLAGS = {
     whenOff:
       'Publishing and retirement run in dry-run mode and the publish screen says so prominently.',
   }),
+  // AI Document Studio M3 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11.4). The
+  // deterministic test preparation provider, which is NOT AI. LOCAL ONLY: the
+  // ceiling is what makes "never available in production" a property rather
+  // than a promise, and startup refuses a stored row that tries elsewhere.
+  'documentStudio.testPreparation.enabled': flag({
+    key: 'documentStudio.testPreparation.enabled',
+    defaultEnabled: true,
+    ceiling: ['local'],
+    owner: 'Platform administrator',
+    whenOff:
+      'Only a live AI provider can prepare a document; until CP-5 is recorded the Studio says AI preparation is not yet enabled.',
+  }),
   'generation.enabled': flag({
     key: 'generation.enabled',
     defaultEnabled: true,

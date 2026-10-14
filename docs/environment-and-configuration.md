@@ -115,6 +115,7 @@ Declared, validated at startup, and documented in `.env.example` with inert plac
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME` | all | Distinct service name per deployable |
 | `PUBLIC_API_BASE_URL` | web apps | The only API value a browser receives |
 | `MOCK_FIXTURE_ROOT`, `MOCK_FAULTS` | local only | Startup fails if set outside `local` |
+| `DOCUMENT_STUDIO_STORAGE_DIR` | api | Absolute directory for AI Document Studio uploads and prepared documents (local: `/repo/.document-studio`, git- and docker-ignored). Absent: upload and repository addition are refused. 2026-10-14 |
 
 Rules: the web apps receive **only** `PUBLIC_*`, the Entra client ID, and `KNOWZY_ENV` — every other
 variable is server-side. A variable prefixed `PUBLIC_` is treated as world-readable, and a secret
@@ -182,6 +183,8 @@ effective(flag) = environmentCeiling(flag, KNOWZY_ENV) AND runtimeSwitch(flag)
 | F6 | Flags for unimplemented features have ceiling `none` and cannot be enabled anywhere. The row exists so the roadmap is visible and the schema is stable |
 | F7 | Flags are reviewed each release. A flag that has been on everywhere for two releases is removed and its code path becomes unconditional; permanent flags are configuration and belong in §3 |
 | F8 | `rolloutRule` supports a percentage or an explicit user list, evaluated server-side, used only for progressive rollout — never for entitlement |
+
+`documentStudio.testPreparation.enabled` (2026-10-14, AI Document Studio M3) has the ceiling **`local` only**, default on: the deterministic test preparation provider, which is not AI, can never run in `dev`, `test` or `prod`, and the API treats an unknown environment as `prod` for it. Off: only a live provider with the `DOCUMENT_RESTRUCTURE` approval can prepare a document.
 
 ---
 

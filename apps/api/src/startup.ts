@@ -13,7 +13,7 @@ import {
 } from '@knowzy/configuration';
 import { probeDatabase, type PrismaClient } from '@knowzy/database';
 
-export const EXPECTED_MIGRATION = '0017_authoring_role_simplification';
+export const EXPECTED_MIGRATION = '0018_document_studio_preparation';
 
 export interface ApiStartupDeps {
   readonly prisma: PrismaClient;

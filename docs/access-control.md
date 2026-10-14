@@ -135,7 +135,7 @@ convenience and is never the enforcement point.
 | `access` | `access.manage`, `access.read` |
 | `taxonomy` | `taxonomy.manage`, `taxonomy.read` |
 | `source` | `source.read`, `source.manage`, `source.test`, `source.sync` |
-| `document` | `document.browse`, `document.section.manage`, `document.exclude` |
+| `document` | `document.browse`, `document.section.manage`, `document.exclude`, `document.prepare` (2026-10-14) |
 | `question` | `question.read`, `question.generate`, `question.regenerate`, `question.edit`, `question.submit`, `question.review`, `question.review.edit`, `question.approve`, `question.approve.bulk`, `question.publish`, `question.retire`, `question.archive` |
 | `questionbank` | `questionbank.reconcile` |
 | `assessment` | `assessment.read`, `assessment.manage`, `assessment.approve`, `assessment.publish` |
@@ -151,6 +151,7 @@ convenience and is never the enforcement point.
 | `authoring.dashboard.view` | `authoring.dashboard.view` | Scope applied to every panel | Panels are individually scoped; a user sees counts for their domains only |
 | `source.read` / `source.manage` / `source.test` / `source.sync` | same | `effectiveSourceAccess(user, source)` | Formula in [knowledge-source-administration.md §3.3](knowledge-source-administration.md#33-restriction-model) |
 | `document.browse` | `document.browse` | Source access **and** source `isActive` | Purpose flags are enforced per use, not here |
+| `document.prepare` | `document.prepare` | Held by `KNOWZY_ADMINISTRATOR` | AI Document Studio M3: upload or choose, prepare, edit, download and add to the Question Generation Repository. Its own key, as `question.import` is. Reads of the Studio are `document.browse` |
 | `question.generate` | `question.generate` | Domain in scope **and** source `usableForGeneration` **and** valid preflight | Preconditions in [workflows.md §2.1](workflows.md#21-preconditions) |
 | `question.read` | `question.read` | Question's domain in scope | An `AUDITOR` has unrestricted domain scope by default |
 | `question.edit` / `question.submit` | same | Domain in scope **and** status permits the transition | Transition table in [workflows.md §3.2](workflows.md#32-transition-rules) |

@@ -195,6 +195,19 @@ export const ENV_VARS: readonly EnvVarDeclaration[] = [
     description:
       'Directory of the local secure store (store.key + store.json). Local only; created by `npm run secrets -- init`.',
   },
+  // AI Document Studio M3, 2026-10-14 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md
+  // §11.2). Where uploaded originals and assessment-prepared documents are
+  // written, inside the api container; the mcp container reads the same path
+  // to synchronize them. Optional everywhere: absent, upload and repository
+  // addition are refused with that reason, and nothing else changes.
+  {
+    name: 'DOCUMENT_STUDIO_STORAGE_DIR',
+    deployables: ['api'],
+    schema: z.string().regex(/^\//, 'an absolute path'),
+    requiredIn: [],
+    description:
+      'Absolute directory for AI Document Studio uploads and prepared documents. Absent: upload and repository addition are refused.',
+  },
   // OPENAI-CODEX-00, 2026-09-27. The hosts a provider's API key may be SENT
   // to. Deployment configuration, deliberately NOT a screen setting: the base
   // URL is editable in Administration -> AI Providers, and without a fence an
