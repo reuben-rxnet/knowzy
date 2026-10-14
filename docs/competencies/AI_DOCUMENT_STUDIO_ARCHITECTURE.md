@@ -1,9 +1,11 @@
 # AI Document Studio Architecture
 
-**Status:** **`PARTIALLY_IMPLEMENTED`** since Slice 2 (2026-10-07, §10): the processing purpose
-`DOCUMENT_RESTRUCTURE`, its approval record, a read-only status endpoint and the **AI Document
-Studio** overview screen exist. **No transformation exists**: no restructuring client, no derivative,
-no provider call, no upload. §2–§8 remain the design of the workflow still to be built.
+**Status:** **`PARTIALLY_IMPLEMENTED`**; §11 SPECIFIES M3 (2026-10-14), the assessment-preparation journey:
+upload or choose a document, prepare it, review and edit, download Word or PDF, add it to the
+Question Generation Repository, generate questions. **Live AI preparation stays blocked until the
+`DOCUMENT_RESTRUCTURE` approval (CP-5) is recorded**; until then only the local-only test
+preparation provider (§11.4), which is not AI, can run. §11 supersedes §2–§8 where they disagree;
+§10 (Slice 2) is unchanged.
 **Target location:** Knowledge Sources → AI Document Studio.
 **Governed by:** [COMPETENCY_PRIVACY_AND_GOVERNANCE.md](COMPETENCY_PRIVACY_AND_GOVERNANCE.md) CP-5 ·
 [architecture.md §9.0](../architecture.md#90-provider-independence--amended-2026-09-24-extended-2026-09-26-and-2026-09-27) ·
@@ -279,3 +281,225 @@ Expected now: overall `BLOCKED_BY_APPROVAL`. After an approval is recorded: `NOT
 The derivative workflow of §2–§6 — proposal, verification, side-by-side review, whole-document
 approval, dual lineage — is unchanged and unbuilt (roadmap §3a M3), as is upload (§8.1, M4). DS-1
 and DS-3..DS-5 stay open. DS-2 is now **recordable** (§10.2) but not recorded.
+
+## 11. M3 — Assessment preparation (2026-10-14)
+
+Decided by the product owner on 2026-10-14 (the simplified M3 brief) and recorded here before any
+code. **Where this section and §2–§10 disagree, this section wins.** It replaces the multi-stage
+derivative design with one plain journey, and it supersedes four earlier positions on purpose:
+
+| Earlier position | Superseded by |
+| --- | --- |
+| §7: "the Studio has no zero-credential path" | §11.4: a **test preparation provider**, deterministic, local environment only, never labelled AI |
+| §5 / DS-1: dual verification against the original before publication | §11.8: the prepared document is the **immediate evidence source**; lineage to the original is kept, not re-verified word for word |
+| §2.1 states and §6 section-by-section review with a separate approval | §11.6: five version states; **the user's confirmation to add the document to the repository is its approval** |
+| §8.1: upload is its own milestone (M4) | §11.2: upload is built in M3, with every control §8.1 lists |
+
+### 11.1 The journey
+
+**Add document → Prepare with AI → Review → Download or add to repository → Generate questions.**
+
+The screen uses business words only: *Original document*, *Prepared document* (in full,
+*Assessment-prepared document*), *Prepare for question generation*, *Review changes*,
+*Download Word*, *Download PDF*, *Add to Question Generation Repository*, *Generate questions*.
+Internal terms — readiness states, content hashes, offsets, output checks, capability contracts —
+appear only in a collapsed *Details* panel.
+
+The Studio has four views: **Add document**, **My prepared documents**, **History**, and
+**Readiness** (the Slice 2 overview and the approval controls, unchanged).
+
+### 11.2 Add document
+
+Two ways in:
+
+1. **Upload** from the user's computer.
+2. **Choose an existing synchronized document** from any source except the Studio's own.
+
+Accepted upload types, chosen because their extractors are proven on the pilot corpus: **DOCX,
+PDF, PPTX, Markdown and plain text**. XLSX is not offered (a workbook is a table of records, not a
+procedure).
+
+Every upload passes these controls, each with a test that fails when it is removed:
+
+| Control | Rule |
+| --- | --- |
+| Size | 1 byte to **8 MiB**, checked before anything is parsed |
+| Extension | The allow-list above; anything else is refused by name |
+| Signature | The bytes must match the extension: `%PDF-` for PDF; a ZIP holding `word/document.xml` (DOCX) or `ppt/presentation.xml` (PPTX); valid UTF-8 with no NUL byte for text |
+| Executable or active content | Refused: a Windows or Linux executable or a script header; an Office macro project (`vbaProject.bin`) or a macro-enabled content type; a PDF with `/JavaScript`, `/JS`, `/Launch` or `/EmbeddedFile` |
+| Stored name | Server-generated (`<uuid>.<ext>`); the user's file name is stored as a label only and never touches the file system |
+| Path | The stored path is checked to lie inside the Studio storage root, segment by segment |
+| Extraction | The file is extracted **before** it is stored; anything other than `EXTRACTED` is refused with the extractor's reason |
+| Duplicate | The SHA-256 of the bytes is unique; a second upload of the same file is refused and names the first |
+| Malware scanning | An extension point. No scanner is configured in this build, so every upload records **Not scanned**, and the screen says so |
+| Authorization | `document.prepare`, a new permission key held by the Authoring Administrator |
+| Audit | `UPLOAD_ACCEPTED` or `UPLOAD_REFUSED`, with type, size and the reason |
+| No browser-selected path | The browser sends bytes and a name, never a path |
+
+**The original is never modified.** An uploaded file is written once and synchronized into a
+system source, **AI Document Studio — Originals** (`usableForGeneration: false`), so it is
+extracted and versioned by the same pipeline as every other document. A synchronized original is
+used where it is and is never copied.
+
+Storage is the deployment's `DOCUMENT_STUDIO_STORAGE_DIR` (local: `/repo/.document-studio`,
+git-ignored and docker-ignored). With no directory configured, upload and repository addition are
+refused with that reason, and choosing an existing document still works for preparation. A refused
+upload is never written. Retention of uploaded originals follows source retention (open, DS-5).
+
+### 11.3 Prepare for question generation
+
+One primary action. The provider receives the original's extracted text, its sections, and the
+rules below, and returns JSON against a strict schema: `sections[]` (a heading, a content kind —
+rule, procedure, threshold, scenario, exception, definition, decision, responsibility or general —
+and blocks: paragraph, list, numbered list, table, warning), plus `findings[]` (missing
+information, unclear information, not suitable for assessment), kept **outside** the prepared text.
+
+| The preparation may | The preparation may not |
+| --- | --- |
+| Add meaningful headings; group related information | Invent a fact, rule, threshold, responsibility, exception or rationale |
+| Separate rules, procedures, thresholds, scenarios and exceptions | Add outside information, even correct information |
+| Split large sections and combine fragments | Turn *should* into *must*, or *must* into *should* |
+| Restate tables and decision logic clearly | Remove a warning, control, escalation step or safety statement |
+| Keep procedural order, terminology and every number, limit, percentage, date and condition | Resolve an ambiguity silently |
+| Flag unclear or missing information; mark sections unsuitable for assessment | Change the original |
+
+The output is checked before anyone sees it:
+
+| Check | Effect |
+| --- | --- |
+| Schema (strict) | A response that does not parse is a **failed preparation**; it is not repaired by guessing and no version is stored |
+| Every number, percentage, date and duration in the prepared text occurs in the original | Otherwise **refused outright**: an invented quantity is the most damaging fabrication |
+| A *must/shall/required* sentence whose closest original sentence says only *should/may*, or the reverse | A **warning** on the review screen |
+| An original sentence with a warning, escalation, prohibition or safety term and no close match in the prepared text | A **warning**: possibly removed |
+| A prepared sentence not found verbatim in the original | **Highlighted** as reworded in *Review changes* |
+
+**Readiness, behind the scenes.** Live AI preparation runs only when, for one provider: the
+`DOCUMENT_RESTRUCTURE` approval (CP-5) is recorded; a restructuring client exists (OpenAI, from this
+milestone); the provider is enabled with an endpoint, a model and a resolvable credential; the token
+and concurrency budgets permit the run (§11.9); and the original is extracted and current. While no
+approval is recorded the screen says exactly:
+
+> AI document preparation is not yet enabled for this environment. Contact your administrator.
+
+### 11.4 The test preparation provider
+
+The workflow may be validated before CP-5 with a **deterministic test preparation provider**, by
+the owner's decision. It is **not AI** and is never called AI:
+
+- It is enabled by the feature flag `documentStudio.testPreparation.enabled`, whose ceiling is the
+  `local` environment only. In `dev`, `test` and `prod` it cannot be switched on, and startup
+  refuses a stored row that tries.
+- Its provider id is `TEST_PREPARATION`, outside the generation provider catalogue, so it can never
+  be approved, made active or chosen for question generation.
+- It keeps every sentence of the original verbatim, uses the original's headings (a section label
+  where there are none), classifies blocks by keyword, and raises findings by rule. It sends
+  nothing anywhere.
+- Every version it produces records `TEST_PREPARATION` and the model `knowzy-test-preparation-1`,
+  and the screen labels it **Test preparation — not AI** wherever the provider is shown, including
+  the downloads. When a live provider is ready, the live provider is used.
+
+Automated tests and the browser suite use it with **synthetic documents only**.
+
+### 11.5 Review
+
+Original on the left, prepared document on the right. Added headings and reworded sentences are
+highlighted; warnings and missing-information findings are listed beside the prepared text. A
+simple editor — one text area in a small Markdown dialect: `#` headings, `-` and `1.` lists, `|`
+tables, `> Warning:` callouts and `> [!MISSING]`, `> [!UNCLEAR]`, `> [!NOT_FOR_ASSESSMENT]`
+markers — saves the prepared text.
+
+| Action | Effect |
+| --- | --- |
+| Save changes | Updates the current **DRAFT**; editing a ready version creates a new draft from it |
+| Restore AI version | Replaces the draft's text with the preparation output it came from |
+| Prepare again | A new preparation run and a new draft, from the original's current version |
+| Download Word / Download PDF | §11.7 |
+| Add to Question Generation Repository | §11.8, after the confirmation |
+| Discard draft | The draft becomes **REJECTED**; nothing is deleted |
+
+### 11.6 Versions
+
+| State | Meaning | Selectable for new generation |
+| --- | --- | --- |
+| `DRAFT` | Prepared or edited, not yet added | No |
+| `READY_FOR_QUESTION_GENERATION` | Added to the repository by a recorded confirmation | **Yes** |
+| `SUPERSEDED` | A newer version of the same prepared document was added | No; questions already made from it keep it |
+| `REVALIDATION_REQUIRED` | The original changed, was replaced or was deleted after this version was prepared | No, until a revalidated version is added |
+| `REJECTED` | A draft the user discarded | No |
+
+Rules: the original never changes; one draft at a time per prepared document; editing a ready
+version creates a new draft; adding a draft makes **that exact version** ready and supersedes the
+previous ready version; a version with downstream questions can never be deleted (there is no
+delete route, and a database trigger refuses the delete); one prepared document per original.
+
+**Revalidation.** Before every Studio read, every preparation and every generation job, and after
+every synchronization the API runs, the platform compares each draft or ready version's recorded
+original content hash with the original's current one. A difference, or a deleted original, marks
+the version `REVALIDATION_REQUIRED` and excludes its repository document from generation.
+Revalidation is completed by **Prepare again**, or by **Review against the updated original** (a
+new draft with the same text, pinned to the original's current version, for a person to check and
+add). Adding the revalidated draft supersedes the flagged version.
+
+### 11.7 Downloads
+
+`.docx` and `.pdf`, written by the platform (no third-party library), each with the complete
+prepared content — headings, paragraphs, lists, tables, warnings and the missing-information
+markers — and this notice first:
+
+> Assessment-prepared document derived from [original document name]. This document is intended
+> for question generation and does not replace the authoritative original.
+
+followed by the original document's name and version, the prepared version number, the provider
+and model (or *Test preparation — not AI*), and the preparation time. File names are
+`<Original Name> - Assessment Prepared.docx` and `.pdf`, keeping only letters, digits, spaces and
+`- _ . ( )`. Each download is audited.
+
+### 11.8 Add to the Question Generation Repository
+
+The confirmation reads:
+
+> Add this prepared document as a source for question generation? The original document will
+> remain unchanged and linked to this prepared version.
+
+On confirmation, in one recorded act: the exact version's text is written as
+`<prepared document id>-v<n>.md` into the system source **Assessment-prepared documents**
+(`usableForGeneration: true`) and synchronized; the resulting document is linked to the version,
+and through it to the original document and original version; the user and time are recorded; the
+version becomes `READY_FOR_QUESTION_GENERATION`, and the previous ready version `SUPERSEDED` with
+its repository document excluded from new generation. A version already added is refused as a
+duplicate. Missing-information markers are written to the downloads but **not** into the
+repository text, so no question can be generated from a note about what is absent.
+
+The screen then offers **Generate questions now**, which opens the existing Generate screen with the
+source and the document preselected. Generation, review, approval and publication are unchanged.
+
+**Evidence.** A question generated from it cites the prepared document as its **immediate source**:
+its evidence span, section key and section hash are verified STRICT against the prepared text, as
+for any document, and they are the record of the exact prepared section used. The question's
+lineage names the original document and original version, and the question screen says:
+*Immediate source: Assessment-prepared document — derived from [original], version n. The prepared
+text is not a verbatim quote of the original, and the original remains authoritative.* No prepared
+quotation is required to match the original word for word, and none is presented as one.
+
+### 11.9 Recorded, separately, for every version
+
+Original document and original version (counter and content hash); provider and configured model;
+prompt version (hash-pinned, as `framing.ts` is); preparation time; who prepared, who last edited,
+who added, and when; the prepared version number; the SHA-256 of the prepared text; the repository
+document; and audit events in the new family `AUTHORING.DOCUMENT_PREPARATION`: `UPLOAD_ACCEPTED`,
+`UPLOAD_REFUSED`, `PREPARATION_COMPLETED`, `PREPARATION_FAILED`, `PREPARATION_REFUSED`,
+`VERSION_SAVED`, `AI_VERSION_RESTORED`, `ADDED_TO_REPOSITORY`, `VERSION_SUPERSEDED`,
+`REVALIDATION_REQUIRED`, `VERSION_REJECTED`, `DOWNLOADED`.
+
+**Controls.** Each preparation attempt is one `document_preparation_run` row, as each generation
+attempt is one `generation_provider_call` row. Its tokens count against the **same** daily, weekly
+and monthly windows as generation, the per-job ceiling applies to its estimate, and the concurrency
+cap counts running preparations. A run left `RUNNING` for more than ten minutes is failed by the
+next request, so a crashed container cannot freeze the Studio. An unobservable cost is null, never 0.
+
+### 11.10 Not in M3
+
+Knowledge Proficiency, employee competency features, multi-stage approval, section-by-section
+acceptance, a malware scanner, and Key Vault. DS-1 is closed by §11.8 and DS-3 by §11.6 (no
+separate approver). DS-4 is decided as any holder of `document.prepare`, and DS-5 as "rejected
+drafts are kept"; both may be revisited.
