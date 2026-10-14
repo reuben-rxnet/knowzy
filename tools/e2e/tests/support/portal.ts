@@ -8,7 +8,7 @@
 // assert a product behaviour on the caller's behalf, or reach into the
 // database to make something true that the product would have refused.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
@@ -343,6 +343,24 @@ const ensureSyntheticSource = async (request: APIRequestContext): Promise<Source
   return source;
 };
 
+/**
+ * Keep the synthetic folder small. Every draft adds a file and every sync
+ * re-reads the whole folder, so by 2026-10-14 (57-73 files) one sync took
+ * over 40 seconds and the publish spec ran out of its 90-second budget.
+ * Files from EARLIER runs (older than two hours) are removed before a new one
+ * is written. Their documents and questions stay in the database -- a sync
+ * never marks a vanished file deleted, and every gate reads the stored text.
+ */
+const SYNTHETIC_FILE_MAX_AGE_MS = 2 * 60 * 60 * 1000;
+const pruneEarlierSyntheticFiles = (): void => {
+  const cutoff = Date.now() - SYNTHETIC_FILE_MAX_AGE_MS;
+  for (const name of readdirSync(SYNTHETIC_ROOT_ON_HOST)) {
+    if (!/^synthetic-[A-Z0-9]+\.md$/.test(name)) continue;
+    const path = join(SYNTHETIC_ROOT_ON_HOST, name);
+    if (statSync(path).mtimeMs < cutoff) rmSync(path);
+  }
+};
+
 /** Write a fresh synthetic SOP, synchronize, and return its document id. */
 const freshSyntheticDocument = async (
   request: APIRequestContext,
@@ -350,6 +368,7 @@ const freshSyntheticDocument = async (
   const stamp = `R${Date.now().toString(36).toUpperCase()}`;
   const fileName = `synthetic-${stamp}.md`;
   mkdirSync(SYNTHETIC_ROOT_ON_HOST, { recursive: true });
+  pruneEarlierSyntheticFiles();
   writeFileSync(join(SYNTHETIC_ROOT_ON_HOST, fileName), syntheticSop(stamp));
   const source = await ensureSyntheticSource(request);
   await api(request, `/api/v1/authoring/sources/${source.sourceId}/test-connection`, {
