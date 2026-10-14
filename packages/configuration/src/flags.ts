@@ -42,7 +42,8 @@ export const FEATURE_FLAGS = {
   // AI Document Studio M3 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11.4). The
   // deterministic test preparation provider, which is NOT AI. LOCAL ONLY: the
   // ceiling is what makes "never available in production" a property rather
-  // than a promise, and startup refuses a stored row that tries elsewhere.
+  // than a promise; a stored switch above it is forced off at startup with a
+  // FLAG_CEILINGS warning, and the API resolves it from the ceiling alone.
   'documentStudio.testPreparation.enabled': flag({
     key: 'documentStudio.testPreparation.enabled',
     defaultEnabled: true,

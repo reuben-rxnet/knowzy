@@ -387,8 +387,9 @@ The workflow may be validated before CP-5 with a **deterministic test preparatio
 the owner's decision. It is **not AI** and is never called AI:
 
 - It is enabled by the feature flag `documentStudio.testPreparation.enabled`, whose ceiling is the
-  `local` environment only. In `dev`, `test` and `prod` it cannot be switched on, and startup
-  refuses a stored row that tries.
+  `local` environment only. In `dev`, `test` and `prod` it cannot be switched on: the API resolves
+  it from the ceiling alone, an unknown environment counts as `prod`, and a stored switch above the
+  ceiling is forced off with a startup warning (`FLAG_CEILINGS`).
 - Its provider id is `TEST_PREPARATION`, outside the generation provider catalogue, so it can never
   be approved, made active or chosen for question generation.
 - It keeps every sentence of the original verbatim, uses the original's headings (a section label
