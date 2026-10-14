@@ -306,11 +306,14 @@ The steps are shown across the top of every Studio page: **Add document → Prep
 Review → Download or add to repository → Generate questions**. A step is ticked only when it is
 done.
 
-**First, the banner.** While no AI provider is approved for document preparation, every Studio page
-says: *AI document preparation is not yet enabled for this environment. Contact your
-administrator.* That is today's state: the approval this needs (CP-5) has not been recorded. In
-this local build a **test preparation** is available instead, so you can try the whole workflow.
-**It is not AI**: it keeps every sentence of the original, uses its headings, and marks findings by
+**First, the banner.** It says which preparation this environment can run. While no AI provider
+is approved for document preparation, every Studio page says: *AI document preparation is not yet
+enabled for this environment. Contact your administrator.* Once the approval (CP-5) is recorded on
+**Readiness** and OpenAI is configured, it says *AI document preparation is available, using
+OPENAI.*, and **Prepare for question generation** sends the original's text to that model. In the
+local build the approval was recorded by the Authoring Administrator on 2026-10-14. Where no AI
+provider is ready, the local build offers a **test preparation** instead, so you can try the whole
+workflow. **It is not AI**: it keeps every sentence of the original, uses its headings, and marks findings by
 fixed rules. Everything it produces is labelled **Test preparation — not AI**, including the
 downloads. It cannot be switched on outside the local environment.
 
@@ -1700,7 +1703,7 @@ Everything is done as the **Authoring Administrator** until step 10.
 | **A connection test against an AI provider** | **Real for OpenAI** (§4.3f), directly or through an Azure API Management gateway: the secret is resolved and the endpoint, key and model are checked with content-free GET requests. Behind a gateway with no model discovery, the model check reads SKIPPED. Not real for any other external provider, which has no client — its live checks read NOT ATTEMPTED |
 | **Generating questions with OpenAI (Codex)** | **Built, not yet run.** The generation client exists and its proposals go through the full gate chain, but it is refused until the T-29 approval is recorded, and no working credential is configured. The Generate screen does not offer it yet. See docs/integrations/OPENAI_CODEX_EVALUATION_RESULTS.md |
 | **Azure Key Vault** | Not real. `keyvault://` references are accepted and reported as unreadable here; the local secure store works in the local environment only |
-| **AI document preparation** | **The workflow is real; the AI is not enabled.** Upload or choose a document, prepare it, review, edit, download it as Word or PDF, add it to the Question Generation Repository and generate from it (§4.2a). The AI provider (OpenAI) has a preparation client but is **refused until the DOCUMENT_RESTRUCTURE approval (CP-5) is recorded**; until then the local build uses a **test preparation that is not AI**, labelled as such everywhere. Uploads are not scanned for malware: no scanner is configured |
+| **AI document preparation** | **Real.** Upload or choose a document, prepare it, review, edit, download it as Word or PDF, add it to the Question Generation Repository and generate from it (§4.2a). OpenAI prepares documents only while the DOCUMENT_RESTRUCTURE approval (CP-5) is recorded; in the local build the Authoring Administrator recorded it on 2026-10-14. Without it, the local build falls back to a **test preparation that is not AI**, labelled as such everywhere. Uploads are not scanned for malware: no scanner is configured |
 | **Badges and certificates** | Not built. **Badges** and My Learnings show the badge designs and a certificate as labelled **previews** (§5.5); nothing is awarded |
 | **My Learnings, Discover, Badges, Knowledge Library, My Progress, Help & Support** | **Previews only** (§5.5). Each shows the finished design with every illustrative block framed and every control in a frame disabled; the parts built from your assessments, and the help guides and FAQ, are real |
 | **Refreshers** | Not built |

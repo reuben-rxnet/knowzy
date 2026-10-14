@@ -3486,3 +3486,25 @@ its own milestone (M4).
 - No malware scanner, no Key Vault. Knowledge Proficiency is not begun.
 - The jobs scheduler does not run the revalidation sweep. A scheduled sync's effect is caught
   at the next Studio read, preparation, addition or generation job.
+
+## M3 pre-push validation, and CP-5 recorded by the owner
+
+2026-10-14, afternoon.
+
+- **Synthetic Studio records were removed** after every local run, in one transaction per run,
+  scoped to the test titles. Documents people added were kept: two uploads and one pilot SOP.
+- **The browser suite's failures were in the suite and the machine, not in M3.**
+  - The synthetic folder had grown to 73 files, so each sync took 40 seconds or more. Files
+    from earlier runs are now pruned.
+  - The publish spec's wait matched the inventory table, not the publish outcome.
+  - The dev web servers held about 5.3 GB of a 7.5 GB Docker VM. A restart cleared it.
+  - Navigations ran past the 90-second per-test budget. The budget is now 180 seconds;
+    assertions keep 15 seconds.
+  - A dev-server setting meant to stop recompilation did not stop it, and was reverted.
+- **CP-5 was recorded by the product owner** as the Authoring Administrator, at 12:01 UTC, for
+  OpenAI, with the reference "Admin approval via email".
+  - One uploaded document was then prepared live through the APIM gateway: 1,091 input tokens,
+    model `gpt-5.3-codex_codeassist`.
+  - The journey spec now skips, by design, because it must not send documents to a model.
+  - The banner spec follows the real readiness either way.
+  - The T-29 request to Privacy, Legal and InfoSec is still unsent.

@@ -4,8 +4,9 @@
 upload or choose a document, prepare it, review and edit, download Word or PDF, add it to the
 Question Generation Repository, generate questions. **Live AI preparation stays blocked until the
 `DOCUMENT_RESTRUCTURE` approval (CP-5) is recorded**; until then only the local-only test
-preparation provider (§11.4), which is not AI, can run. §11 supersedes §2–§8 where they disagree;
-§10 (Slice 2) is unchanged.
+preparation provider (§11.4), which is not AI, can run. In the local environment the approval was
+recorded by the Authoring Administrator on 2026-10-14, so OpenAI prepares live there. §11
+supersedes §2–§8 where they disagree; §10 (Slice 2) is unchanged.
 **Target location:** Knowledge Sources → AI Document Studio.
 **Governed by:** [COMPETENCY_PRIVACY_AND_GOVERNANCE.md](COMPETENCY_PRIVACY_AND_GOVERNANCE.md) CP-5 ·
 [architecture.md §9.0](../architecture.md#90-provider-independence--amended-2026-09-24-extended-2026-09-26-and-2026-09-27) ·

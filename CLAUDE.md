@@ -558,6 +558,11 @@ family AUTHORING.DOCUMENT_PREPARATION (30 families).
   decision. Without one every page says the brief's sentence, "AI document
   preparation is not yet enabled for this environment. Contact your
   administrator."
+- CP-5 IS RECORDED IN THE LOCAL ENVIRONMENT since 2026-10-14 12:01 UTC, by the
+  OWNER as the Authoring Administrator ("Admin approval via email"), so OpenAI
+  reads READY and the Studio prepares LIVE through the APIM gateway. The
+  journey e2e spec therefore SKIPS (it must not send documents to a model) and
+  the full run reads 2 skipped. The T-29 request is still unsent.
 - THE TEST PREPARER IS NOT AI. Provider id TEST_PREPARATION (outside
   GENERATION_PROVIDER), flag documentStudio.testPreparation.enabled with
   ceiling ['local'] ONLY; the API treats an unknown environment as prod. It

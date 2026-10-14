@@ -778,9 +778,15 @@ in the Question Generation Repository, and on to generated questions. Detail:
 | The pilot may now claim | The pilot must not claim or imply |
 | --- | --- |
 | An uploaded file passes size, type, signature, active-content, extraction and duplicate checks before it becomes an original, and the original is never changed | That uploads are scanned for malware. No scanner is configured; uploads record NOT_SCANNED |
-| A prepared document with a figure the original lacks is refused, and changed obligations and possibly removed warnings are flagged for a person | That any document has been prepared by AI. Live preparation is refused until CP-5 is recorded; every prepared document so far is a TEST preparation, labelled "not AI" |
+| A prepared document with a figure the original lacks is refused, and changed obligations and possibly removed warnings are flagged for a person | That AI preparation is cleared by Privacy and InfoSec. The local environment's approval was recorded by the Authoring Administrator on 2026-10-14 (reference "Admin approval via email"); the T-29 / CP-5 request itself has not been sent |
 | A prepared version enters the repository only on an explicit, audited confirmation; superseded and stale versions cannot be selected; questions cite the prepared document as their immediate source with lineage to the original version | That a prepared document is authoritative, or that its text quotes the original verbatim |
 
 **For T-29 / CP-5.** The OpenAI preparation client is built and sends nothing until a
 `DOCUMENT_RESTRUCTURE` approval is recorded on the Readiness view. Recording it is the decision
 that enables live preparation, so it must reflect a real decision by Privacy and InfoSec.
+
+**State on 2026-10-14.** The product owner recorded the `DOCUMENT_RESTRUCTURE` approval for OpenAI
+in the local environment as the Authoring Administrator, reference "Admin approval via email", and
+one uploaded document was prepared live through the Azure APIM gateway the same minute. That
+approval is the owner's; whether it stands in for Privacy and InfoSec is for T-29 to settle, and the
+record's reference should then point at where their decision is held.
