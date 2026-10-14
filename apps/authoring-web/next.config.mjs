@@ -15,6 +15,13 @@ const nextConfig = {
   // AI Document Studio M3: an upload of up to 8 MB arrives through a server
   // action, whose default body limit is 1 MB. The API checks the file itself.
   experimental: { serverActions: { bodySizeLimit: '9mb' } },
+  // DEV SERVER ONLY (`next dev`; a production build ignores it). By default
+  // the dev server keeps five inactive pages compiled for about a minute and
+  // recompiles the rest on the next visit. With the Studio's three routes the
+  // browser suite recompiled /publish, /review and /administration/providers
+  // over and over -- 10 to 34 seconds each under load -- and a page load ran
+  // past the 90-second test budget (2026-10-14). Keep compiled pages resident.
+  onDemandEntries: { maxInactiveAge: 60 * 60 * 1000, pagesBufferLength: 100 },
 };
 
 export default nextConfig;
