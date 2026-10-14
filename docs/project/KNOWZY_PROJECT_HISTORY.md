@@ -3363,3 +3363,126 @@ Specification: `AI_DOCUMENT_STUDIO_ARCHITECTURE.md` §10, committed first.
   re-run `migrate`) brought it back.
 - **Final browser run: 87 passed, 1 skipped, 0 failed.** Contract 226, typecheck 35/35, lint 22/22,
   format clean.
+
+## AI Document Studio M3 — assessment preparation
+
+2026-10-14. The owner's simplified brief, after the earlier derivative-review-approval design
+was set aside: add a document, prepare it, review and edit, download it as Word or PDF, add it
+to the Question Generation Repository, generate questions. Specification:
+`AI_DOCUMENT_STUDIO_ARCHITECTURE.md` §11, committed first. It supersedes four earlier positions:
+no zero-credential path (§7), dual verification (DS-1), a separate approval step, and upload as
+its own milestone (M4).
+
+### What was built
+
+- **Migration 0018**: `studio_upload`, `prepared_document`, `prepared_document_version` (five
+  states) and `document_preparation_run` (one row per attempt). CHECKs require an approver for
+  READY and a discarder for REJECTED. A trigger refuses to delete a version that questions
+  descend from.
+- **Add document.**
+  - Upload: DOCX, PDF, PPTX, Markdown or text, 8 MiB. Name, size, extension, signature and
+    active-content checks run in the domain before anything is written. The file is stored
+    under a server-generated name, written once.
+  - The file is synchronized through MCP into the system source "AI Document Studio —
+    Originals". A file the extractor cannot read is removed. A duplicate is refused by SHA-256.
+  - Alternatively, choose an existing synchronized document. One prepared document per
+    original.
+- **Prepare.**
+  - The OpenAI preparer goes through `providerFetch`, with a strict schema, no tools,
+    `store: false` and a hash-pinned prompt. `RESTRUCTURING_CLIENTS` is now `['OPENAI']`.
+  - It is built only when `DOCUMENT_RESTRUCTURE` readiness is READY, so it is refused today:
+    CP-5 is not recorded.
+  - A deterministic **test preparer** is behind a flag whose ceiling is `local` only. It is
+    labelled *Test preparation — not AI* everywhere.
+  - An invented figure refuses the output. Changed obligations and possibly removed warnings
+    are flagged.
+  - Preparation tokens count in the generation budget windows. A stuck run is failed after ten
+    minutes.
+- **Review.**
+  - Original and prepared side by side, with reworded sentences highlighted and added headings
+    tagged.
+  - Warnings and findings are shown beside the text.
+  - Edit in a small Markdown dialect: Save, Restore AI version, Discard.
+- **Downloads**: Word and PDF written by `@knowzy/certificate-generator` with no library. Each
+  carries the notice, the original's name and version, and the prepared version. File names
+  are safe.
+- **Add to Question Generation Repository**, on explicit confirmation.
+  - The exact version is written as a new file in "Assessment-prepared documents" and
+    synchronized.
+  - The previous ready version is SUPERSEDED and excluded.
+  - "Generate questions now" opens Generate with the document preselected and labelled.
+- **Lineage and revalidation.**
+  - Questions cite the prepared document as their immediate source, and the question page
+    shows its lineage to the original.
+  - A changed or deleted original makes its versions REVALIDATION_REQUIRED and excluded until a
+    revalidated version is added.
+- **Thirteen routes** (119 in all), a `document.prepare` permission, and the audit family
+  `AUTHORING.DOCUMENT_PREPARATION` (30 families).
+- The Studio has four views: Add document, My prepared documents, History, Readiness.
+
+### Found on the way
+
+- **B2 forbids the API from importing content-extraction.** The first version parsed uploads
+  in the API.
+  - The writers moved to certificate-generator, and the byte checks to the domain.
+  - Extraction stayed in the sync, where the boundary already put it.
+- **A Markdown or Word heading is not in `extracted_text`.** The sectionizer keeps it as the
+  section heading.
+  - So the first review screen showed the original without headings.
+  - It would also have marked every original heading as *Added heading*.
+  - Found by the browser run. Now everything compares against the text with its headings, and
+    a test fails if it does not.
+- **System-source names are unique platform-wide**, so a second storage root (the integration
+  test's) collided with the dev stack's. Sources are found by root, and a second root is named
+  by it.
+- **A browser fill before hydration is silently lost.** The save succeeded with the old text:
+  "Changes saved." appeared and `edited_at` was set. The spec now waits for the page to settle
+  and asserts the value.
+- **The item listing is paged, and two readers never paged.** The e2e helper and the Generate
+  screen read only the first page.
+  - The suite's synthetic folder passed one page (57 files), so `generateDraft` reported a
+    document "not extracted" that was extracted.
+  - On Generate, a source past one page would silently lose documents, and the
+    Assessment-prepared source grows with every version.
+  - Both now follow `nextCursor`.
+
+### Validated
+
+- Typecheck and lint 58/58 turbo tasks. Boundaries: 0 violations (330 modules). Codegen
+  clean. Changed files formatted.
+- Unit and contract: 995 passed and 12 todo, in 55 files.
+- Integration, by file only (never the whole project, which empties the demo data):
+  - the new Studio suite passed 13/13. It generates questions from a prepared document,
+    proves the delete trigger, supersession and revalidation, and removes every row it
+    created;
+  - Slice 2 passed 2/2;
+  - the route-policy registry passed 5/5.
+- Migrations apply from empty to a shadow database, and the drift gate reports no difference.
+- `next build` of the authoring web and `tsc -b` of the API both passed.
+- Mutation checks:
+  - removing the macro control fails its upload test;
+  - comparing against the heading-less text fails the integration test.
+- **Browser, full suite: 87 passed, 1 skipped, 1 failed.**
+  - The failure was `page.goto` aborted ("frame was detached") in the publish spec.
+  - Re-running that file exposed the paging defect above.
+  - After the fix, the four affected files (review and publish, sources and generation,
+    question filing, the Studio journey) passed 12/12.
+  - The full suite was not re-run after the fix.
+- The Studio journey ran in the browser, end to end:
+  - upload;
+  - test preparation labelled not AI;
+  - edit, highlighted;
+  - Word and PDF with safe names;
+  - confirmed add;
+  - Generate preselected;
+  - deterministic generation;
+  - the lineage note on the question.
+- `npm run verify` was not run.
+
+### Not changed
+
+- **CP-5 is not recorded.** Live AI preparation stays refused, and nothing in this milestone
+  records a `DOCUMENT_RESTRUCTURE` approval for OpenAI.
+- No malware scanner, no Key Vault. Knowledge Proficiency is not begun.
+- The jobs scheduler does not run the revalidation sweep. A scheduled sync's effect is caught
+  at the next Studio read, preparation, addition or generation job.

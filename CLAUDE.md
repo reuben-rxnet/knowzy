@@ -61,10 +61,12 @@ Implementation Order:
 Extension workstream (roadmap §3a), Competency and knowledge readiness:
 COMPETENCY-M0/M1 DONE (specification, migration 0015, structure-only importer,
 gap rule); COMPETENCY-M2 DONE 2026-10-07 (competency administration, migration
-0016); M3-M8 NOT STARTED. The 2026-10-07 brief was split into three slices:
-slice 1 (competency administration) and slice 2 (the Document Studio overview,
-no transformation) are DONE; the owner asked to STOP for review before slice 3,
-Knowledge Proficiency. See "Competency foundation" below.
+0016); AI DOCUMENT STUDIO M3 DONE 2026-10-14 (assessment preparation, migration
+0018; see "AI Document Studio M3" below); M4 (upload) folded into M3; M5-M8
+NOT STARTED. The 2026-10-07 brief was split into three slices: slice 1
+(competency administration) and slice 2 (the Document Studio overview) are
+DONE; slice 3, Knowledge Proficiency, is NOT STARTED and the owner said not to
+begin it. See "Competency foundation" below.
 
 Phase 2 is Identity and access, not Knowledge Sources. Sources come in Phase 3
 and depend on it: every route must have a declared policy, and the registry
@@ -106,7 +108,10 @@ Current Status:
   SYNCHRONIZED the mock source by hand. On a fresh database their beforeAll
   threw and vitest skipped them, which reads like success. CI now synchronizes
   the fixtures before the suites run, and asserts an extracted document exists.
-- 17 migrations apply from empty; seed is idempotent. 0017 is the Authoring Role
+- 18 migrations apply from empty; seed is idempotent. 0018 is AI Document Studio
+  M3: studio_upload, prepared_document, prepared_document_version and
+  document_preparation_run, with READY/REJECTED CHECKs and a trigger refusing
+  to delete a version questions descend from. 0017 is the Authoring Role
   Simplification: role.is_active, and the 0016 competency separation CHECKs
   dropped. 0016 is COMPETENCY-M2:
   version origin, definitions hash and editors; alias status; target editors and
@@ -128,7 +133,7 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 106 API routes (COMPETENCY-M2 added 14, Document Studio Slice 2 added 2), every one with a declared
+- 19 of 36 MCP tools registered; 119 API routes (COMPETENCY-M2 added 14, Document Studio Slice 2 added 2, M3 added 13), every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
@@ -527,19 +532,75 @@ EVALUATION, and the specification says so in those words.
     e2e spec is refusal-only, and write paths run on a throwaway framework in
     packages/domain/test/competency-administration.test.ts.
 - AI DOCUMENT STUDIO SLICE 2 BUILT 2026-10-07 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md
-  §10): `/document-studio`, its own sidebar entry, PARTIALLY_IMPLEMENTED. Purpose
+  §10), superseded in part by M3 (below): `/document-studio`, its own sidebar entry. Purpose
   DOCUMENT_RESTRUCTURE's approvals live in `llm.purposeApprovals`, NEVER in
   `llm.approvedProviders` -- a contract test scans both directions. Readiness
   (exists > capability > approval > client > configuration) yields
-  BLOCKED_BY_APPROVAL / NOT_BUILT / READY; RESTRUCTURING_CLIENTS in
-  claude-services is EMPTY, so READY is unreachable and a test fails if a
-  client id is added without one. Each status read audits
-  PURPOSE_STATUS_EVALUATED. NO transformation, derivative, upload or provider
-  call exists; the page has no Run/Transform/Rewrite/Prepare control.
+  BLOCKED_BY_APPROVAL / NOT_BUILT / READY; since M3 RESTRUCTURING_CLIENTS is
+  ['OPENAI'], so READY needs the approval AND the configuration. Each status
+  read audits PURPOSE_STATUS_EVALUATED.
 - My Competencies, My Certifications, recommendations and competency
-  reporting are DESIGNED ONLY. The Studio is BLOCKED_BY_APPROVAL for
-  purpose DOCUMENT_RESTRUCTURE. None gets a navigation item until it has a
+  reporting are DESIGNED ONLY. None gets a navigation item until it has a
   backend (capability matrix, last section).
+
+## AI Document Studio M3
+
+BUILT 2026-10-14. Specification: docs/competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md
+§11, which supersedes §2-§8 where they disagree. Add document -> Prepare ->
+Review/edit -> Download Word/PDF -> Add to Question Generation Repository ->
+Generate questions. Migration 0018, permission `document.prepare`, audit
+family AUTHORING.DOCUMENT_PREPARATION (30 families).
+
+- LIVE AI PREPARATION IS REFUSED UNTIL CP-5 IS RECORDED. The OpenAI preparer
+  (claude-services document-preparation.ts, providerFetch, no tools,
+  store:false, prompt hash-pinned) is built only when readiness is READY. NEVER
+  record a DOCUMENT_RESTRUCTURE approval for OpenAI yourself: it is the real
+  decision. Without one every page says the brief's sentence, "AI document
+  preparation is not yet enabled for this environment. Contact your
+  administrator."
+- THE TEST PREPARER IS NOT AI. Provider id TEST_PREPARATION (outside
+  GENERATION_PROVIDER), flag documentStudio.testPreparation.enabled with
+  ceiling ['local'] ONLY; the API treats an unknown environment as prod. It
+  keeps the original's sentences verbatim, and the screen and downloads say
+  "Test preparation — not AI". Do not relabel it.
+- THE ORIGINAL IS NEVER WRITTEN. An upload is a server-named file
+  (`<uuid>.<ext>`, written `wx`) in DOCUMENT_STUDIO_STORAGE_DIR
+  (`/repo/.document-studio`, git- and docker-ignored), synchronized through
+  MCP into the system source "AI Document Studio — Originals"
+  (usableForGeneration false). A version added to the repository is a NEW
+  file `<title> - Assessment-prepared v<n> (<8 hex>).md` in
+  "Assessment-prepared documents". System sources are FOUND BY ROOT PATH, not
+  name; a second root gets its name suffixed with the root.
+- B2 STILL HOLDS: the API may not import content-extraction. The upload byte
+  checks are domain policy (domain/document-studio/upload-inspection.ts, its
+  own central-directory reader); the Word/PDF writers live in
+  @knowzy/certificate-generator; extraction happens in the sync, and a file
+  it cannot read is removed and its row marked DELETED.
+- A HEADING IS NOT IN extracted_text for Markdown and Word: the sectionizer
+  keeps it as the section's heading. Anything comparing against "the
+  original" must use readOriginalText().comparisonText, or every original
+  heading reads as "Added heading" and a figure in a heading as invented.
+  Found by the browser run, not by a unit test.
+- An invented FIGURE (digits) REFUSES a provider's output; changed must/should
+  and possibly removed warnings are WARNINGS. A person's edit is never refused.
+  Missing-information markers go into downloads, NEVER into the repository text.
+- Superseded and REVALIDATION_REQUIRED versions are excluded through
+  knowledge_document.isExcludedFromGeneration, which Generate already
+  honours. revalidatePreparedVersions runs on Studio reads, prepare, add, the
+  generation job route and after the API's sync routes -- NOT in the jobs
+  scheduler, so a scheduled sync is caught at the next of those.
+- Preparation tokens count in the SAME budget windows (usedTokensIn sums
+  document_preparation_run too). A RUNNING run older than ten minutes is failed
+  by the next request.
+- A prepared document is the IMMEDIATE EVIDENCE SOURCE (STRICT verification
+  against the prepared text). DS-1 dual verification is superseded. The
+  question page shows the lineage note; GET /authoring/questions/:id carries
+  source.prepared.
+- E2E: fill a textarea only after `waitForLoadState('networkidle')` on a full
+  navigation, or hydration replaces the typed value and the save sends the
+  old text (looked like a working save: "Changes saved." and edited_at set).
+  The journey spec skips unless the test preparer and storage exist, and
+  refuses to run if a live provider is READY.
 
 ## Question acquisition
 
@@ -570,9 +631,9 @@ Things to know:
   extractor joins a paragraph's lines and DOCX concatenates runs, so a bank
   written one-option-per-line arrives as a single line. Found by running an
   import end to end, not by reading the code.
-- There is NO browser file upload. The file must reach a synchronized folder
-  first. Adding upload means traversal, size, type and a writable mount -- four
-  controls, deliberately its own change.
+- Import has NO browser file upload. The file must reach a synchronized folder
+  first. (The AI Document Studio accepts uploads since M3, with its own
+  controls; an upload there becomes a document to prepare, not a bank to import.)
 - `question.import` is its own permission key, not a reuse of
   `question.generate`: importing brings in content written outside the
   platform, which a tenant may reasonably allow or forbid separately.

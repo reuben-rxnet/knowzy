@@ -700,7 +700,7 @@ person row read. Specification:
 | A competency framework can be catalogued from a reference workbook, deterministically, with every normalization decision reviewable | That anyone's competency, readiness or gap is known. No observation about a person is stored, and no role target exists |
 | The import reads headers only, and a test with planted values proves it | That the matrix's per-person ratings were used for anything |
 | A gap is refused, not estimated, when it has no approved target | That KNOWZY assesses employee performance. The specification forbids it |
-| — | That the AI Document Studio exists. It is designed and `BLOCKED_BY_APPROVAL` for purpose `DOCUMENT_RESTRUCTURE` |
+| — | That AI prepares documents. The Studio's workflow exists (§12.17), but live preparation is `BLOCKED_BY_APPROVAL` for purpose `DOCUMENT_RESTRUCTURE` |
 
 **New approval, same reviewers as T-29.** Sending whole documents to a model for restructuring is a
 **distinct processing purpose** (CP-5 / DS-2). The Codex approval, recorded 2026-09-28 for
@@ -767,5 +767,20 @@ processing purpose and an approval that can be recorded for it. Detail:
 | Recording, replacing and removing that approval is audited with the approver, time and reference | That the hand-prepared GenerationReady results are what the Studio produces. They are a manual precedent, evaluation-only, and no question from them may be published |
 
 **For T-29 / CP-5.** The screen is where a restructuring approval would be recorded once Privacy
-and InfoSec decide it. Recording one changes nothing operational until the derivative workflow is
-built.
+and InfoSec decide it. Since M3 (§12.17) recording one enables live preparation, so it must reflect a real decision.
+
+### 12.17 AI Document Studio M3, assessment preparation (2026-10-14)
+
+The Studio now carries a document from upload (or a synchronized original) to a prepared version
+in the Question Generation Repository, and on to generated questions. Detail:
+[AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11](../competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md).
+
+| The pilot may now claim | The pilot must not claim or imply |
+| --- | --- |
+| An uploaded file passes size, type, signature, active-content, extraction and duplicate checks before it becomes an original, and the original is never changed | That uploads are scanned for malware. No scanner is configured; uploads record NOT_SCANNED |
+| A prepared document with a figure the original lacks is refused, and changed obligations and possibly removed warnings are flagged for a person | That any document has been prepared by AI. Live preparation is refused until CP-5 is recorded; every prepared document so far is a TEST preparation, labelled "not AI" |
+| A prepared version enters the repository only on an explicit, audited confirmation; superseded and stale versions cannot be selected; questions cite the prepared document as their immediate source with lineage to the original version | That a prepared document is authoritative, or that its text quotes the original verbatim |
+
+**For T-29 / CP-5.** The OpenAI preparation client is built and sends nothing until a
+`DOCUMENT_RESTRUCTURE` approval is recorded on the Readiness view. Recording it is the decision
+that enables live preparation, so it must reflect a real decision by Privacy and InfoSec.

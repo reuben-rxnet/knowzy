@@ -1,6 +1,6 @@
 # AI Document Studio Architecture
 
-**Status:** **`PARTIALLY_IMPLEMENTED`**; §11 SPECIFIES M3 (2026-10-14), the assessment-preparation journey:
+**Status:** **`IMPLEMENTED`** for the assessment-preparation journey of §11 (M3, 2026-10-14):
 upload or choose a document, prepare it, review and edit, download Word or PDF, add it to the
 Question Generation Repository, generate questions. **Live AI preparation stays blocked until the
 `DOCUMENT_RESTRUCTURE` approval (CP-5) is recorded**; until then only the local-only test
@@ -329,7 +329,7 @@ Every upload passes these controls, each with a test that fails when it is remov
 | Executable or active content | Refused: a Windows or Linux executable or a script header; an Office macro project (`vbaProject.bin`) or a macro-enabled content type; a PDF with `/JavaScript`, `/JS`, `/Launch` or `/EmbeddedFile` |
 | Stored name | Server-generated (`<uuid>.<ext>`); the user's file name is stored as a label only and never touches the file system |
 | Path | The stored path is checked to lie inside the Studio storage root, segment by segment |
-| Extraction | The file is extracted **before** it is stored; anything other than `EXTRACTED` is refused with the extractor's reason |
+| Extraction | The synchronization that follows the write extracts it with the platform's extractors; anything other than `EXTRACTED` removes the file, marks its row deleted, and refuses the upload with the extractor's reason. The API itself never parses a document (boundary rule B2) |
 | Duplicate | The SHA-256 of the bytes is unique; a second upload of the same file is refused and names the first |
 | Malware scanning | An extension point. No scanner is configured in this build, so every upload records **Not scanned**, and the screen says so |
 | Authorization | `document.prepare`, a new permission key held by the Authoring Administrator |
@@ -343,8 +343,8 @@ used where it is and is never copied.
 
 Storage is the deployment's `DOCUMENT_STUDIO_STORAGE_DIR` (local: `/repo/.document-studio`,
 git-ignored and docker-ignored). With no directory configured, upload and repository addition are
-refused with that reason, and choosing an existing document still works for preparation. A refused
-upload is never written. Retention of uploaded originals follows source retention (open, DS-5).
+refused with that reason, and choosing an existing document still works for preparation. A file
+refused by the content controls is never written; one that fails extraction is removed. Retention of uploaded originals follows source retention (open, DS-5).
 
 ### 11.3 Prepare for question generation
 
@@ -442,7 +442,8 @@ add). Adding the revalidated draft supersedes the flagged version.
 
 ### 11.7 Downloads
 
-`.docx` and `.pdf`, written by the platform (no third-party library), each with the complete
+`.docx` and `.pdf`, written by the platform (`@knowzy/certificate-generator`, no third-party
+library), each with the complete
 prepared content — headings, paragraphs, lists, tables, warnings and the missing-information
 markers — and this notice first:
 
