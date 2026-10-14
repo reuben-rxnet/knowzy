@@ -24,6 +24,7 @@ import {
   createOpenAIGenerationProvider,
   OpenAIGenerationError,
   type GenerationProvider,
+  type OpenAICallConfig,
 } from '@knowzy/claude-services';
 import { createSecretResolver } from '@knowzy/configuration';
 import { createAuditWriter, type PrismaClient } from '@knowzy/database';
@@ -40,6 +41,86 @@ export interface GenerationCaller {
   readonly requestId: string;
 }
 
+/**
+ * The settings and the key for ONE OpenAI call, resolved through the audited
+ * Secret Resolution Layer. Shared by generation and, since AI Document Studio
+ * M3, document preparation -- one path, so the two cannot disagree about how
+ * the key is found or where it may be sent. `purpose` is recorded on the
+ * SECRET_VALIDATED event.
+ */
+export const resolveOpenAICallConfig = async (args: {
+  readonly prisma: PrismaClient;
+  readonly secrets: SecretPlatform | undefined;
+  readonly caller: GenerationCaller | undefined;
+  readonly purpose: 'GENERATION' | 'DOCUMENT_RESTRUCTURE';
+}): Promise<OpenAICallConfig> => {
+  const control = await loadControlLayer(args.prisma);
+  const settings = control.providerSettings.OPENAI;
+  if (
+    settings?.baseUrl === undefined ||
+    settings.modelId === undefined ||
+    settings.apiKeyRef === undefined
+  ) {
+    throw new OpenAIGenerationError(
+      'OpenAI is not configured: base URL, model and credential reference are all required.',
+      409,
+      'NOT_CONFIGURED',
+    );
+  }
+
+  const caller = args.caller;
+  const resolver = createSecretResolver({
+    environment: args.secrets?.environment ?? 'local',
+    providers: secretSourcesFor(args.secrets),
+    onResolution: async (event) => {
+      await createAuditWriter({ clock: systemClock }).write(args.prisma, {
+        action: 'ADMIN.CONFIGURATION.SECRET_VALIDATED',
+        outcome: event.status === 'RESOLVED' ? 'SUCCESS' : 'FAILURE',
+        actorType: caller === undefined ? 'SYSTEM' : 'USER',
+        ...(caller === undefined
+          ? {}
+          : {
+              actorUserId: caller.userId,
+              actorDisplayName: caller.displayName,
+              actorRoles: [...caller.roles],
+              requestId: caller.requestId,
+            }),
+        entityType: 'SecretReference',
+        entityId: event.referenceFingerprint,
+        entityLabel: 'OPENAI',
+        correlationId: caller?.correlationId ?? `generation-${systemClock.now().getTime()}`,
+        portal: 'AUTHORING',
+        detail: {
+          providerId: 'OPENAI',
+          referenceSource: event.source ?? 'UNKNOWN',
+          referenceFingerprint: event.referenceFingerprint,
+          resolutionStatus: event.status,
+          purpose: event.purpose,
+          durationMs: event.durationMs,
+        },
+      });
+    },
+  });
+  const resolution = await resolver.resolve(settings.apiKeyRef, args.purpose);
+  if (resolution.status !== 'RESOLVED') {
+    throw new OpenAIGenerationError(resolution.detail, 409, 'CREDENTIAL_UNRESOLVED');
+  }
+
+  return {
+    baseUrl: settings.baseUrl,
+    modelId: settings.modelId,
+    apiKey: resolution.value,
+    allowedHosts: allowedHostsFor('OPENAI', args.secrets),
+    apiStyle: settings.apiStyle ?? 'RESPONSES',
+    // GATEWAY-M1: the same settings Test connection reads, through the same
+    // builder, so the two cannot disagree about how the key travels.
+    auth: authFromSettings(settings),
+    extraHeaders: settings.extraHeaders ?? {},
+    temperature: settings.temperature ?? null,
+    maxOutputTokens: settings.maxOutputTokens ?? null,
+  };
+};
+
 export const createOpenAIForJob = (args: {
   readonly prisma: PrismaClient;
   readonly secrets: SecretPlatform | undefined;
@@ -50,71 +131,11 @@ export const createOpenAIForJob = (args: {
   createOpenAIGenerationProvider({
     modelId: args.modelId,
     ...(args.fetch === undefined ? {} : { fetch: args.fetch }),
-    configure: async () => {
-      const control = await loadControlLayer(args.prisma);
-      const settings = control.providerSettings.OPENAI;
-      if (
-        settings?.baseUrl === undefined ||
-        settings.modelId === undefined ||
-        settings.apiKeyRef === undefined
-      ) {
-        throw new OpenAIGenerationError(
-          'OpenAI is not configured: base URL, model and credential reference are all required.',
-          409,
-          'NOT_CONFIGURED',
-        );
-      }
-
-      const caller = args.caller;
-      const resolver = createSecretResolver({
-        environment: args.secrets?.environment ?? 'local',
-        providers: secretSourcesFor(args.secrets),
-        onResolution: async (event) => {
-          await createAuditWriter({ clock: systemClock }).write(args.prisma, {
-            action: 'ADMIN.CONFIGURATION.SECRET_VALIDATED',
-            outcome: event.status === 'RESOLVED' ? 'SUCCESS' : 'FAILURE',
-            actorType: caller === undefined ? 'SYSTEM' : 'USER',
-            ...(caller === undefined
-              ? {}
-              : {
-                  actorUserId: caller.userId,
-                  actorDisplayName: caller.displayName,
-                  actorRoles: [...caller.roles],
-                  requestId: caller.requestId,
-                }),
-            entityType: 'SecretReference',
-            entityId: event.referenceFingerprint,
-            entityLabel: 'OPENAI',
-            correlationId: caller?.correlationId ?? `generation-${Date.now()}`,
-            portal: 'AUTHORING',
-            detail: {
-              providerId: 'OPENAI',
-              referenceSource: event.source ?? 'UNKNOWN',
-              referenceFingerprint: event.referenceFingerprint,
-              resolutionStatus: event.status,
-              purpose: event.purpose,
-              durationMs: event.durationMs,
-            },
-          });
-        },
-      });
-      const resolution = await resolver.resolve(settings.apiKeyRef, 'GENERATION');
-      if (resolution.status !== 'RESOLVED') {
-        throw new OpenAIGenerationError(resolution.detail, 409, 'CREDENTIAL_UNRESOLVED');
-      }
-
-      return {
-        baseUrl: settings.baseUrl,
-        modelId: settings.modelId,
-        apiKey: resolution.value,
-        allowedHosts: allowedHostsFor('OPENAI', args.secrets),
-        apiStyle: settings.apiStyle ?? 'RESPONSES',
-        // GATEWAY-M1: the same settings Test connection reads, through the same
-        // builder, so the two cannot disagree about how the key travels.
-        auth: authFromSettings(settings),
-        extraHeaders: settings.extraHeaders ?? {},
-        temperature: settings.temperature ?? null,
-        maxOutputTokens: settings.maxOutputTokens ?? null,
-      };
-    },
+    configure: () =>
+      resolveOpenAICallConfig({
+        prisma: args.prisma,
+        secrets: args.secrets,
+        caller: args.caller,
+        purpose: 'GENERATION',
+      }),
   });

@@ -36,3 +36,6 @@ RealWorldPilot/CompetencyModels/
 
 # The browser suite writes synthetic test documents here per run.
 RealWorldPilot/E2E-Synthetic/
+
+# AI Document Studio M3: uploaded originals and prepared documents (local storage).
+.document-studio/

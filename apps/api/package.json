@@ -14,6 +14,7 @@
   "dependencies": {
     "@knowzy/authentication": "*",
     "@knowzy/authorization": "*",
+    "@knowzy/certificate-generator": "*",
     "@knowzy/configuration": "*",
     "@knowzy/database": "*",
     "@knowzy/domain": "*",

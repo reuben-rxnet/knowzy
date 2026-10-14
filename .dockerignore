@@ -45,3 +45,6 @@ Thumbs.db
 
 # P-5: the local secure store. `COPY . .` would otherwise ship it in an image.
 .secrets/
+
+# AI Document Studio M3 local storage: never baked into an image.
+.document-studio/

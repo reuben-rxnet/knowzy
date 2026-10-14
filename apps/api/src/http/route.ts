@@ -14,6 +14,7 @@
 // security signal, not a 403 to be swallowed.
 
 import type { SecretPlatform } from '../secrets/secret-platform.js';
+import type { DocumentStudioPlatform } from '../document-studio/platform.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { DataScope, PortalContext, Subject } from '@knowzy/shared-types';
 import { authorize, type PolicyName } from '@knowzy/authorization';
@@ -55,6 +56,13 @@ export interface RouteDeps {
    * Vault client", and every resolution says so.
    */
   readonly secrets?: SecretPlatform;
+  /**
+   * AI Document Studio M3: where Studio files are written (null: upload and
+   * repository addition are refused) and whether the local-only test
+   * preparation provider may run. Optional so a test that exercises nothing
+   * of the Studio need not build one.
+   */
+  readonly documentStudio?: DocumentStudioPlatform;
   readonly logger: Logger;
   readonly resolveSubject: (
     headers: Readonly<Record<string, string | string[] | undefined>>,
@@ -69,6 +77,12 @@ export interface KnowzyRoute {
   /** Which portal's callers may reach this route. */
   readonly portal: PortalContext;
   readonly summary: string;
+  /**
+   * Bytes, overriding the server's 1 MiB default for this route only. Used by
+   * the AI Document Studio upload, whose body carries a file of up to 8 MiB
+   * (base64). Every other route keeps the default.
+   */
+  readonly bodyLimit?: number;
   readonly handler: (
     ctx: RouteContext,
     request: FastifyRequest,
@@ -98,6 +112,7 @@ export const registerRoutes = (
     app.route({
       method: route.method,
       url: route.url,
+      ...(route.bodyLimit === undefined ? {} : { bodyLimit: route.bodyLimit }),
 
       preHandler: async (request, reply) => {
         const correlationId = request.correlation?.correlationId ?? 'c-unknown';

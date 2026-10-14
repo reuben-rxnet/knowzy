@@ -41,6 +41,7 @@ import {
   TaxonomyError,
   TransitionNotPermittedError,
   loadSeparationSettings,
+  preparedLineageFor,
 } from '@knowzy/domain';
 import { systemClock } from '@knowzy/observability';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
@@ -251,6 +252,12 @@ export const reviewRoutes = [
           url: question.sourceUrl,
           sectionKey: question.sectionKey,
           versionAtGeneration: question.sourceVersionAtGeneration,
+          // AI Document Studio M3 (§11.8): null unless the immediate source is
+          // an assessment-prepared document; then its lineage to the original.
+          prepared: await preparedLineageFor(deps.prisma, {
+            sourceId: question.sourceId,
+            sourceDocumentId: question.sourceDocumentId,
+          }),
         },
         evidence: {
           span: question.supportingEvidence,

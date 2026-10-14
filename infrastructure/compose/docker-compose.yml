@@ -134,6 +134,10 @@ services:
       # this fence an administrator could hand the key to any host they typed.
       # The EssilorLuxottica Azure API Management gateway for Codex.
       LLM_ENDPOINT_ALLOWLIST: dev-apim-ai.luxottica.com
+      # AI Document Studio M3: uploads and prepared documents, written through
+      # the repository mount (git-ignored and docker-ignored). The mcp service
+      # reads the same path to synchronize them.
+      DOCUMENT_STUDIO_STORAGE_DIR: /repo/.document-studio
     ports:
       - '8080:8080'
     healthcheck:

@@ -9,6 +9,8 @@
 // from the database on every call (T1, E3).
 
 import { z } from 'zod';
+import { revalidatePreparedVersions } from '@knowzy/domain';
+import { systemClock } from '@knowzy/observability';
 import type { ErrorCode } from '@knowzy/shared-types';
 import { defineRoute, type RouteContext } from '../http/route.js';
 import { McpCallError, type McpClient } from '../mcp/client.js';
@@ -166,10 +168,17 @@ export const sourceRoutes = [
       const body = SyncBody.safeParse(request.body ?? {});
       if (!body.success) return badRequest(ctx, reply, request.url, 'mode');
       try {
-        return await callTool(ctx, deps, 'synchronize_knowledge_source', {
+        const result = await callTool(ctx, deps, 'synchronize_knowledge_source', {
           sourceId: params.data.sourceId,
           mode: body.data.mode,
         });
+        // AI Document Studio M3 (§11.6): flag versions whose original changed.
+        await revalidatePreparedVersions({
+          prisma: deps.prisma,
+          clock: systemClock,
+          correlationId: ctx.correlationId,
+        });
+        return result;
       } catch (error) {
         return replyFromMcpError(error, ctx, reply, request.url);
       }

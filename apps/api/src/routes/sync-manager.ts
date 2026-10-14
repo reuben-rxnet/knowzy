@@ -21,7 +21,8 @@
 // absent, not filtered from a payload it was already in.
 
 import { z } from 'zod';
-import { nextRunAt, scheduleOf } from '@knowzy/domain';
+import { systemClock } from '@knowzy/observability';
+import { nextRunAt, revalidatePreparedVersions, scheduleOf } from '@knowzy/domain';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
 import { toProblem } from '../http/problem.js';
 import type { FastifyReply } from 'fastify';
@@ -393,6 +394,13 @@ export const syncManagerRoutes = [
         }
       }
 
+      // AI Document Studio M3 (§11.6): a changed original flags the versions
+      // prepared from it, here rather than at the next Studio visit.
+      await revalidatePreparedVersions({
+        prisma: deps.prisma,
+        clock: systemClock,
+        correlationId: ctx.correlationId,
+      });
       return {
         requestedMode: body.data.mode,
         requested: eligible.length,

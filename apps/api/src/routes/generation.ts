@@ -27,6 +27,7 @@ import {
   PreflightRequiredError,
   runGenerationJob,
   DocumentNotReadyError,
+  revalidatePreparedVersions,
 } from '@knowzy/domain';
 import { systemClock } from '@knowzy/observability';
 import { defineRoute, type RouteContext, type RouteDeps } from '../http/route.js';
@@ -359,6 +360,14 @@ export const generationRoutes = [
           );
         }
 
+        // AI Document Studio M3 (§11.6): an assessment-prepared document whose
+        // original changed is excluded BEFORE the job is created, so a stale
+        // version cannot be selected in the window before anyone looks.
+        await revalidatePreparedVersions({
+          prisma: deps.prisma,
+          clock: systemClock,
+          correlationId: ctx.correlationId,
+        });
         const created = await createGenerationJob({
           prisma: deps.prisma,
           clock: systemClock,

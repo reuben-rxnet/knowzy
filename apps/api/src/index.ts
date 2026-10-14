@@ -6,6 +6,7 @@
 import { createOpenAIForJob } from './generation/openai-provider.js';
 import { loadControlLayer } from './generation/control-layer.js';
 import { secretPlatformFromEnv } from './secrets/platform-secrets.js';
+import { documentStudioPlatformFromEnv } from './document-studio/platform.js';
 import {
   StartupFatalError,
   enforceStartup,
@@ -114,6 +115,12 @@ const main = async (): Promise<void> => {
       // elsewhere a keyvault:// reference, which reports SOURCE_UNAVAILABLE
       // until a Key Vault client exists.
       secrets: platformSecrets,
+      // AI Document Studio M3. An unknown environment is treated as the most
+      // restrictive one, so the local-only test preparer cannot leak into it.
+      documentStudio: documentStudioPlatformFromEnv(
+        environment === 'unknown' ? 'prod' : environment,
+        rawEnv,
+      ),
       resolveSubject: (headers) => resolver.resolve(headers),
     },
   });
