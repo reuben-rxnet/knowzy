@@ -51,6 +51,10 @@ export interface WizardDocument {
   readonly name: string;
   readonly containerName: string;
   readonly sectionCount: number;
+  /** AI Document Studio M3: preselected when the Studio sent the author here. */
+  readonly preselected?: boolean;
+  /** An assessment-prepared document, labelled as one (§11.8). */
+  readonly prepared?: boolean;
 }
 
 export interface WizardTopic {
@@ -369,7 +373,8 @@ export const GenerateWizard = ({
                     key={document.documentId}
                     name="documentIds"
                     value={document.documentId}
-                    description={`${document.containerName} · ${document.sectionCount} ${t(
+                    defaultChecked={document.preselected === true}
+                    description={`${document.prepared === true ? `${t('ds.generateLabel')} · ` : ''}${document.containerName} · ${document.sectionCount} ${t(
                       'generate.sections',
                     ).toLowerCase()}`}
                   >

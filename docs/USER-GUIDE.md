@@ -11,9 +11,10 @@ previews; every learner destination opens), GATEWAY-M1 (Azure API Management
 gateway authentication), GEN-PROVIDER-M1 (choosing the provider when generating), EVAL-M1 and
 UX-M2 (product polish: plainer wording, a summary before generating, richer review rows, a plain
 provider overview), COMPETENCY-M2 (competency administration) and the Authoring Role
-Simplification (two identities; self-approval permitted by configuration) and AI Document Studio
-Slice 2 (the overview, and the DOCUMENT_RESTRUCTURE approval)
-**Last updated:** 2026-10-07 (Authoring Role Simplification)
+Simplification (two identities; self-approval permitted by configuration), AI Document Studio
+Slice 2 (the overview, and the DOCUMENT_RESTRUCTURE approval) and AI Document Studio M3
+(assessment preparation: add, prepare, review and edit, download, add to the repository)
+**Last updated:** 2026-10-14 (AI Document Studio M3)
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -295,32 +296,115 @@ no content, because that would look like a document with nothing in it.
 
 ### 4.2a AI Document Studio — `/document-studio`
 
-**Its own entry in the sidebar**, between **Import Questions** and **AI Quiz Generation**. Open to
-anyone holding `report.read`; recording an approval needs `platform.configure` — both are the
-Authoring Administrator's.
+**Its own entry in the sidebar**, between **Import Questions** and **AI Quiz Generation**. It
+prepares a document so questions can be generated from it more accurately, **without ever
+changing the original**. Adding, preparing, editing, downloading and adding to the repository need
+`document.prepare`; recording an approval needs `platform.configure`. The Authoring Administrator
+holds both.
 
-**This page prepares no documents.** A banner says so first: *Transformation capability not yet
-implemented*. There is no Run, Transform, Rewrite or Prepare button, because no part of the
-transformation is built. What the page shows:
+The steps are shown across the top of every Studio page: **Add document → Prepare with AI →
+Review → Download or add to repository → Generate questions**. A step is ticked only when it is
+done.
 
-| Section | What it tells you |
+**First, the banner.** While no AI provider is approved for document preparation, every Studio page
+says: *AI document preparation is not yet enabled for this environment. Contact your
+administrator.* That is today's state: the approval this needs (CP-5) has not been recorded. In
+this local build a **test preparation** is available instead, so you can try the whole workflow.
+**It is not AI**: it keeps every sentence of the original, uses its headings, and marks findings by
+fixed rules. Everything it produces is labelled **Test preparation — not AI**, including the
+downloads. It cannot be switched on outside the local environment.
+
+The Studio has four views:
+
+| View | What it is for |
 | --- | --- |
-| **Current state** | The Studio's state, computed from the platform's configuration on every visit: **Blocked by approval** today. It can also read **Not built** (approved, but no restructuring client exists) and **Ready**, which this release cannot reach |
-| **What Assessment Preparation is** / **Why it exists** | A model reorganizing a document into clearly headed, testable sections — only rearranging what is already there, never inventing a figure — producing a separate *assessment derivative*. The original is never modified |
-| **What the evaluation measured** | The documented results for the hand-prepared GenerationReady corpus against the original SOPs, from the 2026-09-28 evaluation, with the two limits the record carries |
-| **The workflow** | Original document → AI Assessment Preparation → Human review → Approved assessment derivative → Question generation, each step marked **Exists** or **Not built** |
-| **Approval status and provider readiness** | Per provider: whether it can ever restructure, its restructuring approval, whether a restructuring client exists, and its state |
-| **Implementation status** | What is built (the purpose, its approval, this status) and what is not (proposals, verification, review, derivatives, upload) |
+| **Add document** | Upload a file, or choose a document that is already synchronized |
+| **My prepared documents** | Every document you have added: its newest version and its state, and whether a version is in the repository |
+| **History** | Each preparation attempt and each version change, newest first, with who did it |
+| **Readiness** | Why AI preparation is or is not available: the approval and readiness of each provider, and the approval controls (below) |
 
-**Restructuring needs its own approval.** Sending whole documents to a model is a different
-processing purpose (`DOCUMENT_RESTRUCTURE`) from question generation, so the Codex approval you
-recorded for generation does **not** cover it, and an approval recorded here does not cover
-generation. **Record approval** on a provider's row asks for a **reference** to where the decision
-is held; your name and the time are recorded with it, and the act is audited. **Replace approval**
-records a new reference; **Remove approval** withdraws it. **Recording an approval enables
-nothing**: the provider moves from *Blocked by approval* to *Not built* and stops there. The
-template generator and Copilot are **Not eligible** — they can never restructure a document — and
-offer no approval control.
+#### Add document
+
+- **Upload from your computer.** Word (.docx), PDF, PowerPoint (.pptx), Markdown or plain text, up
+  to 8 MB. Before the file is kept it is checked: its type and contents must match its name; a
+  program, a macro, an embedded object or a PDF script is refused; and the same file cannot be
+  uploaded twice (you are told the name it was first uploaded under). If the platform then cannot
+  read the text, the file is removed and you are told why. Malware scanning is not configured in
+  this environment, so uploads are recorded as **not scanned**, and the page says so.
+- **Or choose a synchronized document.** Search by name and press **Choose**. The document is used
+  where it is; nothing is copied or changed. A document you have already added shows **Open**
+  instead.
+
+Either way you land on the document's own page.
+
+#### Prepare for question generation
+
+Press **Prepare for question generation**. The result is version 1, a **Draft**. Preparation may add
+headings, group related information, separate rules, procedures, thresholds, scenarios and
+exceptions, and restate tables — using only what the original says. It may not invent a figure,
+turn *should* into *must* (or back), drop a warning or an escalation step, or quietly resolve
+something unclear. Every number, percentage, date and duration in the result is checked against
+the original: **a prepared document that contains a figure the original does not is refused**, and
+the refusal names the figures. **Prepare again** makes a new draft from the original's current
+text; an open draft it replaces is kept in the history as *Discarded*.
+
+#### Review changes
+
+The **Original document** is on the left, section by section, and the **Prepared document** on the
+right:
+
+- **highlighted text** is reworded or new compared with the original;
+- a heading marked **Added heading** does not appear in the original;
+- **Warning** blocks are the original's own warnings, kept;
+- tinted **Missing information**, **Unclear** and **Not suitable for assessment** notes are findings
+  about the document. They are listed again under **Missing or unclear information**.
+
+**Warnings** lists what a person should check: a figure not in the original, an obligation that
+reads stronger or weaker than the original's, or a warning in the original with no close match in
+the prepared text. **Details**, collapsed, shows the provider, model, prompt version, content
+fingerprints and every preparation attempt.
+
+#### Edit, download, add
+
+| Control | What it does |
+| --- | --- |
+| **Edit** | One text box with the prepared document. `#` starts a heading, `-` or `1.` a list item, `\|` a table row, `> Warning:` a warning, and `> [!MISSING]`, `> [!UNCLEAR]` or `> [!NOT_FOR_ASSESSMENT]` a finding |
+| **Save changes** | Saves the draft. Editing a version that is already in the repository creates a **new draft**; the version in the repository is not changed |
+| **Restore AI version** (*Restore prepared version* for a test preparation) | Puts the draft back to what the preparation produced |
+| **Discard draft** | The draft becomes *Discarded*. Nothing is deleted |
+| **Download Word** / **Download PDF** | The complete prepared document, opening with: *Assessment-prepared document derived from [original]. This document is intended for question generation and does not replace the authoritative original.*, then the original's name and version, the prepared version, and who prepared it. Saved as *[Original name] - Assessment Prepared.docx* or *.pdf* |
+| **Add to Question Generation Repository** | Asks: *Add this prepared document as a source for question generation? The original document will remain unchanged and linked to this prepared version.* **Add to repository** is the approval — there is no further step. That exact version becomes **Ready for question generation** in the source **Assessment-prepared documents**; a version already added is refused as a duplicate |
+| **Generate questions now** | Opens **Generate questions** with that source and document already selected |
+
+Findings are kept in the downloads but **not** added to the repository, so no question is
+generated from a note about what is missing.
+
+#### Versions
+
+| State | Meaning |
+| --- | --- |
+| **Draft** | Prepared or edited, not yet added. One at a time |
+| **Ready for question generation** | In the repository; selectable on Generate |
+| **Superseded** | A newer version was added. No longer selectable for new questions; questions already made from it keep it |
+| **Revalidation required** | The original changed, or was deleted, after this version was prepared. It cannot be used for new questions until a revalidated version is added. Press **Review against the updated original** (a new draft with the same text, checked against the new original) or **Prepare again** |
+| **Discarded** | A draft you discarded |
+
+A question generated from a prepared document names it as its **immediate source**. On the
+question's page a note says so — *derived from [original] (version n); the prepared text is not a
+verbatim quote of the original, and the original remains authoritative* — with a link back to the
+prepared document.
+
+#### Readiness and approval
+
+**AI preparation needs its own approval.** Sending whole documents to a model is a different
+processing purpose (`DOCUMENT_RESTRUCTURE`) from question generation, so the Codex approval
+recorded for generation does **not** cover it. On **Readiness**, **Record approval** on a
+provider's row asks for a **reference** to where the decision is held; your name and the time are
+recorded, and the act is audited. **Replace approval** records a new reference; **Remove approval**
+withdraws it. **Record an approval only when the decision exists.** OpenAI has a preparation client:
+once approved and configured it reads **Ready**, and the Studio uses it. Other providers read **Not
+built** after approval. The template generator and Copilot are **Not eligible** and offer no
+approval control. An AI preparation counts against the same token budgets as generation.
 
 ### 4.3 Generate questions — `/generate`
 
@@ -535,11 +619,10 @@ because they need different fixes:
 
 #### What is not built yet
 
-**There is no file upload in the browser.** The file has to reach a
-synchronized folder first. Adding an upload means a filename-traversal guard,
-a size ceiling, a type allow-list and a writable mount — four controls that
-have to be right rather than merely present — so it is deliberately left for
-its own change rather than half-built here.
+**Import has no file upload in the browser.** The file has to reach a
+synchronized folder first. (The **AI Document Studio** does accept uploads, with
+its own checks — §4.2a — but an uploaded file there becomes a document to
+prepare, not a question bank to import.)
 
 ### 4.3b Knowledge Domains — `/administration/taxonomy`
 
@@ -1617,6 +1700,7 @@ Everything is done as the **Authoring Administrator** until step 10.
 | **A connection test against an AI provider** | **Real for OpenAI** (§4.3f), directly or through an Azure API Management gateway: the secret is resolved and the endpoint, key and model are checked with content-free GET requests. Behind a gateway with no model discovery, the model check reads SKIPPED. Not real for any other external provider, which has no client — its live checks read NOT ATTEMPTED |
 | **Generating questions with OpenAI (Codex)** | **Built, not yet run.** The generation client exists and its proposals go through the full gate chain, but it is refused until the T-29 approval is recorded, and no working credential is configured. The Generate screen does not offer it yet. See docs/integrations/OPENAI_CODEX_EVALUATION_RESULTS.md |
 | **Azure Key Vault** | Not real. `keyvault://` references are accepted and reported as unreadable here; the local secure store works in the local environment only |
+| **AI document preparation** | **The workflow is real; the AI is not enabled.** Upload or choose a document, prepare it, review, edit, download it as Word or PDF, add it to the Question Generation Repository and generate from it (§4.2a). The AI provider (OpenAI) has a preparation client but is **refused until the DOCUMENT_RESTRUCTURE approval (CP-5) is recorded**; until then the local build uses a **test preparation that is not AI**, labelled as such everywhere. Uploads are not scanned for malware: no scanner is configured |
 | **Badges and certificates** | Not built. **Badges** and My Learnings show the badge designs and a certificate as labelled **previews** (§5.5); nothing is awarded |
 | **My Learnings, Discover, Badges, Knowledge Library, My Progress, Help & Support** | **Previews only** (§5.5). Each shows the finished design with every illustrative block framed and every control in a frame disabled; the parts built from your assessments, and the help guides and FAQ, are real |
 | **Refreshers** | Not built |
@@ -1677,3 +1761,4 @@ the log below.
 | 2026-10-07 | Authoring Role Simplification | **Two identities** (§3): the **Authoring Administrator** (the former KNOWZY Administrator, now holding every authoring permission including publish) and the **Learner**. The Author, Approver, Publisher, Source administrator, Assessment manager, second administrator, Manager and the other specialist identities are gone from every identity menu; their records are kept so history still names them. **One administrator can take a question from draft to published**, and draw up and approve a competency version or propose and approve a role requirement: separation of duties is **switched off by configuration, not removed**, and every step still records who performed it. The walkthrough (§8) runs as one identity. Refusals for a missing permission are now seen as the Learner, refused with `PORTAL_ACCESS_DENIED` |
 | 2026-10-07 | Document Studio Slice 2 | **AI Document Studio** (§4.2a), a new sidebar entry between Import Questions and AI Quiz Generation (Import Questions moved up beside it). An overview that prepares nothing: it explains assessment preparation, shows the documented GenerationReady evaluation results, the workflow, and the platform's real state — **Blocked by approval** — per provider. **Record approval** records a `DOCUMENT_RESTRUCTURE` approval with a reference, separate from the generation approval; it moves a provider to **Not built** and no further, because no transformation exists |
 | 2026-10-07 | E2E fixtures | The browser test suite now owns a source, **E2E Synthetic Corpus** (§9), and writes a fresh invented procedure into it each run, because it had used up the template-generator drafts on Mock Support Operations |
+| 2026-10-14 | AI Document Studio M3 | The Studio (§4.2a) now prepares documents. Four views: **Add document** (upload a .docx, .pdf, .pptx, .md or .txt up to 8 MB, checked before it is kept, or **Choose** a synchronized document), **My prepared documents**, **History** and **Readiness** (the Slice 2 overview and approvals). The banner says *AI document preparation is not yet enabled for this environment. Contact your administrator.* until the DOCUMENT_RESTRUCTURE approval is recorded; locally a **test preparation, labelled not AI**, runs instead. A document's page: **Prepare for question generation**, original and prepared side by side with reworded text highlighted, **Warnings**, **Missing or unclear information**, **Edit** with **Save changes**, **Restore AI version** and **Discard draft**, **Download Word** and **Download PDF**, and **Add to Question Generation Repository** with its confirmation, then **Generate questions now**. Generate preselects the document and labels it *Assessment-prepared document*; a question generated from one shows its lineage on its page. New refusals: a figure not in the original, an upload that fails a check, a duplicate upload or addition, and a version whose original changed (*Revalidation required*) |

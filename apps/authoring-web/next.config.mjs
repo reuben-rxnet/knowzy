@@ -12,6 +12,9 @@ const nextConfig = {
   poweredByHeader: false,
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: false },
+  // AI Document Studio M3: an upload of up to 8 MB arrives through a server
+  // action, whose default body limit is 1 MB. The API checks the file itself.
+  experimental: { serverActions: { bodySizeLimit: '9mb' } },
 };
 
 export default nextConfig;

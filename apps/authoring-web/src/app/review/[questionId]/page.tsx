@@ -70,6 +70,14 @@ interface QuestionDetail {
     readonly url: string;
     readonly sectionKey: string;
     readonly versionAtGeneration: string;
+    /** AI Document Studio M3: set when the immediate source is a prepared document. */
+    readonly prepared?: {
+      readonly preparedDocumentId: string;
+      readonly versionNumber: number;
+      readonly title: string;
+      readonly originalName: string;
+      readonly originalVersionCounter: number;
+    } | null;
   };
   readonly evidence: {
     readonly span: string;
@@ -512,6 +520,32 @@ export default async function QuestionPage({
             />
           </CardBody>
         </Card>
+      )}
+
+      {/* §11.8: the prepared document is the immediate source, and says it is
+          not the original, on every tab. */}
+      {detail.source.prepared === null || detail.source.prepared === undefined ? null : (
+        <div
+          role="note"
+          data-prepared-lineage
+          className="flex flex-col gap-1 rounded-lg border border-line bg-info-soft px-4 py-3"
+        >
+          <span className="font-semibold text-ink">{t('ds.lineageTitle')}</span>
+          <span className="max-w-prose text-sm text-ink">
+            {t('ds.lineageBody', {
+              title: detail.source.prepared.title,
+              version: detail.source.prepared.versionNumber,
+              original: detail.source.prepared.originalName,
+              originalVersion: detail.source.prepared.originalVersionCounter,
+            })}
+          </span>
+          <a
+            className="text-sm font-medium text-brand-navy-text underline"
+            href={`/document-studio/${detail.source.prepared.preparedDocumentId}`}
+          >
+            {t('ds.lineageOpen')}
+          </a>
+        </div>
       )}
 
       <TabNav

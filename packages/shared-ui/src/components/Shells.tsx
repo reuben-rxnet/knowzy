@@ -58,15 +58,14 @@ export const AUTHORING_NAV: readonly NavItem[] = [
     note: 'From a synchronized file',
   },
   {
-    // AI Document Studio, Slice 2 (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §10).
-    // PARTIALLY_IMPLEMENTED: the purpose, its approval and a real status read
-    // exist; the transformation does not. The note says so, so the link is not
-    // a promise that a document can be prepared.
+    // AI Document Studio (AI_DOCUMENT_STUDIO_ARCHITECTURE.md §10, §11).
+    // IMPLEMENTED since M3: add, prepare, review, download, add to the
+    // repository. LIVE AI preparation is a governance block (CP-5), not a
+    // missing feature, and the page says so in the brief's own words.
     label: 'AI Document Studio',
     href: '/document-studio',
     icon: <FilePen className="size-5" />,
-    status: 'PARTIALLY_IMPLEMENTED',
-    note: 'Overview · transformation not built',
+    status: 'IMPLEMENTED',
   },
   {
     label: 'AI Quiz Generation',

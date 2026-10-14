@@ -127,3 +127,17 @@ const safeJson = (text: string): unknown => {
     return null;
   }
 };
+
+/**
+ * A GET whose body is a FILE, not JSON -- the AI Document Studio downloads.
+ * Same identity header and same server-side rule as `api`; the caller streams
+ * the response on to the browser unchanged.
+ */
+export const apiRaw = async (path: string): Promise<Response> => {
+  const subject = await currentSubject();
+  return fetch(`${baseUrl()}${path}`, {
+    method: 'GET',
+    headers: { 'x-knowzy-subject': subject.upn },
+    cache: 'no-store',
+  });
+};

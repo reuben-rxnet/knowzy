@@ -267,7 +267,7 @@ const PICK = {
   ],
 } as const;
 
-const syntheticSop = (stamp: string): string => {
+export const syntheticSop = (stamp: string): string => {
   const pick = <T>(list: readonly T[]): T => list[Math.floor(Math.random() * list.length)] as T;
   const num = (low: number, high: number): number => low + Math.floor(Math.random() * (high - low));
   const codename = Array.from({ length: 4 }, () => pick(PICK.syllable)).join('');
@@ -365,16 +365,26 @@ const freshSyntheticDocument = async (
     `/api/v1/authoring/sources/${source.sourceId}/containers`,
   );
   for (const container of containers.containers) {
-    const items = await api<{
-      items: { name: string; documentId: string | null; isSelectable: boolean }[];
-    }>(
-      request,
-      `/api/v1/authoring/sources/${source.sourceId}/items` +
-        `?containerId=${encodeURIComponent(container.containerId)}&recursive=true`,
-    );
-    const item = items.items.find((candidate) => candidate.name === fileName);
-    if (item?.documentId != null && item.isSelectable) {
-      return { sourceId: source.sourceId, documentId: item.documentId };
+    // Every page: the synthetic folder grows by a file per draft, and the
+    // listing is paged. Looking at the first page only failed once the
+    // folder passed one page, with the document extracted all along.
+    let cursor: string | null = null;
+    for (let page = 0; page < 50; page += 1) {
+      const items: {
+        items: { name: string; documentId: string | null; isSelectable: boolean }[];
+        nextCursor?: string | null;
+      } = await api(
+        request,
+        `/api/v1/authoring/sources/${source.sourceId}/items` +
+          `?containerId=${encodeURIComponent(container.containerId)}&recursive=true&pageSize=200` +
+          (cursor === null ? '' : `&cursor=${encodeURIComponent(cursor)}`),
+      );
+      const item = items.items.find((candidate) => candidate.name === fileName);
+      if (item?.documentId != null && item.isSelectable) {
+        return { sourceId: source.sourceId, documentId: item.documentId };
+      }
+      cursor = items.nextCursor ?? null;
+      if (cursor === null) break;
     }
   }
   throw new Error(`The synthetic document ${fileName} was not extracted after synchronize.`);

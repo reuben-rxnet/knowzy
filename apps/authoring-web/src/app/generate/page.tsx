@@ -1,6 +1,6 @@
 import { Button, EmptyState, Field, PageHero, Select } from '@knowzy/shared-ui';
 import { t } from '../../copy';
-import { api } from '../../lib/api';
+import { api, type ApiResult } from '../../lib/api';
 import { Problem } from '../../components/Problem';
 import {
   GenerateWizard,
@@ -44,7 +44,7 @@ interface Item {
 export default async function GeneratePage({
   searchParams,
 }: {
-  searchParams: Promise<{ source?: string }>;
+  searchParams: Promise<{ source?: string; document?: string }>;
 }) {
   const query = await searchParams;
   const sources = await api<{ sources: readonly SourceRow[] }>('/api/v1/authoring/sources');
@@ -95,13 +95,26 @@ export default async function GeneratePage({
       // Recursive: documents live in folders inside a container, and a
       // selection list that stopped at the first level would silently omit
       // most of the library.
-      const items = await api<{ items: readonly Item[] }>(
-        `/api/v1/authoring/sources/${source.sourceId}/items?containerId=${encodeURIComponent(
-          container.containerId,
-        )}&recursive=true`,
-      );
-      if (!items.ok) continue;
-      for (const item of items.data.items) {
+      // Every PAGE, too: the listing is paged, and a source past one page
+      // (the Assessment-prepared documents source grows with every version)
+      // would otherwise drop documents from the list without a word.
+      const all: Item[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 50; page += 1) {
+        const items: ApiResult<{ items: readonly Item[]; nextCursor?: string | null }> = await api<{
+          items: readonly Item[];
+          nextCursor?: string | null;
+        }>(
+          `/api/v1/authoring/sources/${source.sourceId}/items?containerId=${encodeURIComponent(
+            container.containerId,
+          )}&recursive=true&pageSize=200${cursor === null ? '' : `&cursor=${encodeURIComponent(cursor)}`}`,
+        );
+        if (!items.ok) break;
+        all.push(...items.data.items);
+        cursor = items.data.nextCursor ?? null;
+        if (cursor === null) break;
+      }
+      for (const item of all) {
         if (item.documentId === null || !item.isSelectable) continue;
         documents.push({
           documentId: item.documentId,
@@ -111,6 +124,9 @@ export default async function GeneratePage({
               ? container.containerName
               : `${container.containerName}/${item.folderPath}`,
           sectionCount: item.sectionCount ?? 0,
+          // AI Document Studio M3: "Generate questions now" names the document.
+          preselected: item.documentId === query.document,
+          prepared: / - Assessment-prepared v\d+ \([0-9a-f]{8}\)\.md$/.test(item.name),
         });
       }
     }
