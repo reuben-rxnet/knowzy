@@ -125,6 +125,9 @@ test.describe('review, approval and publication', () => {
     page,
     request,
   }) => {
+    // Draft, approve, publish and re-read: more than the default 90 seconds on
+    // a busy local stack, and the time goes on real work, not on waiting.
+    test.setTimeout(240_000);
     // Reach APPROVED through the API, as the one administrator (self-approval
     // is permitted by configuration).
     const questionId = await generateDraft(request, IDENTITY.administrator);
@@ -163,9 +166,13 @@ test.describe('review, approval and publication', () => {
 
     await page.getByRole('button', { name: 'Publish selected' }).click();
 
-    // The OUTCOME, with the bank item id the adapter returned.
-    await expect(page.getByText(/^PUBLISHED$/).first()).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText(/mock-item-\d+/).first()).toBeVisible();
+    // The OUTCOME, with the bank item id the adapter returned. Waited for BY
+    // ITS ITEM ID: a bare /^PUBLISHED$/ also matches the inventory table's
+    // status cells, so it passed at once and left the real outcome 15 seconds
+    // -- shorter than a re-gated publish takes once the bank holds dozens of
+    // questions (2026-10-14).
+    await expect(page.getByText(/mock-item-\d+/).first()).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/^PUBLISHED$/).first()).toBeVisible();
 
     // And the question is in the bank inventory with a KNZ identifier.
     await page.goto('/publish');
