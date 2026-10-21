@@ -177,6 +177,12 @@ jobs:
       # elsewhere) and MOCK_FIXTURE_ROOT is forbidden outside it by the startup
       # validator. The tests themselves still run under the job's `test`
       # environment.
+      # Every @knowzy/* package resolves through its exports to dist/, and a
+      # fresh checkout has none, so the api and mcp started below could not
+      # load their packages. tsc -b builds the solution in dependency order.
+      - name: build packages
+        run: npx tsc -b
+
       # As the Authoring Administrator: since the Authoring Role Simplification
       # (2026-10-07) every other local identity is deprovisioned and refused,
       # which read here as "never became ready". The MOCK source by name: the
@@ -197,7 +203,7 @@ jobs:
             fi
             if [ "$i" = "60" ]; then
               echo "::error::mcp or api never became ready; logs follow"
-              tail -40 /tmp/mcp.log /tmp/api.log
+              tail -n 40 /tmp/mcp.log /tmp/api.log
               exit 1
             fi
             sleep 2
