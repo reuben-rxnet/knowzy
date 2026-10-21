@@ -230,7 +230,7 @@ jobs:
           # when one is declared.
           curl -sf -X POST -H 'x-knowzy-subject: knowzy-administrator@local.invalid'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/test-connection" > /dev/null
 
-          curl -sf -X POST -H 'x-knowzy-subject: knowzy-administrator@local.invalid'             -H 'content-type: application/json' -d '{"mode":"FULL"}'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/synchronize"             | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"sync {d[\"outcome\"]}: scanned {d[\"scanned\"]}, added {d[\"added\"]}, {d[\"extractedChars\"]} characters extracted"); sys.exit(0 if d["outcome"] == "SUCCEEDED" else 1)'
+          curl -sf -X POST -H 'x-knowzy-subject: knowzy-administrator@local.invalid'             -H 'content-type: application/json' -d '{"mode":"FULL"}'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/synchronize"             | python3 -c 'import json,sys; d=json.load(sys.stdin); print("sync %s: scanned %s, added %s, %s characters extracted" % (d["outcome"], d["scanned"], d["added"], d["extractedChars"])); sys.exit(0 if d["outcome"] == "SUCCEEDED" else 1)'
 
       # The suites above cannot run without the documents the previous step
       # creates, so assert the precondition rather than discovering it as a
