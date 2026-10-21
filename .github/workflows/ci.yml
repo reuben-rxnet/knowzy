@@ -148,10 +148,20 @@ jobs:
 
       # Seeds are idempotent: running twice must change nothing and must not
       # fail on a unique constraint.
+      # Seeded as `local`: under the job's `test` environment the seed skips
+      # the local identities AND the mock source (V2), so the fixture sync
+      # below had no one to act as and nothing to synchronize -- it answered
+      # 401 "No authenticated subject" -- and the suites lacked the identities
+      # they read. This database is the job's own throwaway; the stub issuer
+      # still refuses to run anywhere but `local`.
       - name: seed
+        env:
+          KNOWZY_ENV: local
         run: npm run db:seed
 
       - name: seed is idempotent
+        env:
+          KNOWZY_ENV: local
         run: npm run db:seed
 
       # Synchronize the fixture documents.
