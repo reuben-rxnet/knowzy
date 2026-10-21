@@ -177,6 +177,10 @@ jobs:
       # elsewhere) and MOCK_FIXTURE_ROOT is forbidden outside it by the startup
       # validator. The tests themselves still run under the job's `test`
       # environment.
+      # As the Authoring Administrator: since the Authoring Role Simplification
+      # (2026-10-07) every other local identity is deprovisioned and refused,
+      # which read here as "never became ready". The MOCK source by name: the
+      # seed creates four, and the file-repository ones have no folder in CI.
       - name: synchronize fixture documents
         env:
           KNOWZY_ENV: local
@@ -187,7 +191,7 @@ jobs:
           npx tsx apps/api/src/index.ts > /tmp/api.log 2>&1 &
 
           for i in $(seq 1 60); do
-            if curl -sf http://127.0.0.1:8081/internal/health/ready > /dev/null               && curl -sf -H 'x-knowzy-subject: source-administrator@local.invalid'                  http://127.0.0.1:8080/api/v1/authoring/sources > /dev/null; then
+            if curl -sf http://127.0.0.1:8081/internal/health/ready > /dev/null               && curl -sf -H 'x-knowzy-subject: knowzy-administrator@local.invalid'                  http://127.0.0.1:8080/api/v1/authoring/sources > /dev/null; then
               echo "mcp and api are answering"
               break
             fi
@@ -199,13 +203,13 @@ jobs:
             sleep 2
           done
 
-          SOURCE_ID=$(curl -sf -H 'x-knowzy-subject: source-administrator@local.invalid'             http://127.0.0.1:8080/api/v1/authoring/sources             | python3 -c 'import json,sys; print(json.load(sys.stdin)["sources"][0]["sourceId"])')
+          SOURCE_ID=$(curl -sf -H 'x-knowzy-subject: knowzy-administrator@local.invalid'             http://127.0.0.1:8080/api/v1/authoring/sources             | python3 -c 'import json,sys; print(next(s["sourceId"] for s in json.load(sys.stdin)["sources"] if s["name"] == "Mock Support Operations"))')
 
           # No content-type on the bodyless POST: Fastify rejects an empty body
           # when one is declared.
-          curl -sf -X POST -H 'x-knowzy-subject: source-administrator@local.invalid'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/test-connection" > /dev/null
+          curl -sf -X POST -H 'x-knowzy-subject: knowzy-administrator@local.invalid'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/test-connection" > /dev/null
 
-          curl -sf -X POST -H 'x-knowzy-subject: source-administrator@local.invalid'             -H 'content-type: application/json' -d '{"mode":"FULL"}'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/synchronize"             | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"sync {d[\"outcome\"]}: scanned {d[\"scanned\"]}, added {d[\"added\"]}, {d[\"extractedChars\"]} characters extracted"); sys.exit(0 if d["outcome"] == "SUCCEEDED" else 1)'
+          curl -sf -X POST -H 'x-knowzy-subject: knowzy-administrator@local.invalid'             -H 'content-type: application/json' -d '{"mode":"FULL"}'             "http://127.0.0.1:8080/api/v1/authoring/sources/$SOURCE_ID/synchronize"             | python3 -c 'import json,sys; d=json.load(sys.stdin); print(f"sync {d[\"outcome\"]}: scanned {d[\"scanned\"]}, added {d[\"added\"]}, {d[\"extractedChars\"]} characters extracted"); sys.exit(0 if d["outcome"] == "SUCCEEDED" else 1)'
 
       # The suites above cannot run without the documents the previous step
       # creates, so assert the precondition rather than discovering it as a
