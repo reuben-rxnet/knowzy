@@ -3535,3 +3535,23 @@ from empty, schema drift, the seed and all six image builds passed.
     image starts and stops only at the database.
 - **Lesson.** The audit gate and Trivy read live advisory databases, so a run can go red with no
   commit.
+
+**Then the step that had hidden everything.** Once the first three fixes were in, the fixture-sync
+step showed what else was wrong, one round at a time:
+
+- **No package build.** The step starts the api and mcp with `tsx`, and every `@knowzy/*` package
+  resolves to `dist/`, which a fresh checkout has none of. A "build packages" step (`tsc -b`) now
+  precedes it.
+- **Its diagnostics printed nothing.** `tail -40` with two files is invalid for GNU tail. It is now
+  `tail -n 40`, and the step also prints what each probe answered.
+- **It answered 401 "No authenticated subject".** The job's `KNOWZY_ENV=test` makes the seed skip
+  the local identities and the mock source. So the step had no one to act as and nothing to
+  synchronize, and the suites lacked the identities they read. Both seed steps now run as `local`
+  on the job's throwaway database.
+- **A successful sync still failed the step.** The runner's Python rejected backslash-escaped keys
+  inside an f-string.
+
+**Run 39637973641 is green, every job.** Static gates, supply chain, migration from empty, drift,
+seed and idempotency all passed. The sync extracted 4 fixtures. Integration ran 369 of 369 tests
+in 24 files, with no skips, including the new Studio suite. All six images built and scanned
+clean.

@@ -183,7 +183,13 @@ list`, `gh run view <id> --log-failed`). The 2026-10-14 run failed three ways:
   the audit gate on newly published advisories, the fixture-sync step still
   acting as a DEPROVISIONED identity (source-administrator), and the image
   scan on deepmerge-ts shipped through the Prisma CLI (an optional peer of
-  @prisma/client survives `npm prune --omit=dev`). All three fixed 2026-10-21.
+  @prisma/client survives `npm prune --omit=dev`). All three fixed 2026-10-21,
+  and fixing them exposed three more in the fixture-sync step: no package
+  build before starting the api/mcp with tsx (exports point at dist), the
+  job's KNOWZY_ENV=test making the SEED skip the local identities and the mock
+  source (the step now seeds as local), and a Python f-string the runner
+  rejected. RUN 39637973641 (2026-10-21) IS GREEN: every job, integration
+  369/369 in 24 files with 4 fixtures extracted, all six images scanned clean.
   THE AUDIT GATE AND TRIVY READ LIVE ADVISORY DATABASES: a green run goes red
   with no commit. Read the run after every push; an unread run is not a pass.
 - Deferred with reasons in docs/SECURITY-EXCEPTIONS.md: Next.js 15 -> 16 and
