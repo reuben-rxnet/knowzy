@@ -62,7 +62,8 @@ Assessed 2026-09-21 against the committed lockfile, with `npm run audit:gate`.
 Severity is reported twice because npm reports it twice and the two disagree: the advisory carries
 one severity, and npm rolls the containing package up to another. `npm audit --audit-level=high`
 blocks on the **rollup**, so the gate decides on the rollup too — otherwise it would be quieter than
-the rule it replaces. Ten advisory-and-package pairs reach that threshold.
+the rule it replaces. Ten advisory-and-package pairs reached that threshold on 2026-09-21; two
+more (tinypool) and three more vite advisories were classified under EX-002 on 2026-10-21.
 
 | Advisory | Package (installed) | Path | Advisory / package severity | Fix | Reachable? | Decision |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -76,6 +77,11 @@ the rule it replaces. Ten advisory-and-package pairs reach that threshold.
 | GHSA-4w7w-66w2-5vf9 | vite 5.4.21 | `vitest` → `vite` | moderate / **HIGH** | Breaking change required | No | EX-002 |
 | GHSA-v6wh-96g9-6wx3 | vite 5.4.21 | `vitest` → `vite` | moderate / **HIGH** | Breaking change required | No | EX-002 |
 | GHSA-fx2h-pf6j-xcff | vite 5.4.21 | `vitest` → `vite` | **HIGH** / **HIGH** | Breaking change required | No | EX-002 |
+| GHSA-698v-4r3x-3vcv | vite 5.4.21 | `vitest` → `vite` | moderate / **HIGH** | Breaking change required (Vitest 5) | No | EX-002 |
+| GHSA-r825-w8mm-5pxw | vite 5.4.21 | `vitest` → `vite` | moderate / **HIGH** | Breaking change required (Vitest 5) | No | EX-002 |
+| GHSA-587h-7wmj-h5pm | vite 5.4.21 | `vitest` → `vite` | **HIGH** / **HIGH** | Breaking change required (Vitest 5) | No | EX-002 |
+| GHSA-5gmw-xhrv-c9v3 | tinypool 1.1.1 | `vitest` → `tinypool` | **CRITICAL** / **CRITICAL** | Breaking change required (Vitest 5) | No | EX-002 |
+| GHSA-85c8-ppgw-ccpr | tinypool 1.1.1 | `vitest` → `tinypool` | **CRITICAL** / **CRITICAL** | Breaking change required (Vitest 5) | No | EX-002 |
 | GHSA-ggr8-5vv4-36mx | deepmerge-ts 7.1.5 | `prisma` → `@prisma/config` → `deepmerge-ts` | **HIGH** / **HIGH** | Breaking change required | No | EX-003 |
 | GHSA-67mh-4wv8-2f99 | esbuild 0.21.5 | `vite` → `esbuild` | moderate / moderate | Breaking change required | No | Below the gate |
 
@@ -130,13 +136,18 @@ high or critical, and the reason matters for the entries below:
         "GHSA-82fw-gwwq-j7x9",
         "GHSA-4w7w-66w2-5vf9",
         "GHSA-v6wh-96g9-6wx3",
-        "GHSA-fx2h-pf6j-xcff"
+        "GHSA-fx2h-pf6j-xcff",
+        "GHSA-5gmw-xhrv-c9v3",
+        "GHSA-85c8-ppgw-ccpr",
+        "GHSA-698v-4r3x-3vcv",
+        "GHSA-r825-w8mm-5pxw",
+        "GHSA-587h-7wmj-h5pm"
       ],
-      "packages": ["vitest", "@vitest/mocker", "vite"],
+      "packages": ["vitest", "@vitest/mocker", "vite", "tinypool"],
       "expires": "2026-12-31",
       "classification": "breaking-change-required",
       "reachability": "not-reachable",
-      "reason": "Test tooling. The critical advisory requires the Vitest UI server to be listening; @vitest/ui is not installed and --ui appears nowhere in this repository. The vite advisories require a running vite dev server; the web apps use Next's own bundler and no vite server exists. Neither reaches a runtime image: Dockerfile.service prunes dev dependencies and Dockerfile.web ships only Next's traced standalone output. Deferred with the Vitest 2 to 5 upgrade."
+      "reason": "Test tooling. The critical advisory requires the Vitest UI server to be listening; @vitest/ui is not installed and --ui appears nowhere in this repository. The vite advisories require a running vite dev server; the web apps use Next's own bundler and no vite server exists. Neither reaches a runtime image: Dockerfile.service prunes dev dependencies and Dockerfile.web ships only Next's traced standalone output. The tinypool advisories (2026-10-21) are prototype-pollution gadgets in the worker options vitest passes to its pool; those options come only from this repository's own test configuration, and tinypool is likewise absent from every runtime image. The three further vite advisories (2026-10-21) concern the dev server's open-in-editor middleware (launch-editor), which exists only in a running vite dev server, and none is ever started. Deferred with the Vitest 2 to 5 upgrade."
     },
     {
       "id": "EX-003",
@@ -184,13 +195,13 @@ fix-now.
 behaviour that the M7 UI depends on, and this advisory is not reachable, so the upgrade should be its
 own milestone with its own verification rather than a security scramble.
 
-### EX-002 — vitest, @vitest/mocker, and vite
+### EX-002 — vitest, @vitest/mocker, vite and tinypool
 
 | | |
 | --- | --- |
-| **Advisories** | GHSA-5xrq-8626-4rwp, GHSA-82fw-gwwq-j7x9, GHSA-4w7w-66w2-5vf9, GHSA-v6wh-96g9-6wx3, GHSA-fx2h-pf6j-xcff |
-| **Severity** | CRITICAL ×2, HIGH ×3 |
-| **Installed** | vitest 2.1.9, @vitest/mocker 2.1.9, vite 5.4.21 |
+| **Advisories** | GHSA-5xrq-8626-4rwp, GHSA-82fw-gwwq-j7x9, GHSA-4w7w-66w2-5vf9, GHSA-v6wh-96g9-6wx3, GHSA-fx2h-pf6j-xcff, GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm |
+| **Severity** | CRITICAL ×4, HIGH ×6 |
+| **Installed** | vitest 2.1.9, @vitest/mocker 2.1.9, vite 5.4.21, tinypool 1.1.1 |
 | **Fixed in** | vitest 3.2.6 / 4.1.11 depending on the advisory; vite 6.4.3+ |
 | **Classification** | Breaking change required · Non-reachable |
 | **Expires** | 2026-12-31 |
@@ -202,6 +213,19 @@ this repository passes `--ui`. The vite advisories require a **vite dev server**
 requests; Knowzy's two web applications are built with Next's own bundler, and vite exists here only
 as vitest's transform pipeline — no server is ever started. The esbuild advisory below the gate
 threshold has the same shape.
+
+**tinypool (added 2026-10-21).** Both advisories are prototype-pollution gadgets: options handed to
+tinypool's worker pool can be turned into code execution **if an attacker can already pollute
+`Object.prototype` in the process that builds them**. The only process that builds them is
+vitest, from this repository's own `vitest.workspace.ts`, running this repository's own tests.
+No input from outside the repository reaches those options, and tinypool is a dev dependency of
+vitest alone. `npm audit` offers no fix short of Vitest 5, which is the upgrade this entry already
+defers.
+
+**Three more vite advisories (added 2026-10-21).** GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw and
+GHSA-587h-7wmj-h5pm are in vite's bundled `launch-editor`, the middleware behind the dev server's
+"open this file in your editor" request. They need a vite dev server accepting requests, the same
+condition as the vite advisories above, and none is ever started here.
 
 Neither package can reach a deployed system: `Dockerfile.service` runs `npm prune --omit=dev` before
 the runtime stage, and `Dockerfile.web` copies only `.next/standalone`, `.next/static`, and `public`
@@ -278,3 +302,4 @@ Reported for completeness; `--audit-level=high` does not block on them and neith
 | Date | Change |
 | --- | --- |
 | 2026-09-21 | Created. EX-001 (postcss/Next), EX-002 (vitest/vite), EX-003 (deepmerge-ts/Prisma). `npm audit fix` applied first; it cleared nothing high or critical, for the reasons in §3.1 |
+| 2026-10-21 | CI run 38566296686 (2026-10-14) failed the gate on four new advisories. **sharp** GHSA-wq5f-xc86-pv6w (high) and **source-map-js** GHSA-68fv-2mgg-jv7q (high) were FIXED, not deferred: the lockfile moves to sharp 0.35.5 and source-map-js 1.2.2, within their existing ranges. **tinypool** GHSA-5gmw-xhrv-c9v3 and GHSA-85c8-ppgw-ccpr (critical) need Vitest 5 and were added to EX-002, not reachable; three vite advisories published after that run (GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm, the dev server's launch-editor middleware) were added for the same reason. Its expiry is unchanged |
