@@ -177,9 +177,15 @@ Still Open:
   then npx prisma migrate diff --from-migrations packages/database/prisma/migrations
   --to-schema-datamodel packages/database/prisma/schema.prisma
   --shadow-database-url postgresql://knowzy:knowzy@localhost:5432/knowzy_shadow --exit-code
-- 11 commits were pushed on 2026-09-23 and THE RESULT OF THAT RUN IS UNKNOWN
-  from this machine: `gh` is not installed and the repository is private, so
-  the Actions tab has to be read by a person. An unread run is not a pass.
+- CI HAD BEEN RED ON EVERY PUSH FROM 2026-09-24 TO 2026-10-14, unread because
+  `gh` was absent. `gh` is installed and authenticated since 2026-10-21 (`gh run
+list`, `gh run view <id> --log-failed`). The 2026-10-14 run failed three ways:
+  the audit gate on newly published advisories, the fixture-sync step still
+  acting as a DEPROVISIONED identity (source-administrator), and the image
+  scan on deepmerge-ts shipped through the Prisma CLI (an optional peer of
+  @prisma/client survives `npm prune --omit=dev`). All three fixed 2026-10-21.
+  THE AUDIT GATE AND TRIVY READ LIVE ADVISORY DATABASES: a green run goes red
+  with no commit. Read the run after every push; an unread run is not a pass.
 - Deferred with reasons in docs/SECURITY-EXCEPTIONS.md: Next.js 15 -> 16 and
   Vitest 2 -> 5. Major upgrades whose advisories are not reachable here; both
   entries expire 2026-12-31.
@@ -210,8 +216,7 @@ Next Immediate Task:
    docs/integrations/T29_PRIVACY_LEGAL_REQUEST.md and nobody in Privacy,
    Legal, InfoSec or Data Governance has seen it. Longest lead time on the
    critical path, and not an engineering action.
-2. Read the CI result for the 2026-09-23 push. Eleven commits went up and the
-   outcome has never been read from this machine (`gh` absent, repo private).
+2. CI is now read with `gh` (installed 2026-10-21). Check every push.
 3. Measure blind-stem answerability on the published questions. The
    confidence-component half of this is DONE and recorded in
    docs/integrations/LIVE_CLAUDE_EVALUATION_PLAN.md section 2.5; the

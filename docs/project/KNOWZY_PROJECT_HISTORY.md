@@ -3508,3 +3508,30 @@ its own milestone (M4).
   - The journey spec now skips, by design, because it must not send documents to a model.
   - The banner spec follows the real readiness either way.
   - The T-29 request to Privacy, Legal and InfoSec is still unsent.
+
+## CI read for the first time since 2026-09-24, and made green
+
+2026-10-21. `gh` was installed and authenticated. **Every push from 2026-09-24 to 2026-10-14 had
+failed, unread.** The 2026-10-14 run (38566296686) failed three ways. The static gates, migration
+from empty, schema drift, the seed and all six image builds passed.
+
+- **Audit gate.**
+  - It failed on advisories published after the September assessment.
+  - sharp and source-map-js were fixed in the lockfile.
+  - tinypool (two critical) and three more vite advisories were classified under EX-002. They
+    need Vitest 5 and are not reachable here.
+  - Locally: 15 covered, 0 blocking.
+- **Fixture sync.**
+  - The step still sent `source-administrator@local.invalid`. The Role Simplification had
+    deprovisioned that identity, so the refusals read as "never became ready".
+  - It also synchronized whichever source sorted first.
+  - It now acts as the Authoring Administrator, on the mock source by name.
+- **Image scan.**
+  - deepmerge-ts (CVE-2026-40345) shipped in the service images inside the Prisma CLI, which npm
+    keeps as `@prisma/client`'s optional peer.
+  - EX-003 had said it was absent, and that claim is corrected.
+  - The Dockerfile now removes the CLI, `@prisma/config` and deepmerge-ts.
+  - A local Trivy scan of the api image with CI's settings reads 0 HIGH and 0 CRITICAL. The
+    image starts and stops only at the database.
+- **Lesson.** The audit gate and Trivy read live advisory databases, so a run can go red with no
+  commit.
