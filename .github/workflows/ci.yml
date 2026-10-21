@@ -203,6 +203,11 @@ jobs:
             fi
             if [ "$i" = "60" ]; then
               echo "::error::mcp or api never became ready; logs follow"
+              # What each probe actually answered: a refusal is not a hang.
+              curl -s -w ' [mcp HTTP %{http_code}]' http://127.0.0.1:8081/internal/health/ready || true
+              echo
+              curl -s -w ' [api HTTP %{http_code}]' -H 'x-knowzy-subject: knowzy-administrator@local.invalid' http://127.0.0.1:8080/api/v1/authoring/sources | head -c 1500 || true
+              echo
               tail -n 40 /tmp/mcp.log /tmp/api.log
               exit 1
             fi
