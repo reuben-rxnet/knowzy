@@ -60,6 +60,10 @@ export interface PreparationRequest {
   readonly sections: readonly PreparationSection[];
   /** Test seam only. Production always uses a fresh random nonce. */
   readonly nonce?: string;
+  /** Which part of a longer document this is, when it is prepared in parts. */
+  readonly part?: { readonly index: number; readonly count: number };
+  /** Set on the one retry after an attempt left content out. */
+  readonly strict?: boolean;
 }
 
 export interface PreparationResult {
@@ -108,7 +112,7 @@ export const PREPARATION_TOOL_GRANT: readonly never[] = Object.freeze([]);
 // ---------------------------------------------------------------- the prompt
 
 /** Bumped with PREPARATION_PROMPT_SHA256 together; a contract test pins both. */
-export const PREPARATION_PROMPT_VERSION = 'prepare-1.0.0' as const;
+export const PREPARATION_PROMPT_VERSION = 'prepare-1.1.0' as const;
 
 export const PREPARATION_SYSTEM_PROMPT = [
   'You prepare an enterprise document so that assessment questions can be written from it',
@@ -139,6 +143,11 @@ export const PREPARATION_SYSTEM_PROMPT = [
   '   use a numbered_list block for ordered steps.',
   'G. Put findings inside the prepared text. Findings go only in the findings array.',
   'H. Write questions, answers, or a knowledge-check section.',
+  'I. Shorten, summarize, condense or omit anything. Every sentence of the document must appear',
+  '   in the prepared document, reworded only as far as the structure needs.',
+  'J. Alter examples, identifiers or technical text. Ticket numbers, order and job numbers, email',
+  '   subjects, names of servers, tables and teams, SQL queries, commands, file paths and URLs are',
+  '   copied character for character; put a query or command in its own paragraph block.',
   '',
   'If the document is already well structured, return it with its own headings and say so in',
   'no finding at all: do not restructure for its own sake.',
@@ -147,7 +156,7 @@ export const PREPARATION_SYSTEM_PROMPT = [
 
 /** The prompt's pinned hash. A test recomputes it; editing the prompt fails until both move. */
 export const PREPARATION_PROMPT_SHA256 =
-  '9d484cd6c1ccc3f32020ae3e0007ce5b94f217db9ca86bb1bec7e4240fbbe726' as const;
+  '5d2c22a9e0824ecfd5fd73b272476d2308830aff1622679e68346f0cc679e6b7' as const;
 
 export const preparationPromptHash = (): string =>
   createHash('sha256').update(PREPARATION_SYSTEM_PROMPT, 'utf8').digest('hex');
@@ -163,6 +172,16 @@ export const framePreparationPrompt = (
   const close = `<<<END-KNOWZY-DOCUMENT-${nonce}>>>`;
   const user = [
     `Document name: ${sanitize(request.documentName, nonce)}`,
+    ...(request.part === undefined || request.part.count <= 1
+      ? []
+      : [
+          `This is part ${request.part.index} of ${request.part.count} of the document. Prepare this part only; do not add an introduction or a summary.`,
+        ]),
+    ...(request.strict === true
+      ? [
+          'A previous attempt at this part left content out. Keep EVERY sentence, example, identifier, query and command. Do not shorten anything.',
+        ]
+      : []),
     '',
     open,
     ...request.sections.map((section) =>

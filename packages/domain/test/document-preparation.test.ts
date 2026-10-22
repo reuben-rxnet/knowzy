@@ -395,8 +395,11 @@ describeDb('AI Document Studio M3: assessment preparation', () => {
       ['REFUSED', 'INVENTED_QUANTITY'],
       ['FAILED', 'MALFORMED_OUTPUT'],
     ]);
-    // The tokens are spent and counted, even when the output is refused.
-    expect(runs[0]?.inputTokens).toBe(10);
+    // The tokens are spent and counted, even when the output is refused or
+    // malformed. The one-sentence output keeps too little of the original, so
+    // the part was prepared a second time, strictly: two calls of 10.
+    expect(runs[0]?.inputTokens).toBe(20);
+    expect(runs[1]?.inputTokens).toBe(10);
     expect(await prisma.preparedDocumentVersion.count({ where: { preparedDocumentId } })).toBe(0);
   });
 

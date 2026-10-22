@@ -1663,6 +1663,7 @@ export const copy = {
   'ds.warn.OBLIGATION_STRENGTHENED': 'Obligation strengthened',
   'ds.warn.OBLIGATION_WEAKENED': 'Obligation weakened',
   'ds.warn.POSSIBLY_REMOVED': 'Possibly removed',
+  'ds.warn.CONTENT_REDUCED': 'Content may be missing',
   'ds.warnOriginal': 'Original: “{text}”',
   'ds.marker.MISSING_INFORMATION': 'Missing information',
   'ds.marker.UNCLEAR': 'Unclear',

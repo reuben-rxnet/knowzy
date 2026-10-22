@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parsePreparedMarkdown } from '@knowzy/shared-types';
-import { checkPreparedText, markChanges } from './checks.js';
+import { checkPreparedText, markChanges, wordCoverage } from './checks.js';
 
 // Synthetic: a fictional lantern shop.
 const ORIGINAL = [
@@ -69,6 +69,50 @@ describe('checkPreparedText', () => {
     const removed = result.warnings.filter((w) => w.kind === 'POSSIBLY_REMOVED');
     expect(removed).toHaveLength(1);
     expect(removed[0]?.text).toMatch(/cracked glass panel/);
+  });
+
+  it('does not call a warning removed when it was merged into a longer step', () => {
+    const result = checkPreparedText(
+      ORIGINAL,
+      prepared(
+        [
+          '1. Customers should return a lantern within 14 days of delivery. Never accept a lantern with a cracked glass panel; escalate it to the shift lead and note the order in the returns ledger with the courier details.',
+          'Staff must record every refund in the returns ledger before the end of the shift.',
+        ].join('\n\n'),
+      ),
+    );
+    expect(result.warnings.filter((w) => w.kind === 'POSSIBLY_REMOVED')).toEqual([]);
+  });
+
+  it('reports a condensed preparation, naming the original lines that went', () => {
+    const original = [
+      ORIGINAL,
+      'Order LNT-48213 was returned twice in March by courier Northwind Express.',
+      'Job ARCHIVE_LANTERN_SYNC rebuilds the returns index every night from the ledger.',
+    ].join('\n\n');
+    const result = checkPreparedText(
+      original,
+      prepared(
+        [
+          'Customers should return a lantern within 14 days of delivery.',
+          '> Warning: never accept a lantern with a cracked glass panel and escalate it to the shift lead.',
+          'Staff must record every refund in the returns ledger before the end of the shift.',
+        ].join('\n\n'),
+      ),
+    );
+    const reduced = result.warnings.filter((w) => w.kind === 'CONTENT_REDUCED');
+    expect(reduced.map((w) => w.text)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/LNT-48213/),
+        expect.stringMatching(/ARCHIVE_LANTERN_SYNC/),
+      ]),
+    );
+    expect(reduced[0]?.message).toMatch(/keeps about \d+% of the original's words/);
+  });
+
+  it('counts repetition, so one mention does not stand for five', () => {
+    expect(wordCoverage('alpha alpha alpha alpha', 'alpha')).toBe(0.25);
+    expect(wordCoverage('alpha beta', 'beta alpha gamma')).toBe(1);
   });
 });
 

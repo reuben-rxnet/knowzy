@@ -3555,3 +3555,54 @@ step showed what else was wrong, one round at a time:
 seed and idempotency all passed. The sync extracted 4 fixtures. Integration ran 369 of 369 tests
 in 24 files, with no skips, including the new Studio suite. All six images built and scanned
 clean.
+
+## Document Studio accuracy — preparation in parts, and DOCX/PPTX read correctly (2026-10-22)
+
+The owner's instruction: make the AI Document Studio work efficiently and accurately before
+anything else, with all content approved for OpenAI. Measured live on six pilot SOPs through the
+APIM gateway, then fixed, then measured again on the same six.
+
+### Found
+
+- **A long document was condensed.** One call per document kept 93-99% of the original's words on
+  SOPs under ~6,000 characters, and **69%** on the 25,630-character *Tickets SOP's*: order numbers,
+  job ids and ticket subjects went, and nothing on the screen said so.
+- **"Possibly removed" was a false positive** wherever a warning had been merged into a numbered
+  step: a symmetric word overlap with the longer step read as no match.
+- **The findings pointed at the extractor, not the model.** "PurposeThis SOP", "storeGet-ChildItem",
+  "'Failed'AND" were in the extracted text itself. Three OOXML defects, each the self-closing-element
+  trap CLAUDE.md already warned about, in code that had not been rewritten when XLSX was:
+  - an empty `<w:p/>` read as an OPEN paragraph and swallowed the next table -- *EOLP RxNet
+    Printing issue SOP* extracted 1,487 of its 2,995 characters;
+  - `stripElements` given an always-self-closing element (`w:commentRangeStart`,
+    `w:commentReference`, `w:footnoteReference`, PPTX `c:chart`, `dgm:relIds`) removed everything
+    after it;
+  - a table cell's paragraphs were concatenated, and a `<w:br/>` became a space OUTSIDE any
+    `<w:t>`, which is never read.
+
+### Changed
+
+- `topLevelElements` in content-extraction ooxml.ts: outermost elements with nesting counted and a
+  self-closing element recognised. `stripElements`, `runText`, the DOCX body/table/row/cell reading
+  and PPTX paragraphs all go through it. Breaks and tabs become text runs.
+- Preparation in parts (`domain/document-studio/chunked-preparation.ts`): ~6,000 characters by
+  section, three at once, each told its part; a part under 85% word coverage retried once with a
+  strict instruction, the fuller kept. Prompt `prepare-1.1.0` adds "never shorten" and "copy
+  examples, identifiers, queries and commands verbatim". Usage of every call, including a failed
+  run's, is recorded.
+- Checks: `CONTENT_REDUCED` under 90% coverage, naming up to five original lines; `POSSIBLY_REMOVED`
+  by containment in a prepared block.
+
+### Validated
+
+- Remeasured live: 98-100% of words kept on all six (Tickets 69% -> 98%), Tickets 41 s -> 29 s, all
+  six 130 s -> 103 s in total, zero false warnings. Input tokens rise (each part carries the
+  instructions; 6,897 -> 10,582 on Tickets).
+- Extraction old vs new over the 28 DOCX/PPTX files of the real corpus: 16 change, 12 identical,
+  every sampled change a correction. 14 synthetic regression tests, 11 of which fail on the old
+  extractor. Unit 786, contract 237 passing.
+- A sync re-extracts every file on every run (the adapter's checkpoint is never round-tripped, so
+  INCREMENTAL behaves as FULL), so the fix reaches existing documents on the next sync: the 16 get a
+  new version, their section coverage resets, and a prepared version made from one reads
+  *Revalidation required*. Questions keep their lineage.
+

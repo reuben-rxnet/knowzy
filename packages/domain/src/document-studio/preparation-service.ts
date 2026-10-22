@@ -25,12 +25,16 @@ import { createHash, randomUUID } from 'node:crypto';
 import { createAuditWriter, type PrismaClient, type TransactionClient } from '@knowzy/database';
 import type { Clock } from '@knowzy/observability';
 import {
-  estimatePreparationTokens,
   PREPARATION_PROMPT_VERSION,
   PreparationError,
   type DocumentPreparer,
   type PreparationRequest,
 } from '@knowzy/claude-services';
+import {
+  estimateTokensInParts,
+  prepareInParts,
+  type ChunkedResult,
+} from './chunked-preparation.js';
 import {
   parsePreparedMarkdown,
   PreparationOutputSchema,
@@ -537,7 +541,7 @@ export const prepareDocument = async (
       isAssessable: section.isAssessable,
     })),
   };
-  const estimate = preparer.live ? estimatePreparationTokens(request) : 0;
+  const estimate = preparer.live ? estimateTokensInParts(request) : 0;
 
   // Controls, for a live provider only: the test preparer spends nothing.
   if (preparer.live) {
@@ -601,10 +605,19 @@ export const prepareDocument = async (
     select: { id: true },
   });
 
-  let result: Awaited<ReturnType<DocumentPreparer['prepare']>>;
+  // In parts of about PART_CHARS, so a long document is not condensed
+  // (chunked-preparation.ts). A part's malformed output throws here as
+  // MALFORMED_OUTPUT, like a single call's.
+  let result: ChunkedResult;
+  let spent: { inputTokens: number | null; outputTokens: number | null } | null = null;
   try {
-    result = await preparer.prepare(request);
+    result = await prepareInParts(preparer, request, (inputTokens, outputTokens) => {
+      spent = { inputTokens, outputTokens };
+    });
   } catch (error) {
+    if (spent !== null) {
+      await ctx.prisma.documentPreparationRun.update({ where: { id: run.id }, data: spent });
+    }
     const code = error instanceof PreparationError ? error.code : 'PROVIDER_ERROR';
     const message =
       error instanceof PreparationError

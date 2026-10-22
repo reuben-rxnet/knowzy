@@ -13,8 +13,10 @@ UX-M2 (product polish: plainer wording, a summary before generating, richer revi
 provider overview), COMPETENCY-M2 (competency administration) and the Authoring Role
 Simplification (two identities; self-approval permitted by configuration), AI Document Studio
 Slice 2 (the overview, and the DOCUMENT_RESTRUCTURE approval) and AI Document Studio M3
-(assessment preparation: add, prepare, review and edit, download, add to the repository)
-**Last updated:** 2026-10-14 (AI Document Studio M3)
+(assessment preparation: add, prepare, review and edit, download, add to the repository), and
+its 2026-10-22 accuracy work (preparation in parts, a completeness warning, DOCX/PPTX reading)
+**Last updated:** 2026-10-22 (Document Studio accuracy: long documents prepared in parts, a
+completeness warning, and Word/PowerPoint text read correctly)
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -283,7 +285,7 @@ offsets are the platform's claim about itself — the evidence a question quotes
 
 | Format | Read? | What to expect |
 | --- | --- | --- |
-| **Word** `.docx` | Yes | Headings become sections. Tables are read as text. **Tracked deletions are ignored and insertions are kept** — a question is never built from a sentence the author removed. Comments, headers, footers and hidden text are ignored |
+| **Word** `.docx` | Yes | Headings become sections. Tables are read as text, one line per row; a one-cell box (a "Purpose" panel) keeps each paragraph on its own line, and a line break inside a code block or cell is read as a space. **Tracked deletions are ignored and insertions are kept** — a question is never built from a sentence the author removed. Comments, headers, footers and hidden text are ignored |
 | **PDF** `.pdf` | Yes | Text per page, with the page number kept so a reviewer can find the quote. A **scanned** PDF has no text to read and is reported as empty — there is no OCR. A password-protected PDF is refused |
 | **PowerPoint** `.pptx` | Yes, in presentation order | Speaker notes are ignored. Bear in mind slide text is often a fragment rather than a sentence, so slides frequently produce no questions |
 | **Excel** `.xlsx` | Yes | Rows are read as text with the sheet name kept. A formula's **result** is read, not the formula. A sheet of data states no rule and will produce nothing; a policy table may |
@@ -348,7 +350,8 @@ exceptions, and restate tables — using only what the original says. It may not
 turn *should* into *must* (or back), drop a warning or an escalation step, or quietly resolve
 something unclear. Every number, percentage, date and duration in the result is checked against
 the original: **a prepared document that contains a figure the original does not is refused**, and
-the refusal names the figures. **Prepare again** makes a new draft from the original's current
+the refusal names the figures. A long document is prepared in parts, several at once, so nothing is
+condensed away; expect about half a minute for a 25-page SOP. **Prepare again** makes a new draft from the original's current
 text; an open draft it replaces is kept in the history as *Discarded*.
 
 #### Review changes
@@ -363,8 +366,10 @@ right:
   about the document. They are listed again under **Missing or unclear information**.
 
 **Warnings** lists what a person should check: a figure not in the original, an obligation that
-reads stronger or weaker than the original's, or a warning in the original with no close match in
-the prepared text. **Details**, collapsed, shows the provider, model, prompt version, content
+reads stronger or weaker than the original's, a warning in the original with no close match in
+the prepared text, or **Content may be missing** — the prepared document keeps less than nine
+tenths of the original's words, and the original lines that went are listed so you can check them.
+**Details**, collapsed, shows the provider, model, prompt version, content
 fingerprints and every preparation attempt.
 
 #### Edit, download, add
@@ -1765,3 +1770,4 @@ the log below.
 | 2026-10-07 | Document Studio Slice 2 | **AI Document Studio** (§4.2a), a new sidebar entry between Import Questions and AI Quiz Generation (Import Questions moved up beside it). An overview that prepares nothing: it explains assessment preparation, shows the documented GenerationReady evaluation results, the workflow, and the platform's real state — **Blocked by approval** — per provider. **Record approval** records a `DOCUMENT_RESTRUCTURE` approval with a reference, separate from the generation approval; it moves a provider to **Not built** and no further, because no transformation exists |
 | 2026-10-07 | E2E fixtures | The browser test suite now owns a source, **E2E Synthetic Corpus** (§9), and writes a fresh invented procedure into it each run, because it had used up the template-generator drafts on Mock Support Operations |
 | 2026-10-14 | AI Document Studio M3 | The Studio (§4.2a) now prepares documents. Four views: **Add document** (upload a .docx, .pdf, .pptx, .md or .txt up to 8 MB, checked before it is kept, or **Choose** a synchronized document), **My prepared documents**, **History** and **Readiness** (the Slice 2 overview and approvals). The banner says *AI document preparation is not yet enabled for this environment. Contact your administrator.* until the DOCUMENT_RESTRUCTURE approval is recorded; locally a **test preparation, labelled not AI**, runs instead. A document's page: **Prepare for question generation**, original and prepared side by side with reworded text highlighted, **Warnings**, **Missing or unclear information**, **Edit** with **Save changes**, **Restore AI version** and **Discard draft**, **Download Word** and **Download PDF**, and **Add to Question Generation Repository** with its confirmation, then **Generate questions now**. Generate preselects the document and labels it *Assessment-prepared document*; a question generated from one shows its lineage on its page. New refusals: a figure not in the original, an upload that fails a check, a duplicate upload or addition, and a version whose original changed (*Revalidation required*) |
+| 2026-10-22 | Document Studio accuracy | **Preparation keeps the whole document** (§4.2a). A long document is now prepared in parts, several at once: on the pilot SOPs the share of the original's words kept rose from 69% to 98% on the longest, and it finished faster. A new warning, **Content may be missing**, appears when a prepared document keeps less than nine tenths of the original's words and lists the lines that went; **Possibly removed** no longer fires on a warning that was merged into a step. **Word and PowerPoint files are read correctly** (§4.2): an empty paragraph next to a table no longer swallows the table (one pilot SOP had lost half its text), text after a comment or a chart is no longer dropped, and paragraphs in a table cell and lines of a code block are no longer glued together. The next synchronization re-reads the affected documents, which gives them a new version |

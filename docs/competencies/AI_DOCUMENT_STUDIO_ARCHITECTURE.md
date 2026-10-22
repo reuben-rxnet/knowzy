@@ -371,8 +371,23 @@ The output is checked before anyone sees it:
 | Schema (strict) | A response that does not parse is a **failed preparation**; it is not repaired by guessing and no version is stored |
 | Every number, percentage, date and duration in the prepared text occurs in the original | Otherwise **refused outright**: an invented quantity is the most damaging fabrication |
 | A *must/shall/required* sentence whose closest original sentence says only *should/may*, or the reverse | A **warning** on the review screen |
-| An original sentence with a warning, escalation, prohibition or safety term and no close match in the prepared text | A **warning**: possibly removed |
+| An original sentence with a warning, escalation, prohibition or safety term whose words are not, at least 60%, contained in one prepared block | A **warning**: possibly removed (containment, not likeness: a warning merged into a longer step keeps its words; amended 2026-10-22) |
+| Less than 90% of the original's words, counted with repetition, occur in the prepared text | A **warning**: content may be missing, naming up to five original lines that went (added 2026-10-22) |
 | A prepared sentence not found verbatim in the original | **Highlighted** as reworded in *Review changes* |
+
+**Preparing in parts (amended 2026-10-22, prompt `prepare-1.1.0`).** Measured on six pilot SOPs,
+one call per document **condensed** a long one: a 25,630-character SOP kept 69% of its words and
+lost order numbers, job ids and ticket subjects, while documents under about 6,000 characters kept
+93-99%. A document is therefore sent in **parts of about 6,000 characters** (by section; an
+oversized section split at paragraph breaks, with no heading invented for its later pieces), up to
+**three parts at once**, each told which part it is. Two prompt rules were added: never shorten,
+summarize or omit; copy examples, identifiers, queries, commands, paths and URLs verbatim. A part
+that keeps less than **85%** of its words is prepared **once more** with a stricter instruction and
+the fuller of the two is kept; whatever is still short is reported by the completeness warning
+above, never silently accepted. The token estimate the budgets check is the sum over the parts;
+every call's usage, including a retry's and a failed run's, is recorded on the run. Remeasured on
+the same six SOPs: 98-100% of words kept, the long SOP in 29 s instead of 41 s, and the false
+*possibly removed* warnings gone.
 
 **Readiness, behind the scenes.** Live AI preparation runs only when, for one provider: the
 `DOCUMENT_RESTRUCTURE` approval (CP-5) is recorded; a restructuring client exists (OpenAI, from this

@@ -13,6 +13,11 @@
 //     statement are WARNINGS. Matching sentences across a reorganized document
 //     is approximate, and refusing on an approximation would refuse good work;
 //     a person reads the warning beside the text.
+//   * CONTENT REDUCED -- less than nine tenths of the original's words survive
+//     -- is a WARNING naming the original lines that went. Measured 2026-10-22:
+//     a model asked to restructure a long SOP silently condensed it to 69%,
+//     dropping order numbers and ticket subjects, and nothing on the screen
+//     said so.
 //   * REWORDED text is neither: it is highlighted, because rewording is what
 //     preparation is for.
 //
@@ -31,11 +36,15 @@ import {
 } from '@knowzy/shared-types';
 
 export type PreparationWarningKind =
-  'INVENTED_QUANTITY' | 'OBLIGATION_STRENGTHENED' | 'OBLIGATION_WEAKENED' | 'POSSIBLY_REMOVED';
+  | 'INVENTED_QUANTITY'
+  | 'OBLIGATION_STRENGTHENED'
+  | 'OBLIGATION_WEAKENED'
+  | 'POSSIBLY_REMOVED'
+  | 'CONTENT_REDUCED';
 
 export interface PreparationWarning {
   readonly kind: PreparationWarningKind;
-  /** The prepared sentence concerned, or the original one for POSSIBLY_REMOVED. */
+  /** The prepared sentence concerned, or the original one for POSSIBLY_REMOVED and CONTENT_REDUCED. */
   readonly text: string;
   /** The closest original sentence, where one was matched. */
   readonly originalText: string | null;
@@ -53,6 +62,42 @@ const STRONG = /\b(must|shall|required|mandatory|is not permitted|must not|shall
 const WEAK = /\b(should|may|recommended|can|could|ideally|where possible)\b/i;
 const SAFETY =
   /\b(warning|caution|danger|hazard|escalat\w*|never|must not|do not|prohibited|safety|immediately|stop)\b/i;
+
+/** Below this share of the original's words, the prepared text is reported as reduced. */
+export const MIN_CONTENT_COVERAGE = 0.9;
+const REDUCED_LINES_SHOWN = 5;
+
+const wordsOf = (text: string): string[] =>
+  (text.toLowerCase().match(/[\p{L}\p{N}_%./-]+/gu) ?? []).filter((word) => word.length > 1);
+
+/**
+ * Share of `original`'s words, counted WITH repetition, that occur in
+ * `prepared`. A set would call a document that mentions an order number once
+ * where the original listed it in five steps complete.
+ */
+export const wordCoverage = (original: string, prepared: string): number => {
+  const pool = new Map<string, number>();
+  for (const word of wordsOf(prepared)) pool.set(word, (pool.get(word) ?? 0) + 1);
+  const source = wordsOf(original);
+  if (source.length === 0) return 1;
+  let kept = 0;
+  for (const word of source) {
+    const left = pool.get(word) ?? 0;
+    if (left > 0) {
+      kept += 1;
+      pool.set(word, left - 1);
+    }
+  }
+  return kept / source.length;
+};
+
+/** Share of `a`'s tokens present in `b`: is a contained in b, whatever b adds. */
+const containment = (a: ReadonlySet<string>, b: ReadonlySet<string>): number => {
+  if (a.size === 0) return 0;
+  let shared = 0;
+  for (const token of a) if (b.has(token)) shared += 1;
+  return shared / a.size;
+};
 
 /** Sentences worth comparing: a handful of words, not a heading fragment. */
 const comparable = (sentence: string): boolean => sentence.split(/\s+/).length >= 4;
@@ -138,16 +183,58 @@ export const checkPreparedText = (
     }
   }
 
+  // Containment against whole prepared BLOCKS, not likeness to one sentence: a
+  // preparation that merges a warning into a numbered step keeps every word of
+  // it, and a symmetric overlap with the longer step read that as removed.
+  const blocks = nodes
+    .filter((node) => node.type !== 'marker')
+    .flatMap((node) => nodeTexts(node))
+    .map((text) => tokensOf(text));
   for (const sentence of original) {
     if (!SAFETY.test(sentence.text)) continue;
-    const { score } = closest(sentence, prepared);
-    if (score < 0.5) {
+    const best = blocks.reduce(
+      (max, block) => Math.max(max, containment(sentence.tokens, block)),
+      0,
+    );
+    if (best < 0.6) {
       warnings.push({
         kind: 'POSSIBLY_REMOVED',
         text: sentence.text,
         originalText: sentence.text,
         message:
           'This warning, prohibition or escalation in the original has no close match in the prepared document.',
+      });
+    }
+  }
+
+  const coverage = wordCoverage(originalText, preparedText);
+  if (coverage < MIN_CONTENT_COVERAGE) {
+    const preparedWords = new Set(wordsOf(preparedText));
+    const missing = originalText
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter((line) => wordsOf(line).length >= 4)
+      .map((line) => {
+        const lineWords = wordsOf(line);
+        return {
+          line,
+          kept: lineWords.filter((word) => preparedWords.has(word)).length / lineWords.length,
+        };
+      })
+      .filter((entry) => entry.kept < 0.7)
+      .sort((a, b) => a.kept - b.kept)
+      .slice(0, REDUCED_LINES_SHOWN);
+    const percent = Math.round(coverage * 100);
+    const message = `The prepared document keeps about ${percent}% of the original's words, so content may have been left out. Compare it with the original before adding it.`;
+    if (missing.length === 0) {
+      warnings.push({ kind: 'CONTENT_REDUCED', text: message, originalText: null, message });
+    }
+    for (const entry of missing) {
+      warnings.push({
+        kind: 'CONTENT_REDUCED',
+        text: entry.line,
+        originalText: entry.line,
+        message: `${message} This line of the original is mostly missing.`,
       });
     }
   }

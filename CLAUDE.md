@@ -403,6 +403,16 @@ select statement on model Y` from the api while the host typechecks clean.
   Use elementsOf() in content-extraction/src/extractors/xlsx.ts: `/>` is empty,
   otherwise read to the element's OWN closing tag. A "no change" impact result
   is believed only beside a control run that shows a change.
+- THE SELF-CLOSING TRAP WAS ALSO IN DOCX, PPTX AND stripElements until
+  2026-10-22: an empty `<w:p/>` swallowed the next table (one pilot SOP
+  extracted half its text) and stripping an always-self-closing element
+  (`w:commentRangeStart`, `c:chart`) deleted the rest of the part. Use
+  topLevelElements() in content-extraction/src/extractors/ooxml.ts for any
+  OOXML element; a `<w:br/>` must become a TEXT RUN, since only `<w:t>` is read.
+- A SYNC RE-EXTRACTS EVERY FILE ON EVERY RUN: the adapter's STATE_CHECKPOINT is
+  never passed back (mcp-server source-administration.ts), so INCREMENTAL
+  behaves as FULL and deletion detection never runs. An extractor change
+  therefore reaches every document at the next sync, as a new version. Open.
 - CONSECUTIVE BLANK CELLS NORMALIZE TO `- - -` WITH SHARED SPACES, and
   split(' - ') loses them. question-import's splitRow splits on / -(?= )/.
 - `\b` INSIDE A JAVASCRIPT STRING LITERAL IS A BACKSPACE, not a regex word
@@ -603,6 +613,11 @@ family AUTHORING.DOCUMENT_PREPARATION (30 families).
   original" must use readOriginalText().comparisonText, or every original
   heading reads as "Added heading" and a figure in a heading as invented.
   Found by the browser run, not by a unit test.
+- PREPARATION RUNS IN PARTS since 2026-10-22 (chunked-preparation.ts, prompt
+  prepare-1.1.0): ~6,000 characters, three at once, a part under 85% word
+  coverage retried once strictly. One call per document kept 69% of a
+  25,000-character SOP. CONTENT_REDUCED warns under 90% coverage of the whole.
+  Measure with word coverage WITH repetition, never a set.
 - An invented FIGURE (digits) REFUSES a provider's output; changed must/should
   and possibly removed warnings are WARNINGS. A person's edit is never refused.
   Missing-information markers go into downloads, NEVER into the repository text.
