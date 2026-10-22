@@ -38,7 +38,12 @@
 import type { DocumentType } from '@knowzy/shared-types';
 import { openZip, ZipError, type ZipLimits } from '../zip.js';
 import { headingBlock, textBlock, type Block, type StructuredDocument } from '../structure.js';
-import { CELL_SEPARATOR, runText as ooxmlRunText, stripElements } from './ooxml.js';
+import {
+  CELL_SEPARATOR,
+  runText as ooxmlRunText,
+  stripElements,
+  topLevelElements,
+} from './ooxml.js';
 
 export class DocxError extends Error {
   constructor(
@@ -72,27 +77,57 @@ const headingLevelOf = (paragraph: string): number | null => {
   return level === undefined ? null : Number(level);
 };
 
-/** `<w:tbl>` … one line per row, cells joined by a separator. */
-const tableBlocks = (table: string): Block[] => {
-  const rows: string[] = [];
-  const rowMatcher = /<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g;
-  let row = rowMatcher.exec(table);
-  while (row !== null) {
-    const cells: string[] = [];
-    const cellMatcher = /<w:tc(?:\s[^>]*)?>([\s\S]*?)<\/w:tc>/g;
-    let cell = cellMatcher.exec(row[1] ?? '');
-    while (cell !== null) {
-      const value = runText(cell[1] ?? '');
-      if (value.length > 0) cells.push(value);
-      cell = cellMatcher.exec(row[1] ?? '');
-    }
+/** A paragraph's visible text: hidden (`w:vanish`) runs removed, the rest kept. */
+const paragraphText = (paragraph: string): string =>
+  runText(
+    topLevelElements(paragraph, ['w:r'])
+      .filter((run) => run.body !== null && !/<w:vanish(?![\w.-])/.test(run.body))
+      .map((run) => run.body)
+      .join(''),
+  );
+
+/**
+ * A cell's paragraphs, each read on its own. Reading the cell as ONE run of
+ * text glued its paragraphs together -- a one-cell callout box arrived as
+ * "PurposeThis SOP explains..." (2026-10-22).
+ */
+const cellParagraphs = (cell: string): string[] =>
+  topLevelElements(cell, ['w:p', 'w:tbl'])
+    .flatMap((element) =>
+      element.body === null
+        ? []
+        : element.tag === 'w:tbl'
+          ? tableLines(element.body)
+          : [paragraphText(element.body)],
+    )
+    .filter((text) => text.length > 0);
+
+/**
+ * `<w:tbl>` … one line per row, cells joined by a separator. A row of ONE
+ * cell -- the callout box a template draws around "Purpose" and its text --
+ * keeps each paragraph on its own line; in a row of several cells the
+ * paragraphs of a cell are joined by a space, so the row stays one line.
+ */
+const tableLines = (table: string): string[] => {
+  const lines: string[] = [];
+  for (const row of topLevelElements(table, ['w:tr'])) {
+    if (row.body === null) continue;
+    const cells = topLevelElements(row.body, ['w:tc'])
+      .map((cell) => (cell.body === null ? [] : cellParagraphs(cell.body)))
+      .filter((paragraphs) => paragraphs.length > 0);
+    if (cells.length === 0) continue;
     // A separator that reads as prose, so a table row can still state a rule a
     // question can be built from. A pipe would end up quoted verbatim in an
     // evidence span and look like markup to a reviewer.
-    if (cells.length > 0) rows.push(cells.join(CELL_SEPARATOR));
-    row = rowMatcher.exec(table);
+    if (cells.length === 1) lines.push(...(cells[0] ?? []));
+    else lines.push(cells.map((paragraphs) => paragraphs.join(' ')).join(CELL_SEPARATOR));
   }
-  return rows.length === 0 ? [] : [textBlock(rows.join('\n'))];
+  return lines;
+};
+
+const tableBlocks = (table: string): Block[] => {
+  const lines = tableLines(table);
+  return lines.length === 0 ? [] : [textBlock(lines.join('\n'))];
 };
 
 export interface DocxOptions {
@@ -146,30 +181,21 @@ export const extractDocx = (bytes: Uint8Array, options: DocxOptions = {}): Struc
   ]);
 
   const blocks: Block[] = [];
-  // One pass over paragraphs and tables, in document order. `w:p` and `w:tbl`
-  // are matched together so a table between two paragraphs keeps its place.
-  const matcher = /<w:p(?:\s[^>]*)?>([\s\S]*?)<\/w:p>|<w:tbl(?:\s[^>]*)?>([\s\S]*?)<\/w:tbl>/g;
-  let match = matcher.exec(body);
-  while (match !== null) {
-    const paragraph = match[1];
-    const table = match[2];
-
-    if (table !== undefined) {
-      blocks.push(...tableBlocks(table));
-    } else if (paragraph !== undefined) {
-      // A run marked `w:vanish` is hidden text. Dropping the whole paragraph
-      // would lose visible siblings, so only the hidden runs are removed.
-      const visible = paragraph.replace(
-        /<w:r(?:\s[^>]*)?>(?:(?!<\/w:r>)[\s\S])*?<w:vanish\b[^>]*\/>[\s\S]*?<\/w:r>/g,
-        '',
-      );
-      const text = runText(visible);
-      if (text.length > 0) {
-        const level = headingLevelOf(paragraph);
-        blocks.push(level === null ? textBlock(text) : headingBlock(level, text));
-      }
+  // One pass over the OUTERMOST paragraphs and tables, in document order, so a
+  // table between two paragraphs keeps its place and a paragraph inside a
+  // table cell is read as part of its table. An empty `<w:p/>` is an element
+  // with no body, not the opening of one (ooxml.ts topLevelElements).
+  for (const element of topLevelElements(body, ['w:p', 'w:tbl'])) {
+    if (element.body === null) continue;
+    if (element.tag === 'w:tbl') {
+      blocks.push(...tableBlocks(element.body));
+      continue;
     }
-    match = matcher.exec(body);
+    const text = paragraphText(element.body);
+    if (text.length > 0) {
+      const level = headingLevelOf(element.body);
+      blocks.push(level === null ? textBlock(text) : headingBlock(level, text));
+    }
   }
 
   return {

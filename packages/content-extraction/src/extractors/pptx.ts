@@ -29,7 +29,7 @@
 import type { DocumentType } from '@knowzy/shared-types';
 import { openZip, ZipError, type ZipLimits } from '../zip.js';
 import { textBlock, type Block, type StructuredDocument } from '../structure.js';
-import { relationshipTargets, runText, stripElements } from './ooxml.js';
+import { relationshipTargets, runText, stripElements, topLevelElements } from './ooxml.js';
 
 export class PptxError extends Error {
   constructor(
@@ -144,12 +144,9 @@ export const extractPptx = (bytes: Uint8Array, options: PptxOptions = {}): Struc
     const body = stripElements(slideXml, ['c:chart', 'dgm:relIds', 'p:attrNameLst']);
 
     const lines: string[] = [];
-    const paragraphMatcher = /<a:p\b(?:\s[^>]*)?>([\s\S]*?)<\/a:p>/g;
-    let paragraph = paragraphMatcher.exec(body);
-    while (paragraph !== null) {
-      const text = runText(paragraph[1] ?? '', 'a');
+    for (const paragraph of topLevelElements(body, ['a:p'])) {
+      const text = paragraph.body === null ? '' : runText(paragraph.body, 'a');
       if (text.length > 0) lines.push(text);
-      paragraph = paragraphMatcher.exec(body);
     }
 
     if (lines.length === 0) continue;
