@@ -307,6 +307,12 @@ Gotchas learned by execution (each of these cost real time):
   "socket hang up" from that point. Cost two full runs on 2026-10-07. ORDER:
   start the web containers FIRST, let migrate finish, THEN restart api mcp
   jobs and check `/repo/node_modules/tsx/dist/preflight.cjs` exists.
+- SINCE 2026-10-22 `migrate` SKIPS `npm ci` and `prisma generate` when the
+  lockfile and schema fingerprints in node_modules/.knowzy-stamps match. Docker
+  restarts every container together after a reboot, and the unconditional
+  `npm ci` killed a starting api ("Cannot find module .../fastify.js") twice.
+  A changed lockfile or schema still reinstalls -- and then the ORDER above
+  still applies.
 - A host `npm run build` can also break the container node_modules volume, not
   just `npm install`. Same fix: `up migrate`, then restart api and mcp.
 - The MOCK question bank persists to a JSON file under the fixture root, so it

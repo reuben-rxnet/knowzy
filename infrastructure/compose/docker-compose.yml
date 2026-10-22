@@ -92,15 +92,32 @@ services:
         # `npm ci` needs a committed lockfile. On a fresh clone there is none
         # yet, so fall back to `npm install` and write one. CI always uses
         # `npm ci` and fails if the lockfile is missing.
-        if [ -f package-lock.json ]; then
+        # Skip the reinstall when nothing changed. Docker restarts every
+        # container at once after a reboot, so an unconditional `npm ci` wiped
+        # node_modules under an api that was already starting ("Cannot find
+        # module .../fastify.js", 2026-10-21 and 2026-10-22). A fingerprint of
+        # the lockfile (and of the schema, for prisma generate) is kept in the
+        # volume; only a real change reinstalls.
+        STAMP_DIR=node_modules/.knowzy-stamps
+        LOCK_SUM=$$(sha256sum package-lock.json 2>/dev/null | cut -d' ' -f1 || true)
+        SCHEMA_SUM=$$(sha256sum packages/database/prisma/schema.prisma | cut -d' ' -f1)
+        if [ -n "$$LOCK_SUM" ] && [ "$$(cat $$STAMP_DIR/lock 2>/dev/null)" = "$$LOCK_SUM" ] && [ -f node_modules/tsx/dist/preflight.cjs ]; then
+          echo "==> install skipped (lockfile unchanged since the last install)"
+        elif [ -f package-lock.json ]; then
           echo "==> install (npm ci, frozen lockfile)"
           npm ci --no-audit --no-fund
+          mkdir -p $$STAMP_DIR && echo "$$LOCK_SUM" > $$STAMP_DIR/lock && rm -f $$STAMP_DIR/schema
         else
           echo "==> install (npm install — no lockfile yet; commit the one this writes)"
           npm install --no-audit --no-fund
         fi
-        echo "==> prisma generate"
-        npm run db:generate
+        if [ "$$(cat $$STAMP_DIR/schema 2>/dev/null)" = "$$SCHEMA_SUM" ] && [ -d node_modules/.prisma/client ]; then
+          echo "==> prisma generate skipped (schema unchanged)"
+        else
+          echo "==> prisma generate"
+          npm run db:generate
+          mkdir -p $$STAMP_DIR && echo "$$SCHEMA_SUM" > $$STAMP_DIR/schema
+        fi
         if [ ! -f packages/database/prisma/migrations/0002_init/migration.sql ]; then
           echo "==> generating 0002_init (first run only — commit the result)"
           npm run -w @knowzy/database bootstrap:init-migration
