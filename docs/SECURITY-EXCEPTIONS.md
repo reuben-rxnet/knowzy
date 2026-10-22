@@ -80,6 +80,8 @@ more (tinypool) and three more vite advisories were classified under EX-002 on 2
 | GHSA-698v-4r3x-3vcv | vite 5.4.21 | `vitest` → `vite` | moderate / **HIGH** | Breaking change required (Vitest 5) | No | EX-002 |
 | GHSA-r825-w8mm-5pxw | vite 5.4.21 | `vitest` → `vite` | moderate / **HIGH** | Breaking change required (Vitest 5) | No | EX-002 |
 | GHSA-587h-7wmj-h5pm | vite 5.4.21 | `vitest` → `vite` | **HIGH** / **HIGH** | Breaking change required (Vitest 5) | No | EX-002 |
+| GHSA-9jrq-w75r-8gcw | vite 5.4.21 | `vitest` → `vite` | **HIGH** / **HIGH** | Breaking change required (Vitest 5) | No | EX-002 |
+| GHSA-rq7h-c2jc-7f22 | vite 5.4.21 | `vitest` → `vite` | **HIGH** / **HIGH** | Breaking change required (Vitest 5) | No | EX-002 |
 | GHSA-5gmw-xhrv-c9v3 | tinypool 1.1.1 | `vitest` → `tinypool` | **CRITICAL** / **CRITICAL** | Breaking change required (Vitest 5) | No | EX-002 |
 | GHSA-85c8-ppgw-ccpr | tinypool 1.1.1 | `vitest` → `tinypool` | **CRITICAL** / **CRITICAL** | Breaking change required (Vitest 5) | No | EX-002 |
 | GHSA-ggr8-5vv4-36mx | deepmerge-ts 7.1.5 | `prisma` → `@prisma/config` → `deepmerge-ts` | **HIGH** / **HIGH** | Breaking change required | No | EX-003 |
@@ -141,7 +143,9 @@ high or critical, and the reason matters for the entries below:
         "GHSA-85c8-ppgw-ccpr",
         "GHSA-698v-4r3x-3vcv",
         "GHSA-r825-w8mm-5pxw",
-        "GHSA-587h-7wmj-h5pm"
+        "GHSA-587h-7wmj-h5pm",
+        "GHSA-9jrq-w75r-8gcw",
+        "GHSA-rq7h-c2jc-7f22"
       ],
       "packages": ["vitest", "@vitest/mocker", "vite", "tinypool"],
       "expires": "2026-12-31",
@@ -199,8 +203,8 @@ own milestone with its own verification rather than a security scramble.
 
 | | |
 | --- | --- |
-| **Advisories** | GHSA-5xrq-8626-4rwp, GHSA-82fw-gwwq-j7x9, GHSA-4w7w-66w2-5vf9, GHSA-v6wh-96g9-6wx3, GHSA-fx2h-pf6j-xcff, GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm |
-| **Severity** | CRITICAL ×4, HIGH ×6 |
+| **Advisories** | GHSA-5xrq-8626-4rwp, GHSA-82fw-gwwq-j7x9, GHSA-4w7w-66w2-5vf9, GHSA-v6wh-96g9-6wx3, GHSA-fx2h-pf6j-xcff, GHSA-5gmw-xhrv-c9v3, GHSA-85c8-ppgw-ccpr, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm, GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22 |
+| **Severity** | CRITICAL ×4, HIGH ×8 |
 | **Installed** | vitest 2.1.9, @vitest/mocker 2.1.9, vite 5.4.21, tinypool 1.1.1 |
 | **Fixed in** | vitest 3.2.6 / 4.1.11 depending on the advisory; vite 6.4.3+ |
 | **Classification** | Breaking change required · Non-reachable |
@@ -226,6 +230,13 @@ defers.
 GHSA-587h-7wmj-h5pm are in vite's bundled `launch-editor`, the middleware behind the dev server's
 "open this file in your editor" request. They need a vite dev server accepting requests, the same
 condition as the vite advisories above, and none is ever started here.
+
+**Two more vite advisories (added 2026-10-22).** GHSA-9jrq-w75r-8gcw (cross-origin script execution
+through a vite dev server's custom middleware) and GHSA-rq7h-c2jc-7f22 (files outside
+`server.fs.allow` served on a non-Windows machine) are both properties of a running vite **dev
+server**, affect every vite up to 6.4.3 with no fixed 5.x release, and are fixed only by the
+Vitest 5 upgrade this entry defers. No vite server is started anywhere in this repository: vite is
+installed only as Vitest's dependency.
 
 Neither package can reach a deployed system: `Dockerfile.service` runs `npm prune --omit=dev` before
 the runtime stage, and `Dockerfile.web` copies only `.next/standalone`, `.next/static`, and `public`
@@ -304,3 +315,4 @@ Reported for completeness; `--audit-level=high` does not block on them and neith
 | 2026-09-21 | Created. EX-001 (postcss/Next), EX-002 (vitest/vite), EX-003 (deepmerge-ts/Prisma). `npm audit fix` applied first; it cleared nothing high or critical, for the reasons in §3.1 |
 | 2026-10-21 | **EX-003 correction.** Its reason said deepmerge-ts was absent from the runtime images; it was not. The Prisma CLI survives `npm prune --omit=dev` as `@prisma/client`'s optional peer, and Trivy found deepmerge-ts (CVE-2026-40345) in the api, jobs and mcp-server images. `Dockerfile.service` now removes the CLI, `@prisma/config` and deepmerge-ts after the prune, so the statement is true from this date; the advisory stays excepted for the development tree |
 | 2026-10-21 | CI run 38566296686 (2026-10-14) failed the gate on four new advisories. **sharp** GHSA-wq5f-xc86-pv6w (high) and **source-map-js** GHSA-68fv-2mgg-jv7q (high) were FIXED, not deferred: the lockfile moves to sharp 0.35.5 and source-map-js 1.2.2, within their existing ranges. **tinypool** GHSA-5gmw-xhrv-c9v3 and GHSA-85c8-ppgw-ccpr (critical) need Vitest 5 and were added to EX-002, not reachable; three vite advisories published after that run (GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw, GHSA-587h-7wmj-h5pm, the dev server's launch-editor middleware) were added for the same reason. Its expiry is unchanged |
+| 2026-10-22 | **EX-002 widened by two vite advisories**, GHSA-9jrq-w75r-8gcw and GHSA-rq7h-c2jc-7f22, published overnight and failing run 39747254409. Both need a vite dev server, which nothing here starts; no 5.x fix exists. Expiry unchanged |
