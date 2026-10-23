@@ -22,7 +22,12 @@ import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
 import { QuizDropzone, QuizSettingsForm } from '../../components/QuickQuiz';
-import { APPROVABLE, attemptsLabel, questionsLabel } from '../../components/quiz-status';
+import {
+  APPROVABLE,
+  attemptsLabel,
+  isTestQuiz,
+  questionsLabel,
+} from '../../components/quiz-status';
 import { PublishQuizForm, QuizReview, type QuizQuestion } from '../../components/QuickQuizReview';
 import type { GenerationProviderChoice, WizardDomain } from '../../components/GenerateWizard';
 
@@ -210,7 +215,9 @@ interface QuizRow {
 const Quizzes = async ({ actingAs }: { readonly actingAs: string }) => {
   const list = await api<{ assessments: readonly QuizRow[] }>('/api/v1/authoring/assessments');
   if (!list.ok) return <Problem problem={list.problem} actingAs={actingAs} />;
-  const quizzes = list.data.assessments.filter((row) => row.versionStatus !== null);
+  const quizzes = list.data.assessments.filter(
+    (row) => row.versionStatus !== null && !isTestQuiz(row.name),
+  );
   const learner = await learnerUrl();
   return (
     <section className="flex flex-col gap-3" aria-labelledby="qq-quizzes" data-quizzes>

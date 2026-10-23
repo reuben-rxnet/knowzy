@@ -338,7 +338,8 @@ shows **AI Document Studio**, **Question Bank**, **Dashboard**, **Knowledge Sour
      bank**.
 
 **Quizzes**, under the drop zone, lists every published quiz with its questions, pass mark,
-attempts and whether it is **Live**.
+attempts and whether it is **Live**. Quizzes made by the automated browser tests (named *E2E …*) are
+left out of this list; learners still see them in the Live Learning Portal.
 
 #### From the question bank
 
@@ -1869,3 +1870,4 @@ the log below.
 | 2026-10-23 | Build a quiz from the bank | **Create a quiz** now starts **From a document** or **From the question bank** (§4.2a). From the bank: a domain, a topic or all topics, how many questions (with the number available shown), a name, a pass mark and the show-answers choice, then **Publish quiz**. Each learner gets a random draw from the questions available at publication |
 | 2026-10-23 | Several topics in one bank quiz | **From the question bank** now has a **Topics** checklist (each with its question count, all ticked to start, **Select all** / **Clear**) instead of a single topic, and with several ticked a choice of **Mixed at random** or **Spread evenly**. A count above what the ticked topics hold, or an even spread a topic cannot fill, is explained before you can publish. One domain per quiz |
 | 2026-10-23 | Dropdowns and alignment | **Domain** and **Topics** in the bank form are dropdowns with a check mark per option, **Select all** for topics, and a summary of the choice. **Help text now sits under its field everywhere in the authoring portal**, so the fields of a row line up. The **Question Bank** is a compact list with **Show answer** per question |
+| 2026-10-23 | Test quizzes hidden | The Studio's **Quizzes** list leaves out the quizzes the automated browser tests make (named *E2E …*) |

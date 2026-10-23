@@ -18,3 +18,11 @@ export const APPROVABLE: ReadonlySet<string> = new Set([
   'CHANGES_REQUESTED',
   'SUBMITTED_FOR_APPROVAL',
 ]);
+
+/**
+ * A quiz the browser test suite made (tools/e2e names every one "E2E ...").
+ * Kept out of the Studio's Quizzes list so the owner sees only real quizzes;
+ * the quizzes themselves are untouched, and the learner portal still lists
+ * them because the learner specs find their own quiz there.
+ */
+export const isTestQuiz = (name: string): boolean => name.startsWith('E2E ');
