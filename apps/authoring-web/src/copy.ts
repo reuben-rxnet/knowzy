@@ -1797,9 +1797,9 @@ export const copy = {
   'qb.from': 'From {name}',
   'qb.published': 'Published {date}',
   // ---------------------------------- AI Document Studio, Simple mode (§12)
-  'qq.heading': 'Create a quiz from a document',
+  'qq.heading': 'Create a quiz',
   'qq.intro':
-    'Upload a document and choose how many questions you want. Knowzy writes the questions and checks each one against your document; you approve the ones you want and publish them as a quiz for learners.',
+    'From a document you upload, or from approved questions already in the question bank. Every question is checked against its source and approved by a person before learners see it.',
   'qq.stepsLabel': 'Quiz steps',
   'qq.step1': 'Upload',
   'qq.step2': 'Choose settings',
@@ -1872,6 +1872,21 @@ export const copy = {
   'qq.bankedBody': 'They are published and can be reused. No quiz was created.',
   'qq.openBank': 'Open the question bank',
   'qq.quizzesHeading': 'Quizzes',
+  'bq.startLabel': 'How to make a quiz',
+  'bq.fromDocument': 'From a document',
+  'bq.fromBank': 'From the question bank',
+  'bq.heading': 'Build a quiz from the question bank',
+  'bq.intro':
+    'Choose a domain, and a topic if you want one. Every question in the bank was approved by a person and checked against its document.',
+  'bq.domain': 'Domain',
+  'bq.topic': 'Topic',
+  'bq.allTopics': 'All topics in this domain',
+  'bq.available': '{questions} available',
+  'bq.drawNote':
+    'Each learner gets this many questions drawn at random from the ones available now. Questions added to the bank later do not join this quiz.',
+  'bq.emptyBank':
+    'The question bank is empty. Make a quiz from a document first, or add approved questions to the bank.',
+  'bq.emptyTopic': 'There are no published questions here yet.',
   'qq.noQuizzes': 'No quiz has been published yet. Upload a document above to make your first one.',
   'qq.quizLive': 'Live',
   'qq.quizNotLive': 'Not live',

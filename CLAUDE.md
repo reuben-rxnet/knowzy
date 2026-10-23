@@ -643,7 +643,13 @@ family AUTHORING.DOCUMENT_PREPARATION (30 families).
   no assessment). /question-bank is the simple read-only bank. Learners get Review your answers
   via GET /learning/results/:id/review -- THE ONE LEARNER ROUTE THAT CARRIES AN ANSWER KEY, gated
   on own result + session not IN_PROGRESS + showAnswersAfterCompletion; it deliberately skips
-  assertNoAnswerKey. Next agreed: author-side "Build a quiz from the bank" by domain/topic.
+  assertNoAnswerKey. "Build a quiz from the bank" (?from=bank) is BUILT: RANDOM_POOL over a
+  topic or a whole domain, pinned at publication; the bank read's poolCounts cap the count.
+  Learner self-service practice is NOT started and needs a written decision first.
+- THE ROUTE-POLICY REGISTRY TEST SKIPPED EVERY NESTED ROUTE until 2026-10-23: Fastify's
+  printRoutes prints a route extending another as an indented child under a vertical-bar tree
+  line, and the line pattern did not allow that character. It now resolves children by column
+  and expands merged param alternatives (:sourceDocumentId|:documentId).
 - PREPARATION RUNS IN PARTS since 2026-10-22 (chunked-preparation.ts, prompt
   prepare-1.1.0): ~6,000 characters, three at once, a part under 85% word
   coverage retried once strictly. One call per document kept 69% of a

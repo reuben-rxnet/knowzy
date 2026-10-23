@@ -47,9 +47,7 @@ test.describe('AI Document Studio, Simple mode', () => {
   test('shows one drop zone and none of the full Studio’s views', async ({ page }) => {
     await actAs(page, IDENTITY.administrator);
     await page.goto(PAGE);
-    await expect(
-      page.getByRole('heading', { name: 'Create a quiz from a document', level: 1 }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Create a quiz', level: 1 })).toBeVisible();
     await expect(page.locator('[data-quiz-dropzone]')).toBeVisible();
     for (const type of ['.pdf', '.docx', '.pptx', '.txt', '.md']) {
       await expect(page.getByRole('listitem').filter({ hasText: type })).toBeVisible();
@@ -207,5 +205,43 @@ test.describe('AI Document Studio, Simple mode', () => {
     expect(after.assessments.length).toBe(before.assessments.length);
     await page.goto('/question-bank');
     await expect(page.locator('[data-bank-questions]')).toBeVisible();
+  });
+
+  test('a quiz is built from the question bank by topic, drawn at random', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(180_000);
+    const taxonomy = await seededTaxonomy(request);
+    const bank = await api<{ poolCounts: { topicId: string; count: number }[] }>(
+      request,
+      '/api/v1/authoring/question-bank',
+    );
+    const pool = bank.poolCounts.find((row) => row.topicId === taxonomy.topicId)?.count ?? 0;
+    test.skip(pool === 0, 'Nothing is published in the seeded topic yet.');
+
+    await actAs(page, IDENTITY.administrator);
+    await page.goto(`${PAGE}?from=bank`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('link', { name: 'From the question bank' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    await page.getByLabel('Domain').selectOption(taxonomy.domainId);
+    await page.getByLabel('Topic').selectOption(taxonomy.topicId);
+    await expect(page.getByText(new RegExp(`${pool} questions? available`))).toBeVisible();
+    await page.getByLabel('Number of questions').fill('1');
+    const name = `E2E Bank Quiz ${Date.now()}`;
+    await page.getByLabel('Quiz name').fill(name);
+    await page.getByRole('button', { name: 'Publish quiz' }).click();
+    await page.waitForURL(/quiz=/, { timeout: 120_000 });
+    await expect(page.locator('[data-quiz-live="PUBLISHED"]')).toBeVisible();
+
+    const quizzes = await api<{
+      assessments: { name: string; versionStatus: string | null; questionCount: number | null }[];
+    }>(request, '/api/v1/authoring/assessments');
+    const quiz = quizzes.assessments.find((row) => row.name === name);
+    expect(quiz?.versionStatus).toBe('PUBLISHED');
+    expect(quiz?.questionCount).toBe(1);
   });
 });

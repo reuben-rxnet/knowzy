@@ -277,3 +277,76 @@ export const publishQuizAction = async (
     `/document-studio?job=${encodeURIComponent(jobId)}&quiz=${encodeURIComponent(versionId)}`,
   );
 };
+
+// --------------------------------------- build a quiz from the bank (§12.7)
+
+/**
+ * "Build a quiz from the question bank": an assessment drawing `count`
+ * questions at random from the published questions of one topic, or of every
+ * topic in a domain that has any. RANDOM_POOL, so each attempt gets its own
+ * draw -- from the pool PINNED when the quiz is published (§5.1): questions
+ * added to the bank later never join it unseen. Then submit -> approve ->
+ * publish, the Publish page's own sequence, each its own audited transition.
+ */
+export const buildBankQuizAction = async (
+  _previous: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> => {
+  const domainId = String(formData.get('domainId') ?? '');
+  const topicId = String(formData.get('topicId') ?? '');
+  const count = Number(formData.get('questionCount') ?? 10);
+  const name = String(formData.get('name') ?? '').trim();
+  const pass = Number(formData.get('passPercentage') ?? 70);
+  const showAnswers = formData.get('showAnswers') !== null;
+  if (domainId.length === 0) return local('Choose a domain.');
+  if (name.length < 3) return local('Give the quiz a name of at least 3 characters.');
+  if (!Number.isInteger(count) || count < 1 || count > 200)
+    return local('The number of questions must be between 1 and 200.');
+  if (!Number.isFinite(pass) || pass < 0 || pass > 100)
+    return local('The pass mark must be between 0 and 100.');
+
+  const bank = await api<{
+    poolCounts: readonly { domainId: string; topicId: string; count: number }[];
+  }>(`/api/v1/authoring/question-bank?domainId=${encodeURIComponent(domainId)}`);
+  if (!bank.ok) return failed(bank.problem);
+  const pools = bank.data.poolCounts.filter(
+    (row) => row.domainId === domainId && (topicId.length === 0 || row.topicId === topicId),
+  );
+  const available = pools.reduce((sum, row) => sum + row.count, 0);
+  if (pools.length === 0) return local('There are no published questions to draw from here yet.');
+  if (count > available) {
+    return local(
+      `Only ${available} published question${available === 1 ? ' is' : 's are'} available here. Ask for ${available} or fewer.`,
+    );
+  }
+
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 100);
+  const created = await api<{ assessmentVersionId: string }>('/api/v1/authoring/assessments', {
+    method: 'POST',
+    body: {
+      name,
+      slug: `${slug.length >= 3 ? slug : 'quiz'}-${Date.now().toString(36)}`,
+      domainId,
+      topicIds: pools.map((row) => row.topicId),
+      questionCount: count,
+      selectionStrategy: 'RANDOM_POOL',
+      passPercentage: pass,
+      showAnswersAfterCompletion: showAnswers,
+    },
+  });
+  if (!created.ok) return failed(created.problem);
+  const versionId = created.data.assessmentVersionId;
+  for (const step of ['submit', 'approve', 'publish'] as const) {
+    const result = await api<unknown>(
+      `/api/v1/authoring/assessments/${encodeURIComponent(versionId)}/${step}`,
+      { method: 'POST' },
+    );
+    if (!result.ok) return failed(result.problem);
+  }
+  revalidatePath('/document-studio');
+  redirect(`/document-studio?quiz=${encodeURIComponent(versionId)}`);
+};

@@ -17,8 +17,8 @@ Slice 2 (the overview, and the DOCUMENT_RESTRUCTURE approval) and AI Document St
 its 2026-10-22 accuracy work (preparation in parts, a completeness warning, DOCX/PPTX reading),
 and the Document Studio's Simple mode (upload a document, choose the quiz settings, generate,
 approve, publish a quiz), question review for learners, and a simple Question Bank
-**Last updated:** 2026-10-23 (review your answers after a quiz, plain gap wording, a Quizzes list,
-Add to question bank only, a simple Question Bank page; the simple Studio is the only one offered)
+**Last updated:** 2026-10-23 (build a quiz from the question bank; review your answers after a
+quiz, plain gap wording, a Quizzes list, Add to question bank only, a simple Question Bank page)
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -302,8 +302,9 @@ no content, because that would look like a document with nothing in it.
 
 #### Simple mode — create a quiz from a document (the default)
 
-Since 2026-10-22 **AI Document Studio** opens on **Create a quiz from a document**, four steps
-shown across the top: **Upload → Choose settings → Approve questions → Publish quiz**. The sidebar
+Since 2026-10-22 **AI Document Studio** opens on **Create a quiz**, with two ways to start at the
+top: **From a document** (the default) and **From the question bank** (below). From a document has
+four steps shown across the top: **Upload → Choose settings → Approve questions → Publish quiz**. The sidebar
 shows **AI Document Studio**, **Question Bank**, **Dashboard**, **Knowledge Sources** and
 **Administration**; the other screens are kept but not linked.
 
@@ -338,6 +339,16 @@ shows **AI Document Studio**, **Question Bank**, **Dashboard**, **Knowledge Sour
 
 **Quizzes**, under the drop zone, lists every published quiz with its questions, pass mark,
 attempts and whether it is **Live**.
+
+#### From the question bank
+
+Build a quiz from questions already approved, without uploading anything. Choose a **Domain** (only
+domains with published questions are listed) and a **Topic**, or *All topics in this domain*; the
+count beside **Number of questions** says how many are available, and you cannot ask for more.
+Give it a **Quiz name** (the topic or domain to start with), a **Pass mark (%)** and choose whether
+to **Show learners the answers after they finish**, then **Publish quiz**. Each learner gets that
+many questions drawn at random from the ones available when you published; questions added to the
+bank later do not join the quiz.
 
 #### Question Bank — `/question-bank`
 
@@ -1849,3 +1860,4 @@ the log below.
 | 2026-10-22 | Document Studio Simple mode | **AI Document Studio now opens on Create a quiz from a document** (§4.2a): **Upload** (a drop zone for .pdf, .docx, .pptx, .txt and .md up to 8 MB) → **Choose settings** (Number of questions, Topic, Single choice; Multiple choice, Yes or No and other languages shown greyed out as **Coming later**) → **Generate quiz** → the drafts, each with its proposed answer, and **Review and approve questions**. Questions are generated from the uploaded file directly, without preparation; the duplicate check still runs, and a document that already has its questions says so instead. The full Studio of 2026-10-14 is unchanged behind **Switch to the full Studio**, at the foot of the page for the Authoring Administrator |
 | 2026-10-22 | Simple mode: approve and publish | The simple Studio now goes all the way to a quiz learners can take (§4.2a). **Approve questions**: tick each question you want (none is ticked for you) and **Approve selected**; a refused question shows why on its own card. **Publish quiz**: a quiz name and a pass mark, then one click publishes the approved questions and a quiz of **exactly those questions**; *"…" is live* links to the Live Learning Portal. **In Simple mode the sidebar shows only Dashboard, Knowledge Sources, AI Document Studio and Administration**; the other screens return with **Switch to the full Studio** |
 | 2026-10-23 | Review answers, Question Bank, bank-only | **Review your answers** on a learner's result (§5.4): each question with their answer, the correct answer and why, once the attempt is finished and only if the quiz allows it. Gap states read **Needs work** / **Above the gap line** / **Too few questions to judge**, and **Where to focus** states the 60% rule. In the simple Studio (§4.2a): **Publish as a quiz now** or **Add to the question bank only**, a **Show learners the answers after they finish** option, a **Quizzes** list, and a read-only **Question Bank** page (`/question-bank`) in the sidebar. The simple Studio is the only one offered: its switch is gone |
+| 2026-10-23 | Build a quiz from the bank | **Create a quiz** now starts **From a document** or **From the question bank** (§4.2a). From the bank: a domain, a topic or all topics, how many questions (with the number available shown), a name, a pass mark and the show-answers choice, then **Publish quiz**. Each learner gets a random draw from the questions available at publication |

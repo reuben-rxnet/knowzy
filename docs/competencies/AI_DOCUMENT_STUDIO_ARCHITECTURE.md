@@ -633,11 +633,26 @@ or **Add to the question bank only**; the bank is viewable; a learner reviews th
   returned with the result) and shows *Needs work* / *Above the gap line* / *Too few questions to
   judge* instead of the enum.
 
-Next, by decision: **Build a quiz from the bank** by domain or topic (an author-built
-RANDOM_POOL/TOPIC_BALANCED assessment). Learner self-service practice is later and needs a written
+Next, by decision: **Build a quiz from the bank** by domain or topic -- built, see §12.7. Learner self-service practice is later and needs a written
 decision on how practice scores are reported first.
 
-### 12.7 Not in Simple mode
+### 12.7 Build a quiz from the question bank (2026-10-23)
+
+The agreed next slice. The Studio's first screen offers two starts, **From a document** and **From
+the question bank** (`?from=bank`). The bank form: a domain (only domains with published questions
+are offered), a topic or *All topics in this domain*, the number of questions with the count
+available beside it, a quiz name (defaulting to the topic or domain), a pass mark and *Show
+learners the answers after they finish*. **Publish quiz** creates a `RANDOM_POOL` assessment over
+the chosen topics, then submits, approves and publishes it -- the Publish page's sequence. The pool
+is PINNED at publication, so each attempt gets its own random draw from the questions available
+then, and a question added to the bank later never joins the quiz unseen. A count above what is
+published is refused before anything is created. `GET /authoring/question-bank` carries
+`poolCounts` (published, active questions per domain and topic, counted in full) for the form.
+
+Learner self-service practice -- a learner choosing the topic -- remains a later milestone and needs
+a written decision on how practice scores are reported first.
+
+### 12.8 Not in Simple mode
 
 Preparation, side-by-side review, versions, downloads, History and Readiness, editing a question,
 rejecting one with a comment, and the Review, Publish and Assessments screens: all reachable by

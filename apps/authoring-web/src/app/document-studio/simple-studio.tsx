@@ -9,7 +9,15 @@
 
 import { headers } from 'next/headers';
 import { ButtonLink, Card, CardBody, PageHero } from '@knowzy/shared-ui';
-import { AlertTriangle, CheckCircle2, ExternalLink, Library, PartyPopper } from 'lucide-react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
+  Library,
+  PartyPopper,
+  Upload,
+} from 'lucide-react';
+import { BankQuizForm, type PoolCount } from '../../components/BankQuiz';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -85,13 +93,12 @@ export const SimpleStudio = async ({
     job?: string;
     quiz?: string;
     banked?: string;
+    from?: string;
   };
   readonly actingAs: string;
   readonly storageConfigured: boolean;
 }) => {
-  if (query.job !== undefined && query.quiz !== undefined) {
-    return <QuizLive versionId={query.quiz} actingAs={actingAs} />;
-  }
+  if (query.quiz !== undefined) return <QuizLive versionId={query.quiz} actingAs={actingAs} />;
   if (query.job !== undefined && query.banked !== undefined) {
     return <Banked count={Number(query.banked) || 0} />;
   }
@@ -106,14 +113,18 @@ export const SimpleStudio = async ({
       />
     );
   }
+  const fromBank = query.from === 'bank';
   return (
     <div className="flex flex-col gap-6">
       <Hero />
-      <Steps active={0} />
+      <StartChoice fromBank={fromBank} />
+      {fromBank ? null : <Steps active={0} />}
       <Card>
         <CardBody>
           <div className="mx-auto w-full max-w-4xl py-4">
-            {storageConfigured ? (
+            {fromBank ? (
+              <FromBank actingAs={actingAs} />
+            ) : storageConfigured ? (
               <QuizDropzone actingAs={actingAs} />
             ) : (
               <p className="text-sm text-ink-muted">{t('qq.noStorage')}</p>
@@ -122,6 +133,64 @@ export const SimpleStudio = async ({
         </CardBody>
       </Card>
       <Quizzes actingAs={actingAs} />
+    </div>
+  );
+};
+
+/** The two ways to start, as a segmented control of plain links. */
+const StartChoice = ({ fromBank }: { readonly fromBank: boolean }) => {
+  const options = [
+    { href: '/document-studio', label: t('bq.fromDocument'), current: !fromBank, Icon: Upload },
+    {
+      href: '/document-studio?from=bank',
+      label: t('bq.fromBank'),
+      current: fromBank,
+      Icon: Library,
+    },
+  ];
+  return (
+    <nav aria-label={t('bq.startLabel')} className="flex justify-center">
+      <ul className="inline-flex gap-1 rounded-pill border border-line bg-brand-surface p-1">
+        {options.map((option) => (
+          <li key={option.href}>
+            <a
+              href={option.href}
+              {...(option.current ? { 'aria-current': 'page' as const } : {})}
+              className={`flex min-h-target items-center gap-2 rounded-pill px-5 text-sm font-semibold ${
+                option.current
+                  ? 'bg-brand-blue text-white'
+                  : 'text-brand-navy-text hover:bg-surface-hover'
+              }`}
+            >
+              <option.Icon aria-hidden="true" className="size-4" />
+              {option.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+};
+
+/** "From the question bank": the published pool per domain and topic, then one form. */
+const FromBank = async ({ actingAs }: { readonly actingAs: string }) => {
+  const [bank, taxonomy] = await Promise.all([
+    api<{ poolCounts: readonly PoolCount[] }>('/api/v1/authoring/question-bank'),
+    api<{ domains: readonly WizardDomain[] }>('/api/v1/authoring/taxonomy'),
+  ]);
+  if (!bank.ok) return <Problem problem={bank.problem} actingAs={actingAs} />;
+  if (!taxonomy.ok) return <Problem problem={taxonomy.problem} actingAs={actingAs} />;
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-2xl font-bold text-brand-navy-text">{t('bq.heading')}</h2>
+        <p className="max-w-prose text-sm text-ink-muted">{t('bq.intro')}</p>
+      </div>
+      <BankQuizForm
+        domains={taxonomy.data.domains}
+        pools={bank.data.poolCounts}
+        actingAs={actingAs}
+      />
     </div>
   );
 };

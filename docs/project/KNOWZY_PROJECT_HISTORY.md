@@ -3699,3 +3699,16 @@ quizzes from the bank on the AUTHOR side next, leaving learner self-service for 
   the screens in a browser. The new review integration test is in assessment-session.test.ts,
   which wipes the dev database, so it was NOT run locally: CI runs it on its own database.
 
+### Build a quiz from the question bank (2026-10-23)
+
+The agreed next slice. **Create a quiz** starts **From a document** or **From the question bank**;
+the bank form publishes a `RANDOM_POOL` assessment over a topic or a whole domain, pinned at
+publication, through submit -> approve -> publish. The bank read carries per-topic pool counts so
+the form cannot ask for more than exists. Validated: the e2e Simple spec 6/6 (new: a one-question
+quiz built from the seeded topic and read back as PUBLISHED), and the form in a browser.
+
+Found on the way: CI run 39924840899 failed the route-policy registry on "GET /review". The route
+was gated; the test had misread Fastify's route tree, and had in fact been SKIPPING every nested
+route (any line carrying the tree's vertical bar) since it was written. It now resolves nested
+paths and asserts that it sees them. Run 39929679462 passed integration with the fix.
+

@@ -900,8 +900,26 @@ export const reviewRoutes = [
         ]),
       );
 
+      // What a quiz built from the bank could draw from: published, active
+      // questions per domain and topic, counted in full (the list is capped).
+      const pools = await deps.prisma.publishedQuestionReference.groupBy({
+        by: ['domainId', 'topicId'],
+        where: {
+          status: 'PUBLISHED',
+          isActive: true,
+          isPublished: true,
+          ...(ctx.scope.domainIds.length > 0 ? { domainId: { in: [...ctx.scope.domainIds] } } : {}),
+        },
+        _count: { _all: true },
+      });
+
       return {
         count: references.length,
+        poolCounts: pools.map((row) => ({
+          domainId: row.domainId,
+          topicId: row.topicId,
+          count: row._count._all,
+        })),
         // The local PROJECTION, labelled as such: §8 reconciles it against the
         // bank, and a reader needs to know which one they are looking at.
         source: 'local-projection',

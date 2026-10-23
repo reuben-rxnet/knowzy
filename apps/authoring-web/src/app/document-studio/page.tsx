@@ -120,6 +120,7 @@ export default async function DocumentStudioPage({
     job?: string;
     quiz?: string;
     banked?: string;
+    from?: string;
   }>;
 }) {
   const query = await searchParams;

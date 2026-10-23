@@ -213,6 +213,18 @@ describe('AI Document Studio: Simple mode (§12)', () => {
     expect(bank).toBeLessThan(code.indexOf("'/api/v1/authoring/assessments'"));
   });
 
+  it('builds a quiz from the bank as a pinned random pool, through the governed sequence', () => {
+    const code = quick();
+    const bank = code.slice(code.indexOf('export const buildBankQuizAction'));
+    expect(bank).toMatch(/selectionStrategy: 'RANDOM_POOL'/);
+    // Never more than is published, and refused before anything is created.
+    expect(bank.indexOf('count > available')).toBeGreaterThan(-1);
+    expect(bank.indexOf('count > available')).toBeLessThan(
+      bank.indexOf("'/api/v1/authoring/assessments'"),
+    );
+    expect(bank).toMatch(/\['submit', 'approve', 'publish'\] as const/);
+  });
+
   it('serves question review only for a finished attempt the assessment allows', () => {
     const session = codeOf('packages', 'domain', 'src', 'assessment', 'session-service.ts');
     const review = session.slice(session.indexOf('export const readResultReview'));
