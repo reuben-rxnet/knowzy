@@ -5,6 +5,7 @@ import { publicEnvironmentName } from '@knowzy/configuration';
 import {
   AUTHORING_NAV,
   AuthoringShell,
+  type NavItem,
   KNOWZY_TAGLINE,
   KNOWZY_WORKFLOW_STAGES,
   WorkflowRibbon,
@@ -59,18 +60,23 @@ const stageForPath = (location: string): string | null => {
  * shows the full sidebar: hiding a working screen because a read failed would
  * be the worse error.
  */
-const SIMPLE_NAV_HREFS: ReadonlySet<string> = new Set([
-  '/',
-  '/sources',
-  '/document-studio',
-  '/administration/taxonomy',
-]);
+const SIMPLE_NAV_HREFS = ['/document-studio', '/', '/sources', '/administration/taxonomy'] as const;
 
-const navFor = async () => {
+const simpleNav = (): NavItem[] => {
+  const byHref = (href: string) => AUTHORING_NAV.find((item) => item.href === href);
+  const bank = AUTHORING_NAV.find((item) => item.label === 'Question Bank');
+  const [studio, ...rest] = SIMPLE_NAV_HREFS.map(byHref).filter(
+    (item): item is NavItem => item !== undefined,
+  );
+  // The Question Bank entry points at the simple read-only bank, not at Publish.
+  const simpleBank: NavItem[] =
+    bank === undefined ? [] : [{ ...bank, href: '/question-bank', note: 'Published questions' }];
+  return [...(studio === undefined ? [] : [studio]), ...simpleBank, ...rest];
+};
+
+const navFor = async (): Promise<readonly NavItem[]> => {
   const mode = await api<{ mode: string }>('/api/v1/authoring/document-studio/mode');
-  return mode.ok && mode.data.mode === 'SIMPLE'
-    ? AUTHORING_NAV.filter((item) => item.href !== undefined && SIMPLE_NAV_HREFS.has(item.href))
-    : AUTHORING_NAV;
+  return mode.ok && mode.data.mode === 'SIMPLE' ? simpleNav() : AUTHORING_NAV;
 };
 
 /**

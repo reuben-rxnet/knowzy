@@ -209,11 +209,14 @@ interface Tally {
 
 const tally = (): Tally => ({ asked: 0, correct: 0, unanswered: 0 });
 
+/** §5.4: a topic below this accuracy is a knowledge gap, unless too few questions were asked. */
+export const DEFAULT_GAP_THRESHOLD = 60;
+
 export const scoreSession = (args: ScoreArgs): ScoreResult => {
   const bands = args.bands ?? DEFAULT_PROFICIENCY_BANDS;
   assertValidBandSet(bands);
 
-  const gapThreshold = args.gapThreshold ?? 60;
+  const gapThreshold = args.gapThreshold ?? DEFAULT_GAP_THRESHOLD;
   const minTopicQuestions = args.minTopicQuestions ?? 2;
 
   const chosen = new Map<number, string | null>();

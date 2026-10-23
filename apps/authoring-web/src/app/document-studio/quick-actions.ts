@@ -198,10 +198,15 @@ export const publishQuizAction = async (
   formData: FormData,
 ): Promise<ActionState> => {
   const jobId = String(formData.get('jobId') ?? '');
+  // BANK: add the approved questions to the Question Bank and stop there, for
+  // a quiz to be built from the bank later. QUIZ (the default): also make a
+  // quiz of exactly these questions now.
+  const bankOnly = String(formData.get('intent') ?? 'quiz') === 'bank';
   const name = String(formData.get('name') ?? '').trim();
   const pass = Number(formData.get('passPercentage') ?? 70);
-  if (name.length < 3) return local('Give the quiz a name of at least 3 characters.');
-  if (!Number.isFinite(pass) || pass < 0 || pass > 100)
+  const showAnswers = formData.get('showAnswers') !== null;
+  if (!bankOnly && name.length < 3) return local('Give the quiz a name of at least 3 characters.');
+  if (!bankOnly && (!Number.isFinite(pass) || pass < 0 || pass > 100))
     return local('The pass mark must be between 0 and 100.');
 
   const job = await api<{
@@ -222,8 +227,7 @@ export const publishQuizAction = async (
   };
   const toPublish = job.data.questionIds.filter((id) => status(id) === 'APPROVED');
   const already = job.data.questionIds.filter((id) => status(id) === 'PUBLISHED');
-  if (toPublish.length + already.length === 0)
-    return local('Approve at least one question before publishing the quiz.');
+  if (toPublish.length + already.length === 0) return local('Approve at least one question first.');
 
   if (toPublish.length > 0) {
     const published = await api<unknown>('/api/v1/authoring/question-bank/publish', {
@@ -235,6 +239,10 @@ export const publishQuizAction = async (
   const questionIds = job.data.questionIds.filter(
     (id) => toPublish.includes(id) || already.includes(id),
   );
+  if (bankOnly) {
+    revalidatePath('/question-bank');
+    redirect(`/document-studio?job=${encodeURIComponent(jobId)}&banked=${questionIds.length}`);
+  }
 
   const slug = name
     .toLowerCase()
@@ -252,6 +260,7 @@ export const publishQuizAction = async (
       selectionStrategy: 'FIXED_SET',
       questionIds,
       passPercentage: pass,
+      showAnswersAfterCompletion: showAnswers,
     },
   });
   if (!created.ok) return failed(created.problem);

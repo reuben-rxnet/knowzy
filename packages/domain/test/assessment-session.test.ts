@@ -41,6 +41,7 @@ import {
   publishApprovedQuestions,
   publishAssessmentVersion,
   readResult,
+  readResultReview,
   recordSessionRecovery,
   resumeSession,
   roundHalfAwayFromZero,
@@ -1493,6 +1494,51 @@ describeDb('quiz session lifecycle', () => {
       expect(result.proficiencyBand).toBe('CRITICAL_KNOWLEDGE_GAP');
       expect(result.knowledgeGaps).toEqual([topicId]);
       expect(result.topics[0]?.gapState).toBe('GAP');
+    });
+
+    it('reviews a finished attempt: the learner answer, the key and the explanation', async () => {
+      await publishQuestions(3);
+      await publishAssessment(2);
+      const started = await startSession({ deps: deps(), learner: learner(), assessmentId });
+      // No review while the attempt is running: there is no result to read.
+      await answerAll(started.sessionId, false);
+      const result = await completeSession({
+        deps: deps(),
+        learner: learner(),
+        sessionId: started.sessionId,
+      });
+
+      const review = await readResultReview({
+        deps: deps(),
+        learner: learner(),
+        resultId: result.resultId,
+      });
+      expect(review.available).toBe(true);
+      if (!review.available) return;
+      expect(review.questions).toHaveLength(2);
+      for (const question of review.questions) {
+        expect(question.isCorrect).toBe(false);
+        expect(question.selectedOption).not.toBe(question.correctOption);
+        expect(question.explanation.length).toBeGreaterThan(0);
+      }
+
+      // Another learner cannot read it.
+      await expect(
+        readResultReview({
+          deps: deps(),
+          learner: learner({ userId: authorId }),
+          resultId: result.resultId,
+        }),
+      ).rejects.toThrow();
+
+      // An assessment that turns review off shows nothing.
+      await prisma.assessmentVersion.update({
+        where: { id: assessmentVersionId },
+        data: { showAnswersAfterCompletion: false },
+      });
+      expect(
+        await readResultReview({ deps: deps(), learner: learner(), resultId: result.resultId }),
+      ).toEqual({ available: false, reason: 'POLICY' });
     });
 
     it('counts unanswered questions as incorrect on an incomplete attempt', async () => {

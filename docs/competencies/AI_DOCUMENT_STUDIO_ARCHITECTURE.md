@@ -607,7 +607,37 @@ again. The layout reads the mode through `GET /authoring/document-studio/mode`, 
 audit row (the status read audits every evaluation, which would be one row per page view). A
 failed read shows the full sidebar.
 
-### 12.6 Not in Simple mode
+### 12.6 Third slice (2026-10-23): one Studio, two endings, a bank, and review
+
+Decided by the owner: the simple Studio is the ONLY Studio offered (the full one is hidden, not
+deleted: prepared documents and their lineage stay, and the trigger refusing to delete a version
+questions descend from still holds); after approving, an author chooses **Publish as a quiz now**
+or **Add to the question bank only**; the bank is viewable; a learner reviews their answers.
+
+- **No switch in Simple.** The page shows none. FULL is reachable only through
+  `documentStudio.mode` and shows "Switch to the simple Studio".
+- **Bank only** publishes the approved questions to the Question Bank and creates no assessment
+  (`intent: bank`). **Publish as a quiz** gains *Show learners the answers after they finish*
+  (`showAnswersAfterCompletion`, default on), now accepted by `POST /authoring/assessments`.
+- **Question Bank** (`/question-bank`, in the simple sidebar after the Studio): read-only, newest
+  first, filtered by domain and topic. `GET /authoring/question-bank` gains `domainId`/`topicId`
+  filters and, per item, the options, answer, explanation, domain, topic and the uploaded file's
+  name.
+- **Quizzes** on the Studio's first screen, from `GET /authoring/assessments`.
+- **Question review** (live-learning-portal.md §6, item 3): `GET /learning/results/:id/review`,
+  the one learner route that carries an answer key. It answers only for the caller's own result,
+  only once the session is not `IN_PROGRESS`, and only while the version's
+  `showAnswersAfterCompletion` is true; otherwise `{ available: false, reason }`. It reads the
+  session's own snapshot of each question. §4.6 is unchanged: no key during a quiz.
+- **Gap wording.** The result names the rule (`gapThreshold`, the scoring default of 60, now
+  returned with the result) and shows *Needs work* / *Above the gap line* / *Too few questions to
+  judge* instead of the enum.
+
+Next, by decision: **Build a quiz from the bank** by domain or topic (an author-built
+RANDOM_POOL/TOPIC_BALANCED assessment). Learner self-service practice is later and needs a written
+decision on how practice scores are reported first.
+
+### 12.7 Not in Simple mode
 
 Preparation, side-by-side review, versions, downloads, History and Readiness, editing a question,
 rejecting one with a comment, and the Review, Publish and Assessments screens: all reachable by

@@ -9,12 +9,12 @@
 
 import { headers } from 'next/headers';
 import { ButtonLink, Card, CardBody, PageHero } from '@knowzy/shared-ui';
-import { AlertTriangle, CheckCircle2, ExternalLink, PartyPopper } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Library, PartyPopper } from 'lucide-react';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
 import { QuizDropzone, QuizSettingsForm } from '../../components/QuickQuiz';
-import { APPROVABLE } from '../../components/quiz-status';
+import { APPROVABLE, attemptsLabel, questionsLabel } from '../../components/quiz-status';
 import { PublishQuizForm, QuizReview, type QuizQuestion } from '../../components/QuickQuizReview';
 import type { GenerationProviderChoice, WizardDomain } from '../../components/GenerateWizard';
 
@@ -84,12 +84,16 @@ export const SimpleStudio = async ({
     name?: string;
     job?: string;
     quiz?: string;
+    banked?: string;
   };
   readonly actingAs: string;
   readonly storageConfigured: boolean;
 }) => {
   if (query.job !== undefined && query.quiz !== undefined) {
     return <QuizLive versionId={query.quiz} actingAs={actingAs} />;
+  }
+  if (query.job !== undefined && query.banked !== undefined) {
+    return <Banked count={Number(query.banked) || 0} />;
   }
   if (query.job !== undefined) return <QuizResult jobId={query.job} actingAs={actingAs} />;
   if (query.document !== undefined && query.source !== undefined) {
@@ -117,9 +121,112 @@ export const SimpleStudio = async ({
           </div>
         </CardBody>
       </Card>
+      <Quizzes actingAs={actingAs} />
     </div>
   );
 };
+
+interface QuizRow {
+  readonly assessmentId: string;
+  readonly assessmentVersionId: string | null;
+  readonly name: string;
+  readonly domain: string;
+  readonly versionStatus: string | null;
+  readonly questionCount: number | null;
+  readonly passPercentage: number | null;
+  readonly sessionCount: number;
+}
+
+/** "Quizzes": what has been published, newest first, on the Studio's first screen. */
+const Quizzes = async ({ actingAs }: { readonly actingAs: string }) => {
+  const list = await api<{ assessments: readonly QuizRow[] }>('/api/v1/authoring/assessments');
+  if (!list.ok) return <Problem problem={list.problem} actingAs={actingAs} />;
+  const quizzes = list.data.assessments.filter((row) => row.versionStatus !== null);
+  const learner = await learnerUrl();
+  return (
+    <section className="flex flex-col gap-3" aria-labelledby="qq-quizzes" data-quizzes>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="qq-quizzes" className="text-xl font-bold text-brand-navy-text">
+          {t('qq.quizzesHeading')}
+        </h2>
+        <a href="/question-bank" className="text-sm font-medium text-brand-blue underline">
+          {t('qq.openBank')}
+        </a>
+      </div>
+      {quizzes.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-line bg-brand-surface px-5 py-6 text-sm text-ink-muted">
+          {t('qq.noQuizzes')}
+        </p>
+      ) : (
+        <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {quizzes.map((quiz) => (
+            <li
+              key={quiz.assessmentId}
+              className="flex flex-col gap-2 rounded-xl border border-line bg-brand-surface p-4"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="font-semibold text-ink">{quiz.name}</span>
+                <span
+                  className={`shrink-0 rounded-pill px-2 py-0.5 text-2xs font-semibold ${
+                    quiz.versionStatus === 'PUBLISHED'
+                      ? 'bg-success-soft text-success'
+                      : 'bg-surface-sunken text-ink-muted'
+                  }`}
+                >
+                  {quiz.versionStatus === 'PUBLISHED' ? t('qq.quizLive') : t('qq.quizNotLive')}
+                </span>
+              </div>
+              <span className="text-sm text-ink-muted">
+                {t('qq.quizFacts', {
+                  questions: questionsLabel(quiz.questionCount ?? 0),
+                  pass: quiz.passPercentage ?? 0,
+                  attempts: attemptsLabel(quiz.sessionCount),
+                })}
+              </span>
+              <span className="text-2xs text-ink-subtle">{quiz.domain}</span>
+              {quiz.versionStatus === 'PUBLISHED' ? (
+                <a href={learner} className="text-sm font-medium text-brand-blue underline">
+                  {t('qq.openLearner')}
+                </a>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
+
+const Banked = ({ count }: { readonly count: number }) => (
+  <div className="flex flex-col gap-6">
+    <Hero />
+    <Steps active={4} />
+    <Card>
+      <CardBody>
+        <div
+          className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 py-10 text-center"
+          data-quiz-banked={count}
+        >
+          <span className="flex size-20 items-center justify-center rounded-full bg-success-soft">
+            <Library aria-hidden="true" className="size-10 text-success" />
+          </span>
+          <h2 className="text-2xl font-bold text-brand-navy-text">
+            {t('qq.bankedTitle', { questions: questionsLabel(count) })}
+          </h2>
+          <p className="max-w-prose text-sm text-ink-muted">{t('qq.bankedBody')}</p>
+          <div className="mt-2 flex flex-wrap justify-center gap-3">
+            <ButtonLink tone="primary" href="/question-bank">
+              {t('qq.openBank')}
+            </ButtonLink>
+            <ButtonLink tone="secondary" href="/document-studio">
+              {t('qq.another')}
+            </ButtonLink>
+          </div>
+        </div>
+      </CardBody>
+    </Card>
+  </div>
+);
 
 const QuizSettings = async ({
   documentId,
@@ -232,7 +339,9 @@ const QuizResult = async ({
               <AlertTriangle aria-hidden="true" className="size-14 text-warning" />
             )}
             <h2 className="text-2xl font-bold text-brand-navy-text" data-quiz-result={count}>
-              {count > 0 ? t('qq.resultTitle', { count }) : t('qq.resultNone')}
+              {count > 0
+                ? t('qq.resultTitle', { questions: questionsLabel(count) })
+                : t('qq.resultNone')}
             </h2>
             <p className="max-w-prose text-sm text-ink-muted">
               {count > 0
@@ -263,14 +372,13 @@ const QuizResult = async ({
               <h2 className="text-xl font-bold text-brand-navy-text">{t('qq.publishHeading')}</h2>
               <p className="max-w-prose text-sm text-ink-muted">
                 {waiting > 0
-                  ? t('qq.publishWaiting', { approved, waiting })
-                  : t('qq.publishReady', { approved })}
+                  ? t('qq.publishWaiting', {
+                      approved: questionsLabel(approved),
+                      waiting: questionsLabel(waiting),
+                    })
+                  : t('qq.publishReady', { approved: questionsLabel(approved) })}
               </p>
-              <PublishQuizForm
-                jobId={jobId}
-                defaultName={defaultName}
-                actingAs={actingAs}
-              />
+              <PublishQuizForm jobId={jobId} defaultName={defaultName} actingAs={actingAs} />
             </div>
           </CardBody>
         </Card>
@@ -326,7 +434,7 @@ const QuizLive = async ({
             {quiz === undefined ? null : (
               <p className="max-w-prose text-sm text-ink-muted">
                 {t('qq.liveBody', {
-                  count: quiz.questionCount ?? 0,
+                  questions: questionsLabel(quiz.questionCount ?? 0),
                   pass: quiz.passPercentage ?? 0,
                 })}
               </p>

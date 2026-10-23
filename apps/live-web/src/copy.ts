@@ -107,7 +107,28 @@ export const copy = {
   'result.topicBand': 'Band',
   'result.gap': 'Knowledge gap',
   'result.gapsHeading': 'Where to focus',
-  'result.noGaps': 'No knowledge gap was identified in this attempt.',
+  'result.noGaps': 'No topic needs extra work',
+  'result.noGapsButMissed':
+    'A topic counts as a gap when you score below {threshold}% in it, and you were above that in every topic. You still missed {missed}. See them under "Review your answers" below.',
+  'result.gapRule':
+    'A topic counts as a gap when you score below {threshold}% in it. A topic with too few questions to judge is left out rather than guessed at.',
+  'result.gapStateGap': 'Needs work',
+  'result.gapStateOk': 'Above the gap line',
+  'result.gapStateFew': 'Too few questions to judge',
+  'result.reviewHeading': 'Review your answers',
+  'result.reviewIntro':
+    'You missed {missed}. For each question: your answer, the correct answer, and why.',
+  'result.reviewAllRight':
+    'You answered every question correctly. Here they are with the explanations.',
+  'result.reviewRight': 'Correct',
+  'result.reviewWrong': 'Incorrect',
+  'result.reviewCorrectAnswer': 'Correct answer',
+  'result.reviewYourAnswer': 'Your answer',
+  'result.reviewUnanswered': 'You did not answer this question.',
+  'result.reviewWhy': 'Why',
+  'result.reviewPolicy':
+    'The answers are not shown for this quiz. Its author turned review off, usually because the same questions are used again in later attempts.',
+  'result.reviewNotFinished': 'Answers are shown once the attempt is finished.',
   'result.gapNote':
     'A topic is reported as a gap only when enough questions were asked about it to say so. A topic with too few questions is excluded rather than guessed at.',
   'result.thresholds': 'Bands applied to this attempt',

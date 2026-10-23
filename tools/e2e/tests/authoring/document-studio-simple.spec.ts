@@ -147,14 +147,65 @@ test.describe('AI Document Studio, Simple mode', () => {
     await expect(page.locator('[data-quiz-live="PUBLISHED"]')).toBeVisible();
   });
 
-  test('an administrator switches to the full Studio and back', async ({ page }) => {
+  test('the simple Studio is the only one offered: there is no switch', async ({ page }) => {
     await actAs(page, IDENTITY.administrator);
     await page.goto(PAGE);
-    await page.getByRole('button', { name: 'Switch to the full Studio' }).click();
-    await expect(page.getByRole('link', { name: 'Readiness', exact: true })).toBeVisible({
-      timeout: 30_000,
+    await expect(page.locator('[data-quiz-dropzone]')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Switch to the full Studio/ })).toHaveCount(0);
+    await expect(page.locator('[data-quizzes]')).toBeVisible();
+  });
+
+  test('approved questions can go to the question bank without a quiz', async ({
+    page,
+    request,
+  }) => {
+    test.setTimeout(240_000);
+    const { sourceId, documentId } = await freshSyntheticDocument(request);
+    const preflight = await api<{ preflightId: string }>(
+      request,
+      '/api/v1/authoring/generation/preflight',
+      { method: 'POST', body: { sourceId, documentIds: [documentId] } },
+    );
+    await api(request, `/api/v1/authoring/generation/preflight/${preflight.preflightId}/decide`, {
+      method: 'POST',
+      body: { chosenAction: 'GENERATE_NEW' },
     });
-    await page.getByRole('button', { name: 'Switch to the simple Studio' }).click();
-    await expect(page.locator('[data-quiz-dropzone]')).toBeVisible({ timeout: 30_000 });
+    const taxonomy = await seededTaxonomy(request);
+    const job = await api<{ jobId: string; questionIds: string[] }>(
+      request,
+      '/api/v1/authoring/generation-jobs',
+      {
+        method: 'POST',
+        body: {
+          preflightId: preflight.preflightId,
+          scope: 'ENTIRE_DOCUMENT',
+          domainId: taxonomy.domainId,
+          topicId: taxonomy.topicId,
+          reasonCode: 'NEW_KNOWLEDGE',
+          requestedQuestionCount: 2,
+          providerId: 'DETERMINISTIC_LOCAL',
+        },
+      },
+    );
+    test.skip(job.questionIds.length === 0, 'The template generator produced no question.');
+    const before = await api<{ assessments: unknown[] }>(request, '/api/v1/authoring/assessments');
+
+    await actAs(page, IDENTITY.administrator);
+    await page.goto(`${PAGE}?job=${job.jobId}`);
+    await page.waitForLoadState('networkidle');
+    await page.locator('input[name="questionIds"]').first().check();
+    await page.getByRole('button', { name: 'Approve selected' }).click();
+    await expect(page.locator('[data-publish-quiz]')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('radio', { name: /Add to the question bank only/ }).check();
+    await expect(page.getByLabel('Quiz name')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Add to question bank' }).click();
+    await page.waitForURL(/banked=1/, { timeout: 120_000 });
+    await expect(page.locator('[data-quiz-banked="1"]')).toBeVisible();
+
+    // In the bank, and no quiz was made.
+    const after = await api<{ assessments: unknown[] }>(request, '/api/v1/authoring/assessments');
+    expect(after.assessments.length).toBe(before.assessments.length);
+    await page.goto('/question-bank');
+    await expect(page.locator('[data-bank-questions]')).toBeVisible();
   });
 });

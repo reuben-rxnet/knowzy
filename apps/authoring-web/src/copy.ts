@@ -1775,6 +1775,27 @@ export const copy = {
   'ds.working': 'Working…',
   'ds.readOnly':
     'You can read this status. Recording an approval needs the Authoring Administrator role.',
+  // ------------------------------------- Question Bank, simple view (§12.6)
+  'qb.heading': 'Question Bank',
+  'n.question': '1 question',
+  'n.questions': '{count} questions',
+  'n.attempt': '1 attempt',
+  'n.attempts': '{count} attempts',
+  'qb.intro':
+    'Every published question, ready to reuse. Each one was approved by a person and checked against the document it came from.',
+  'qb.filters': 'Filter the question bank',
+  'qb.domain': 'Domain',
+  'qb.topic': 'Topic',
+  'qb.allDomains': 'All domains',
+  'qb.allTopics': 'All topics',
+  'qb.apply': 'Show',
+  'qb.count': '{questions}',
+  'qb.empty': 'No published questions here yet',
+  'qb.emptyBody':
+    'Approve questions in the AI Document Studio and add them to the question bank, or publish them as a quiz.',
+  'qb.answer': 'Answer',
+  'qb.from': 'From {name}',
+  'qb.published': 'Published {date}',
   // ---------------------------------- AI Document Studio, Simple mode (§12)
   'qq.heading': 'Create a quiz from a document',
   'qq.intro':
@@ -1817,7 +1838,7 @@ export const copy = {
   'qq.providerTemplate': 'the built-in template generator (not AI)',
   'qq.existingTitle': 'This document already has its questions',
   'qq.openReview': 'Review and approve questions',
-  'qq.resultTitle': '{count} questions ready for your review',
+  'qq.resultTitle': '{questions} ready for your review',
   'qq.resultBody':
     'You asked for {requested}; {count} passed every check against your document. Read each one, tick the ones you want, and approve them.',
   'qq.progress': '{approved} of {total} approved',
@@ -1830,20 +1851,38 @@ export const copy = {
   'qq.approveSelected': 'Approve selected',
   'qq.approving': 'Approving…',
   'qq.publishHeading': 'Publish your quiz',
-  'qq.publishReady': 'All {approved} approved questions will be in the quiz.',
+  'qq.publishReady': 'The quiz will have {approved}: every question you approved.',
   'qq.publishWaiting':
-    '{approved} approved questions will be in the quiz. Still in draft and left out unless you approve them first: {waiting}.',
+    'The quiz will have {approved} you approved. {waiting} still in draft will be left out unless you approve them first.',
   'qq.quizName': 'Quiz name',
   'qq.passMark': 'Pass mark (%)',
   'qq.passMarkHint': 'The score a learner needs to pass.',
   'qq.publishQuiz': 'Publish quiz',
+  'qq.choiceLegend': 'What would you like to do with the approved questions?',
+  'qq.choiceQuiz': 'Publish as a quiz now',
+  'qq.choiceQuizBody': 'Learners can take a quiz of exactly these questions straight away.',
+  'qq.choiceBank': 'Add to the question bank only',
+  'qq.choiceBankBody': 'Keep them for later. Quizzes can be built from the bank by topic.',
+  'qq.addToBank': 'Add to question bank',
+  'qq.addToBankHint': 'Publishes the approved questions to the Question Bank. No quiz is created.',
+  'qq.showAnswers': 'Show learners the answers after they finish',
+  'qq.showAnswersHint':
+    'They see each question, their answer, the correct answer and the explanation. Turn this off for a quiz people retake to prove what they know.',
+  'qq.bankedTitle': '{questions} added to the question bank',
+  'qq.bankedBody': 'They are published and can be reused. No quiz was created.',
+  'qq.openBank': 'Open the question bank',
+  'qq.quizzesHeading': 'Quizzes',
+  'qq.noQuizzes': 'No quiz has been published yet. Upload a document above to make your first one.',
+  'qq.quizLive': 'Live',
+  'qq.quizNotLive': 'Not live',
+  'qq.quizFacts': '{questions} · pass mark {pass}% · {attempts}',
   'qq.publishing': 'Publishing…',
   'qq.publishHint':
     'Publishes the approved questions to the Question Bank and makes a quiz of exactly these questions available to learners.',
   'qq.liveTitle': '“{name}” is live',
   'qq.liveMissing': 'The quiz could not be found',
   'qq.liveBody':
-    '{count} questions, pass mark {pass}%. Learners can take it now in the Live Learning Portal.',
+    '{questions}, pass mark {pass}%. Learners can take it now in the Live Learning Portal.',
   'qq.openLearner': 'Open the Live Learning Portal',
   'qq.resultNone': 'No questions were produced',
   'qq.resultNoneBody':

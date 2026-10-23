@@ -2,9 +2,9 @@
 // §10 Slice 2, §11 M3, §12).
 //
 // The platform setting documentStudio.mode decides what this address shows.
-// SIMPLE (the default since §12) is upload -> quiz settings -> generate, in
-// simple-studio.tsx. FULL is everything below, unchanged. An administrator
-// switches between them at the foot of either page.
+// SIMPLE (the default since §12, and since 2026-10-23 the only Studio
+// offered) is upload -> settings -> approve -> publish, in simple-studio.tsx.
+// FULL is everything below, unchanged, reachable only through the setting.
 //
 // Four views behind link tabs: Add document (the default), My prepared
 // documents, History, and Readiness (Slice 2's overview and the approval
@@ -119,6 +119,7 @@ export default async function DocumentStudioPage({
     name?: string;
     job?: string;
     quiz?: string;
+    banked?: string;
   }>;
 }) {
   const query = await searchParams;
@@ -139,11 +140,15 @@ export default async function DocumentStudioPage({
     );
   }
   const data = status.data;
-  const modeSwitch = data.canManage ? (
-    <div className="border-t border-line pt-4">
-      <StudioModeSwitch mode={data.mode} actingAs={subject.label} />
-    </div>
-  ) : null;
+  // The Simple Studio is the only one offered (2026-10-23, owner's decision):
+  // no switch is shown in it. The full Studio is reachable only by setting
+  // documentStudio.mode, and keeps a way back to Simple.
+  const modeSwitch =
+    data.canManage && data.mode === 'FULL' ? (
+      <div className="border-t border-line pt-4">
+        <StudioModeSwitch mode={data.mode} actingAs={subject.label} />
+      </div>
+    ) : null;
   if (data.mode === 'SIMPLE') {
     return (
       <div className="flex flex-col gap-6">
@@ -152,7 +157,6 @@ export default async function DocumentStudioPage({
           actingAs={subject.label}
           storageConfigured={data.preparation.storageConfigured}
         />
-        {modeSwitch}
       </div>
     );
   }

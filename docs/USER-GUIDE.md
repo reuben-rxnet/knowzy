@@ -16,9 +16,9 @@ Slice 2 (the overview, and the DOCUMENT_RESTRUCTURE approval) and AI Document St
 (assessment preparation: add, prepare, review and edit, download, add to the repository), and
 its 2026-10-22 accuracy work (preparation in parts, a completeness warning, DOCX/PPTX reading),
 and the Document Studio's Simple mode (upload a document, choose the quiz settings, generate,
-approve, publish a quiz)
-**Last updated:** 2026-10-22 (Simple mode end to end: approve by ticking, Publish quiz, and a
-shorter sidebar; the full portal is one switch away)
+approve, publish a quiz), question review for learners, and a simple Question Bank
+**Last updated:** 2026-10-23 (review your answers after a quiz, plain gap wording, a Quizzes list,
+Add to question bank only, a simple Question Bank page; the simple Studio is the only one offered)
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -303,9 +303,9 @@ no content, because that would look like a document with nothing in it.
 #### Simple mode — create a quiz from a document (the default)
 
 Since 2026-10-22 **AI Document Studio** opens on **Create a quiz from a document**, four steps
-shown across the top: **Upload → Choose settings → Approve questions → Publish quiz**. In Simple
-mode the sidebar shows only **Dashboard**, **Knowledge Sources**, **AI Document Studio** and
-**Administration**; every other screen is still there, behind **Switch to the full Studio**.
+shown across the top: **Upload → Choose settings → Approve questions → Publish quiz**. The sidebar
+shows **AI Document Studio**, **Question Bank**, **Dashboard**, **Knowledge Sources** and
+**Administration**; the other screens are kept but not linked.
 
 1. **Upload.** Click the dashed box, or drag a file onto it. Word (.docx), PDF, PowerPoint
    (.pptx), plain text (.txt) or Markdown (.md), up to 8 MB. The file is checked before it is kept,
@@ -326,11 +326,26 @@ mode the sidebar shows only **Dashboard**, **Knowledge Sources**, **AI Document 
    is approved through the same checks as in Review (§4.5), recorded with your name. One the checks
    refuse shows why on its own card; the rest are still approved. Unticked questions stay
    **Draft**. *N of M approved* keeps count.
-4. **Publish quiz.** Appears once a question is approved. **Quiz name** (your file's name to start
-   with) and **Pass mark (%)** (70), then **Publish quiz**. The approved questions go to the
-   Question Bank and a quiz of **exactly those questions** is made available to learners; drafts
-   are left out. *"…" is live* follows, with **Open the Live Learning Portal** and **Make another
-   quiz**.
+4. **Publish.** Appears once a question is approved, with two choices:
+   - **Publish as a quiz now**: **Quiz name** (your file's name to start with), **Pass mark (%)**
+     (70) and **Show learners the answers after they finish** (on; turn it off for a quiz people
+     retake to prove what they know), then **Publish quiz**. The approved questions go to the
+     Question Bank and a quiz of **exactly those questions** is made available to learners; drafts
+     are left out. *"…" is live* follows, with **Open the Live Learning Portal**.
+   - **Add to the question bank only**: **Add to question bank** publishes the approved questions
+     and creates no quiz — *N questions added to the question bank*, with **Open the question
+     bank**.
+
+**Quizzes**, under the drop zone, lists every published quiz with its questions, pass mark,
+attempts and whether it is **Live**.
+
+#### Question Bank — `/question-bank`
+
+In Simple mode the sidebar's **Question Bank** opens a plain, read-only list of every published
+question, newest first: the question, its four options with the **Answer** marked, **Show
+explanation**, its domain and topic, the document it came from, and when it was published. Filter
+by **Domain** and **Topic** and press **Show**. Retiring a question stays on the full Publish
+screen.
 
 **What Simple mode still checks, without showing you the steps.** Generate quiz runs the same
 duplicate and coverage check (the preflight, §4.3) and records its decision before any question is
@@ -343,10 +358,10 @@ but not yet prepared is refused, naming it, because an unprepared original is ne
 it. Preparation, side-by-side review, versions, downloads, editing a question and rejecting one with
 a comment are the **full Studio** and the Review screens, behind the switch.
 
-**Switching.** At the foot of the page the Authoring Administrator sees **Switch to the full
-Studio** (and, in the full Studio, **Switch to the simple Studio**). It changes what everybody sees
-at this address, and which sidebar everyone sees, and is recorded with who changed it. Nothing is deleted either way: documents,
-versions and questions made in one mode are still there in the other.
+**The simple Studio is the only one offered** (since 2026-10-23). There is no switch on its page.
+The full Studio below is kept, not deleted — your prepared documents and their versions are still
+there — and is reachable only by changing the `documentStudio.mode` setting; it then shows **Switch
+to the simple Studio** at its foot.
 
 #### The full Studio
 
@@ -1496,11 +1511,18 @@ taken.
 
 **How you did by topic** draws one bar per topic. Every bar prints its own percentage and its
 correct-of-asked numbers, so the picture tells you nothing the text does not — the bar is there to
-be scanned, not to be the only way to read the number. Beside each bar is its band and its **gap
-state**, and three answers are possible rather than two: no gap, a gap, or too few questions asked
-about that topic to say. The third is excluded from gap reporting rather than guessed at.
+be scanned, not to be the only way to read the number. Beside each bar is its band and one of three
+plain words: **Needs work** (a gap), **Above the gap line**, or **Too few questions to judge** —
+the third is left out of gap reporting rather than guessed at.
 
-**Where to focus** lists the topics identified as gaps, each with the numbers behind it. **Bands
+**Where to focus** states the rule — *a topic counts as a gap when you score below 60% in it* — and
+lists the topics that are gaps, each with the numbers behind it. When none is but you still missed
+questions, it says so and points you to the review below.
+
+**Review your answers** (since 2026-10-23) lists every question of the finished attempt: your
+answer, the **correct answer**, a **Correct** / **Incorrect** mark (icon and word, never colour
+alone), and **Why** — the approved explanation. It appears only once the attempt is finished, and
+only when the quiz allows it; a quiz whose author turned review off says so instead. **Bands
 applied to this attempt** shows the five thresholds that were copied onto the result when it was
 scored — with your score marked in the band it fell into — so a later configuration change cannot
 restate what you were told.
@@ -1508,8 +1530,8 @@ restate what you were told.
 There is no comparison with other learners, no trend against your past attempts, and no suggested
 next step. None of the three is recorded anywhere, so none is shown.
 
-**Correct answers and explanations are not shown, ever.** The answer key does not leave the server
-for a learner, in the quiz or in the result.
+**During a quiz the answer key never reaches your browser**: no correct answer, explanation or
+running score. Answers are released only in the review above, after the attempt has been scored.
 
 ### 5.5 Preview pages — My Learnings, Discover, Badges, Knowledge Library, My Progress, Help & Support
 
@@ -1826,3 +1848,4 @@ the log below.
 | 2026-10-22 | Document Studio accuracy | **Preparation keeps the whole document** (§4.2a). A long document is now prepared in parts, several at once: on the pilot SOPs the share of the original's words kept rose from 69% to 98% on the longest, and it finished faster. A new warning, **Content may be missing**, appears when a prepared document keeps less than nine tenths of the original's words and lists the lines that went; **Possibly removed** no longer fires on a warning that was merged into a step. **Word and PowerPoint files are read correctly** (§4.2): an empty paragraph next to a table no longer swallows the table (one pilot SOP had lost half its text), text after a comment or a chart is no longer dropped, and paragraphs in a table cell and lines of a code block are no longer glued together. The next synchronization re-reads the affected documents, which gives them a new version |
 | 2026-10-22 | Document Studio Simple mode | **AI Document Studio now opens on Create a quiz from a document** (§4.2a): **Upload** (a drop zone for .pdf, .docx, .pptx, .txt and .md up to 8 MB) → **Choose settings** (Number of questions, Topic, Single choice; Multiple choice, Yes or No and other languages shown greyed out as **Coming later**) → **Generate quiz** → the drafts, each with its proposed answer, and **Review and approve questions**. Questions are generated from the uploaded file directly, without preparation; the duplicate check still runs, and a document that already has its questions says so instead. The full Studio of 2026-10-14 is unchanged behind **Switch to the full Studio**, at the foot of the page for the Authoring Administrator |
 | 2026-10-22 | Simple mode: approve and publish | The simple Studio now goes all the way to a quiz learners can take (§4.2a). **Approve questions**: tick each question you want (none is ticked for you) and **Approve selected**; a refused question shows why on its own card. **Publish quiz**: a quiz name and a pass mark, then one click publishes the approved questions and a quiz of **exactly those questions**; *"…" is live* links to the Live Learning Portal. **In Simple mode the sidebar shows only Dashboard, Knowledge Sources, AI Document Studio and Administration**; the other screens return with **Switch to the full Studio** |
+| 2026-10-23 | Review answers, Question Bank, bank-only | **Review your answers** on a learner's result (§5.4): each question with their answer, the correct answer and why, once the attempt is finished and only if the quiz allows it. Gap states read **Needs work** / **Above the gap line** / **Too few questions to judge**, and **Where to focus** states the 60% rule. In the simple Studio (§4.2a): **Publish as a quiz now** or **Add to the question bank only**, a **Show learners the answers after they finish** option, a **Quizzes** list, and a read-only **Question Bank** page (`/question-bank`) in the sidebar. The simple Studio is the only one offered: its switch is gone |

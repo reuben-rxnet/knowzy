@@ -832,38 +832,114 @@ export const reviewRoutes = [
     url: '/api/v1/authoring/question-bank',
     policy: 'question.read',
     portal: 'AUTHORING',
-    summary: 'The published inventory, from the local projection.',
-    handler: async (ctx, _request, _reply, deps) => {
+    summary:
+      'The published inventory, from the local projection, optionally by domain and topic, with each question’s options, answer and explanation.',
+    handler: async (ctx, request, _reply, deps) => {
+      // Optional filters (the Simple Studio's Question Bank page). An invalid
+      // id is ignored rather than refused: a filter that cannot match narrows
+      // nothing, and the page must still render.
+      const query = z
+        .object({
+          domainId: z.string().uuid().optional(),
+          topicId: z.string().uuid().optional(),
+        })
+        .safeParse(request.query ?? {});
+      const filter = query.success ? query.data : {};
       const references = await deps.prisma.publishedQuestionReference.findMany({
         where: {
           ...(ctx.scope.domainIds.length > 0 ? { domainId: { in: [...ctx.scope.domainIds] } } : {}),
+          ...(filter.domainId === undefined ? {} : { domainId: filter.domainId }),
+          ...(filter.topicId === undefined ? {} : { topicId: filter.topicId }),
         },
         orderBy: { publishedAt: 'desc' },
-        take: 100,
-        include: { question: { select: { id: true, questionText: true, status: true } } },
+        take: 200,
+        include: {
+          question: {
+            select: {
+              id: true,
+              questionText: true,
+              status: true,
+              answerPayload: true,
+              explanation: true,
+              sourceId: true,
+              sourceDocumentId: true,
+              sourceDocumentName: true,
+              acquisition: true,
+              domain: { select: { name: true } },
+              topic: { select: { name: true } },
+            },
+          },
+        },
       });
+
+      // A Studio upload is stored under a server-made name; the person knows
+      // it by the name they uploaded. A label only.
+      const pairs = [
+        ...new Map(
+          references.map((row) => [
+            `${row.question.sourceId}|${row.question.sourceDocumentId}`,
+            { sourceId: row.question.sourceId, sourceDocumentId: row.question.sourceDocumentId },
+          ]),
+        ).values(),
+      ];
+      const documents =
+        pairs.length === 0
+          ? []
+          : await deps.prisma.knowledgeDocument.findMany({
+              where: { OR: pairs },
+              select: {
+                sourceId: true,
+                sourceDocumentId: true,
+                studioUpload: { select: { originalFileName: true } },
+              },
+            });
+      const uploadedName = new Map(
+        documents.map((row) => [
+          `${row.sourceId}|${row.sourceDocumentId}`,
+          row.studioUpload?.originalFileName ?? null,
+        ]),
+      );
 
       return {
         count: references.length,
         // The local PROJECTION, labelled as such: §8 reconciles it against the
         // bank, and a reader needs to know which one they are looking at.
         source: 'local-projection',
-        items: references.map((reference) => ({
-          bankQuestionId: reference.questionId,
-          questionId: reference.question.id,
-          questionText: reference.question.questionText,
-          localStatus: reference.question.status,
-          bankItemId: reference.sharePointItemId,
-          publishedVersion: reference.publishedVersion,
-          status: reference.status,
-          isActive: reference.isActive,
-          isPublished: reference.isPublished,
-          publishedAt: reference.publishedAt,
-          publishedByUserId: reference.publishedByUserId,
-          retiredAt: reference.retiredAt,
-          retireComment: reference.retireComment,
-          reconciliationState: reference.reconciliationState,
-        })),
+        items: references.map((reference) => {
+          const payload = reference.question.answerPayload as {
+            options?: Record<string, string>;
+            correctOption?: string;
+          };
+          return {
+            bankQuestionId: reference.questionId,
+            questionId: reference.question.id,
+            questionText: reference.question.questionText,
+            localStatus: reference.question.status,
+            bankItemId: reference.sharePointItemId,
+            publishedVersion: reference.publishedVersion,
+            status: reference.status,
+            isActive: reference.isActive,
+            isPublished: reference.isPublished,
+            publishedAt: reference.publishedAt,
+            publishedByUserId: reference.publishedByUserId,
+            retiredAt: reference.retiredAt,
+            retireComment: reference.retireComment,
+            reconciliationState: reference.reconciliationState,
+            // An AUTHORING read: the answer belongs in it, as on the question page.
+            options: payload.options ?? {},
+            proposedCorrectOption: payload.correctOption ?? null,
+            explanation: reference.question.explanation,
+            domainId: reference.domainId,
+            domain: reference.question.domain.name,
+            topicId: reference.topicId,
+            topic: reference.question.topic.name,
+            acquisition: reference.question.acquisition,
+            sourceDocument:
+              uploadedName.get(
+                `${reference.question.sourceId}|${reference.question.sourceDocumentId}`,
+              ) ?? reference.question.sourceDocumentName,
+          };
+        }),
       };
     },
   }),

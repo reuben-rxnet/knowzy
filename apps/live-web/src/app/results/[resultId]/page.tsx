@@ -65,7 +65,137 @@ interface ResultView {
     readonly topicName: string;
     readonly topicAccuracy: number;
   }[];
+  readonly gapThreshold?: number;
 }
+
+interface ReviewedQuestion {
+  readonly presentationIndex: number;
+  readonly questionText: string;
+  readonly options: Readonly<Record<string, string>>;
+  readonly selectedOption: string | null;
+  readonly correctOption: string;
+  readonly isCorrect: boolean;
+  readonly explanation: string;
+}
+
+type Review =
+  | { readonly available: true; readonly questions: readonly ReviewedQuestion[] }
+  | { readonly available: false; readonly reason: 'POLICY' | 'NOT_FINISHED' };
+
+/** gapState in words a learner reads; the enum never reaches the screen. */
+const gapWords = (state: string): string =>
+  state === 'GAP'
+    ? t('result.gapStateGap')
+    : state === 'INSUFFICIENT_EVIDENCE'
+      ? t('result.gapStateFew')
+      : t('result.gapStateOk');
+
+/**
+ * Question review (live-learning-portal.md §6, item 3), from the one learner
+ * read that carries the key -- served only for a finished attempt, and only
+ * when the assessment allows it. Correctness is icon + text + colour (§9).
+ */
+const ReviewSection = ({ review }: { readonly review: Review }) => {
+  if (!review.available) {
+    return (
+      <Card>
+        <CardHeader title={t('result.reviewHeading')} />
+        <CardBody>
+          <p className="text-sm text-ink-muted">
+            {review.reason === 'POLICY' ? t('result.reviewPolicy') : t('result.reviewNotFinished')}
+          </p>
+        </CardBody>
+      </Card>
+    );
+  }
+  const missed = review.questions.filter((question) => !question.isCorrect).length;
+  return (
+    <section className="flex flex-col gap-4" aria-labelledby="review-heading" data-answer-review>
+      <div className="flex flex-col gap-1">
+        <h2 id="review-heading" className="text-xl font-bold text-brand-navy-text">
+          {t('result.reviewHeading')}
+        </h2>
+        <p className="text-sm text-ink-muted">
+          {missed === 0 ? t('result.reviewAllRight') : t('result.reviewIntro', { missed })}
+        </p>
+      </div>
+      <ol className="flex flex-col gap-4">
+        {review.questions.map((question, index) => (
+          <li key={question.presentationIndex}>
+            <Card>
+              <CardBody>
+                <div className="flex flex-col gap-3" data-review-correct={question.isCorrect}>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-base font-semibold text-ink">
+                      <span className="mr-2 text-brand-blue">{index + 1}.</span>
+                      {question.questionText}
+                    </h3>
+                    <span
+                      className={`flex shrink-0 items-center gap-1 rounded-pill px-2 py-0.5 text-2xs font-semibold ${
+                        question.isCorrect
+                          ? 'bg-success-soft text-success'
+                          : 'bg-danger-soft text-danger'
+                      }`}
+                    >
+                      {question.isCorrect ? (
+                        <CheckCircle2 aria-hidden="true" className="size-3.5" />
+                      ) : (
+                        <XCircle aria-hidden="true" className="size-3.5" />
+                      )}
+                      {question.isCorrect ? t('result.reviewRight') : t('result.reviewWrong')}
+                    </span>
+                  </div>
+                  <ul className="grid gap-2 sm:grid-cols-2">
+                    {Object.entries(question.options).map(([key, text]) => {
+                      const correct = key === question.correctOption;
+                      const chosen = key === question.selectedOption;
+                      return (
+                        <li
+                          key={key}
+                          className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm text-ink ${
+                            correct
+                              ? 'border-success bg-success-soft'
+                              : chosen
+                                ? 'border-danger bg-danger-soft'
+                                : 'border-line'
+                          }`}
+                        >
+                          <span className="font-semibold">{key}.</span>
+                          <span className="flex-1">{text}</span>
+                          <span className="flex flex-col items-end text-2xs font-semibold">
+                            {correct ? (
+                              <span className="text-success">
+                                {t('result.reviewCorrectAnswer')}
+                              </span>
+                            ) : null}
+                            {chosen ? (
+                              <span className={correct ? 'text-success' : 'text-danger'}>
+                                {t('result.reviewYourAnswer')}
+                              </span>
+                            ) : null}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {question.selectedOption === null ? (
+                    <p className="text-sm text-ink-muted">{t('result.reviewUnanswered')}</p>
+                  ) : null}
+                  <div className="rounded-lg bg-surface-sunken px-4 py-3 text-sm text-ink">
+                    <span className="block text-2xs font-semibold uppercase text-ink-muted">
+                      {t('result.reviewWhy')}
+                    </span>
+                    {question.explanation}
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+};
 
 /** A band token as a sentence-case phrase: CRITICAL_KNOWLEDGE_GAP → Critical knowledge gap. */
 const bandLabel = (band: string): string => {
@@ -113,7 +243,10 @@ const formatDuration = (seconds: number): string => {
  */
 export default async function ResultPage({ params }: { params: Promise<{ resultId: string }> }) {
   const { resultId } = await params;
-  const result = await api<ResultView>(`/api/v1/learning/results/${resultId}`);
+  const [result, reviewRead] = await Promise.all([
+    api<ResultView>(`/api/v1/learning/results/${resultId}`),
+    api<Review>(`/api/v1/learning/results/${resultId}/review`),
+  ]);
 
   const back = (
     <ButtonLink href="/" tone="secondary">
@@ -249,10 +382,9 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
                     <Badge tone="neutral" withIcon={false}>
                       {bandLabel(topic.topicBand)}
                     </Badge>
-                    <StatusBadge
-                      status={topic.gapState}
-                      tone={topic.isKnowledgeGap ? 'danger' : 'neutral'}
-                    />
+                    <Badge tone={topic.isKnowledgeGap ? 'danger' : 'neutral'} withIcon={false}>
+                      {gapWords(topic.gapState)}
+                    </Badge>
                   </span>
                 }
               />
@@ -263,12 +395,22 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
 
       {/* --------------------------------------------------------- the gaps */}
       <Card>
-        <CardHeader title={t('result.gapsHeading')} description={t('result.gapNote')} />
+        <CardHeader
+          title={t('result.gapsHeading')}
+          description={t('result.gapRule', { threshold: view.gapThreshold ?? 60 })}
+        />
         <CardBody>
           {view.knowledgeGaps.length === 0 ? (
             <EmptyState
               title={t('result.noGaps')}
-              description={t('result.noGapsBody')}
+              description={
+                view.incorrectAnswers + view.unansweredCount > 0
+                  ? t('result.noGapsButMissed', {
+                      threshold: view.gapThreshold ?? 60,
+                      missed: view.incorrectAnswers + view.unansweredCount,
+                    })
+                  : t('result.noGapsBody')
+              }
               illustration="goal"
             />
           ) : (
@@ -321,7 +463,7 @@ export default async function ResultPage({ params }: { params: Promise<{ resultI
         </Card>
       )}
 
-      <p className="text-sm text-ink-subtle">{t('result.noKey')}</p>
+      {reviewRead.ok ? <ReviewSection review={reviewRead.data} /> : null}
     </div>
   );
 }

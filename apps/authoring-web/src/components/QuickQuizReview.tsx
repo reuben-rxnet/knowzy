@@ -9,9 +9,9 @@
 // transitions; a question the gates refuse shows the gates' reasons on its own
 // card. "Publish quiz" appears once something is approved.
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { Button, Field, TextInput } from '@knowzy/shared-ui';
-import { CheckCircle2, Loader2, Rocket } from 'lucide-react';
+import { CheckCircle2, Library, Loader2, Rocket } from 'lucide-react';
 import { t } from '../copy';
 import {
   approveQuestionsAction,
@@ -185,41 +185,97 @@ export const PublishQuizForm = ({
   readonly actingAs: string;
 }) => {
   const [state, submit, pending] = useActionState(publishQuizAction, null);
+  const [intent, setIntent] = useState<'quiz' | 'bank'>('quiz');
+  const choices = [
+    { value: 'quiz', title: t('qq.choiceQuiz'), body: t('qq.choiceQuizBody'), Icon: Rocket },
+    { value: 'bank', title: t('qq.choiceBank'), body: t('qq.choiceBankBody'), Icon: Library },
+  ] as const;
   return (
     <form action={submit} className="flex flex-col gap-5">
       <input type="hidden" name="jobId" value={jobId} />
-      <div className="grid gap-5 md:grid-cols-[2fr_1fr]">
-        <Field id="qq-quiz-name" label={t('qq.quizName')}>
-          <TextInput
-            id="qq-quiz-name"
-            name="name"
-            defaultValue={defaultName}
-            maxLength={200}
-            required
-          />
-        </Field>
-        <Field id="qq-pass" label={t('qq.passMark')} hint={t('qq.passMarkHint')}>
-          <TextInput
-            id="qq-pass"
-            name="passPercentage"
-            type="number"
-            min={0}
-            max={100}
-            defaultValue={70}
-            required
-          />
-        </Field>
-      </div>
+      <fieldset className="grid gap-3 md:grid-cols-2">
+        <legend className="knowzy-sr-only">{t('qq.choiceLegend')}</legend>
+        {choices.map((choice) => (
+          <label
+            key={choice.value}
+            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${
+              intent === choice.value
+                ? 'border-brand-blue bg-info-soft'
+                : 'border-line bg-brand-surface hover:bg-surface-hover'
+            }`}
+          >
+            <input
+              type="radio"
+              name="intent"
+              value={choice.value}
+              checked={intent === choice.value}
+              onChange={() => setIntent(choice.value)}
+              className="mt-1 size-4 accent-brand-blue"
+            />
+            <choice.Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-brand-blue" />
+            <span className="flex flex-col gap-1">
+              <span className="font-semibold text-brand-navy-text">{choice.title}</span>
+              <span className="text-sm text-ink-muted">{choice.body}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      {intent === 'quiz' ? (
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-5 md:grid-cols-[2fr_1fr]">
+            <Field id="qq-quiz-name" label={t('qq.quizName')}>
+              <TextInput
+                id="qq-quiz-name"
+                name="name"
+                defaultValue={defaultName}
+                maxLength={200}
+                required
+              />
+            </Field>
+            <Field id="qq-pass" label={t('qq.passMark')} hint={t('qq.passMarkHint')}>
+              <TextInput
+                id="qq-pass"
+                name="passPercentage"
+                type="number"
+                min={0}
+                max={100}
+                defaultValue={70}
+                required
+              />
+            </Field>
+          </div>
+          <label className="flex items-start gap-3 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="showAnswers"
+              defaultChecked
+              className="mt-0.5 size-4 accent-brand-blue"
+            />
+            <span className="flex flex-col">
+              <span className="font-medium">{t('qq.showAnswers')}</span>
+              <span className="text-ink-muted">{t('qq.showAnswersHint')}</span>
+            </span>
+          </label>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3">
         {pending ? (
           <Working label={t('qq.publishing')} />
         ) : (
           <Button tone="success">
-            <Rocket aria-hidden="true" className="size-4" />
-            {t('qq.publishQuiz')}
+            {intent === 'quiz' ? (
+              <Rocket aria-hidden="true" className="size-4" />
+            ) : (
+              <Library aria-hidden="true" className="size-4" />
+            )}
+            {intent === 'quiz' ? t('qq.publishQuiz') : t('qq.addToBank')}
           </Button>
         )}
-        <span className="max-w-prose text-sm text-ink-muted">{t('qq.publishHint')}</span>
+        <span className="max-w-prose text-sm text-ink-muted">
+          {intent === 'quiz' ? t('qq.publishHint') : t('qq.addToBankHint')}
+        </span>
       </div>
       {state?.ok === false && state.problem !== undefined ? (
         <Problem problem={state.problem} actingAs={actingAs} />

@@ -196,9 +196,29 @@ describe('AI Document Studio: Simple mode (§12)', () => {
     expect(code).toMatch(/formData\s*\.getAll\('questionIds'\)/);
     expect(code).toMatch(/AUTHOR_REVIEW: 'submit'/);
     expect(code).toMatch(/SUBMITTED_FOR_APPROVAL: 'approve'/);
-    const review = codeOf('apps', 'authoring-web', 'src', 'components', 'QuickQuizReview.tsx');
+    const file = codeOf('apps', 'authoring-web', 'src', 'components', 'QuickQuizReview.tsx');
+    const review = file.slice(
+      file.indexOf('export const QuizReview'),
+      file.indexOf('export const PublishQuizForm'),
+    );
+    expect(review.length).toBeGreaterThan(0);
     // Unticked by default, and no "select all": each approval is a decision.
-    expect(review).not.toMatch(/defaultChecked|select all|selectAll/i);
+    expect(review).not.toMatch(/defaultChecked|checked=|select all|selectAll/i);
+  });
+
+  it('adds to the bank without creating a quiz when that is the choice', () => {
+    const code = quick();
+    const bank = code.indexOf('if (bankOnly) {');
+    expect(bank).toBeGreaterThan(code.indexOf("'/api/v1/authoring/question-bank/publish'"));
+    expect(bank).toBeLessThan(code.indexOf("'/api/v1/authoring/assessments'"));
+  });
+
+  it('serves question review only for a finished attempt the assessment allows', () => {
+    const session = codeOf('packages', 'domain', 'src', 'assessment', 'session-service.ts');
+    const review = session.slice(session.indexOf('export const readResultReview'));
+    expect(review).toMatch(/learnerUserId: args\.learner\.userId/);
+    expect(review).toMatch(/status === 'IN_PROGRESS'\) return \{ available: false/);
+    expect(review).toMatch(/!session\.assessmentVersion\.showAnswersAfterCompletion/);
   });
 
   it('publishes a quiz of exactly the approved questions', () => {

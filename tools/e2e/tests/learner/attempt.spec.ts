@@ -214,6 +214,12 @@ test.describe('learner attempt', () => {
 
     // Per-topic accuracy, which is what makes a result actionable.
     await expect(page.getByText(/correct/i).first()).toBeVisible();
+
+    // Question review (live-learning-portal.md §6.3), now that the attempt is
+    // finished: every question with the learner's answer marked, and the key.
+    const review = page.locator('[data-answer-review]');
+    await expect(review).toBeVisible();
+    await expect(review.getByText('Correct answer').first()).toBeVisible();
   });
 
   test('a learner cannot open the authoring portal by URL', async ({ page }) => {

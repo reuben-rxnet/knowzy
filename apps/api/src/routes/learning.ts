@@ -15,6 +15,7 @@
 //   POST /learning/sessions/:id/answers           persist an answer
 //   POST /learning/sessions/:id/complete          score (idempotent)
 //   GET  /learning/results/:id                    the learner's own result
+//   GET  /learning/results/:id/review             question review, finished attempts only (§6.3)
 //
 // Every learning route runs through `assertNoAnswerKey` on the way out. That is
 // the K3 backstop; the real control is that the learner projection is built
@@ -30,6 +31,7 @@ import {
   currentQuestion,
   publishAssessmentVersion,
   readResult,
+  readResultReview,
   recordSessionRecovery,
   resumeSession,
   startSession,
@@ -262,6 +264,7 @@ export const learningRoutes = [
           timeLimitMinutes: z.number().int().min(1).max(600).optional(),
           attemptLimit: z.number().int().min(1).max(100).optional(),
           allowBackNavigation: z.boolean().optional(),
+          showAnswersAfterCompletion: z.boolean().optional(),
           // FIXED_SET: the exact published questions, in order. The question
           // count becomes the list's length.
           questionIds: z.array(z.string().uuid()).min(1).max(200).optional(),
@@ -299,6 +302,9 @@ export const learningRoutes = [
           ...(body.data.allowBackNavigation === undefined
             ? {}
             : { allowBackNavigation: body.data.allowBackNavigation }),
+          ...(body.data.showAnswersAfterCompletion === undefined
+            ? {}
+            : { showAnswersAfterCompletion: body.data.showAnswersAfterCompletion }),
           ...(body.data.questionIds === undefined
             ? {}
             : { fixedQuestionIds: body.data.questionIds }),
@@ -803,6 +809,39 @@ export const learningRoutes = [
         });
         assertNoAnswerKey(result, 'the result response');
         return result;
+      } catch (error) {
+        return replyFromLearningError(error, ctx, reply, request.url);
+      }
+    },
+  }),
+  defineRoute({
+    method: 'GET',
+    url: '/api/v1/learning/results/:resultId/review',
+    policy: 'learning.result.own',
+    portal: 'LIVE',
+    summary:
+      'Question review of the learner’s own FINISHED attempt: their answer, the correct answer and the explanation, when the assessment allows it.',
+    handler: async (ctx, request, reply, deps) => {
+      const params = z.object({ resultId: z.string().uuid() }).safeParse(request.params);
+      if (!params.success) {
+        return problemReply(
+          reply,
+          ctx,
+          request.url,
+          'VALIDATION_FAILED',
+          'A result id is required.',
+        );
+      }
+      try {
+        // The one learning route that carries an answer key, which is why it
+        // does NOT pass through assertNoAnswerKey: readResultReview refuses an
+        // unfinished attempt and an assessment that does not allow review
+        // (live-learning-portal.md §4.6 forbids the key DURING a quiz only).
+        return await readResultReview({
+          deps: sessionDeps(deps),
+          learner: actorFrom(ctx),
+          resultId: params.data.resultId,
+        });
       } catch (error) {
         return replyFromLearningError(error, ctx, reply, request.url);
       }

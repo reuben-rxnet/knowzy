@@ -29,7 +29,12 @@ import {
   type SnapshotMember,
 } from './selection.js';
 import { evaluatePool } from './assessment-service.js';
-import { scoreSession, type ProficiencyBandDefinition, type SnapshotQuestion } from './scoring.js';
+import {
+  DEFAULT_GAP_THRESHOLD,
+  scoreSession,
+  type ProficiencyBandDefinition,
+  type SnapshotQuestion,
+} from './scoring.js';
 
 export class NotEligibleError extends Error {
   constructor(
@@ -978,7 +983,7 @@ export const completeSession = async (args: CompleteSessionArgs): Promise<Comple
           gapState:
             objective.questionsAsked < (args.minTopicQuestions ?? 2)
               ? 'INSUFFICIENT_EVIDENCE'
-              : objective.accuracy < (args.gapThreshold ?? 60)
+              : objective.accuracy < (args.gapThreshold ?? DEFAULT_GAP_THRESHOLD)
                 ? 'GAP'
                 : 'NO_GAP',
         },
@@ -1170,6 +1175,12 @@ export interface ResultView {
     readonly topicName: string;
     readonly topicAccuracy: number;
   }[];
+  /**
+   * The accuracy below which a topic is a gap. The API scores every session
+   * with the default, so this is the value that was applied; if a caller ever
+   * passes another, it must be stored on the result and read back here.
+   */
+  readonly gapThreshold: number;
 }
 
 /**
@@ -1224,8 +1235,100 @@ export const readResult = async (args: {
         topicName: topic.topicName,
         topicAccuracy: topic.topicAccuracy,
       })),
+    gapThreshold: DEFAULT_GAP_THRESHOLD,
   };
 
   assertNoAnswerKey(view, 'the result response');
   return view;
+};
+
+/** One question of a finished attempt, with what the learner chose and the key. */
+export interface ReviewedQuestion {
+  readonly presentationIndex: number;
+  readonly questionText: string;
+  readonly options: Readonly<Record<string, string>>;
+  readonly selectedOption: string | null;
+  readonly correctOption: string;
+  readonly isCorrect: boolean;
+  readonly explanation: string;
+}
+
+export type ResultReview =
+  | { readonly available: true; readonly questions: readonly ReviewedQuestion[] }
+  | { readonly available: false; readonly reason: 'POLICY' | 'NOT_FINISHED' };
+
+/**
+ * Question review (live-learning-portal.md §6, item 3): each question of the
+ * learner's OWN finished attempt with their answer, the correct answer and the
+ * approved explanation.
+ *
+ * This is the ONE learner read that carries an answer key, and it is gated
+ * three ways: the result is the caller's own; the session is TERMINAL (a
+ * result exists only after scoring, and the status is checked as well, so an
+ * in-progress attempt can never be reviewed -- §4.6); and the assessment
+ * version allows it (`showAnswersAfterCompletion`, default true; an
+ * assessment with a small pool and several attempts sets it false). It reads
+ * the SESSION'S SNAPSHOT of each question, so the review shows exactly what
+ * was asked, even if the question was edited or retired since.
+ */
+export const readResultReview = async (args: {
+  readonly deps: SessionDeps;
+  readonly learner: LearnerContext;
+  readonly resultId: string;
+}): Promise<ResultReview> => {
+  const result = await args.deps.prisma.assessmentResult.findFirst({
+    where: { id: args.resultId, learnerUserId: args.learner.userId },
+    select: {
+      session: {
+        select: {
+          status: true,
+          assessmentVersion: { select: { showAnswersAfterCompletion: true } },
+          questions: {
+            orderBy: { presentationIndex: 'asc' },
+            select: {
+              presentationIndex: true,
+              questionText: true,
+              answerPayload: true,
+              explanation: true,
+            },
+          },
+          responses: {
+            where: { isLatest: true },
+            select: { presentationIndex: true, responsePayload: true },
+          },
+        },
+      },
+    },
+  });
+  if (!result) throw new SessionNotFoundError(args.resultId);
+  const session = result.session;
+  if (session.status === 'IN_PROGRESS') return { available: false, reason: 'NOT_FINISHED' };
+  if (!session.assessmentVersion.showAnswersAfterCompletion) {
+    return { available: false, reason: 'POLICY' };
+  }
+  const chosen = new Map(
+    session.responses.map((row) => [
+      row.presentationIndex,
+      (row.responsePayload as { selectedOption?: string }).selectedOption ?? null,
+    ]),
+  );
+  return {
+    available: true,
+    questions: session.questions.map((question) => {
+      const payload = question.answerPayload as {
+        options: Record<string, string>;
+        correctOption: string;
+      };
+      const selectedOption = chosen.get(question.presentationIndex) ?? null;
+      return {
+        presentationIndex: question.presentationIndex,
+        questionText: question.questionText,
+        options: payload.options,
+        selectedOption,
+        correctOption: payload.correctOption,
+        isCorrect: selectedOption === payload.correctOption,
+        explanation: question.explanation,
+      };
+    }),
+  };
 };

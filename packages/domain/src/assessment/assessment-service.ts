@@ -58,6 +58,8 @@ export interface CreateAssessmentArgs {
   readonly timeLimitMinutes?: number;
   readonly attemptLimit?: number;
   readonly allowBackNavigation?: boolean;
+  /** Question review after a finished attempt (live-learning-portal.md §6.3). Default true. */
+  readonly showAnswersAfterCompletion?: boolean;
   readonly proficiencyThresholds?: readonly ProficiencyBandDefinition[];
   readonly selectionConfig?: Readonly<Record<string, unknown>>;
   /**
@@ -141,6 +143,7 @@ export const createAssessment = async (args: CreateAssessmentArgs): Promise<Crea
         attemptLimit: args.attemptLimit ?? null,
         timeLimitMinutes: args.timeLimitMinutes ?? null,
         allowBackNavigation: args.allowBackNavigation ?? true,
+        showAnswersAfterCompletion: args.showAnswersAfterCompletion ?? true,
         createdByUserId: args.actor.userId,
       },
       select: { id: true, versionNumber: true },

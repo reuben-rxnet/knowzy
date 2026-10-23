@@ -3673,3 +3673,29 @@ the owner's agreement; the owner is regenerating the quizzes. `question-filing` 
 `review-pipeline` do the same; CLAUDE.md now says so, and none is to be run on the dev database
 without asking and taking a `pg_dump` first.
 
+### Third slice (2026-10-23): one Studio, review your answers, a question bank
+
+After taking a quiz the owner asked for: reviewing answers after a quiz, why "no gaps" with three
+wrong, where published quizzes live, the simple Studio as the only one, a viewable question bank,
+and a choice between publishing a quiz now and adding to the bank only. Advice given and taken:
+hide the old Studio rather than delete it (lineage and the owner's prepared documents), and build
+quizzes from the bank on the AUTHOR side next, leaving learner self-service for a decision.
+
+- **Review your answers** on the learner result, through `GET /learning/results/:id/review`:
+  own result, finished attempt, assessment allows it. The spec always called for it (§6.3); the
+  result read had deliberately carried no key, and nothing served one.
+- **"No gaps" with three wrong** was the 60% rule working: 70% is above it, and a simple-Studio
+  quiz has one topic, so the breakdown cannot point at the misses. The result now states the rule
+  and points at the review.
+- **Add to the question bank only**, **Show answers after finishing**, a **Quizzes** list, and a
+  read-only **Question Bank** page. The Studio switch is gone from the simple page.
+- Two process findings. The mode was found back on FULL twice: once because an e2e run was cut off
+  before its teardown (setup now recovers the recorded mode from a leftover note), once from the
+  switch then still on the simple page. And CI run 39919698581 failed on four Next.js criticals
+  published that morning (one an unauthenticated RCE in image optimization); 15.5.28 fixes all
+  four inside the existing range, so the dependency moved and the register did not.
+- Validated: unit + contract 1032 (new contracts: approval checkboxes never pre-ticked,
+  bank-only creates no assessment, the review gate); the Simple and learner-attempt e2e specs 8/8;
+  the screens in a browser. The new review integration test is in assessment-session.test.ts,
+  which wipes the dev database, so it was NOT run locally: CI runs it on its own database.
+

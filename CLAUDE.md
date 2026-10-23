@@ -133,7 +133,7 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 121 API routes (COMPETENCY-M2 added 14, Document Studio Slice 2 added 2, M3 added 13, Simple mode 2), every one with a declared
+- 19 of 36 MCP tools registered; 122 API routes (COMPETENCY-M2 added 14, Document Studio Slice 2 added 2, M3 added 13, Simple mode 2, question review 1), every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
@@ -638,6 +638,12 @@ family AUTHORING.DOCUMENT_PREPARATION (30 families).
   live); its publish test uses a DETERMINISTIC job made through the API.
   A value exported from a 'use client' module is a client REFERENCE in a server component
   ("APPROVABLE.has is not a function"): shared constants go in a plain module (quiz-status.ts).
+  SINCE 2026-10-23 SIMPLE IS THE ONLY STUDIO OFFERED: no switch on its page (FULL only via the
+  setting). After approval: Publish as a quiz now, or Add to the question bank only (intent=bank,
+  no assessment). /question-bank is the simple read-only bank. Learners get Review your answers
+  via GET /learning/results/:id/review -- THE ONE LEARNER ROUTE THAT CARRIES AN ANSWER KEY, gated
+  on own result + session not IN_PROGRESS + showAnswersAfterCompletion; it deliberately skips
+  assertNoAnswerKey. Next agreed: author-side "Build a quiz from the bank" by domain/topic.
 - PREPARATION RUNS IN PARTS since 2026-10-22 (chunked-preparation.ts, prompt
   prepare-1.1.0): ~6,000 characters, three at once, a part under 85% word
   coverage retried once strictly. One call per document kept 69% of a
