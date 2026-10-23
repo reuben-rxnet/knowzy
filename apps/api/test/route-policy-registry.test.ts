@@ -92,18 +92,54 @@ describe('policy registry completeness', () => {
     // Fastify exposes its routing table once ready; printRoutes is the stable
     // way to read it without depending on internals.
     const table = app.printRoutes({ commonPrefix: false });
+    // A route whose path EXTENDS another's is printed as an indented child
+    // holding only the extra segment (`│   ├── /claim` under
+    // `/api/v1/authoring/questions/:questionId`). Until 2026-10-23 the line
+    // pattern did not allow `│`, so every such child was SKIPPED and never
+    // checked; it surfaced only when a last child, printed without `│`, was
+    // read as a full path ("GET /review"). Each path is now resolved against
+    // its parent by the column its `/` starts in.
+    const parents: { column: number; path: string }[] = [];
     for (const line of table.split('\n')) {
-      const match = /^\s*[└├─\s]*(\/\S*)\s+\((.+)\)\s*$/.exec(line);
+      const match = /^([\s│└├─]*)(\/\S*)(?:\s+\((.+)\))?\s*$/.exec(line);
       if (!match) continue;
-      const [, url, methods] = match;
+      const [, lead = '', segment = '', methods] = match;
+      const column = lead.length;
+      while (parents.length > 0 && (parents[parents.length - 1]?.column ?? 0) >= column) {
+        parents.pop();
+      }
+      const url = `${parents[parents.length - 1]?.path ?? ''}${segment}`;
+      parents.push({ column, path: url });
       for (const method of (methods ?? '').split(',').map((m) => m.trim())) {
         if (method === 'HEAD' || method.length === 0) continue;
         seen.push(`${method} ${url}`);
       }
     }
+    // The parser must see nested routes, or this test proves nothing.
+    expect(seen).toContain('GET /api/v1/learning/results/:resultId/review');
+    expect(seen).toContain('POST /api/v1/authoring/questions/:questionId/claim');
+    expect(seen.length).toBeGreaterThanOrEqual(ALL_ROUTES.length);
 
+    // Two routes naming the same position's parameter differently share one
+    // node, printed `:sourceDocumentId|:documentId`. Such a key stands for
+    // every combination of its alternatives; it is governed when the routes
+    // behind it are, and each of those is one of the combinations.
+    const expansions = (key: string): string[] =>
+      key
+        .split('/')
+        .reduce<string[]>(
+          (prefixes, segment, index) =>
+            segment
+              .split('|')
+              .flatMap((choice) =>
+                prefixes.map((prefix) => (index === 0 ? choice : `${prefix}/${choice}`)),
+              ),
+          [''],
+        );
     const ungoverned = seen.filter(
-      (key) => !gated.has(key) && !UNGATED_PREFIXES.some((p) => key.includes(p)),
+      (key) =>
+        !expansions(key).some((candidate) => gated.has(candidate)) &&
+        !UNGATED_PREFIXES.some((p) => key.includes(p)),
     );
 
     expect(
