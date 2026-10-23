@@ -1877,10 +1877,22 @@ export const copy = {
   'bq.fromBank': 'From the question bank',
   'bq.heading': 'Build a quiz from the question bank',
   'bq.intro':
-    'Choose a domain, and a topic if you want one. Every question in the bank was approved by a person and checked against its document.',
+    'Choose a domain and tick the topics to draw from. Every question in the bank was approved by a person and checked against its document.',
   'bq.domain': 'Domain',
   'bq.topic': 'Topic',
-  'bq.allTopics': 'All topics in this domain',
+  'bq.topics': 'Topics',
+  'bq.allTopicsButton': 'Select all',
+  'bq.noTopicsButton': 'Clear',
+  'bq.noTopicChosen': 'Tick at least one topic.',
+  'bq.tooMany': 'Only {questions} available in the ticked topics. Ask for that many or fewer.',
+  'bq.evenShort':
+    'An even spread needs more questions than these topics have: {topics}. Ask for fewer, untick them, or choose Mixed at random.',
+  'bq.drawLabel': 'How should questions be drawn?',
+  'bq.drawMixed': 'Mixed at random',
+  'bq.drawMixedBody':
+    'Any questions from the ticked topics, so some topics may appear more than others.',
+  'bq.drawEven': 'Spread evenly',
+  'bq.drawEvenBody': 'Each ticked topic gives an equal share of the questions.',
   'bq.available': '{questions} available',
   'bq.drawNote':
     'Each learner gets this many questions drawn at random from the ones available now. Questions added to the bank later do not join this quiz.',

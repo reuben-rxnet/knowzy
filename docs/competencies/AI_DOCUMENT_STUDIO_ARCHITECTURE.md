@@ -640,14 +640,22 @@ decision on how practice scores are reported first.
 
 The agreed next slice. The Studio's first screen offers two starts, **From a document** and **From
 the question bank** (`?from=bank`). The bank form: a domain (only domains with published questions
-are offered), a topic or *All topics in this domain*, the number of questions with the count
-available beside it, a quiz name (defaulting to the topic or domain), a pass mark and *Show
-learners the answers after they finish*. **Publish quiz** creates a `RANDOM_POOL` assessment over
-the chosen topics, then submits, approves and publishes it -- the Publish page's sequence. The pool
-is PINNED at publication, so each attempt gets its own random draw from the questions available
-then, and a question added to the bank later never joins the quiz unseen. A count above what is
-published is refused before anything is created. `GET /authoring/question-bank` carries
-`poolCounts` (published, active questions per domain and topic, counted in full) for the form.
+are offered); a checklist of its topics with published questions, each with its count, all ticked
+to start, with *Select all* and *Clear*; the number of questions, with the count available in the
+ticked topics beside it; and, when more than one topic is ticked, how to draw them -- **Mixed at
+random** (`RANDOM_POOL` over the combined pool) or **Spread evenly** (`TOPIC_BALANCED`, each topic
+an equal share). Then a quiz name (the topic, or the domain for several), a pass mark and *Show
+learners the answers after they finish*. **Publish quiz** creates the assessment over the ticked
+topics, then submits, approves and publishes it -- the Publish page's sequence. The pool is PINNED
+at publication, so each attempt gets its own random draw from the questions available then, and a
+question added to the bank later never joins the quiz unseen. A count above what is published, and
+an even spread some topic cannot fill, are refused before anything is created: the form computes
+each topic's share exactly as validation does (`allocateEvenly` over the SORTED topic ids) and the
+server checks again. `GET /authoring/question-bank` carries `poolCounts` for the form.
+
+Topics from SEVERAL DOMAINS cannot be combined: an assessment belongs to one domain (its pool,
+scope and reports are filtered by it). A cross-domain quiz needs a decision on which domain owns it
+and who sees its results, and belongs with learner self-service practice.
 
 Learner self-service practice -- a learner choosing the topic -- remains a later milestone and needs
 a written decision on how practice scores are reported first.

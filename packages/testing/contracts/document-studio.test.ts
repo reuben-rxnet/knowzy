@@ -216,7 +216,10 @@ describe('AI Document Studio: Simple mode (§12)', () => {
   it('builds a quiz from the bank as a pinned random pool, through the governed sequence', () => {
     const code = quick();
     const bank = code.slice(code.indexOf('export const buildBankQuizAction'));
-    expect(bank).toMatch(/selectionStrategy: 'RANDOM_POOL'/);
+    // Mixed is one random pool; an even spread is TOPIC_BALANCED, and only
+    // with more than one topic ticked.
+    expect(bank).toMatch(/selectionStrategy: even \? 'TOPIC_BALANCED' : 'RANDOM_POOL'/);
+    expect(bank).toMatch(/=== 'even' && topicIds\.length > 1/);
     // Never more than is published, and refused before anything is created.
     expect(bank.indexOf('count > available')).toBeGreaterThan(-1);
     expect(bank.indexOf('count > available')).toBeLessThan(

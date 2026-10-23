@@ -643,8 +643,10 @@ family AUTHORING.DOCUMENT_PREPARATION (30 families).
   no assessment). /question-bank is the simple read-only bank. Learners get Review your answers
   via GET /learning/results/:id/review -- THE ONE LEARNER ROUTE THAT CARRIES AN ANSWER KEY, gated
   on own result + session not IN_PROGRESS + showAnswersAfterCompletion; it deliberately skips
-  assertNoAnswerKey. "Build a quiz from the bank" (?from=bank) is BUILT: RANDOM_POOL over a
-  topic or a whole domain, pinned at publication; the bank read's poolCounts cap the count.
+  assertNoAnswerKey. "Build a quiz from the bank" (?from=bank) is BUILT: a quiz over a
+  CHECKLIST of one domain's topics, Mixed (RANDOM_POOL) or Spread evenly (TOPIC_BALANCED, the
+  form mirrors allocateEvenly over SORTED ids), pinned at publication; poolCounts cap the count.
+  ONE DOMAIN PER QUIZ: assessment.domainId filters pool, scope and reports.
   Learner self-service practice is NOT started and needs a written decision first.
 - THE ROUTE-POLICY REGISTRY TEST SKIPPED EVERY NESTED ROUTE until 2026-10-23: Fastify's
   printRoutes prints a route extending another as an indented child under a vertical-bar tree

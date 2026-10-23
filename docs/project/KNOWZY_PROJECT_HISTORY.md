@@ -3712,3 +3712,9 @@ was gated; the test had misread Fastify's route tree, and had in fact been SKIPP
 route (any line carrying the tree's vertical bar) since it was written. It now resolves nested
 paths and asserts that it sees them. Run 39929679462 passed integration with the fix.
 
+Then, on the owner's question "can I choose multiple domains or topics?": several TOPICS of one
+domain, yes -- a checklist, drawn **Mixed at random** (RANDOM_POOL) or **Spread evenly**
+(TOPIC_BALANCED, both already in the engine), with the even split computed in the form exactly as
+validation computes it so a shortfall is named before publishing. Several DOMAINS, no: an
+assessment belongs to one domain, and mixing them is a decision for the learner-practice milestone.
+

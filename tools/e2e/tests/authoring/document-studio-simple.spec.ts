@@ -228,7 +228,11 @@ test.describe('AI Document Studio, Simple mode', () => {
       'page',
     );
     await page.getByLabel('Domain').selectOption(taxonomy.domainId);
-    await page.getByLabel('Topic').selectOption(taxonomy.topicId);
+    // Every topic starts ticked; keep only the seeded one.
+    const topics = page.locator('[data-bank-topics]');
+    await topics.getByRole('button', { name: 'Clear' }).click();
+    await expect(page.locator('[data-bank-problem]')).toHaveText('Tick at least one topic.');
+    await topics.locator(`input[value="${taxonomy.topicId}"]`).check();
     await expect(page.getByText(new RegExp(`${pool} questions? available`))).toBeVisible();
     await page.getByLabel('Number of questions').fill('1');
     const name = `E2E Bank Quiz ${Date.now()}`;

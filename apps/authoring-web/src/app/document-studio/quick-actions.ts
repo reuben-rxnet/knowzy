@@ -282,9 +282,9 @@ export const publishQuizAction = async (
 
 /**
  * "Build a quiz from the question bank": an assessment drawing `count`
- * questions at random from the published questions of one topic, or of every
- * topic in a domain that has any. RANDOM_POOL, so each attempt gets its own
- * draw -- from the pool PINNED when the quiz is published (§5.1): questions
+ * questions at random from the published questions of the TICKED topics of
+ * one domain -- mixed (RANDOM_POOL) or spread evenly (TOPIC_BALANCED). Each
+ * attempt gets its own draw -- from the pool PINNED when the quiz is published (§5.1): questions
  * added to the bank later never join it unseen. Then submit -> approve ->
  * publish, the Publish page's own sequence, each its own audited transition.
  */
@@ -293,12 +293,19 @@ export const buildBankQuizAction = async (
   formData: FormData,
 ): Promise<ActionState> => {
   const domainId = String(formData.get('domainId') ?? '');
-  const topicId = String(formData.get('topicId') ?? '');
+  const topicIds = formData
+    .getAll('topicIds')
+    .map(String)
+    .filter((id) => id.length > 0);
+  // MIXED: one random pool over every ticked topic. EVEN: each topic gives an
+  // equal share (TOPIC_BALANCED), which every topic must be able to fill.
+  const even = String(formData.get('draw') ?? 'mixed') === 'even' && topicIds.length > 1;
   const count = Number(formData.get('questionCount') ?? 10);
   const name = String(formData.get('name') ?? '').trim();
   const pass = Number(formData.get('passPercentage') ?? 70);
   const showAnswers = formData.get('showAnswers') !== null;
   if (domainId.length === 0) return local('Choose a domain.');
+  if (topicIds.length === 0) return local('Tick at least one topic.');
   if (name.length < 3) return local('Give the quiz a name of at least 3 characters.');
   if (!Number.isInteger(count) || count < 1 || count > 200)
     return local('The number of questions must be between 1 and 200.');
@@ -310,7 +317,7 @@ export const buildBankQuizAction = async (
   }>(`/api/v1/authoring/question-bank?domainId=${encodeURIComponent(domainId)}`);
   if (!bank.ok) return failed(bank.problem);
   const pools = bank.data.poolCounts.filter(
-    (row) => row.domainId === domainId && (topicId.length === 0 || row.topicId === topicId),
+    (row) => row.domainId === domainId && topicIds.includes(row.topicId),
   );
   const available = pools.reduce((sum, row) => sum + row.count, 0);
   if (pools.length === 0) return local('There are no published questions to draw from here yet.');
@@ -318,6 +325,21 @@ export const buildBankQuizAction = async (
     return local(
       `Only ${available} published question${available === 1 ? ' is' : 's are'} available here. Ask for ${available} or fewer.`,
     );
+  }
+  if (even) {
+    // The validation's own split: allocateEvenly over the SORTED topic ids.
+    const sorted = pools.map((row) => row.topicId).sort();
+    const base = Math.floor(count / sorted.length);
+    const extra = count % sorted.length;
+    const shortOf = sorted.filter(
+      (id, index) =>
+        base + (index < extra ? 1 : 0) > (pools.find((row) => row.topicId === id)?.count ?? 0),
+    );
+    if (shortOf.length > 0) {
+      return local(
+        'An even spread needs more questions than some topics have. Ask for fewer, untick those topics, or choose Mixed at random.',
+      );
+    }
   }
 
   const slug = name
@@ -333,7 +355,7 @@ export const buildBankQuizAction = async (
       domainId,
       topicIds: pools.map((row) => row.topicId),
       questionCount: count,
-      selectionStrategy: 'RANDOM_POOL',
+      selectionStrategy: even ? 'TOPIC_BALANCED' : 'RANDOM_POOL',
       passPercentage: pass,
       showAnswersAfterCompletion: showAnswers,
     },

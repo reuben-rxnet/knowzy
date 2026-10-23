@@ -343,12 +343,16 @@ attempts and whether it is **Live**.
 #### From the question bank
 
 Build a quiz from questions already approved, without uploading anything. Choose a **Domain** (only
-domains with published questions are listed) and a **Topic**, or *All topics in this domain*; the
-count beside **Number of questions** says how many are available, and you cannot ask for more.
-Give it a **Quiz name** (the topic or domain to start with), a **Pass mark (%)** and choose whether
-to **Show learners the answers after they finish**, then **Publish quiz**. Each learner gets that
-many questions drawn at random from the ones available when you published; questions added to the
-bank later do not join the quiz.
+domains with published questions are listed), then tick the **Topics** to draw from — each shows how
+many questions it has, all are ticked to start, and **Select all** and **Clear** do what they say.
+The count beside **Number of questions** is what the ticked topics hold; you cannot ask for more.
+With more than one topic ticked, choose **Mixed at random** (any questions from the ticked topics)
+or **Spread evenly** (each topic gives an equal share; refused, with the topics named, when one of
+them has too few). Give it a **Quiz name** (the topic, or the domain for several), a **Pass mark
+(%)** and choose whether to **Show learners the answers after they finish**, then **Publish quiz**.
+Each learner gets that many questions drawn at random from the ones available when you published;
+questions added to the bank later do not join the quiz. Topics from different domains cannot be
+combined in one quiz.
 
 #### Question Bank — `/question-bank`
 
@@ -1861,3 +1865,4 @@ the log below.
 | 2026-10-22 | Simple mode: approve and publish | The simple Studio now goes all the way to a quiz learners can take (§4.2a). **Approve questions**: tick each question you want (none is ticked for you) and **Approve selected**; a refused question shows why on its own card. **Publish quiz**: a quiz name and a pass mark, then one click publishes the approved questions and a quiz of **exactly those questions**; *"…" is live* links to the Live Learning Portal. **In Simple mode the sidebar shows only Dashboard, Knowledge Sources, AI Document Studio and Administration**; the other screens return with **Switch to the full Studio** |
 | 2026-10-23 | Review answers, Question Bank, bank-only | **Review your answers** on a learner's result (§5.4): each question with their answer, the correct answer and why, once the attempt is finished and only if the quiz allows it. Gap states read **Needs work** / **Above the gap line** / **Too few questions to judge**, and **Where to focus** states the 60% rule. In the simple Studio (§4.2a): **Publish as a quiz now** or **Add to the question bank only**, a **Show learners the answers after they finish** option, a **Quizzes** list, and a read-only **Question Bank** page (`/question-bank`) in the sidebar. The simple Studio is the only one offered: its switch is gone |
 | 2026-10-23 | Build a quiz from the bank | **Create a quiz** now starts **From a document** or **From the question bank** (§4.2a). From the bank: a domain, a topic or all topics, how many questions (with the number available shown), a name, a pass mark and the show-answers choice, then **Publish quiz**. Each learner gets a random draw from the questions available at publication |
+| 2026-10-23 | Several topics in one bank quiz | **From the question bank** now has a **Topics** checklist (each with its question count, all ticked to start, **Select all** / **Clear**) instead of a single topic, and with several ticked a choice of **Mixed at random** or **Spread evenly**. A count above what the ticked topics hold, or an even spread a topic cannot fill, is explained before you can publish. One domain per quiz |
