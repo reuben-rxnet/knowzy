@@ -35,7 +35,14 @@ export const FieldLabel = ({
   </span>
 );
 
-/** A label, its control, and an optional hint, as one block. */
+/**
+ * A label, its control, and an optional hint, as one block.
+ *
+ * The hint goes BELOW the control (2026-10-23). Above it, a field with a hint
+ * pushed its control lower than a neighbour without one, so the inputs of a
+ * row did not line up. Label, control, help text is the usual order and keeps
+ * every control in a row on one line.
+ */
 export const Field = ({
   id,
   label,
@@ -50,10 +57,13 @@ export const Field = ({
   readonly className?: string;
 }) => (
   <div className={`flex min-w-0 flex-col gap-1.5 ${className}`}>
-    <FieldLabel htmlFor={id} {...(hint === undefined ? {} : { hint })}>
-      {label}
-    </FieldLabel>
+    <FieldLabel htmlFor={id}>{label}</FieldLabel>
     {children}
+    {hint === undefined ? null : (
+      <span id={`${id}-hint`} className="text-sm text-ink-muted">
+        {hint}
+      </span>
+    )}
   </div>
 );
 

@@ -1794,6 +1794,9 @@ export const copy = {
   'qb.emptyBody':
     'Approve questions in the AI Document Studio and add them to the question bank, or publish them as a quiz.',
   'qb.answer': 'Answer',
+  'qb.showAnswer': 'Show answer',
+  'qb.hideAnswer': 'Hide answer',
+  'qb.why': 'Why',
   'qb.from': 'From {name}',
   'qb.published': 'Published {date}',
   // ---------------------------------- AI Document Studio, Simple mode (§12)
@@ -1877,11 +1880,15 @@ export const copy = {
   'bq.fromBank': 'From the question bank',
   'bq.heading': 'Build a quiz from the question bank',
   'bq.intro':
-    'Choose a domain and tick the topics to draw from. Every question in the bank was approved by a person and checked against its document.',
+    'Choose a domain and the topics to draw from. Every question in the bank was approved by a person and checked against its document.',
   'bq.domain': 'Domain',
   'bq.topic': 'Topic',
   'bq.topics': 'Topics',
   'bq.allTopicsButton': 'Select all',
+  'bq.chooseDomain': 'Choose a domain',
+  'bq.noTopicChosenShort': 'No topic selected',
+  'bq.allTopicsSummary': 'All topics ({count})',
+  'bq.someTopicsSummary': '{count} topics selected',
   'bq.noTopicsButton': 'Clear',
   'bq.noTopicChosen': 'Tick at least one topic.',
   'bq.tooMany': 'Only {questions} available in the ticked topics. Ask for that many or fewer.',

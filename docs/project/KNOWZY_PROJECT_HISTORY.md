@@ -3718,3 +3718,9 @@ domain, yes -- a checklist, drawn **Mixed at random** (RANDOM_POOL) or **Spread 
 validation computes it so a shortfall is named before publishing. Several DOMAINS, no: an
 assessment belongs to one domain, and mixing them is a decision for the learner-practice milestone.
 
+Polish on the owner's request ("dropdowns with check marks and Select all"; "neat, beautiful,
+professional"): Domain and Topics became check-mark dropdowns (domain single: one domain per quiz);
+the shared Field now puts its hint UNDER the control -- above it, a field with a hint pushed its
+control below its neighbours', so rows did not line up anywhere in the portal; the Studio forms
+share one width and one label style; and the Question Bank became a compact list with Show answer.
+

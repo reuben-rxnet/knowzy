@@ -648,6 +648,9 @@ family AUTHORING.DOCUMENT_PREPARATION (30 families).
   form mirrors allocateEvenly over SORTED ids), pinned at publication; poolCounts cap the count.
   ONE DOMAIN PER QUIZ: assessment.domainId filters pool, scope and reports.
   Learner self-service practice is NOT started and needs a written decision first.
+- FIELD HINTS GO UNDER THE CONTROL since 2026-10-23 (shared-ui Field.tsx). Above it, a hinted
+  field's control sat lower than its neighbours' and no form row lined up. Multi-choice in the
+  simple Studio uses components/CheckDropdown.tsx, not a native multi-select.
 - THE ROUTE-POLICY REGISTRY TEST SKIPPED EVERY NESTED ROUTE until 2026-10-23: Fastify's
   printRoutes prints a route extending another as an indented child under a vertical-bar tree
   line, and the line pattern did not allow that character. It now resolves children by column

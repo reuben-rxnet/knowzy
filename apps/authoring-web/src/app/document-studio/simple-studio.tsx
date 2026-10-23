@@ -121,7 +121,7 @@ export const SimpleStudio = async ({
       {fromBank ? null : <Steps active={0} />}
       <Card>
         <CardBody>
-          <div className="mx-auto w-full max-w-4xl py-4">
+          <div className="mx-auto w-full max-w-5xl py-4">
             {fromBank ? (
               <FromBank actingAs={actingAs} />
             ) : storageConfigured ? (

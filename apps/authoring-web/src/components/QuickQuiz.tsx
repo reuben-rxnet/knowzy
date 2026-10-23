@@ -181,7 +181,9 @@ export const QuizSettingsForm = ({
       </div>
 
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-2 text-sm font-semibold text-ink">{t('qq.typeLabel')}</legend>
+        <legend className="mb-2 text-base font-semibold text-brand-navy-text">
+          {t('qq.typeLabel')}
+        </legend>
         <div className="grid gap-3 sm:grid-cols-3">
           {TYPES.map((type) => (
             <label

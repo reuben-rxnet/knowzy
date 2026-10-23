@@ -3,8 +3,9 @@
 // AI Document Studio, Simple mode -- build a quiz from the question bank
 // (docs/competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md §12.7).
 //
-// One form. The domain drives a checklist of its topics, each with its count
-// of published questions; only domains and topics with published questions
+// One form. A domain dropdown (one domain: a quiz belongs to one) drives a
+// topics dropdown with a check mark per topic and "Select all", each with its
+// count of published questions; only domains and topics with published questions
 // are offered. Two ways to draw: MIXED (RANDOM_POOL over the ticked topics'
 // combined pool) or EVEN (TOPIC_BALANCED: each topic gives an equal share).
 // The share each topic must give is computed here exactly as the server's
@@ -12,10 +13,11 @@
 // shortfall is shown before anything is sent. The server checks again.
 
 import { useActionState, useState } from 'react';
-import { Button, Field, Select, TextInput } from '@knowzy/shared-ui';
+import { Button, Field, TextInput } from '@knowzy/shared-ui';
 import { Loader2, Shuffle } from 'lucide-react';
 import { t } from '../copy';
 import { buildBankQuizAction } from '../app/document-studio/quick-actions';
+import { CheckDropdown } from './CheckDropdown';
 import { Problem } from './Problem';
 import { questionsLabel } from './quiz-status';
 import type { WizardDomain } from './GenerateWizard';
@@ -89,31 +91,51 @@ export const BankQuizForm = ({
     );
   }
 
-  const toggle = (id: string) =>
-    setChosen((current) =>
-      current.includes(id) ? current.filter((value) => value !== id) : [...current, id],
-    );
-
   return (
     <form action={submit} className="flex flex-col gap-6" data-bank-quiz>
-      <div className="grid gap-5 md:grid-cols-[2fr_1fr]">
-        <Field id="bq-domain" label={t('bq.domain')}>
-          <Select
-            id="bq-domain"
-            name="domainId"
-            value={domainId}
-            onChange={(event) => {
-              setDomainId(event.target.value);
-              setChosen(topicsOf(event.target.value).map((topic) => topic.topicId));
-            }}
-          >
-            {withQuestions.map((row) => (
-              <option key={row.domainId} value={row.domainId}>
-                {row.name}
-              </option>
-            ))}
-          </Select>
-        </Field>
+      <div className="grid items-start gap-5 md:grid-cols-3">
+        <CheckDropdown
+          id="bq-domain"
+          label={t('bq.domain')}
+          name="domainId"
+          single
+          options={withQuestions.map((row) => ({
+            value: row.domainId,
+            label: row.name,
+            hint: questionsLabel(
+              topicsOf(row.domainId).reduce((sum, topic) => sum + countIn(topic.topicId), 0),
+            ),
+          }))}
+          selected={domainId.length === 0 ? [] : [domainId]}
+          onChange={(next) => {
+            const value = next[0] ?? '';
+            setDomainId(value);
+            setChosen(topicsOf(value).map((topic) => topic.topicId));
+          }}
+          summary={domain?.name ?? t('bq.chooseDomain')}
+        />
+        <CheckDropdown
+          id="bq-topics"
+          label={t('bq.topics')}
+          name="topicIds"
+          options={topics.map((topic) => ({
+            value: topic.topicId,
+            label: topic.name,
+            hint: questionsLabel(countIn(topic.topicId)),
+          }))}
+          selected={chosen}
+          onChange={setChosen}
+          selectAllLabel={t('bq.allTopicsButton')}
+          summary={
+            chosen.length === 0
+              ? t('bq.noTopicChosenShort')
+              : chosen.length === 1
+                ? nameOf(chosen[0] ?? '')
+                : chosen.length === topics.length
+                  ? t('bq.allTopicsSummary', { count: topics.length })
+                  : t('bq.someTopicsSummary', { count: chosen.length })
+          }
+        />
         <Field
           id="bq-count"
           label={t('qq.countLabel')}
@@ -132,62 +154,11 @@ export const BankQuizForm = ({
         </Field>
       </div>
 
-      <fieldset className="flex flex-col gap-3" data-bank-topics>
-        <legend className="mb-1 flex w-full flex-wrap items-baseline justify-between gap-2">
-          <span className="text-sm font-semibold text-ink">{t('bq.topics')}</span>
-          <span className="flex gap-3 text-sm">
-            <button
-              type="button"
-              className="font-medium text-brand-blue underline"
-              onClick={() => setChosen(topics.map((topic) => topic.topicId))}
-            >
-              {t('bq.allTopicsButton')}
-            </button>
-            <button
-              type="button"
-              className="font-medium text-brand-blue underline"
-              onClick={() => setChosen([])}
-            >
-              {t('bq.noTopicsButton')}
-            </button>
-          </span>
-        </legend>
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {topics.map((topic) => {
-            const ticked = chosen.includes(topic.topicId);
-            return (
-              <li key={topic.topicId}>
-                <label
-                  className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
-                    ticked
-                      ? 'border-brand-blue bg-info-soft text-brand-navy-text'
-                      : 'border-line bg-brand-surface text-ink hover:bg-surface-hover'
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      name="topicIds"
-                      value={topic.topicId}
-                      checked={ticked}
-                      onChange={() => toggle(topic.topicId)}
-                      className="size-4 accent-brand-blue"
-                    />
-                    <span className="font-medium">{topic.name}</span>
-                  </span>
-                  <span className="shrink-0 text-2xs text-ink-muted">
-                    {questionsLabel(countIn(topic.topicId))}
-                  </span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-      </fieldset>
-
       {chosen.length > 1 ? (
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-semibold text-ink">{t('bq.drawLabel')}</legend>
+          <legend className="mb-1 text-base font-semibold text-brand-navy-text">
+            {t('bq.drawLabel')}
+          </legend>
           <div className="grid gap-3 md:grid-cols-2">
             {(
               [
@@ -222,8 +193,8 @@ export const BankQuizForm = ({
       ) : null}
       <p className="max-w-prose text-sm text-ink-muted">{t('bq.drawNote')}</p>
 
-      <div className="grid gap-5 md:grid-cols-[2fr_1fr]">
-        <Field id="bq-name" label={t('qq.quizName')}>
+      <div className="grid items-start gap-5 md:grid-cols-3">
+        <Field id="bq-name" label={t('qq.quizName')} className="md:col-span-2">
           <TextInput
             id="bq-name"
             name="name"

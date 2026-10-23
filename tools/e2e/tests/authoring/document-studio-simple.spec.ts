@@ -227,12 +227,32 @@ test.describe('AI Document Studio, Simple mode', () => {
       'aria-current',
       'page',
     );
-    await page.getByLabel('Domain').selectOption(taxonomy.domainId);
-    // Every topic starts ticked; keep only the seeded one.
-    const topics = page.locator('[data-bank-topics]');
-    await topics.getByRole('button', { name: 'Clear' }).click();
-    await expect(page.locator('[data-bank-problem]')).toHaveText('Tick at least one topic.');
-    await topics.locator(`input[value="${taxonomy.topicId}"]`).check();
+    const names = await api<{
+      domains: { domainId: string; name: string; topics: { topicId: string; name: string }[] }[];
+    }>(request, '/api/v1/authoring/taxonomy');
+    const domain = names.domains.find((row) => row.domainId === taxonomy.domainId);
+    const topic = domain?.topics.find((row) => row.topicId === taxonomy.topicId);
+    if (domain === undefined || topic === undefined) throw new Error('Seeded taxonomy not found.');
+
+    // The domain dropdown: one domain, picked with a check mark.
+    await page.locator('#bq-domain').click();
+    await page
+      .getByRole('group', { name: 'Domain' })
+      .getByText(domain.name, { exact: true })
+      .click();
+    await expect(page.locator('#bq-domain')).toContainText(domain.name);
+
+    // The topics dropdown: every topic starts ticked; clear them, then tick one.
+    await page.locator('#bq-topics').click();
+    const topics = page.getByRole('group', { name: 'Topics' });
+    const all = topics.getByRole('checkbox', { name: 'Select all' });
+    if ((await all.count()) > 0) {
+      await all.uncheck();
+      await expect(page.locator('[data-bank-problem]')).toHaveText('Tick at least one topic.');
+      await topics.getByRole('checkbox', { name: topic.name }).check();
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#bq-topics')).toContainText(topic.name);
     await expect(page.getByText(new RegExp(`${pool} questions? available`))).toBeVisible();
     await page.getByLabel('Number of questions').fill('1');
     const name = `E2E Bank Quiz ${Date.now()}`;

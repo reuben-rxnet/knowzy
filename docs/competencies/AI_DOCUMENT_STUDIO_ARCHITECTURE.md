@@ -640,8 +640,9 @@ decision on how practice scores are reported first.
 
 The agreed next slice. The Studio's first screen offers two starts, **From a document** and **From
 the question bank** (`?from=bank`). The bank form: a domain (only domains with published questions
-are offered); a checklist of its topics with published questions, each with its count, all ticked
-to start, with *Select all* and *Clear*; the number of questions, with the count available in the
+are offered), as a dropdown; a TOPICS DROPDOWN with a check mark per topic and its count, all
+ticked to start, with *Select all* (components/CheckDropdown.tsx: a disclosure button over real
+checkbox inputs, Escape and outside-click close, values submitted as hidden inputs); the number of questions, with the count available in the
 ticked topics beside it; and, when more than one topic is ticked, how to draw them -- **Mixed at
 random** (`RANDOM_POOL` over the combined pool) or **Spread evenly** (`TOPIC_BALANCED`, each topic
 an equal share). Then a quiz name (the topic, or the domain for several), a pass mark and *Show

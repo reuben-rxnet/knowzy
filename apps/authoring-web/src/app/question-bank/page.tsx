@@ -6,7 +6,7 @@
 // confirmations and reasons live. The filters are a plain GET form, so a
 // filtered bank is a link.
 
-import { Card, CardBody, EmptyState, Field, PageHero, Select } from '@knowzy/shared-ui';
+import { Card, EmptyState, Field, PageHero, Select } from '@knowzy/shared-ui';
 import { t } from '../../copy';
 import { api } from '../../lib/api';
 import { Problem } from '../../components/Problem';
@@ -102,18 +102,32 @@ export default async function QuestionBankPage({
       {items.length === 0 ? (
         <EmptyState title={t('qb.empty')} description={t('qb.emptyBody')} />
       ) : (
-        <ol className="flex flex-col gap-4" data-bank-questions>
-          {items.map((item) => (
-            <li key={item.bankQuestionId}>
-              <Card>
-                <CardBody>
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <h2 className="text-base font-semibold text-ink">{item.questionText}</h2>
-                      <span className="shrink-0 font-mono text-2xs text-ink-subtle">
-                        {item.bankQuestionId}
+        <Card>
+          <ol className="divide-y divide-line" data-bank-questions>
+            {items.map((item, index) => (
+              <li key={item.bankQuestionId} className="px-5 py-4">
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-start gap-4 [&::-webkit-details-marker]:hidden">
+                    <span className="mt-0.5 w-8 shrink-0 text-right text-sm font-semibold text-ink-subtle">
+                      {index + 1}.
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="text-base font-semibold text-ink">{item.questionText}</span>
+                      <span className="flex flex-wrap gap-x-4 gap-y-1 text-2xs text-ink-muted">
+                        <span className="font-medium text-brand-navy-text">
+                          {item.domain} › {item.topic}
+                        </span>
+                        <span>{t('qb.from', { name: item.sourceDocument })}</span>
+                        <span>{t('qb.published', { date: day(item.publishedAt) })}</span>
+                        <span className="font-mono">{item.bankQuestionId}</span>
                       </span>
-                    </div>
+                    </span>
+                    <span className="shrink-0 rounded-md border border-line px-3 py-1 text-sm font-medium text-brand-blue group-open:bg-info-soft">
+                      <span className="group-open:hidden">{t('qb.showAnswer')}</span>
+                      <span className="hidden group-open:inline">{t('qb.hideAnswer')}</span>
+                    </span>
+                  </summary>
+                  <div className="mt-4 flex flex-col gap-3 pl-12">
                     <ul className="grid gap-2 sm:grid-cols-2">
                       {Object.entries(item.options).map(([key, text]) => {
                         const correct = key === item.proposedCorrectOption;
@@ -137,25 +151,18 @@ export default async function QuestionBankPage({
                         );
                       })}
                     </ul>
-                    <details className="text-sm">
-                      <summary className="cursor-pointer text-brand-blue">
-                        {t('qq.explanation')}
-                      </summary>
-                      <p className="mt-2 text-ink-muted">{item.explanation}</p>
-                    </details>
-                    <p className="flex flex-wrap gap-x-4 gap-y-1 text-2xs text-ink-muted">
-                      <span>
-                        {item.domain} › {item.topic}
+                    <div className="rounded-lg bg-surface-sunken px-4 py-3 text-sm text-ink">
+                      <span className="block text-2xs font-semibold uppercase text-ink-muted">
+                        {t('qb.why')}
                       </span>
-                      <span>{t('qb.from', { name: item.sourceDocument })}</span>
-                      <span>{t('qb.published', { date: day(item.publishedAt) })}</span>
-                    </p>
+                      {item.explanation}
+                    </div>
                   </div>
-                </CardBody>
-              </Card>
-            </li>
-          ))}
-        </ol>
+                </details>
+              </li>
+            ))}
+          </ol>
+        </Card>
       )}
     </div>
   );

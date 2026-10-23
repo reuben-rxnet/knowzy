@@ -223,8 +223,8 @@ export const PublishQuizForm = ({
 
       {intent === 'quiz' ? (
         <div className="flex flex-col gap-4">
-          <div className="grid gap-5 md:grid-cols-[2fr_1fr]">
-            <Field id="qq-quiz-name" label={t('qq.quizName')}>
+          <div className="grid items-start gap-5 md:grid-cols-3">
+            <Field id="qq-quiz-name" label={t('qq.quizName')} className="md:col-span-2">
               <TextInput
                 id="qq-quiz-name"
                 name="name"

@@ -17,7 +17,7 @@ Slice 2 (the overview, and the DOCUMENT_RESTRUCTURE approval) and AI Document St
 its 2026-10-22 accuracy work (preparation in parts, a completeness warning, DOCX/PPTX reading),
 and the Document Studio's Simple mode (upload a document, choose the quiz settings, generate,
 approve, publish a quiz), question review for learners, and a simple Question Bank
-**Last updated:** 2026-10-23 (build a quiz from the question bank; review your answers after a
+**Last updated:** 2026-10-23 (dropdowns and aligned forms; build a quiz from the question bank; review your answers after a
 quiz, plain gap wording, a Quizzes list, Add to question bank only, a simple Question Bank page)
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
@@ -342,23 +342,25 @@ attempts and whether it is **Live**.
 
 #### From the question bank
 
-Build a quiz from questions already approved, without uploading anything. Choose a **Domain** (only
-domains with published questions are listed), then tick the **Topics** to draw from — each shows how
-many questions it has, all are ticked to start, and **Select all** and **Clear** do what they say.
-The count beside **Number of questions** is what the ticked topics hold; you cannot ask for more.
-With more than one topic ticked, choose **Mixed at random** (any questions from the ticked topics)
-or **Spread evenly** (each topic gives an equal share; refused, with the topics named, when one of
-them has too few). Give it a **Quiz name** (the topic, or the domain for several), a **Pass mark
-(%)** and choose whether to **Show learners the answers after they finish**, then **Publish quiz**.
-Each learner gets that many questions drawn at random from the ones available when you published;
-questions added to the bank later do not join the quiz. Topics from different domains cannot be
-combined in one quiz.
+Build a quiz from questions already approved, without uploading anything. Open the **Domain**
+dropdown and pick one (each shows how many questions it holds), then the **Topics** dropdown: a
+check mark per topic with its question count, **Select all** at the top, and every topic ticked to
+start. The closed dropdown says what is chosen (*All topics (3)*, *2 topics selected*, or the
+topic's name). The count under **Number of questions** is what the ticked topics hold; you cannot
+ask for more. With more than one topic ticked, choose **Mixed at random** (any questions from the
+ticked topics) or **Spread evenly** (each topic gives an equal share; refused, with the topics
+named, when one of them has too few). Give it a **Quiz name** (the topic, or the domain for
+several), a **Pass mark (%)** and choose whether to **Show learners the answers after they
+finish**, then **Publish quiz**. Each learner gets that many questions drawn at random from the
+ones available when you published; questions added to the bank later do not join the quiz. A quiz
+belongs to one domain, so the Domain dropdown takes one.
 
 #### Question Bank — `/question-bank`
 
-In Simple mode the sidebar's **Question Bank** opens a plain, read-only list of every published
-question, newest first: the question, its four options with the **Answer** marked, **Show
-explanation**, its domain and topic, the document it came from, and when it was published. Filter
+In Simple mode the sidebar's **Question Bank** opens a compact, read-only list of every published
+question, newest first: one row per question with its domain and topic, the document it came from,
+when it was published and its question id. **Show answer** opens the four options with the
+**Answer** marked and **Why** (the explanation). Filter
 by **Domain** and **Topic** and press **Show**. Retiring a question stays on the full Publish
 screen.
 
@@ -1866,3 +1868,4 @@ the log below.
 | 2026-10-23 | Review answers, Question Bank, bank-only | **Review your answers** on a learner's result (§5.4): each question with their answer, the correct answer and why, once the attempt is finished and only if the quiz allows it. Gap states read **Needs work** / **Above the gap line** / **Too few questions to judge**, and **Where to focus** states the 60% rule. In the simple Studio (§4.2a): **Publish as a quiz now** or **Add to the question bank only**, a **Show learners the answers after they finish** option, a **Quizzes** list, and a read-only **Question Bank** page (`/question-bank`) in the sidebar. The simple Studio is the only one offered: its switch is gone |
 | 2026-10-23 | Build a quiz from the bank | **Create a quiz** now starts **From a document** or **From the question bank** (§4.2a). From the bank: a domain, a topic or all topics, how many questions (with the number available shown), a name, a pass mark and the show-answers choice, then **Publish quiz**. Each learner gets a random draw from the questions available at publication |
 | 2026-10-23 | Several topics in one bank quiz | **From the question bank** now has a **Topics** checklist (each with its question count, all ticked to start, **Select all** / **Clear**) instead of a single topic, and with several ticked a choice of **Mixed at random** or **Spread evenly**. A count above what the ticked topics hold, or an even spread a topic cannot fill, is explained before you can publish. One domain per quiz |
+| 2026-10-23 | Dropdowns and alignment | **Domain** and **Topics** in the bank form are dropdowns with a check mark per option, **Select all** for topics, and a summary of the choice. **Help text now sits under its field everywhere in the authoring portal**, so the fields of a row line up. The **Question Bank** is a compact list with **Show answer** per question |
