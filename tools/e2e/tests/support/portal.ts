@@ -140,6 +140,25 @@ export const api = async <T>(
   return (text.length === 0 ? {} : JSON.parse(text)) as T;
 };
 
+/**
+ * Puts the Document Studio in `mode` (§12) and returns the mode it was in, so
+ * a spec can restore it. The setting is platform state: a spec that leaves it
+ * changed changes what the next person sees at /document-studio.
+ */
+export const setStudioMode = async (
+  request: APIRequestContext,
+  mode: 'SIMPLE' | 'FULL',
+): Promise<'SIMPLE' | 'FULL'> => {
+  const status = await api<{ mode: 'SIMPLE' | 'FULL' }>(
+    request,
+    '/api/v1/authoring/document-studio/status',
+  );
+  if (status.mode !== mode) {
+    await api(request, '/api/v1/authoring/document-studio/mode', { method: 'PUT', body: { mode } });
+  }
+  return status.mode;
+};
+
 interface SourceRow {
   readonly sourceId: string;
   readonly name: string;
@@ -362,7 +381,7 @@ const pruneEarlierSyntheticFiles = (): void => {
 };
 
 /** Write a fresh synthetic SOP, synchronize, and return its document id. */
-const freshSyntheticDocument = async (
+export const freshSyntheticDocument = async (
   request: APIRequestContext,
 ): Promise<{ readonly sourceId: string; readonly documentId: string }> => {
   const stamp = `R${Date.now().toString(36).toUpperCase()}`;

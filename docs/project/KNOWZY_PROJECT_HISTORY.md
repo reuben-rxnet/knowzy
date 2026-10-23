@@ -3606,3 +3606,70 @@ APIM gateway, then fixed, then measured again on the same six.
   new version, their section coverage resets, and a prepared version made from one reads
   *Revalidation required*. Questions keep their lineage.
 
+
+## Document Studio Simple mode — upload, choose settings, generate (2026-10-22)
+
+The owner asked for the Studio as an MVP shaped like a consumer quiz generator: upload a document,
+say how many questions, generate. Four recorded rules collided with that and were put to the owner
+before anything was built (human approval; only single-choice questions exist; an English-only,
+hash-pinned prompt; the preparation step). Decisions: generate **straight from the upload, no
+preparation**, because EVAL-M1 had already measured no yield loss (Codex 56 accepted from
+originals, 49 from prepared); show **only what works** and grey out the rest as "Coming later";
+file under **one Topic picker**. The owner's condition: the full Studio must be kept and
+re-enableable.
+
+### Changed
+
+- `documentStudio.mode` (SIMPLE default, FULL), an audited platform setting switched at the foot of
+  either Studio by the Authoring Administrator. A display decision: no route disabled, no row
+  touched; every M3 page still answers at its address.
+- A third system source, **Quick quiz uploads**, usable for generation, so the Originals source
+  keeps its rule (an original uploaded to be prepared never reaches generation unprepared).
+  `acceptQuizUpload` shares the byte checks and extraction control with the M3 upload; the same
+  file again returns its document.
+- One click is still **preflight -> decision -> job**, following the preflight's recommendation
+  only when it authorizes generation, never REGENERATE. A document that already has its questions
+  says so. The result page lists the drafts with their proposed answers; nothing is approved or
+  published there. The job read gained `questionIds`. One route added (120).
+
+### Validated
+
+- Live, through the browser, on a synthetic procedure: upload -> settings -> Generate quiz with
+  OpenAI through the APIM gateway: 3 of 3 accepted in 13 s, shown as drafts.
+- 4 new domain integration tests (quiz source and folder, no prepared document, the reuse path,
+  the full-Studio duplicate refused, a job from the quiz source accepted while the Originals source
+  is still refused, the mode write and its audit); mutating the quiz source to unusable fails two.
+  5 new contract tests. Unit + contract 1028 passing; typecheck, lint, boundaries, codegen clean.
+- Browser: a new Simple-mode spec (drop zone, settings with the disabled types, the switch; it
+  never clicks Generate), and the two full-Studio specs pin FULL for their run and restore it.
+
+### Second slice: approve and publish, and a shorter sidebar
+
+The owner then asked for the rest of the journey to be as simple, and for the earlier screens to
+be hidden. Decisions: end with **a quiz learners can take**, of **only this document's
+questions**, approved by **ticking each question** (no select-all), and **hide the sidebar
+entries** of the full workflow in Simple mode.
+
+- **Approve selected** walks each ticked question through claim -> submit -> approve, each with
+  every gate; a refusal shows on its card. **Publish quiz** publishes the approved questions and
+  creates, submits, approves and publishes a `FIXED_SET` assessment of exactly those. FIXED_SET
+  existed in selection but nothing could create one: `createAssessment` now takes
+  `fixedQuestionIds` (draft ids, resolved to KNZ QuestionIDs and published versions), and
+  validation refuses a fixed set with an unpublished member or two members in one similarity
+  cluster. One more route: an unaudited `GET .../document-studio/mode` for the layout (121).
+- Validated in the browser on a synthetic procedure: 2 of 3 ticked and approved, the third left a
+  draft, the quiz published with 2 questions and listed in the Live Learning Portal.
+
+### Incident: the dev database's questions were wiped
+
+Testing FIXED_SET, `assessment-session.test.ts` was run on its own five times. Its setup
+`deleteMany({})`s every draft question, job, preflight, published reference, assessment, session
+and result, not only its own rows -- so "run integration files individually" was not a safe rule.
+It destroyed the owner's two Simple-Studio quizzes of that afternoon (OpenAI jobs), every
+published question and assessment, and all learner results. There was no backup and WAL archiving
+is off. Uploads, sources, prepared documents, taxonomy, competencies, settings and the audit trail
+survived. The mock bank file, which still listed the deleted ids, was backed up and cleared with
+the owner's agreement; the owner is regenerating the quizzes. `question-filing` and
+`review-pipeline` do the same; CLAUDE.md now says so, and none is to be run on the dev database
+without asking and taking a `pg_dump` first.
+

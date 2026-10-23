@@ -7,6 +7,9 @@ Question Generation Repository, generate questions. **Live AI preparation stays 
 preparation provider (§11.4), which is not AI, can run. In the local environment the approval was
 recorded by the Authoring Administrator on 2026-10-14, so OpenAI prepares live there. §11
 supersedes §2–§8 where they disagree; §10 (Slice 2) is unchanged.
+**Since 2026-10-22 the default is Simple mode (§12):** upload, choose the quiz settings, generate,
+straight from the uploaded document. The §11 Studio is unchanged behind the `documentStudio.mode`
+setting (`FULL`).
 **Target location:** Knowledge Sources → AI Document Studio.
 **Governed by:** [COMPETENCY_PRIVACY_AND_GOVERNANCE.md](COMPETENCY_PRIVACY_AND_GOVERNANCE.md) CP-5 ·
 [architecture.md §9.0](../architecture.md#90-provider-independence--amended-2026-09-24-extended-2026-09-26-and-2026-09-27) ·
@@ -521,3 +524,93 @@ Knowledge Proficiency, employee competency features, multi-stage approval, secti
 acceptance, a malware scanner, and Key Vault. DS-1 is closed by §11.8 and DS-3 by §11.6 (no
 separate approver). DS-4 is decided as any holder of `document.prepare`, and DS-5 as "rejected
 drafts are kept"; both may be revisited.
+
+## 12. Simple mode — upload and generate (2026-10-22)
+
+**Decision (product owner, 2026-10-22).** The MVP Studio is three steps: upload a document, choose
+the quiz settings, generate. Everything §11 built stays, behind a setting. Three choices were made
+explicitly: generate **straight from the upload, with no preparation** (EVAL-M1 measured no yield
+loss: 56 accepted from originals against 49 from prepared documents, and preparation raised
+coverage, not yield); show **only what can be generated**; file under **one Topic picker**.
+
+### 12.1 The setting
+
+`documentStudio.mode`, `SIMPLE` (the code default) or `FULL`, platform scope. It is a **display**
+decision: it disables no route, touches no row, and every §11 page still answers at its address.
+An administrator (`governance.ai.manage`) switches it at the foot of either Studio, through
+`PUT /api/v1/authoring/document-studio/mode`, written as application_configuration +
+configuration_change + `ADMIN.CONFIGURATION.UPDATED` with previous and new value. A malformed
+stored value reads as the default. The status read carries `mode`.
+
+### 12.2 The journey
+
+1. **Upload.** One drop zone (a real file input inside a label), the five accepted extensions and
+   the 8 MB limit. The upload is the §11.2 upload with `destination: 'QUIZ'`: the same byte checks,
+   the same server-made name, the same extraction control. It lands in a **third system source,
+   "Quick quiz uploads"** (folder `quiz`), which is **usable for generation**. The Originals source
+   is unchanged and still not usable: an original uploaded to be prepared must not reach generation
+   unprepared, and the two intents stay distinguishable in lineage. No prepared document is
+   created. The audit row is `UPLOAD_ACCEPTED` with `destination: QUIZ`.
+2. **Settings.** Number of questions (1–50, default 10); Topic (domain › topic); Type of questions,
+   where **Single choice** is selected and **Multiple choice** and **Yes or No** are shown disabled,
+   "Coming later"; Language, **English**, disabled with "Other languages are coming later". Nothing
+   on the screen is a control with nothing behind it.
+3. **Generate.** One click, **three recorded acts in the §4.2 order**: the preflight, the decision
+   recorded against it, the job. The decision is the preflight's own recommendation, followed
+   **only** when it authorizes generation: `GENERATE_NEW` (entire document, `NEW_KNOWLEDGE`) or
+   `GENERATE_ADDITIONAL` (uncovered sections for `COVERAGE_GAP`, otherwise the entire document for
+   `CONTENT_CHANGED`). `REGENERATE` is never chosen. When the recommendation is not to generate,
+   the screen says why and links to Review: duplicate prevention is a rule, not a step a simpler
+   screen may skip. The provider is the active one when it can run, else the deterministic
+   generator, and the screen names it.
+4. **Approve.** `?job=` reads the job (whose read carries `questionIds`, `domainId`, `topicId`
+   and each document's `displayName`) and shows each question with its options, the proposed
+   answer and the explanation. See §12.4.
+5. **Publish quiz.** See §12.4. `?job=&quiz=` shows the published quiz and links to the learner
+   portal.
+
+### 12.3 The same file twice
+
+A file already uploaded in Simple mode returns its document (`reused`), so a second quiz from the
+same file is a second preflight, not a refusal. A file uploaded in the full Studio is returned only
+once a prepared version of it is in the repository (that repository document is usable); until then
+it is refused as `DUPLICATE`, naming the original, because `studio_upload.sha256` is unique and the
+original is not usable for generation.
+
+### 12.4 Approve and publish (2026-10-22, second slice)
+
+Decided by the owner: the simple flow ends with **a quiz learners can take**, made of **only this
+document's questions**, approved by **ticking each question**.
+
+- **Approve selected.** Every approvable question has its own checkbox, **unticked**, and there is
+  no "select all": each approval is a person's decision on a question they have read. The ticked
+  ones, and only those, are walked through the real transitions -- claim, submit, approve -- each
+  its own audited act with all thirteen gates evaluated. A question the gates refuse stops where
+  it is and shows the gates' reasons on its own card; the others carry on. Unticked questions stay
+  drafts.
+- **Publish quiz** appears once one question is approved, with a quiz name (the file's name) and
+  a pass mark (70%). One click: the approved questions are published to the Question Bank, then an
+  assessment is created with `selectionStrategy: FIXED_SET` and **exactly those questions**, and
+  submitted, approved and published -- the Publish page's own sequence. Drafts are left out.
+- **FIXED_SET by list.** `POST /authoring/assessments` accepts `questionIds` (draft ids).
+  `createAssessment` resolves them to `(KNZ QuestionID, publishedVersion)` pairs in
+  `selectionConfig.fixedOrder`, in order, and sets the question count to the list's length; an id
+  that is not a published, active question in the assessment's domain and topics refuses the whole
+  list. Validation now also refuses a FIXED_SET whose members are no longer published, or two of
+  whose members share a similarity cluster (selection would serve one fewer).
+
+### 12.5 The sidebar in Simple mode
+
+Simple mode shows **Dashboard, Knowledge Sources, AI Document Studio and Administration** only.
+The other screens are hidden, not removed: each answers at its address, and Full mode shows them
+again. The layout reads the mode through `GET /authoring/document-studio/mode`, which writes no
+audit row (the status read audits every evaluation, which would be one row per page view). A
+failed read shows the full sidebar.
+
+### 12.6 Not in Simple mode
+
+Preparation, side-by-side review, versions, downloads, History and Readiness, editing a question,
+rejecting one with a comment, and the Review, Publish and Assessments screens: all reachable by
+switching to `FULL`. Multiple-answer and Yes/No questions need a new question kind end to end
+(generation schema, gates, scoring, bank fields); other languages need a prompt change and a new
+evaluation. Each is its own milestone.

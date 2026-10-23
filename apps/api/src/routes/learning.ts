@@ -221,6 +221,7 @@ export const learningRoutes = [
             name: assessment.name,
             domain: assessment.domain.name,
             status: assessment.status,
+            assessmentVersionId: version?.id ?? null,
             versionNumber: version?.versionNumber ?? null,
             versionStatus: version?.status ?? null,
             questionCount: version?.questionCount ?? null,
@@ -261,6 +262,9 @@ export const learningRoutes = [
           timeLimitMinutes: z.number().int().min(1).max(600).optional(),
           attemptLimit: z.number().int().min(1).max(100).optional(),
           allowBackNavigation: z.boolean().optional(),
+          // FIXED_SET: the exact published questions, in order. The question
+          // count becomes the list's length.
+          questionIds: z.array(z.string().uuid()).min(1).max(200).optional(),
         })
         .strict()
         .safeParse(request.body ?? {});
@@ -295,6 +299,9 @@ export const learningRoutes = [
           ...(body.data.allowBackNavigation === undefined
             ? {}
             : { allowBackNavigation: body.data.allowBackNavigation }),
+          ...(body.data.questionIds === undefined
+            ? {}
+            : { fixedQuestionIds: body.data.questionIds }),
         });
       } catch (error) {
         return replyFromLearningError(error, ctx, reply, request.url);

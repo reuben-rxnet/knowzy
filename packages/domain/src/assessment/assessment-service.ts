@@ -60,6 +60,13 @@ export interface CreateAssessmentArgs {
   readonly allowBackNavigation?: boolean;
   readonly proficiencyThresholds?: readonly ProficiencyBandDefinition[];
   readonly selectionConfig?: Readonly<Record<string, unknown>>;
+  /**
+   * FIXED_SET only: the exact published questions, in order. Resolved here to
+   * (questionId, publishedVersion) pairs, so the list an approver sees is the
+   * list a learner is served; the question count is the list's length. The
+   * Simple Document Studio's "Publish quiz" uses it (AI_DOCUMENT_STUDIO §12.4).
+   */
+  readonly fixedQuestionIds?: readonly string[];
 }
 
 export interface CreatedAssessment {
@@ -87,6 +94,23 @@ export const createAssessment = async (args: CreateAssessmentArgs): Promise<Crea
     throw new AssessmentConfigError('The pass percentage must be between 0 and 100.');
   }
 
+  let questionCount = args.questionCount;
+  let selectionConfig: Readonly<Record<string, unknown>> = args.selectionConfig ?? {};
+  if (args.fixedQuestionIds !== undefined) {
+    if (args.selectionStrategy !== 'FIXED_SET') {
+      throw new AssessmentConfigError('A list of questions requires the FIXED_SET strategy.');
+    }
+    const fixedOrder = await resolveFixedOrder(args.prisma, {
+      domainId: args.domainId,
+      topicIds: args.topicIds,
+      questionIds: args.fixedQuestionIds,
+    });
+    questionCount = fixedOrder.length;
+    selectionConfig = { ...selectionConfig, fixedOrder };
+  } else if (args.selectionStrategy === 'FIXED_SET') {
+    throw new AssessmentConfigError('A FIXED_SET assessment needs its list of questions.');
+  }
+
   const auditWriter = createAuditWriter({ clock: args.clock });
 
   return args.prisma.$transaction(async (tx: TransactionClient) => {
@@ -109,9 +133,9 @@ export const createAssessment = async (args: CreateAssessmentArgs): Promise<Crea
         versionNumber: 1,
         status: 'DRAFT',
         topicIds: [...args.topicIds],
-        questionCount: args.questionCount,
+        questionCount,
         selectionStrategy: args.selectionStrategy,
-        selectionConfig: (args.selectionConfig ?? {}) as object,
+        selectionConfig: selectionConfig as object,
         passPercentage: args.passPercentage,
         proficiencyThresholds: bands.map((band) => ({ ...band })),
         attemptLimit: args.attemptLimit ?? null,
@@ -137,7 +161,7 @@ export const createAssessment = async (args: CreateAssessmentArgs): Promise<Crea
       requestId: args.actor.requestId,
       portal: 'AUTHORING',
       detail: {
-        questionCount: args.questionCount,
+        questionCount,
         strategy: args.selectionStrategy,
         topicCount: args.topicIds.length,
       },
@@ -148,6 +172,50 @@ export const createAssessment = async (args: CreateAssessmentArgs): Promise<Crea
       assessmentVersionId: version.id,
       versionNumber: version.versionNumber,
     };
+  });
+};
+
+/**
+ * The published (questionId, publishedVersion) pairs for an exact list, in the
+ * list's order. The list names DRAFT ids (what an authoring screen holds); the
+ * pairs carry the KNZ-… QuestionID, which is what pools, snapshots and
+ * selection use. Every id must be a PUBLISHED, active question in the
+ * assessment's domain and topics; anything else refuses the whole list,
+ * because a FIXED_SET that silently dropped a member is a different quiz.
+ */
+const resolveFixedOrder = async (
+  prisma: PrismaClient,
+  args: {
+    readonly domainId: string;
+    readonly topicIds: readonly string[];
+    readonly questionIds: readonly string[];
+  },
+): Promise<SnapshotMember[]> => {
+  const ids = [...new Set(args.questionIds)];
+  if (ids.length === 0 || ids.length !== args.questionIds.length) {
+    throw new AssessmentConfigError('The list of questions must be non-empty and have no repeats.');
+  }
+  const references = await prisma.publishedQuestionReference.findMany({
+    where: {
+      question: { id: { in: ids } },
+      domainId: args.domainId,
+      topicId: { in: [...args.topicIds] },
+      status: 'PUBLISHED',
+      isActive: true,
+      isPublished: true,
+    },
+    select: { questionId: true, publishedVersion: true, question: { select: { id: true } } },
+  });
+  const byId = new Map(references.map((row) => [row.question.id, row]));
+  const missing = ids.filter((id) => !byId.has(id));
+  if (missing.length > 0) {
+    throw new AssessmentConfigError(
+      `${missing.length} of the chosen question(s) are not published in this assessment's domain and topics.`,
+    );
+  }
+  return ids.map((id) => {
+    const row = byId.get(id) as { questionId: string; publishedVersion: number };
+    return { questionId: row.questionId, publishedVersion: row.publishedVersion };
   });
 };
 
@@ -286,6 +354,47 @@ export const validateAssessmentVersion = async (
       code: 'POOL_DUPLICATE_CONFLICT',
       detail: `After selecting one question per similarity cluster only ${effective} of ${pool.members.length} question(s) remain, below the required ${version.questionCount}.`,
     });
+  }
+
+  // A FIXED_SET's list must still be in the pool when it is validated and
+  // when it is published: a member retired in between would otherwise only
+  // surface when a learner's session could not be built.
+  if (version.selectionStrategy === 'FIXED_SET') {
+    const fixedOrder =
+      (version.selectionConfig as { fixedOrder?: SnapshotMember[] }).fixedOrder ?? [];
+    const inPool = new Set(
+      pool.members.map((member) => `${member.questionId}@${member.publishedVersion}`),
+    );
+    const absent = fixedOrder.filter(
+      (member) => !inPool.has(`${member.questionId}@${member.publishedVersion}`),
+    );
+    if (
+      fixedOrder.length === 0 ||
+      absent.length > 0 ||
+      fixedOrder.length !== version.questionCount
+    ) {
+      problems.push({
+        code: 'ASSESSMENT_POOL_INSUFFICIENT',
+        detail:
+          fixedOrder.length === 0
+            ? 'This fixed question set has no questions.'
+            : `${absent.length} of the ${fixedOrder.length} fixed question(s) are no longer published.`,
+      });
+    }
+    // Selection serves one question per similarity cluster, so two members of
+    // one cluster would leave every session a question short.
+    const fixedIds = new Set(fixedOrder.map((member) => member.questionId));
+    const clusters = pool.members
+      .filter((member) => fixedIds.has(member.questionId))
+      .map((member) => member.similarityClusterId)
+      .filter((id): id is string => id !== null);
+    if (new Set(clusters).size < clusters.length) {
+      problems.push({
+        code: 'POOL_DUPLICATE_CONFLICT',
+        detail:
+          'Two of the fixed questions are near-duplicates of each other; only one of them can be served.',
+      });
+    }
   }
 
   if (

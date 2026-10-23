@@ -133,7 +133,7 @@ Current Status:
 - Full docker compose stack verified: postgres, api, mcp, jobs, all three web
   apps. All five images build and were SCANNED for the first time on
   2026-09-23: 16 HIGH/CRITICAL, reduced to 0.
-- 19 of 36 MCP tools registered; 119 API routes (COMPETENCY-M2 added 14, Document Studio Slice 2 added 2, M3 added 13), every one with a declared
+- 19 of 36 MCP tools registered; 121 API routes (COMPETENCY-M2 added 14, Document Studio Slice 2 added 2, M3 added 13, Simple mode 2), every one with a declared
   policy. M7 added three reads the UI needed: GET /authoring/taxonomy (so no
   screen asks for a pasted UUID), GET /authoring/assessments, and
   GET /authoring/questions/:id. Question import added 2, taxonomy
@@ -269,6 +269,13 @@ Gotchas learned by execution (each of these cost real time):
   "Cannot find module tsx/dist/preflight.cjs" or "@prisma/client did not
   initialize yet". Fix: docker compose ... up migrate (it runs npm ci and
   prisma generate inside the volume), then restart api and mcp.
+- THREE INTEGRATION FILES WIPE THE DEV DATABASE WHEN RUN, EVEN ALONE: assessment-session,
+  question-filing and review-pipeline `deleteMany({})` every draft question, job, preflight,
+  published reference, assessment, session and result -- not just their own rows. "Run by file"
+  is NOT safe. On 2026-10-22 one run destroyed the owner's own quizzes and every published
+  question; there is no backup and WAL archiving is off. Grep a file for unscoped deletes and ASK
+  before running it on the dev database, with a pg_dump first. Afterwards the mock bank JSON
+  still lists the deleted ids (clear it, see below).
 - Integration tests share ONE database and are serialized to a single fork
   (vitest.workspace.ts). Never run two test processes at once — they delete
   each other's rows and the failures look like real defects.
@@ -613,6 +620,24 @@ family AUTHORING.DOCUMENT_PREPARATION (30 families).
   original" must use readOriginalText().comparisonText, or every original
   heading reads as "Added heading" and a figure in a heading as invented.
   Found by the browser run, not by a unit test.
+- SIMPLE MODE IS THE DEFAULT since 2026-10-22 (spec §12): `documentStudio.mode` SIMPLE|FULL,
+  switched at the foot of either Studio (PUT .../document-studio/mode, governance.ai.manage).
+  Upload -> settings -> Generate quiz, from the upload directly, NO preparation. Uploads go to a
+  THIRD system source, "Quick quiz uploads" (folder `quiz`, usable for generation); the Originals
+  source stays unusable. One click is still preflight -> decide -> job (quick-actions.ts), only
+  for GENERATE_NEW/GENERATE_ADDITIONAL, never REGENERATE; nothing publishes. Multiple choice,
+  Yes/No and languages are DISABLED "Coming later" -- they need a new question kind / prompt.
+  Then Approve selected (each question ticked by a person, unticked by default, NO select-all;
+  claim -> submit -> approve per question) and Publish quiz (bank publish, then a FIXED_SET
+  assessment of exactly those questions: `questionIds` are DRAFT ids, resolved to KNZ ids --
+  published_question_reference.questionId is the KNZ id, and draft_question has its OWN
+  internalQuestionId column, so join through the `question` relation). SIMPLE also trims the
+  sidebar to Dashboard/Sources/Studio/Administration (layout reads the unaudited GET .../mode).
+  The e2e suite pins FULL in globalSetup and restores it in globalTeardown, so the portal shows
+  the full Studio while it runs. The Simple spec never clicks Generate (the active provider is
+  live); its publish test uses a DETERMINISTIC job made through the API.
+  A value exported from a 'use client' module is a client REFERENCE in a server component
+  ("APPROVABLE.has is not a function"): shared constants go in a plain module (quiz-status.ts).
 - PREPARATION RUNS IN PARTS since 2026-10-22 (chunked-preparation.ts, prompt
   prepare-1.1.0): ~6,000 characters, three at once, a part under 85% word
   coverage retried once strictly. One call per document kept 69% of a

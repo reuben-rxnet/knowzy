@@ -14,6 +14,8 @@ export interface StudioStatus {
   readonly evaluatedAt: string;
   readonly canManage: boolean;
   readonly canPrepare: boolean;
+  /** documentStudio.mode (§12): which Studio this address shows. */
+  readonly mode: 'SIMPLE' | 'FULL';
   readonly preparation: {
     readonly liveProviderId: string | null;
     readonly testPreparationAvailable: boolean;

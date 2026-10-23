@@ -14,6 +14,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { systemClock } from '@knowzy/observability';
 import { FORBIDDEN_LEARNER_RESPONSE_KEYS } from '@knowzy/shared-types';
@@ -22,6 +23,7 @@ import {
   type QuestionBankAdapter,
 } from '@knowzy/knowledge-source-adapters';
 import {
+  AssessmentConfigError,
   assertNoAnswerKey,
   assertValidBandSet,
   bandFor,
@@ -874,6 +876,84 @@ describeDb('quiz session lifecycle', () => {
           assessmentVersionId: created.assessmentVersionId,
         }),
       ).rejects.toThrow(PoolInsufficientError);
+    });
+
+    it('pins a FIXED_SET to exactly the chosen published questions, in their order', async () => {
+      const published = await publishQuestions(3);
+      expect(published.length).toBeGreaterThanOrEqual(2);
+      const chosen = [published[1] as string, published[0] as string];
+      const created = await createAssessment({
+        prisma,
+        clock: systemClock,
+        actor: actor(assessmentManagerId),
+        name: 'Fixed Quiz',
+        slug: `fixed-quiz-${Date.now()}`,
+        domainId,
+        topicIds: [topicId],
+        // Ignored for a list: the count is the list's length.
+        questionCount: 99,
+        selectionStrategy: 'FIXED_SET',
+        passPercentage: 70,
+        fixedQuestionIds: chosen,
+      });
+      const version = await prisma.assessmentVersion.findUniqueOrThrow({
+        where: { id: created.assessmentVersionId },
+        select: { questionCount: true, selectionConfig: true },
+      });
+      expect(version.questionCount).toBe(2);
+      const fixedOrder = (version.selectionConfig as { fixedOrder: { questionId: string }[] })
+        .fixedOrder;
+      // Draft ids in, KNZ QuestionIDs stored, in the chosen order.
+      const knz = await Promise.all(
+        chosen.map(
+          async (id) =>
+            (
+              await prisma.publishedQuestionReference.findFirstOrThrow({
+                where: { question: { id } },
+                select: { questionId: true },
+              })
+            ).questionId,
+        ),
+      );
+      expect(fixedOrder.map((member) => member.questionId)).toEqual(knz);
+      expect((await validateAssessmentVersion(prisma, created.assessmentVersionId)).valid).toBe(
+        true,
+      );
+
+      // A member that stops being published invalidates the fixed set.
+      await prisma.publishedQuestionReference.updateMany({
+        where: { question: { id: chosen[0] as string } },
+        data: retirementFields(),
+      });
+      const after = await validateAssessmentVersion(prisma, created.assessmentVersionId);
+      expect(after.valid).toBe(false);
+      expect(after.problems.map((problem) => problem.detail).join(' ')).toMatch(
+        /no longer published/,
+      );
+    });
+
+    it('refuses a FIXED_SET naming a question that is not published, or no list at all', async () => {
+      const base = {
+        prisma,
+        clock: systemClock,
+        actor: actor(assessmentManagerId),
+        name: 'Fixed Refused',
+        domainId,
+        topicIds: [topicId],
+        questionCount: 1,
+        selectionStrategy: 'FIXED_SET' as const,
+        passPercentage: 70,
+      };
+      await expect(
+        createAssessment({
+          ...base,
+          slug: `fixed-refused-${Date.now()}`,
+          fixedQuestionIds: [randomUUID()],
+        }),
+      ).rejects.toThrow(AssessmentConfigError);
+      await expect(createAssessment({ ...base, slug: `fixed-none-${Date.now()}` })).rejects.toThrow(
+        AssessmentConfigError,
+      );
     });
   });
 

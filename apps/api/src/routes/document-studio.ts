@@ -3,13 +3,15 @@
 //
 //   GET  /authoring/document-studio/status                          readiness + what can prepare now
 //   PUT  /authoring/document-studio/approvals/:providerId           DOCUMENT_RESTRUCTURE approval
+//   GET  /authoring/document-studio/mode                            the mode alone, unaudited (the sidebar)
+//   PUT  /authoring/document-studio/mode                            Simple or Full Studio (§12)
 //   GET  /authoring/document-studio/documents                       My prepared documents
 //   POST /authoring/document-studio/documents                       choose an existing document
 //   GET  /authoring/document-studio/documents/:id                   original, versions, current
 //   POST /authoring/document-studio/documents/:id/preparations      Prepare for question generation
 //   GET  /authoring/document-studio/history                         History
 //   GET  /authoring/document-studio/candidates                      documents that may be chosen
-//   POST /authoring/document-studio/uploads                         Upload (8 MiB, base64)
+//   POST /authoring/document-studio/uploads                         Upload (8 MiB, base64); QUIZ in Simple mode
 //   PUT  /authoring/document-studio/versions/:id/content            Save changes
 //   POST /authoring/document-studio/versions/:id/restore            Restore AI version
 //   POST /authoring/document-studio/versions/:id/discard            Discard draft
@@ -28,6 +30,7 @@
 
 import { z } from 'zod';
 import {
+  acceptQuizUpload,
   acceptUpload,
   addToRepository,
   DocumentPreparationError,
@@ -38,6 +41,7 @@ import {
   preparedDocumentDetail,
   preparedExportFor,
   readDocumentStudioStatus,
+  readStudioMode,
   readyRestructureProvider,
   recordDownload,
   recordUploadRefused,
@@ -47,6 +51,8 @@ import {
   revalidatePreparedVersions,
   savePreparedContent,
   setPurposeApproval,
+  setStudioMode,
+  STUDIO_MODES,
   startFromDocument,
   studioHistory,
   inspectUpload,
@@ -206,6 +212,9 @@ const UploadBody = z
       .string()
       .min(1)
       .max(Math.ceil((UPLOAD_MAX_BYTES * 4) / 3) + 8),
+    // PREPARE: an original for the full Studio. QUIZ: Simple mode (§12), a
+    // document to generate from directly, in the Quick quiz uploads source.
+    destination: z.enum(['PREPARE', 'QUIZ']).default('PREPARE'),
   })
   .strict();
 
@@ -231,6 +240,7 @@ export const documentStudioRoutes = [
       const ready = status.providers.find((row) => row.state === 'READY')?.providerId ?? null;
       return {
         ...status,
+        mode: await readStudioMode(deps.prisma),
         // For the SCREEN only: whether to offer the approval controls.
         canManage: ctx.subject.permissions.includes('platform.configure'),
         canPrepare: ctx.subject.permissions.includes('document.prepare'),
@@ -279,6 +289,34 @@ export const documentStudioRoutes = [
         }
         throw error;
       }
+    },
+  }),
+
+  defineRoute({
+    method: 'GET',
+    url: '/api/v1/authoring/document-studio/mode',
+    policy: 'document.browse',
+    portal: 'AUTHORING',
+    summary:
+      'The Document Studio mode alone. Read by the portal layout on every page, so unlike the status read it writes no audit row.',
+    handler: async (_ctx, _request, _reply, deps) => ({ mode: await readStudioMode(deps.prisma) }),
+  }),
+
+  defineRoute({
+    method: 'PUT',
+    url: '/api/v1/authoring/document-studio/mode',
+    policy: 'governance.ai.manage',
+    portal: 'AUTHORING',
+    summary:
+      'Sets which Document Studio people see: SIMPLE (upload and generate) or FULL. Hides screens only; nothing is removed.',
+    handler: async (ctx, request, reply, deps) => {
+      const body = z
+        .object({ mode: z.enum(STUDIO_MODES) })
+        .strict()
+        .safeParse(request.body ?? {});
+      if (!body.success)
+        return refuse(reply, ctx, request.url, 'A mode of SIMPLE or FULL is required.');
+      return setStudioMode({ ...context(ctx, deps), mode: body.data.mode });
     },
   }),
 
@@ -427,15 +465,18 @@ export const documentStudioRoutes = [
         });
         return problemReply(reply, ctx, request.url, 'UPLOAD_REFUSED', inspection.reason);
       }
+      const upload = {
+        storage: createStudioStorage(root),
+        sync: studioSync(ctx, deps),
+        originalFileName: body.data.fileName,
+        extension: inspection.extension,
+        bytes,
+        sha256: inspection.sha256,
+      };
       return handle(reply, ctx, request.url, () =>
-        acceptUpload(studio, {
-          storage: createStudioStorage(root),
-          sync: studioSync(ctx, deps),
-          originalFileName: body.data.fileName,
-          extension: inspection.extension,
-          bytes,
-          sha256: inspection.sha256,
-        }),
+        body.data.destination === 'QUIZ'
+          ? acceptQuizUpload(studio, upload)
+          : acceptUpload(studio, upload),
       );
     },
   }),

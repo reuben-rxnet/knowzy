@@ -2,7 +2,8 @@
 // (docs/competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11.2).
 //
 // The only file-system writer in the API, and it writes only server-made
-// names into two folders under DOCUMENT_STUDIO_STORAGE_DIR:
+// names into three folders under DOCUMENT_STUDIO_STORAGE_DIR (originals,
+// Simple mode's quiz uploads, prepared):
 //
 //   * a name must match a fixed pattern (a UUID and an allowed extension for
 //     an original; the repository naming rule for a prepared file), so no
@@ -18,8 +19,10 @@ import {
   isWithinRoot,
   STUDIO_ORIGINALS,
   STUDIO_PREPARED,
+  STUDIO_QUIZ,
   studioFilePath,
   type StudioStorage,
+  type UploadSourceSpec,
 } from '@knowzy/domain';
 
 const ORIGINAL_NAME =
@@ -39,26 +42,30 @@ const inside = (root: string, path: string): string => {
   return resolved;
 };
 
+/** Only the two upload sources, whatever a caller passes. */
+const uploadSpec = (spec: UploadSourceSpec | undefined): UploadSourceSpec =>
+  spec === STUDIO_QUIZ ? STUDIO_QUIZ : STUDIO_ORIGINALS;
+
 export const createStudioStorage = (root: string): StudioStorage => {
   const normalizedRoot = posix.normalize(root).replace(/\/+$/, '');
   return {
     root: normalizedRoot,
-    async writeOriginal(storedName, bytes) {
+    async writeOriginal(storedName, bytes, spec) {
       if (!ORIGINAL_NAME.test(storedName)) {
         throw new StudioStorageError('An original file name must be server-generated.');
       }
       const path = inside(
         normalizedRoot,
-        studioFilePath(normalizedRoot, STUDIO_ORIGINALS, storedName),
+        studioFilePath(normalizedRoot, uploadSpec(spec), storedName),
       );
       await mkdir(posix.dirname(path), { recursive: true });
       await writeFile(path, bytes, { flag: 'wx' });
     },
-    async removeOriginal(storedName) {
+    async removeOriginal(storedName, spec) {
       if (!ORIGINAL_NAME.test(storedName)) return;
       const path = inside(
         normalizedRoot,
-        studioFilePath(normalizedRoot, STUDIO_ORIGINALS, storedName),
+        studioFilePath(normalizedRoot, uploadSpec(spec), storedName),
       );
       await rm(path, { force: true });
     },

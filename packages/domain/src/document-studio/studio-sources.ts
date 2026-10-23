@@ -1,10 +1,13 @@
-// AI Document Studio M3 -- the Studio's two SYSTEM sources
-// (docs/competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11.2, §11.8).
+// AI Document Studio M3 -- the Studio's three SYSTEM sources
+// (docs/competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md §11.2, §11.8, §12).
 //
 //   AI Document Studio — Originals      uploaded originals; NOT usable for
 //                                        generation (a person prepares them first)
 //   Assessment-prepared documents        prepared versions added to the
 //                                        repository; usable for generation
+//   Quick quiz uploads                   Simple mode (§12): a document uploaded
+//                                        to make a quiz from directly; usable
+//                                        for generation, never prepared
 //
 // Both are ordinary FILE_REPOSITORY sources under the deployment's Studio
 // storage root, created on first use through the same `createSource` path an
@@ -34,15 +37,30 @@ export const STUDIO_PREPARED = {
   usableForGeneration: true,
 } as const;
 
-type StudioSourceSpec = typeof STUDIO_ORIGINALS | typeof STUDIO_PREPARED;
+/**
+ * Simple mode's uploads (§12). A SEPARATE source rather than flipping the
+ * Originals source to usable: an original uploaded to be prepared must still
+ * not reach generation unprepared, and the two intents stay distinguishable
+ * in every lineage record.
+ */
+export const STUDIO_QUIZ = {
+  name: 'Quick quiz uploads',
+  folder: 'quiz',
+  container: 'Uploaded',
+  usableForGeneration: true,
+} as const;
+
+type StudioSourceSpec = typeof STUDIO_ORIGINALS | typeof STUDIO_PREPARED | typeof STUDIO_QUIZ;
+/** The two sources an upload can land in. */
+export type UploadSourceSpec = typeof STUDIO_ORIGINALS | typeof STUDIO_QUIZ;
 
 /** The Studio's file system, implemented by the API. Every path is server-made. */
 export interface StudioStorage {
   /** Absolute, from DOCUMENT_STUDIO_STORAGE_DIR. */
   readonly root: string;
-  /** Writes once; refuses to overwrite. */
-  writeOriginal(storedName: string, bytes: Uint8Array): Promise<void>;
-  removeOriginal(storedName: string): Promise<void>;
+  /** Writes once; refuses to overwrite. Into the Originals source unless `spec` says otherwise. */
+  writeOriginal(storedName: string, bytes: Uint8Array, spec?: UploadSourceSpec): Promise<void>;
+  removeOriginal(storedName: string, spec?: UploadSourceSpec): Promise<void>;
   writePrepared(fileName: string, text: string): Promise<void>;
 }
 
@@ -62,7 +80,7 @@ export const studioFilePath = (root: string, spec: StudioSourceSpec, fileName: s
 export const findStudioSourceIds = async (
   prisma: PrismaClient,
   root: string | null,
-): Promise<{ originals: string | null; prepared: string | null }> => {
+): Promise<{ originals: string | null; prepared: string | null; quiz: string | null }> => {
   const byRoot = async (spec: StudioSourceSpec): Promise<string | null> => {
     if (root === null) {
       const named = await prisma.knowledgeSource.findFirst({
@@ -80,7 +98,11 @@ export const findStudioSourceIds = async (
     });
     return row?.id ?? null;
   };
-  return { originals: await byRoot(STUDIO_ORIGINALS), prepared: await byRoot(STUDIO_PREPARED) };
+  return {
+    originals: await byRoot(STUDIO_ORIGINALS),
+    prepared: await byRoot(STUDIO_PREPARED),
+    quiz: await byRoot(STUDIO_QUIZ),
+  };
 };
 
 /** Finds or creates one Studio source, active and tested, with its one path. */
@@ -93,7 +115,12 @@ export const ensureStudioSource = async (args: {
   readonly spec: StudioSourceSpec;
 }): Promise<string> => {
   const existing = await findStudioSourceIds(args.prisma, args.storage.root);
-  const found = args.spec === STUDIO_ORIGINALS ? existing.originals : existing.prepared;
+  const found =
+    args.spec === STUDIO_ORIGINALS
+      ? existing.originals
+      : args.spec === STUDIO_QUIZ
+        ? existing.quiz
+        : existing.prepared;
   if (found !== null) return found;
 
   const root = sourceRoot(args.storage.root, args.spec);
@@ -116,7 +143,9 @@ export const ensureStudioSource = async (args: {
     description:
       args.spec === STUDIO_ORIGINALS
         ? 'Managed by the AI Document Studio: uploaded original documents, kept unchanged.'
-        : 'Managed by the AI Document Studio: assessment-prepared documents added to the Question Generation Repository.',
+        : args.spec === STUDIO_QUIZ
+          ? 'Managed by the AI Document Studio: documents uploaded in Simple mode to make a quiz from directly.'
+          : 'Managed by the AI Document Studio: assessment-prepared documents added to the Question Generation Repository.',
     sourceType: 'FILE_REPOSITORY',
     localRoot: root,
     usableForGeneration: args.spec.usableForGeneration,

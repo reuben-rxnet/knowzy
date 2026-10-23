@@ -1,5 +1,10 @@
 // AI Document Studio (docs/competencies/AI_DOCUMENT_STUDIO_ARCHITECTURE.md
-// §10 Slice 2, §11 M3).
+// §10 Slice 2, §11 M3, §12).
+//
+// The platform setting documentStudio.mode decides what this address shows.
+// SIMPLE (the default since §12) is upload -> quiz settings -> generate, in
+// simple-studio.tsx. FULL is everything below, unchanged. An administrator
+// switches between them at the foot of either page.
 //
 // Four views behind link tabs: Add document (the default), My prepared
 // documents, History, and Readiness (Slice 2's overview and the approval
@@ -39,6 +44,8 @@ import {
   RemoveRestructureApprovalButton,
 } from '../../components/DocumentStudioForms';
 import { ChooseDocumentButton, UploadDocumentForm } from '../../components/StudioForms';
+import { StudioModeSwitch } from '../../components/QuickQuiz';
+import { SimpleStudio } from './simple-studio';
 import {
   AvailabilityBanner,
   StudioProgress,
@@ -104,7 +111,15 @@ export const dynamic = 'force-dynamic';
 export default async function DocumentStudioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; q?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    q?: string;
+    document?: string;
+    source?: string;
+    name?: string;
+    job?: string;
+    quiz?: string;
+  }>;
 }) {
   const query = await searchParams;
   const view: View =
@@ -124,6 +139,23 @@ export default async function DocumentStudioPage({
     );
   }
   const data = status.data;
+  const modeSwitch = data.canManage ? (
+    <div className="border-t border-line pt-4">
+      <StudioModeSwitch mode={data.mode} actingAs={subject.label} />
+    </div>
+  ) : null;
+  if (data.mode === 'SIMPLE') {
+    return (
+      <div className="flex flex-col gap-6">
+        <SimpleStudio
+          query={query}
+          actingAs={subject.label}
+          storageConfigured={data.preparation.storageConfigured}
+        />
+        {modeSwitch}
+      </div>
+    );
+  }
   const tabs = [
     { label: t('ds.tabAdd'), href: '/document-studio' },
     { label: t('ds.tabDocuments'), href: '/document-studio?view=documents' },
@@ -147,6 +179,7 @@ export default async function DocumentStudioPage({
       ) : (
         <ReadinessView status={data} actingAs={subject.label} />
       )}
+      {modeSwitch}
     </div>
   );
 }

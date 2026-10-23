@@ -12,7 +12,7 @@
 // deterministic generator, so nothing leaves the machine.
 
 import { expect, test } from '@playwright/test';
-import { actAs, api, IDENTITY, syntheticSop } from '../support/portal';
+import { actAs, api, IDENTITY, setStudioMode, syntheticSop } from '../support/portal';
 
 interface Status {
   readonly preparation: {
@@ -23,6 +23,19 @@ interface Status {
 }
 
 test.describe('AI Document Studio journey', () => {
+  // The journey are the FULL Studio's (§12): pinned for the run, then put back.
+  let previousMode: 'SIMPLE' | 'FULL' = 'SIMPLE';
+  test.beforeAll(async ({ playwright }) => {
+    const request = await playwright.request.newContext();
+    previousMode = await setStudioMode(request, 'FULL');
+    await request.dispose();
+  });
+  test.afterAll(async ({ playwright }) => {
+    const request = await playwright.request.newContext();
+    await setStudioMode(request, previousMode);
+    await request.dispose();
+  });
+
   test('add, prepare, edit, download, add to the repository and generate', async ({
     page,
     request,

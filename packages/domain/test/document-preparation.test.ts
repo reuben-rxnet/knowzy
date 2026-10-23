@@ -30,6 +30,7 @@ import { systemClock } from '@knowzy/observability';
 import { extractContent } from '@knowzy/content-extraction';
 import { createTestPreparer, type DocumentPreparer } from '@knowzy/claude-services';
 import {
+  acceptQuizUpload,
   acceptUpload,
   addToRepository,
   createGenerationJob,
@@ -41,11 +42,15 @@ import {
   restoreAiVersion,
   revalidatePreparedVersions,
   reviewAgainstUpdatedOriginal,
+  readStudioMode,
   runGenerationJob,
   savePreparedContent,
+  setStudioMode,
   startFromDocument,
+  STUDIO_MODE_KEY,
   STUDIO_ORIGINALS,
   STUDIO_PREPARED,
+  STUDIO_QUIZ,
   sourceRoot,
   type StudioStorage,
   type StudioSync,
@@ -87,15 +92,16 @@ const memoryStorage = (): StudioStorage & { files: Map<string, Map<string, Uint8
   const files = new Map<string, Map<string, Uint8Array>>([
     [STUDIO_ORIGINALS.folder, new Map()],
     [STUDIO_PREPARED.folder, new Map()],
+    [STUDIO_QUIZ.folder, new Map()],
   ]);
   return {
     root: ROOT,
     files,
-    async writeOriginal(name, bytes) {
-      files.get(STUDIO_ORIGINALS.folder)?.set(name, bytes);
+    async writeOriginal(name, bytes, spec) {
+      files.get((spec ?? STUDIO_ORIGINALS).folder)?.set(name, bytes);
     },
-    async removeOriginal(name) {
-      files.get(STUDIO_ORIGINALS.folder)?.delete(name);
+    async removeOriginal(name, spec) {
+      files.get((spec ?? STUDIO_ORIGINALS).folder)?.delete(name);
     },
     async writePrepared(name, text) {
       files.get(STUDIO_PREPARED.folder)?.set(name, new Uint8Array(Buffer.from(text, 'utf8')));
@@ -120,7 +126,9 @@ const syncFake = (storage: ReturnType<typeof memoryStorage>): StudioSync => ({
     const folder =
       root === sourceRoot(ROOT, STUDIO_ORIGINALS)
         ? STUDIO_ORIGINALS.folder
-        : STUDIO_PREPARED.folder;
+        : root === sourceRoot(ROOT, STUDIO_QUIZ)
+          ? STUDIO_QUIZ.folder
+          : STUDIO_PREPARED.folder;
     const pathId = source.paths[0]?.id ?? '';
     for (const [name, bytes] of storage.files.get(folder) ?? []) {
       const extension = name.split('.').pop() ?? '';
@@ -257,6 +265,8 @@ describeDb('AI Document Studio M3: assessment preparation', () => {
     await prisma.generationPreflight.deleteMany({
       where: { id: { in: jobs.map((job) => job.preflightId) } },
     });
+    // Preflights whose job was refused have no job to find them by.
+    await prisma.generationPreflight.deleteMany({ where: { sourceId: { in: sourceIds } } });
     const documents = await prisma.knowledgeDocument.findMany({
       where: { sourceId: { in: sourceIds } },
       select: { id: true },
@@ -651,5 +661,167 @@ describeDb('AI Document Studio M3: assessment preparation', () => {
     });
     expect(row.state).toBe('REJECTED');
     expect(row.rejectedByUserId).toBe(actor.userId);
+  });
+
+  // ---------------------------------------------------- Simple mode (§12)
+
+  it('Simple mode: a quiz upload lands in its own usable source, with nothing prepared', async () => {
+    const bytes = new Uint8Array(Buffer.from(SOP(`Osprey${RUN}`, 3), 'utf8'));
+    const sha256 = (await import('node:crypto')).createHash('sha256').update(bytes).digest('hex');
+    const upload = {
+      storage,
+      sync,
+      originalFileName: `Osprey ${RUN}.md`,
+      extension: 'md',
+      bytes,
+      sha256,
+    };
+    const accepted = await acceptQuizUpload(ctx(), upload);
+    expect(accepted.reused).toBe(false);
+    expect(accepted.fileName).toBe(`Osprey ${RUN}.md`);
+
+    const document = await prisma.knowledgeDocument.findUniqueOrThrow({
+      where: { id: accepted.documentId },
+      select: {
+        sourceId: true,
+        source: { select: { usableForGeneration: true, connection: true } },
+      },
+    });
+    expect(document.sourceId).toBe(accepted.sourceId);
+    expect(document.source.usableForGeneration).toBe(true);
+    expect((document.source.connection as { localRoot: string }).localRoot).toBe(
+      sourceRoot(ROOT, STUDIO_QUIZ),
+    );
+    // Written into the quiz folder, never into the Originals folder.
+    const stored = await prisma.studioUpload.findUniqueOrThrow({ where: { sha256 } });
+    expect(storage.files.get(STUDIO_QUIZ.folder)?.get(stored.storedFileName)).toEqual(bytes);
+    expect(storage.files.get(STUDIO_ORIGINALS.folder)?.has(stored.storedFileName)).toBe(false);
+    expect(
+      await prisma.preparedDocument.findUnique({
+        where: { originalDocumentId: accepted.documentId },
+      }),
+    ).toBeNull();
+    const audit = await prisma.auditEvent.findFirst({
+      where: { action: 'AUTHORING.DOCUMENT_PREPARATION.UPLOAD_ACCEPTED', entityId: stored.id },
+      select: { detail: true },
+    });
+    expect((audit?.detail as { destination?: string }).destination).toBe('QUIZ');
+
+    // The same file again is the same document, not a refusal.
+    const again = await acceptQuizUpload(ctx(), { ...upload, originalFileName: 'again.md' });
+    expect(again).toMatchObject({ documentId: accepted.documentId, reused: true });
+  });
+
+  it('Simple mode: a file waiting in the full Studio is refused, not generated from unprepared', async () => {
+    const bytes = new Uint8Array(Buffer.from(SOP(`Heron${RUN}`, 5), 'utf8'));
+    const sha256 = (await import('node:crypto')).createHash('sha256').update(bytes).digest('hex');
+    const upload = {
+      storage,
+      sync,
+      originalFileName: `Heron ${RUN}.md`,
+      extension: 'md',
+      bytes,
+      sha256,
+    };
+    await acceptUpload(ctx(), upload);
+    await expect(acceptQuizUpload(ctx(), upload)).rejects.toMatchObject({ code: 'DUPLICATE' });
+  });
+
+  it('Simple mode: a job from a quiz upload passes the source check the Originals source fails', async () => {
+    const bytes = new Uint8Array(Buffer.from(SOP(`Plover${RUN}`, 2), 'utf8'));
+    const sha256 = (await import('node:crypto')).createHash('sha256').update(bytes).digest('hex');
+    const accepted = await acceptQuizUpload(ctx(), {
+      storage,
+      sync,
+      originalFileName: `Plover ${RUN}.md`,
+      extension: 'md',
+      bytes,
+      sha256,
+    });
+    const domain = await prisma.domain.findFirstOrThrow({
+      where: { code: 'SUPPORT_OPS' },
+      select: { id: true },
+    });
+    const topic = await prisma.topic.findFirstOrThrow({
+      where: { domainId: domain.id },
+      select: { id: true },
+    });
+    const preflightFor = async (sourceId: string, documentId: string) =>
+      prisma.generationPreflight.create({
+        data: {
+          sourceId,
+          documentIds: [documentId],
+          checkResults: {},
+          recommendation: 'GENERATE_NEW',
+          chosenAction: 'GENERATE_NEW',
+          chosenAt: systemClock.now(),
+          chosenByUserId: actor.userId,
+          expiresAt: new Date(systemClock.now().getTime() + 10 * 60 * 1000),
+          correlationId: 'studio-simple-it',
+          createdByUserId: actor.userId,
+        },
+        select: { id: true },
+      });
+    const job = (preflightId: string) =>
+      createGenerationJob({
+        prisma,
+        clock: systemClock,
+        preflightId,
+        scope: 'ENTIRE_DOCUMENT',
+        domainId: domain.id,
+        topicId: topic.id,
+        reasonCode: 'NEW_KNOWLEDGE',
+        requestedQuestionCount: 3,
+        actor: { ...actor, permissions: ['question.generate'] },
+        correlationId: 'studio-simple-it',
+        requestId: 'studio-simple-it',
+      });
+
+    const created = await job((await preflightFor(accepted.sourceId, accepted.documentId)).id);
+    expect(created.sourceId).toBe(accepted.sourceId);
+
+    // The control the quiz source exists to keep: an original is still refused.
+    const original = await prisma.knowledgeDocument.findUniqueOrThrow({
+      where: { id: originalDocumentId },
+      select: { sourceId: true },
+    });
+    await expect(
+      job((await preflightFor(original.sourceId, originalDocumentId)).id),
+    ).rejects.toMatchObject({ code: 'SOURCE_NOT_GENERATION_ENABLED' });
+  });
+
+  it('Simple mode: the mode is one audited setting, and switching it twice changes nothing', async () => {
+    const before = await readStudioMode(prisma);
+    const other = before === 'SIMPLE' ? 'FULL' : 'SIMPLE';
+    const base = {
+      prisma,
+      clock: systemClock,
+      actor,
+      correlationId: `studio-mode-${RUN}`,
+      requestId: randomUUID(),
+    };
+    try {
+      expect(await setStudioMode({ ...base, mode: other })).toEqual({ mode: other, changed: true });
+      expect(await readStudioMode(prisma)).toBe(other);
+      expect(await setStudioMode({ ...base, mode: other })).toEqual({
+        mode: other,
+        changed: false,
+      });
+      const change = await prisma.configurationChange.findFirst({
+        where: { key: STUDIO_MODE_KEY, correlationId: `studio-mode-${RUN}` },
+        select: { newValue: true },
+      });
+      expect(change?.newValue).toBe(other);
+      const audit = await prisma.auditEvent.findFirst({
+        where: { action: 'ADMIN.CONFIGURATION.UPDATED', entityId: STUDIO_MODE_KEY },
+        orderBy: { occurredAt: 'desc' },
+        select: { newValue: true, detail: true },
+      });
+      expect(audit?.newValue).toEqual({ mode: other });
+      expect((audit?.detail as { key?: string }).key).toBe(STUDIO_MODE_KEY);
+    } finally {
+      // The dev database's own choice is put back.
+      await setStudioMode({ ...base, mode: before });
+    }
   });
 });

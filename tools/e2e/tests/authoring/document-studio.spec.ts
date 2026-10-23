@@ -13,7 +13,7 @@
 //   4. a learner is refused, with the reason.
 
 import { expect, test } from '@playwright/test';
-import { actAs, api, IDENTITY } from '../support/portal';
+import { actAs, api, IDENTITY, setStudioMode } from '../support/portal';
 
 const AUTHORING = process.env['E2E_AUTHORING_URL'] ?? 'http://localhost:3000';
 const PAGE = `${AUTHORING}/document-studio`;
@@ -28,6 +28,19 @@ interface Status {
 }
 
 test.describe('AI Document Studio', () => {
+  // The overview and readiness are the FULL Studio's (§12): pinned for the run, then put back.
+  let previousMode: 'SIMPLE' | 'FULL' = 'SIMPLE';
+  test.beforeAll(async ({ playwright }) => {
+    const request = await playwright.request.newContext();
+    previousMode = await setStudioMode(request, 'FULL');
+    await request.dispose();
+  });
+  test.afterAll(async ({ playwright }) => {
+    const request = await playwright.request.newContext();
+    await setStudioMode(request, previousMode);
+    await request.dispose();
+  });
+
   test('is its own sidebar entry, between Import Questions and generation', async ({ page }) => {
     await actAs(page, IDENTITY.administrator);
     await page.goto(PAGE);

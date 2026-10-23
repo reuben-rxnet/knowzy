@@ -482,7 +482,14 @@ export const generationRoutes = [
         where: { id: params.data.jobId },
         include: {
           rejections: { orderBy: { createdAt: 'asc' } },
-          documents: { include: { document: { select: { name: true } } } },
+          documents: {
+            include: {
+              document: {
+                select: { name: true, studioUpload: { select: { originalFileName: true } } },
+              },
+            },
+          },
+          questions: { select: { id: true }, orderBy: { createdAt: 'asc' } },
           _count: { select: { questions: true } },
         },
       });
@@ -496,9 +503,13 @@ export const generationRoutes = [
         scope: job.scope,
         reasonCode: job.reasonCode,
         modelId: job.modelId,
+        domainId: job.domainId,
+        topicId: job.topicId,
         requestedQuestionCount: job.requestedQuestionCount,
         acceptedQuestionCount: job.acceptedQuestionCount,
         persistedQuestionCount: job._count.questions,
+        // The Simple Studio's result page lists the drafts a job produced.
+        questionIds: job.questions.map((row) => row.id),
         rejectionCounts: job.rejectionCounts,
         startedAt: job.startedAt,
         completedAt: job.completedAt,
@@ -509,6 +520,8 @@ export const generationRoutes = [
         documents: job.documents.map((row) => ({
           documentId: row.documentId,
           name: row.document.name,
+          // The uploaded file's own name for a Studio upload; a label only.
+          displayName: row.document.studioUpload?.originalFileName ?? row.document.name,
           sourceVersionAtRun: row.sourceVersionAtRun,
           contentHashAtRun: row.contentHashAtRun,
           outcome: row.outcome,

@@ -420,6 +420,7 @@ export type {
   PreparationWarningKind,
 } from './document-studio/checks.js';
 export {
+  acceptQuizUpload,
   acceptUpload,
   addToRepository,
   DocumentPreparationError,
@@ -458,9 +459,22 @@ export {
   sourceRoot,
   STUDIO_ORIGINALS,
   STUDIO_PREPARED,
+  STUDIO_QUIZ,
   studioFilePath,
 } from './document-studio/studio-sources.js';
-export type { StudioStorage, StudioSync } from './document-studio/studio-sources.js';
+export type {
+  StudioStorage,
+  StudioSync,
+  UploadSourceSpec,
+} from './document-studio/studio-sources.js';
+export {
+  DEFAULT_STUDIO_MODE,
+  readStudioMode,
+  setStudioMode,
+  STUDIO_MODE_KEY,
+  STUDIO_MODES,
+  type StudioMode,
+} from './document-studio/studio-mode.js';
 export {
   extensionOf,
   inspectUpload,

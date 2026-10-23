@@ -7,5 +7,11 @@
     "moduleResolution": "bundler",
     "module": "esnext"
   },
-  "include": ["tests/**/*.ts", "playwright.config.ts"]
+  "include": [
+    "tests/**/*.ts",
+    "playwright.config.ts",
+    "global-setup.ts",
+    "global-teardown.ts",
+    "studio-mode.ts"
+  ]
 }

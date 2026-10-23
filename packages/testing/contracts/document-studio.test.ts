@@ -132,6 +132,8 @@ describe('AI Document Studio: the routes', () => {
     expect(urls).toEqual([
       '/api/v1/authoring/document-studio/status',
       '/api/v1/authoring/document-studio/approvals/:providerId',
+      '/api/v1/authoring/document-studio/mode',
+      '/api/v1/authoring/document-studio/mode',
       '/api/v1/authoring/document-studio/documents',
       '/api/v1/authoring/document-studio/documents',
       '/api/v1/authoring/document-studio/documents/:id',
@@ -154,6 +156,68 @@ describe('AI Document Studio: the routes', () => {
     expect(codeOf('apps', 'api', 'src', 'routes', 'document-studio.ts')).toMatch(
       /confirmed: z\.literal\(true\)/,
     );
+  });
+});
+
+describe('AI Document Studio: Simple mode (§12)', () => {
+  const quick = (): string =>
+    codeOf('apps', 'authoring-web', 'src', 'app', 'document-studio', 'quick-actions.ts');
+
+  it('keeps preflight, decision and job, in that order, behind one click', () => {
+    const code = quick();
+    const preflight = code.indexOf("'/api/v1/authoring/generation/preflight'");
+    const decide = code.indexOf('/decide`');
+    const job = code.indexOf("'/api/v1/authoring/generation-jobs'");
+    expect(preflight).toBeGreaterThan(-1);
+    expect(decide).toBeGreaterThan(preflight);
+    expect(job).toBeGreaterThan(decide);
+  });
+
+  it('follows only a recommendation that authorizes generation, and never regenerates', () => {
+    const code = quick();
+    expect(code).toMatch(
+      /GENERATE_NEW: \{ scope: 'ENTIRE_DOCUMENT', reasonCode: 'NEW_KNOWLEDGE' \}/,
+    );
+    expect(code).not.toMatch(/'REGENERATE'|PUBLISHER_REQUESTED/);
+  });
+
+  it('generating never approves or publishes: those are their own clicks', () => {
+    const code = quick();
+    const generate = code.slice(
+      code.indexOf('export const generateQuizAction'),
+      code.indexOf('export const setStudioModeAction'),
+    );
+    expect(generate.length).toBeGreaterThan(0);
+    expect(generate).not.toMatch(/question-bank\/publish|\/approve|\/submit|\/claim/);
+  });
+
+  it('approves only the questions a person ticked, through the real transitions', () => {
+    const code = quick();
+    expect(code).toMatch(/formData\s*\.getAll\('questionIds'\)/);
+    expect(code).toMatch(/AUTHOR_REVIEW: 'submit'/);
+    expect(code).toMatch(/SUBMITTED_FOR_APPROVAL: 'approve'/);
+    const review = codeOf('apps', 'authoring-web', 'src', 'components', 'QuickQuizReview.tsx');
+    // Unticked by default, and no "select all": each approval is a decision.
+    expect(review).not.toMatch(/defaultChecked|select all|selectAll/i);
+  });
+
+  it('publishes a quiz of exactly the approved questions', () => {
+    const code = quick();
+    expect(code).toMatch(/selectionStrategy: 'FIXED_SET'/);
+    expect(code).toMatch(/status\(id\) === 'APPROVED'/);
+  });
+
+  it('uploads into its own source, and the Originals source stays unusable for generation', () => {
+    const sources = codeOf('packages', 'domain', 'src', 'document-studio', 'studio-sources.ts');
+    expect(sources).toMatch(/STUDIO_ORIGINALS = \{[^}]*usableForGeneration: false,/);
+    expect(sources).toMatch(/STUDIO_QUIZ = \{[^}]*usableForGeneration: true,/);
+  });
+
+  it('shows the question types it cannot generate as disabled, not as working controls', () => {
+    const form = codeOf('apps', 'authoring-web', 'src', 'components', 'QuickQuiz.tsx');
+    expect(form).toMatch(/value: 'MULTIPLE_CHOICE', available: false/);
+    expect(form).toMatch(/value: 'YES_NO', available: false/);
+    expect(form).toMatch(/disabled=\{!type\.available\}/);
   });
 });
 

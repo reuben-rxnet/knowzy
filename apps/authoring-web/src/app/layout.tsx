@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { headers } from 'next/headers';
 import { publicEnvironmentName } from '@knowzy/configuration';
 import {
+  AUTHORING_NAV,
   AuthoringShell,
   KNOWZY_TAGLINE,
   KNOWZY_WORKFLOW_STAGES,
@@ -11,6 +12,7 @@ import {
 import { t } from '../copy';
 import { IdentityMenu } from '../components/IdentityMenu';
 import { currentSubject, DEMO_SUBJECTS } from '../lib/identity';
+import { api } from '../lib/api';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -51,6 +53,27 @@ const stageForPath = (location: string): string | null => {
 };
 
 /**
+ * The sidebar in the Document Studio's Simple mode (AI_DOCUMENT_STUDIO §12.5):
+ * only the simple path. The other screens are HIDDEN, not removed -- each
+ * still answers at its address, and Full mode shows them again. A failed read
+ * shows the full sidebar: hiding a working screen because a read failed would
+ * be the worse error.
+ */
+const SIMPLE_NAV_HREFS: ReadonlySet<string> = new Set([
+  '/',
+  '/sources',
+  '/document-studio',
+  '/administration/taxonomy',
+]);
+
+const navFor = async () => {
+  const mode = await api<{ mode: string }>('/api/v1/authoring/document-studio/mode');
+  return mode.ok && mode.data.mode === 'SIMPLE'
+    ? AUTHORING_NAV.filter((item) => item.href !== undefined && SIMPLE_NAV_HREFS.has(item.href))
+    : AUTHORING_NAV;
+};
+
+/**
  * Root layout — the authoring shell.
  *
  * UI-M1 replaces the shell only. Every page below renders its existing markup,
@@ -69,11 +92,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   // shell needs one to mark the active navigation item.
   const currentPath = (await headers()).get('x-knowzy-path') ?? '/';
   const stage = stageForPath(currentPath);
+  const nav = await navFor();
 
   return (
     <html lang="en">
       <body>
         <AuthoringShell
+          nav={nav}
           currentPath={currentPath}
           header={{
             portalName: t('app.portal'),

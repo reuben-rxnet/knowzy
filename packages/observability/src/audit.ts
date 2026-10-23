@@ -85,6 +85,8 @@ const DOCUMENT_PREPARATION_KEYS: readonly string[] = [
   'inputTokens',
   'outputTokens',
   'format',
+  // Simple mode (§12): QUIZ on an upload made to generate from directly.
+  'destination',
 ];
 
 const DETAIL_ALLOWLIST: Partial<Record<AuditAction, readonly string[]>> = {

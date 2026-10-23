@@ -26,6 +26,9 @@ const channel = process.env['E2E_BROWSER_CHANNEL'];
 
 export default defineConfig({
   testDir: './tests',
+  // Pins the Document Studio to FULL for the run and restores it (studio-mode.ts).
+  globalSetup: './global-setup.ts',
+  globalTeardown: './global-teardown.ts',
   // One worker, and this is not a performance oversight: the suite drives one
   // shared database through the real workflow, and two workers approving
   // questions at once would produce failures that have nothing to do with the

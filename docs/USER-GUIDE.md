@@ -14,9 +14,11 @@ provider overview), COMPETENCY-M2 (competency administration) and the Authoring 
 Simplification (two identities; self-approval permitted by configuration), AI Document Studio
 Slice 2 (the overview, and the DOCUMENT_RESTRUCTURE approval) and AI Document Studio M3
 (assessment preparation: add, prepare, review and edit, download, add to the repository), and
-its 2026-10-22 accuracy work (preparation in parts, a completeness warning, DOCX/PPTX reading)
-**Last updated:** 2026-10-22 (Document Studio accuracy: long documents prepared in parts, a
-completeness warning, and Word/PowerPoint text read correctly)
+its 2026-10-22 accuracy work (preparation in parts, a completeness warning, DOCX/PPTX reading),
+and the Document Studio's Simple mode (upload a document, choose the quiz settings, generate,
+approve, publish a quiz)
+**Last updated:** 2026-10-22 (Simple mode end to end: approve by ticking, Publish quiz, and a
+shorter sidebar; the full portal is one switch away)
 **Audience:** anyone driving Knowzy in a browser — an author, an approver, a publisher, an
 assessment manager, a learner, or someone being shown the product
 
@@ -297,6 +299,56 @@ A document Knowzy cannot read is always **reported with a reason**. It is never 
 no content, because that would look like a document with nothing in it.
 
 ### 4.2a AI Document Studio — `/document-studio`
+
+#### Simple mode — create a quiz from a document (the default)
+
+Since 2026-10-22 **AI Document Studio** opens on **Create a quiz from a document**, four steps
+shown across the top: **Upload → Choose settings → Approve questions → Publish quiz**. In Simple
+mode the sidebar shows only **Dashboard**, **Knowledge Sources**, **AI Document Studio** and
+**Administration**; every other screen is still there, behind **Switch to the full Studio**.
+
+1. **Upload.** Click the dashed box, or drag a file onto it. Word (.docx), PDF, PowerPoint
+   (.pptx), plain text (.txt) or Markdown (.md), up to 8 MB. The file is checked before it is kept,
+   exactly as in the full Studio below, and read straight away (*Reading your document…*).
+2. **Choose settings.** *What kind of quiz would you like to create?*
+   - **Number of questions**: 1 to 50, 10 to start with.
+   - **Language**: English. Other languages are shown as coming later; the box cannot be changed.
+   - **Topic**: where the questions are filed (domain › topic).
+   - **Type of questions**: **Single choice**. **Multiple choice** and **Yes or No** are shown,
+     greyed out, marked **Coming later**: nothing can generate them yet.
+   - Your file is shown with the number of sections read from it, and **Choose a different file**.
+   - **Generate quiz.** The line under it names who writes the questions: the active AI provider
+     (for example OpenAI and its model), or *the built-in template generator (not AI)*. While it
+     works the button becomes *Writing your questions…*; a long document can take up to a minute.
+3. **Approve questions.** *N questions ready for your review*, with each question, its four
+   options, the **Proposed answer** highlighted and **Show explanation**. Read each one and **tick**
+   the ones you want — nothing is ticked for you — then **Approve selected**. Each ticked question
+   is approved through the same checks as in Review (§4.5), recorded with your name. One the checks
+   refuse shows why on its own card; the rest are still approved. Unticked questions stay
+   **Draft**. *N of M approved* keeps count.
+4. **Publish quiz.** Appears once a question is approved. **Quiz name** (your file's name to start
+   with) and **Pass mark (%)** (70), then **Publish quiz**. The approved questions go to the
+   Question Bank and a quiz of **exactly those questions** is made available to learners; drafts
+   are left out. *"…" is live* follows, with **Open the Live Learning Portal** and **Make another
+   quiz**.
+
+**What Simple mode still checks, without showing you the steps.** Generate quiz runs the same
+duplicate and coverage check (the preflight, §4.3) and records its decision before any question is
+written. If the document already has its questions, nothing is generated and you see *This
+document already has its questions*, with the reason and a link to Review. Uploading the same file
+again is not an error: you go straight to its settings. A file already added in the full Studio
+but not yet prepared is refused, naming it, because an unprepared original is never generated from.
+
+**Simple mode does not prepare the document**: questions are written from the file as you uploaded
+it. Preparation, side-by-side review, versions, downloads, editing a question and rejecting one with
+a comment are the **full Studio** and the Review screens, behind the switch.
+
+**Switching.** At the foot of the page the Authoring Administrator sees **Switch to the full
+Studio** (and, in the full Studio, **Switch to the simple Studio**). It changes what everybody sees
+at this address, and which sidebar everyone sees, and is recorded with who changed it. Nothing is deleted either way: documents,
+versions and questions made in one mode are still there in the other.
+
+#### The full Studio
 
 **Its own entry in the sidebar**, between **Import Questions** and **AI Quiz Generation**. It
 prepares a document so questions can be generated from it more accurately, **without ever
@@ -1708,6 +1760,7 @@ Everything is done as the **Authoring Administrator** until step 10.
 | **A connection test against an AI provider** | **Real for OpenAI** (§4.3f), directly or through an Azure API Management gateway: the secret is resolved and the endpoint, key and model are checked with content-free GET requests. Behind a gateway with no model discovery, the model check reads SKIPPED. Not real for any other external provider, which has no client — its live checks read NOT ATTEMPTED |
 | **Generating questions with OpenAI (Codex)** | **Built, not yet run.** The generation client exists and its proposals go through the full gate chain, but it is refused until the T-29 approval is recorded, and no working credential is configured. The Generate screen does not offer it yet. See docs/integrations/OPENAI_CODEX_EVALUATION_RESULTS.md |
 | **Azure Key Vault** | Not real. `keyvault://` references are accepted and reported as unreadable here; the local secure store works in the local environment only |
+| **Multiple choice, Yes or No, other languages** | Not built. The Simple Studio (§4.2a) shows them greyed out as **Coming later**; every question is single choice with four options, in English |
 | **AI document preparation** | **Real.** Upload or choose a document, prepare it, review, edit, download it as Word or PDF, add it to the Question Generation Repository and generate from it (§4.2a). OpenAI prepares documents only while the DOCUMENT_RESTRUCTURE approval (CP-5) is recorded; in the local build the Authoring Administrator recorded it on 2026-10-14. Without it, the local build falls back to a **test preparation that is not AI**, labelled as such everywhere. Uploads are not scanned for malware: no scanner is configured |
 | **Badges and certificates** | Not built. **Badges** and My Learnings show the badge designs and a certificate as labelled **previews** (§5.5); nothing is awarded |
 | **My Learnings, Discover, Badges, Knowledge Library, My Progress, Help & Support** | **Previews only** (§5.5). Each shows the finished design with every illustrative block framed and every control in a frame disabled; the parts built from your assessments, and the help guides and FAQ, are real |
@@ -1771,3 +1824,5 @@ the log below.
 | 2026-10-07 | E2E fixtures | The browser test suite now owns a source, **E2E Synthetic Corpus** (§9), and writes a fresh invented procedure into it each run, because it had used up the template-generator drafts on Mock Support Operations |
 | 2026-10-14 | AI Document Studio M3 | The Studio (§4.2a) now prepares documents. Four views: **Add document** (upload a .docx, .pdf, .pptx, .md or .txt up to 8 MB, checked before it is kept, or **Choose** a synchronized document), **My prepared documents**, **History** and **Readiness** (the Slice 2 overview and approvals). The banner says *AI document preparation is not yet enabled for this environment. Contact your administrator.* until the DOCUMENT_RESTRUCTURE approval is recorded; locally a **test preparation, labelled not AI**, runs instead. A document's page: **Prepare for question generation**, original and prepared side by side with reworded text highlighted, **Warnings**, **Missing or unclear information**, **Edit** with **Save changes**, **Restore AI version** and **Discard draft**, **Download Word** and **Download PDF**, and **Add to Question Generation Repository** with its confirmation, then **Generate questions now**. Generate preselects the document and labels it *Assessment-prepared document*; a question generated from one shows its lineage on its page. New refusals: a figure not in the original, an upload that fails a check, a duplicate upload or addition, and a version whose original changed (*Revalidation required*) |
 | 2026-10-22 | Document Studio accuracy | **Preparation keeps the whole document** (§4.2a). A long document is now prepared in parts, several at once: on the pilot SOPs the share of the original's words kept rose from 69% to 98% on the longest, and it finished faster. A new warning, **Content may be missing**, appears when a prepared document keeps less than nine tenths of the original's words and lists the lines that went; **Possibly removed** no longer fires on a warning that was merged into a step. **Word and PowerPoint files are read correctly** (§4.2): an empty paragraph next to a table no longer swallows the table (one pilot SOP had lost half its text), text after a comment or a chart is no longer dropped, and paragraphs in a table cell and lines of a code block are no longer glued together. The next synchronization re-reads the affected documents, which gives them a new version |
+| 2026-10-22 | Document Studio Simple mode | **AI Document Studio now opens on Create a quiz from a document** (§4.2a): **Upload** (a drop zone for .pdf, .docx, .pptx, .txt and .md up to 8 MB) → **Choose settings** (Number of questions, Topic, Single choice; Multiple choice, Yes or No and other languages shown greyed out as **Coming later**) → **Generate quiz** → the drafts, each with its proposed answer, and **Review and approve questions**. Questions are generated from the uploaded file directly, without preparation; the duplicate check still runs, and a document that already has its questions says so instead. The full Studio of 2026-10-14 is unchanged behind **Switch to the full Studio**, at the foot of the page for the Authoring Administrator |
+| 2026-10-22 | Simple mode: approve and publish | The simple Studio now goes all the way to a quiz learners can take (§4.2a). **Approve questions**: tick each question you want (none is ticked for you) and **Approve selected**; a refused question shows why on its own card. **Publish quiz**: a quiz name and a pass mark, then one click publishes the approved questions and a quiz of **exactly those questions**; *"…" is live* links to the Live Learning Portal. **In Simple mode the sidebar shows only Dashboard, Knowledge Sources, AI Document Studio and Administration**; the other screens return with **Switch to the full Studio** |

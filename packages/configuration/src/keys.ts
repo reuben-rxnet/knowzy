@@ -735,6 +735,20 @@ export const CONFIG_KEYS = {
     layers: PLATFORM_ONLY,
     scopes: ['PLATFORM'],
   }),
+
+  // ------------------------------------------------- AI Document Studio
+  'documentStudio.mode': decl({
+    key: 'documentStudio.mode',
+    // AI_DOCUMENT_STUDIO_ARCHITECTURE.md §12. SIMPLE is upload -> quiz
+    // settings -> generate, straight from the uploaded document; FULL is the
+    // M3 Studio (preparation, review, versions, downloads). Switching hides
+    // screens and removes nothing: every route, row and audit stays.
+    description: 'Which Document Studio people see: SIMPLE (upload and generate) or FULL (M3).',
+    schema: z.enum(['SIMPLE', 'FULL']),
+    defaultValue: 'SIMPLE' as 'SIMPLE' | 'FULL',
+    layers: PLATFORM_ONLY,
+    scopes: ['PLATFORM'],
+  }),
 } as const;
 
 export type ConfigKey = keyof typeof CONFIG_KEYS;

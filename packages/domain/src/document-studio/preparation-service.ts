@@ -62,8 +62,10 @@ import {
   findStudioSourceIds,
   STUDIO_ORIGINALS,
   STUDIO_PREPARED,
+  STUDIO_QUIZ,
   type StudioStorage,
   type StudioSync,
+  type UploadSourceSpec,
 } from './studio-sources.js';
 
 export class DocumentPreparationError extends Error {
@@ -249,6 +251,68 @@ const titleFrom = (fileName: string): string => {
   return (stem.length > 0 ? stem : fileName).slice(0, 200);
 };
 
+interface UploadArgs {
+  readonly storage: StudioStorage;
+  readonly sync: StudioSync;
+  readonly originalFileName: string;
+  readonly extension: string;
+  readonly bytes: Uint8Array;
+  readonly sha256: string;
+}
+
+/**
+ * Writes an inspected upload into one of the Studio's upload sources,
+ * synchronizes it and returns its document. The extraction control: a file
+ * the platform cannot read does not stay.
+ */
+const storeAndExtract = async (
+  ctx: StudioContext,
+  args: UploadArgs,
+  spec: UploadSourceSpec,
+): Promise<{
+  readonly sourceId: string;
+  readonly storedFileName: string;
+  readonly document: { readonly id: string };
+}> => {
+  const sourceId = await ensureStudioSource({
+    prisma: ctx.prisma,
+    clock: ctx.clock,
+    actor: sourceActor(ctx),
+    storage: args.storage,
+    sync: args.sync,
+    spec,
+  });
+  // Server-generated: the user's name is a label and never reaches the disk.
+  const storedFileName = `${randomUUID()}.${args.extension}`;
+  await args.storage.writeOriginal(storedFileName, args.bytes, spec);
+  await args.sync.synchronize(sourceId);
+
+  const document = await ctx.prisma.knowledgeDocument.findFirst({
+    where: { sourceId, name: storedFileName, status: 'ACTIVE' },
+    select: { id: true, extractionStatus: true, extractionReason: true },
+  });
+  if (document === null || document.extractionStatus !== 'EXTRACTED') {
+    // Its row is marked DELETED, because a FULL sync does not notice a file
+    // that has gone (EVAL-M1 F2).
+    await args.storage.removeOriginal(storedFileName, spec);
+    if (document !== null) {
+      await ctx.prisma.knowledgeDocument.update({
+        where: { id: document.id },
+        data: { status: 'DELETED' },
+      });
+    }
+    const reason = document?.extractionReason ?? 'The file could not be read after it was stored.';
+    await recordUploadRefused(ctx, {
+      control: 'EXTRACTION',
+      reason,
+      extension: args.extension,
+      sizeBytes: args.bytes.length,
+    });
+    throw new DocumentPreparationError('UPLOAD_REFUSED', reason);
+  }
+  return { sourceId, storedFileName, document };
+};
+
 /**
  * An inspected, extracted upload becomes an original document. The API has
  * already run every content control (inspectUpload, extractContent); this is
@@ -256,14 +320,7 @@ const titleFrom = (fileName: string): string => {
  */
 export const acceptUpload = async (
   ctx: StudioContext,
-  args: {
-    readonly storage: StudioStorage;
-    readonly sync: StudioSync;
-    readonly originalFileName: string;
-    readonly extension: string;
-    readonly bytes: Uint8Array;
-    readonly sha256: string;
-  },
+  args: UploadArgs,
 ): Promise<{ readonly preparedDocumentId: string; readonly originalDocumentId: string }> => {
   const duplicate = await ctx.prisma.studioUpload.findUnique({
     where: { sha256: args.sha256 },
@@ -286,43 +343,7 @@ export const acceptUpload = async (
     );
   }
 
-  const sourceId = await ensureStudioSource({
-    prisma: ctx.prisma,
-    clock: ctx.clock,
-    actor: sourceActor(ctx),
-    storage: args.storage,
-    sync: args.sync,
-    spec: STUDIO_ORIGINALS,
-  });
-  // Server-generated: the user's name is a label and never reaches the disk.
-  const storedFileName = `${randomUUID()}.${args.extension}`;
-  await args.storage.writeOriginal(storedFileName, args.bytes);
-  await args.sync.synchronize(sourceId);
-
-  const document = await ctx.prisma.knowledgeDocument.findFirst({
-    where: { sourceId, name: storedFileName, status: 'ACTIVE' },
-    select: { id: true, extractionStatus: true, extractionReason: true },
-  });
-  if (document === null || document.extractionStatus !== 'EXTRACTED') {
-    // The extraction control: a file the platform cannot read does not stay.
-    // Its row is marked DELETED, because a FULL sync does not notice a file
-    // that has gone (EVAL-M1 F2).
-    await args.storage.removeOriginal(storedFileName);
-    if (document !== null) {
-      await ctx.prisma.knowledgeDocument.update({
-        where: { id: document.id },
-        data: { status: 'DELETED' },
-      });
-    }
-    const reason = document?.extractionReason ?? 'The file could not be read after it was stored.';
-    await recordUploadRefused(ctx, {
-      control: 'EXTRACTION',
-      reason,
-      extension: args.extension,
-      sizeBytes: args.bytes.length,
-    });
-    throw new DocumentPreparationError('UPLOAD_REFUSED', reason);
-  }
+  const { sourceId, storedFileName, document } = await storeAndExtract(ctx, args, STUDIO_ORIGINALS);
 
   const auditWriter = createAuditWriter({ clock: ctx.clock });
   return ctx.prisma.$transaction(async (tx: TransactionClient) => {
@@ -364,6 +385,123 @@ export const acceptUpload = async (
       },
     });
     return { preparedDocumentId: prepared.id, originalDocumentId: document.id };
+  });
+};
+
+/**
+ * Simple mode (§12): an upload to make a quiz from DIRECTLY. It lands in the
+ * Quick quiz uploads source, which is usable for generation, and no prepared
+ * document is created -- nothing is prepared.
+ *
+ * The same file uploaded again is not an error here: the person is asking for
+ * a quiz from a document the platform already holds, so its document is
+ * returned. A file uploaded in the full Studio is returned only once a
+ * prepared version of it is in the repository; until then it exists only as
+ * an original that is not usable for generation, and the refusal says so.
+ */
+export const acceptQuizUpload = async (
+  ctx: StudioContext,
+  args: UploadArgs,
+): Promise<{
+  readonly documentId: string;
+  readonly sourceId: string;
+  readonly fileName: string;
+  readonly reused: boolean;
+}> => {
+  const duplicate = await ctx.prisma.studioUpload.findUnique({
+    where: { sha256: args.sha256 },
+    select: {
+      originalFileName: true,
+      knowledgeDocument: {
+        select: {
+          id: true,
+          sourceId: true,
+          status: true,
+          extractionStatus: true,
+          preparedFrom: {
+            select: {
+              versions: {
+                where: { state: 'READY_FOR_QUESTION_GENERATION' },
+                select: { repositoryDocumentId: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (duplicate !== null) {
+    const studio = await findStudioSourceIds(ctx.prisma, args.storage.root);
+    const held = duplicate.knowledgeDocument;
+    if (
+      held !== null &&
+      held.sourceId === studio.quiz &&
+      held.status === 'ACTIVE' &&
+      held.extractionStatus === 'EXTRACTED'
+    ) {
+      return {
+        documentId: held.id,
+        sourceId: held.sourceId,
+        fileName: duplicate.originalFileName,
+        reused: true,
+      };
+    }
+    const repositoryDocumentId =
+      held?.preparedFrom?.versions.find((version) => version.repositoryDocumentId !== null)
+        ?.repositoryDocumentId ?? null;
+    if (repositoryDocumentId !== null && studio.prepared !== null) {
+      return {
+        documentId: repositoryDocumentId,
+        sourceId: studio.prepared,
+        fileName: duplicate.originalFileName,
+        reused: true,
+      };
+    }
+    await recordUploadRefused(ctx, {
+      control: 'DUPLICATE',
+      reason: `The same file was uploaded before as "${duplicate.originalFileName}".`,
+      extension: args.extension,
+      sizeBytes: args.bytes.length,
+    });
+    throw new DocumentPreparationError(
+      'DUPLICATE',
+      `This file is already in the full Document Studio as "${duplicate.originalFileName}", waiting to be prepared. Ask an administrator to prepare it there, or upload a different file.`,
+    );
+  }
+
+  const { sourceId, storedFileName, document } = await storeAndExtract(ctx, args, STUDIO_QUIZ);
+  const auditWriter = createAuditWriter({ clock: ctx.clock });
+  return ctx.prisma.$transaction(async (tx: TransactionClient) => {
+    const upload = await tx.studioUpload.create({
+      data: {
+        originalFileName: args.originalFileName,
+        storedFileName,
+        extension: args.extension,
+        sizeBytes: args.bytes.length,
+        sha256: args.sha256,
+        uploadedByUserId: ctx.actor.userId,
+        uploadedAt: ctx.clock.now(),
+        knowledgeDocumentId: document.id,
+      },
+      select: { id: true, scanStatus: true },
+    });
+    await auditWriter.write(tx, {
+      ...auditBase(ctx),
+      action: 'AUTHORING.DOCUMENT_PREPARATION.UPLOAD_ACCEPTED',
+      outcome: 'SUCCESS',
+      entityType: 'StudioUpload',
+      entityId: upload.id,
+      entityLabel: args.originalFileName.slice(0, 200),
+      sourceId,
+      detail: {
+        destination: 'QUIZ',
+        originalDocumentId: document.id,
+        extension: args.extension,
+        sizeBytes: args.bytes.length,
+        scanStatus: upload.scanStatus,
+      },
+    });
+    return { documentId: document.id, sourceId, fileName: args.originalFileName, reused: false };
   });
 };
 
